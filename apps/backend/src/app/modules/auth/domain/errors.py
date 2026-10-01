@@ -8,3 +8,11 @@ class InvalidSession(AuthError):
 
 class InvalidOneTimeToken(AuthError):
     """The token is expired, consumed or not yet valid."""
+
+
+class InvalidRegistration(AuthError):
+    """The email or password does not satisfy registration requirements."""
+
+
+class RegistrationConflict(AuthError):
+    """The email address already belongs to an account."""

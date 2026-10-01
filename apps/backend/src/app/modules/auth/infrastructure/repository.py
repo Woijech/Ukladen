@@ -5,8 +5,41 @@ from uuid import UUID
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from app.modules.auth.domain.entities import AuthSession
-from app.modules.auth.infrastructure.orm import SessionModel
+from app.modules.auth.domain.entities import AuthSession, OneTimeToken
+from app.modules.auth.infrastructure.orm import CredentialModel, OneTimeTokenModel, SessionModel
+
+
+class SqlAlchemyRegistrationRepository:
+    """Persist registration records without committing the caller's transaction."""
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def create_credential(self, user_id: UUID, password_hash: str, created_at: datetime) -> None:
+        self.session.add(
+            CredentialModel(
+                user_id=user_id,
+                password_hash=password_hash,
+                password_updated_at=created_at,
+                created_at=created_at,
+                updated_at=created_at,
+            )
+        )
+        self.session.flush()
+
+    def create_one_time_token(self, token: OneTimeToken) -> None:
+        self.session.add(
+            OneTimeTokenModel(
+                id=token.id,
+                user_id=token.user_id,
+                token_type=token.token_type,
+                token_hash=token.token_hash,
+                created_at=token.created_at,
+                expires_at=token.expires_at,
+                used_at=token.used_at,
+            )
+        )
+        self.session.flush()
 
 
 class SqlAlchemySessionRepository:

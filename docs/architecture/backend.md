@@ -1,7 +1,8 @@
 # Ukladen Backend Foundation
 
-Status: foundation, auth contracts, persistence, password/token helpers and
-session services implemented. HTTP authentication endpoints are not implemented.
+Status: foundation, auth contracts, persistence, password/token helpers, session
+services and registration application flow implemented. HTTP authentication
+endpoints and email delivery are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -18,6 +19,10 @@ connection settings. Object storage credentials use `SecretStr`. Configuration
 must be supplied at startup; there are no hard-coded application credentials.
 `AUTH_SESSION_TTL_SECONDS` sets the lifetime used by `SessionService` and defaults
 to 30 days (2,592,000 seconds). It must be positive. Cookie settings are not implemented.
+`AUTH_PASSWORD_MIN_LENGTH` defaults to 12 characters and accepts values from 1 to
+1024. Registration rejects passwords longer than 1024 characters before hashing.
+`AUTH_EMAIL_VERIFICATION_TTL_SECONDS` defaults to 24 hours (86,400 seconds) and
+must be positive. These settings are used by `RegistrationService`.
 
 ## Database
 
@@ -65,7 +70,8 @@ Browser sessions follow [ADR 0002](../adr/0002-use-opaque-browser-sessions.md).
 `Argon2PasswordHasher` implements the password port using pwdlib's recommended
 Argon2id settings and random salts. Verification returns false for incorrect
 passwords and malformed or unsupported stored hashes. It does not log passwords
-or hashes. Password policy and authentication endpoints are not implemented.
+or hashes. Registration enforces length limits without trimming passwords or
+requiring particular character classes. Authentication endpoints are not implemented.
 
 `generate_token` uses `secrets.token_urlsafe(32)` to generate opaque tokens from
 32 cryptographically random bytes. `hash_token` returns a lowercase SHA-256 digest
@@ -93,6 +99,28 @@ Use short validation transactions and complete them before beginning mutation
 transactions; commit mutations only after the service returns successfully.
 Sessions must be revoked through the service to invalidate Redis. HTTP/cookie
 integration, account-status checks and user-owned session endpoints are not implemented.
+
+`RegistrationService` validates bare email addresses using the standard library,
+trims surrounding whitespace and lowercases the email. It rejects display names,
+comments, header injection, missing address parts and addresses longer than 320
+characters. It preserves password whitespace and supports Unicode passwords.
+It creates a user through the users-owned `UserRegistration` interface, then
+persists an Argon2id credential, an opaque session and an email-verification token
+through auth ports. The user remains active with `email_verified_at` unset.
+
+`SqlAlchemyUserRegistration` uses PostgreSQL `ON CONFLICT DO NOTHING` against the
+case-insensitive email index. A conflict becomes `RegistrationConflict`, without
+overwriting or linking the existing account or exposing SQL exception details.
+`SqlAlchemyRegistrationRepository` persists credentials and one-time tokens.
+All adapters must share the same SQLAlchemy session and caller-owned transaction;
+roll back on any error to avoid partial registration. None commits independently.
+
+`RegistrationResult` carries user metadata and the raw session/verification tokens
+for later delivery. Its representation hides both tokens. Only token hashes and
+the password hash are persisted; registration does not publish session data to
+Redis. Commit successfully before delivering cookies or verification email.
+HTTP registration, cookies, CSRF/rate limiting, Celery email delivery and
+verification confirmation remain unimplemented in this application-only step.
 
 ## HTTP
 
@@ -140,3 +168,9 @@ revocation and transaction rollback on invalidation failure. Set
 `AUTH_TEST_REDIS_URL` to run the Redis integration check. PostgreSQL concurrency
 tests use committed temporary schemas, drop them afterward, and exercise both
 orders of cache filling versus revocation through separate connections and row locks.
+
+Registration tests cover invalid inputs without side effects, configurable password
+and verification-token limits, normalization, Argon2id persistence, hidden raw-token
+representations, duplicate emails for accounts with/without passwords, and rollback
+of all registration records after a late failure. PostgreSQL tests reuse the isolated
+temporary-schema fixture and roll back their changes.

@@ -1,7 +1,8 @@
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from app.modules.auth.domain.entities import AuthSession
+from app.modules.auth.domain.entities import AuthSession, OneTimeToken
 
 
 class SessionCacheUnavailable(Exception):
@@ -12,6 +13,16 @@ class PasswordHasher(Protocol):
     def hash(self, password: str) -> str: ...
 
     def verify(self, password: str, password_hash: str) -> bool: ...
+
+
+class RegistrationRepository(Protocol):
+    """Persist credentials and one-time tokens in the caller's transaction."""
+
+    def create_credential(
+        self, user_id: UUID, password_hash: str, created_at: datetime
+    ) -> None: ...
+
+    def create_one_time_token(self, token: OneTimeToken) -> None: ...
 
 
 class SessionRepository(Protocol):
