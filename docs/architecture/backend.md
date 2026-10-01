@@ -1,6 +1,6 @@
 # Ukladen Backend Foundation
 
-Status: foundation, auth domain/application contracts and persistence implemented;
+Status: foundation, auth contracts, persistence and password/token helpers implemented;
 runtime business functionality is not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
@@ -59,6 +59,16 @@ does not commit: callers own transactions. Session validity checks remain separa
 from persistence. Redis adapters, authentication services and endpoints are not implemented.
 Browser sessions follow [ADR 0002](../adr/0002-use-opaque-browser-sessions.md).
 
+`Argon2PasswordHasher` implements the password port using pwdlib's recommended
+Argon2id settings and random salts. Verification returns false for incorrect
+passwords and malformed or unsupported stored hashes. It does not log passwords
+or hashes. Password policy and authentication endpoints are not implemented.
+
+`generate_token` uses `secrets.token_urlsafe(32)` to generate opaque tokens from
+32 cryptographically random bytes. `hash_token` returns a lowercase SHA-256 digest
+for persistence and lookup. These helpers do not store or log the raw token;
+session creation and token-delivery flows are not implemented.
+
 ## HTTP
 
 | Endpoint | Behavior |
@@ -89,6 +99,8 @@ tests. pytest covers liveness, readiness success/failure, sanitized failures,
 OpenAPI and invalid connection settings without requiring external services.
 Auth domain tests cover session expiry/revocation, one-time-token expiry and replay,
 timezone-aware timestamps and omission of token hashes from object representations.
+Security helper tests cover salted Argon2id hashes, correct/incorrect passwords,
+malformed stored hashes, opaque token generation and a SHA-256 test vector.
 
 PostgreSQL persistence tests cover the migration upgrade/downgrade, metadata drift,
 case-insensitive email uniqueness, identity/token constraints, foreign keys, cascades,
