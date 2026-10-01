@@ -1,4 +1,4 @@
-# Local Development
+# Ukladen Local Development
 
 Status: foundation only. Review it before starting business-feature work.
 
@@ -47,6 +47,20 @@ Stopping the stack preserves database and object volumes. Source edits require a
 image rebuild; the full stack runs built applications rather than source mounts.
 No authentication or other business endpoints exist.
 
+## Project Name and Existing Data
+
+The product is **Ukladen**. Compose uses project `ukladen`, database `ukladen`,
+images `ukladen-backend:local` and `ukladen-web:local`, and named volumes
+`ukladen_postgres-data` and `ukladen_seaweedfs-data`.
+
+Changing a previous deployment's project name alone selects new, empty volumes.
+Before switching an existing installation, create a private PostgreSQL dump and
+save its configuration. Stop the previous stack without deleting volumes. Copy
+the stopped SeaweedFS volume to the new volume, and restore the PostgreSQL dump
+into the new `ukladen` database before starting migrations and API processes.
+Keep the original volumes and backup until the new installation is verified.
+Credentials and bucket names do not need to change with the product name.
+
 ## Host development
 
 Start only supporting containers, then run applications on the host:
@@ -74,7 +88,7 @@ To run background processes from `apps/backend` in separate terminals:
 
 ```bash
 uv run --env-file ../../.env celery -A app.workers.celery_app:celery_app worker --loglevel=INFO
-uv run --env-file ../../.env celery -A app.workers.celery_app:celery_app beat --loglevel=INFO --schedule=/tmp/student-workspace-beat
+uv run --env-file ../../.env celery -A app.workers.celery_app:celery_app beat --loglevel=INFO --schedule=/tmp/ukladen-beat
 ```
 
 Do not run host Beat together with Compose Beat. There are no periodic business jobs.

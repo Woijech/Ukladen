@@ -1,6 +1,10 @@
-# Architecture Overview
+# Ukladen Architecture Overview
 
 Status: foundation implemented; business functionality is not implemented.
+
+The product name is **Ukladen**. Technical identifiers use lowercase `ukladen`:
+the Compose project, Celery application and default PostgreSQL database. Package
+and image names are `ukladen-backend` and `ukladen-web`.
 
 `SYSTEM_ARCHITECTURE.md` remains the primary architecture contract. The repository
 contains one Python backend and one Next.js frontend. The API, Celery worker and

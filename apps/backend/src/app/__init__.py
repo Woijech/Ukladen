@@ -1,1 +1,1 @@
-"""BSUIR Student Workspace modular monolith."""
+"""Ukladen modular monolith."""

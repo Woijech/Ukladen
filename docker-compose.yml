@@ -1,7 +1,7 @@
-name: student-workspace
+name: ukladen
 
 x-backend: &backend
-  image: student-workspace-backend:local
+  image: ukladen-backend:local
   build: ./apps/backend
   env_file: .env
   environment: &backend-environment
@@ -94,6 +94,7 @@ services:
       api: { condition: service_healthy }
 
   web:
+    image: ukladen-web:local
     build: ./apps/web
     init: true
     ports: ["127.0.0.1:3000:3000"]

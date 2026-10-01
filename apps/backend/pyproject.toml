@@ -1,7 +1,7 @@
 [project]
-name = "student-workspace-backend"
+name = "ukladen-backend"
 version = "0.1.0"
-description = "Modular monolith foundation for BSUIR Student Workspace"
+description = "Modular monolith foundation for Ukladen"
 requires-python = ">=3.14,<3.15"
 dependencies = [
   "fastapi>=0.115,<1",

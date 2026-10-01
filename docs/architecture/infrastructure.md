@@ -1,8 +1,12 @@
-# Infrastructure Foundation
+# Ukladen Infrastructure Foundation
 
 Status: local Compose deployment implemented. Production deployment is not implemented.
 
 ## Runtime
+
+The Compose project is `ukladen`. Images are `ukladen-backend:local` and
+`ukladen-web:local`; default data volumes are `ukladen_postgres-data` and
+`ukladen_seaweedfs-data`. The default PostgreSQL database is `ukladen`.
 
 | Process | Implementation |
 | --- | --- |

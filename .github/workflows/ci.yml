@@ -1,4 +1,4 @@
-name: Foundation CI
+name: Ukladen Foundation CI
 
 on:
   push:

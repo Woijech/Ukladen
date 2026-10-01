@@ -3,8 +3,8 @@ import { Providers } from "@/shared/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "BSUIR Student Workspace",
-  description: "A personal student workspace for BSUIR students.",
+  title: "Ukladen",
+  description: "Ukladen — a personal student workspace for BSUIR students.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

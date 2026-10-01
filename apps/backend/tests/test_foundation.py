@@ -34,7 +34,9 @@ def test_health_endpoints_and_dependency_failure(monkeypatch: pytest.MonkeyPatch
         assert response.json()["checks"]["redis"] is False
         assert "secret" not in response.text
         assert client.get("/api/health/live").status_code == 200
-        assert client.get("/api/openapi.json").status_code == 200
+        response = client.get("/api/openapi.json")
+        assert response.status_code == 200
+        assert response.json()["info"]["title"] == "Ukladen"
 
 
 def test_settings_reject_invalid_connection_urls(monkeypatch: pytest.MonkeyPatch) -> None:

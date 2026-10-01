@@ -23,7 +23,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             engine.dispose()
 
     application = FastAPI(
-        title="BSUIR Student Workspace",
+        title="Ukladen",
         version="0.1.0",
         docs_url="/api/docs",
         redoc_url=None,
