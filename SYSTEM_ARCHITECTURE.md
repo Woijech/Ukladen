@@ -397,11 +397,16 @@ integrations
 ```text
 registration
 login
-access/refresh tokens
+opaque server-side browser sessions
 logout
 password hashing
 sessions
 ```
+
+Browser authentication uses HttpOnly cookies, PostgreSQL as the canonical session
+store and Redis as a session cache. Only session token hashes are persisted.
+[ADR 0002](docs/adr/0002-use-opaque-browser-sessions.md) records this decision.
+Status: runtime authentication is not implemented.
 
 ## 5.2 users
 
