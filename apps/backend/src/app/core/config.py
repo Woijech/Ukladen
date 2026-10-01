@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     s3_access_key: SecretStr
     s3_secret_key: SecretStr
     s3_bucket: str = Field(min_length=1)
+    auth_session_ttl_seconds: int = Field(default=30 * 24 * 60 * 60, gt=0)
 
 
 def get_settings() -> Settings:

@@ -1,7 +1,7 @@
 # Ukladen Backend Foundation
 
-Status: foundation, auth contracts, persistence and password/token helpers implemented;
-runtime business functionality is not implemented.
+Status: foundation, auth contracts, persistence, password/token helpers and
+session services implemented. HTTP authentication endpoints are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -16,6 +16,8 @@ in the process working directory. Required settings are `DATABASE_URL`, `REDIS_U
 `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` and `S3_BUCKET`. URL types validate
 connection settings. Object storage credentials use `SecretStr`. Configuration
 must be supplied at startup; there are no hard-coded application credentials.
+`AUTH_SESSION_TTL_SECONDS` sets the lifetime used by `SessionService` and defaults
+to 30 days (2,592,000 seconds). It must be positive. Cookie settings are not implemented.
 
 ## Database
 
@@ -54,9 +56,10 @@ be enforced by persistence when token flows are added.
 database stack. The cache reuses the domain session data rather than a separate DTO.
 `SqlAlchemySessionRepository` implements session creation, lookup and revocation.
 It returns domain sessions, refreshes lookup results from PostgreSQL, and preserves
-the first revocation timestamp on repeated revocation. It flushes new sessions but
-does not commit: callers own transactions. Session validity checks remain separate
-from persistence. Redis adapters, authentication services and endpoints are not implemented.
+the first revocation timestamp on repeated revocation. Lookups acquire a PostgreSQL
+row lock until transaction completion. Revocation returns affected token hashes,
+including already-revoked sessions, so callers can retry cache invalidation.
+It flushes new sessions but does not commit: callers own transactions.
 Browser sessions follow [ADR 0002](../adr/0002-use-opaque-browser-sessions.md).
 
 `Argon2PasswordHasher` implements the password port using pwdlib's recommended
@@ -66,8 +69,30 @@ or hashes. Password policy and authentication endpoints are not implemented.
 
 `generate_token` uses `secrets.token_urlsafe(32)` to generate opaque tokens from
 32 cryptographically random bytes. `hash_token` returns a lowercase SHA-256 digest
-for persistence and lookup. These helpers do not store or log the raw token;
-session creation and token-delivery flows are not implemented.
+for persistence and lookup. These helpers do not store or log the raw token.
+
+`SessionService` creates sessions and returns an `IssuedSession` whose representation
+omits the raw token. Creation does not publish to Redis; callers must commit before
+delivering the token. Validation accepts the generated 43-character URL-safe token
+format, checks Redis, then falls back to PostgreSQL. Invalid/expired/revoked sessions
+are rejected. Token generation, hashing and the clock are injected; the service does
+not import infrastructure adapters. `last_seen_at` is initialized at creation;
+activity tracking is not implemented and validation does not update it.
+
+`RedisSessionCache` uses Pydantic to serialize and validate domain session data.
+Keys contain token hashes, not raw tokens. Entries expire at the session deadline.
+Malformed, mismatched, expired or revoked entries are treated as cache misses.
+Redis failures are sanitized into `SessionCacheUnavailable`; validation can proceed
+from PostgreSQL when cache reads or writes fail.
+
+Cache filling occurs while the PostgreSQL row lock is held. Revocation locks rows
+and invalidates cache entries before commit, preventing a concurrent cache miss
+from republishing an active session after successful revocation. Invalidation
+failure propagates: callers must roll back instead of reporting successful logout.
+Use short validation transactions and complete them before beginning mutation
+transactions; commit mutations only after the service returns successfully.
+Sessions must be revoked through the service to invalidate Redis. HTTP/cookie
+integration, account-status checks and user-owned session endpoints are not implemented.
 
 ## HTTP
 
@@ -109,3 +134,9 @@ session round trips (including IPv4/IPv6), and revocation. Set
 These tests skip when that variable is unset. Each test migrates a unique temporary
 schema within a transaction that is rolled back afterward; existing tables and data
 are not changed. The migration round trip retains the shared pgvector extension.
+
+Session tests cover cache hits/misses, Redis failures, invalid cache data, expiry,
+revocation and transaction rollback on invalidation failure. Set
+`AUTH_TEST_REDIS_URL` to run the Redis integration check. PostgreSQL concurrency
+tests use committed temporary schemas, drop them afterward, and exercise both
+orders of cache filling versus revocation through separate connections and row locks.

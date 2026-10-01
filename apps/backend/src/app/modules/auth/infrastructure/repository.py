@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from ipaddress import ip_address
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.modules.auth.domain.entities import AuthSession
@@ -35,6 +35,7 @@ class SqlAlchemySessionRepository:
         row = self.session.scalar(
             select(SessionModel)
             .where(SessionModel.token_hash == token_hash)
+            .with_for_update()
             .execution_options(populate_existing=True)
         )
         if row is None:
@@ -51,16 +52,20 @@ class SqlAlchemySessionRepository:
             ip_address=ip_address(row.ip_address) if row.ip_address is not None else None,
         )
 
-    def revoke(self, session_id: UUID) -> None:
-        self.session.execute(
+    def revoke(self, session_id: UUID) -> str | None:
+        return self.session.scalar(
             update(SessionModel)
-            .where(SessionModel.id == session_id, SessionModel.revoked_at.is_(None))
-            .values(revoked_at=datetime.now(UTC))
+            .where(SessionModel.id == session_id)
+            .values(revoked_at=func.coalesce(SessionModel.revoked_at, datetime.now(UTC)))
+            .returning(SessionModel.token_hash)
         )
 
-    def revoke_all_for_user(self, user_id: UUID) -> None:
-        self.session.execute(
-            update(SessionModel)
-            .where(SessionModel.user_id == user_id, SessionModel.revoked_at.is_(None))
-            .values(revoked_at=datetime.now(UTC))
+    def revoke_all_for_user(self, user_id: UUID) -> list[str]:
+        return list(
+            self.session.scalars(
+                update(SessionModel)
+                .where(SessionModel.user_id == user_id)
+                .values(revoked_at=func.coalesce(SessionModel.revoked_at, datetime.now(UTC)))
+                .returning(SessionModel.token_hash)
+            )
         )
