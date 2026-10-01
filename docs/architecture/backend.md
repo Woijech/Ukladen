@@ -1,6 +1,7 @@
 # Ukladen Backend Foundation
 
-Status: foundation implemented; business modules are not implemented.
+Status: foundation and auth domain/application contracts implemented;
+runtime business functionality is not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -26,6 +27,23 @@ models must be imported into Alembic metadata when their migrations are added.
 Alembic gets its URL from application settings. `0001_enable_vector` enables the
 `vector` extension. Schema changes must use migrations. Compose runs migration
 once before starting API processes; HTTP startup does not create tables.
+
+## Authentication contracts
+
+`modules/auth/domain` contains session and one-time-token data with no framework
+imports. Validity checks use an explicit timezone-aware time and reject expired,
+revoked, consumed or not-yet-valid values. Tokens expire at `expires_at`, not after
+it. Session and token representations omit token hashes.
+
+`OneTimeToken.consume` checks validity and records `used_at` on the domain object.
+Atomic database consumption across concurrent requests is not implemented; it must
+be enforced by persistence when token flows are added.
+
+`modules/auth/application/ports.py` defines synchronous `PasswordHasher`,
+`SessionRepository` and `SessionCache` protocols, matching the existing synchronous
+database stack. The cache reuses the domain session data rather than a separate DTO.
+Concrete auth adapters, tables and endpoints are not implemented.
+Browser sessions follow [ADR 0002](../adr/0002-use-opaque-browser-sessions.md).
 
 ## HTTP
 
@@ -55,3 +73,5 @@ tasks are not implemented. Redis does not hold authoritative user data.
 Ruff checks imports/style and formatting; Pyright checks source, migrations and
 tests. pytest covers liveness, readiness success/failure, sanitized failures,
 OpenAPI and invalid connection settings without requiring external services.
+Auth domain tests cover session expiry/revocation, one-time-token expiry and replay,
+timezone-aware timestamps and omission of token hashes from object representations.
