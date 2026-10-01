@@ -44,7 +44,7 @@ def database_connection() -> Iterator[Connection]:
     try:
         with engine.connect() as connection, connection.begin() as transaction:
             connection.execute(CreateSchema(schema))
-            connection.execute(text(f'SET LOCAL search_path TO "{schema}", public'))
+            connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
             connection.dialect.default_schema_name = schema
             command.upgrade(migration_config(connection), "head")
             try:
