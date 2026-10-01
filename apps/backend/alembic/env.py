@@ -3,6 +3,8 @@ from logging.config import fileConfig
 from alembic import context
 from app.core.config import get_settings
 from app.db.session import Base, create_database_engine
+from app.modules.auth.infrastructure import orm as auth_orm  # noqa: F401
+from app.modules.users.infrastructure import orm as users_orm  # noqa: F401
 
 config = context.config
 if config.config_file_name:
@@ -23,6 +25,13 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    connection = config.attributes.get("connection")
+    if connection is not None:
+        context.configure(connection=connection, target_metadata=target_metadata)
+        with context.begin_transaction():
+            context.run_migrations()
+        return
+
     engine = create_database_engine(get_settings())
     try:
         with engine.connect() as connection:

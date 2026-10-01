@@ -1,1 +1,1 @@
-"""Users module boundary. Status: not implemented."""
+"""Canonical user persistence. Profile services and endpoints are not implemented."""
