@@ -98,3 +98,10 @@ class SessionService:
 
     def revoke_all_for_user(self, user_id: UUID) -> None:
         self.cache.delete(*self.repository.revoke_all_for_user(user_id))
+
+    def revoke_others_for_user(self, user_id: UUID, current_session_id: UUID) -> None:
+        current = self.repository.get_for_user(current_session_id, user_id)
+        if current is None:
+            raise InvalidSession("Invalid or expired session.")
+        current.require_active(self.now())
+        self.cache.delete(*self.repository.revoke_others_for_user(user_id, current_session_id))

@@ -1,9 +1,11 @@
 # Ukladen Backend Foundation
 
 Status: foundation, auth contracts, persistence, password/token helpers, session
-services, registration, email-verification, password-login and password-reset application flows implemented.
+services, registration, email-verification, password-login, password-reset and
+password-change application flows implemented.
 Browser password login/logout, session-management endpoints and CSRF bootstrap are implemented.
-HTTP registration/verification/password-reset, email delivery and password change are not implemented.
+HTTP registration/verification/password-reset/password-change and email delivery
+are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -238,7 +240,34 @@ implemented. Their future transport must return a generic request acknowledgemen
 regardless of account existence, add CSRF/rate protection, and deliver reset email
 asynchronously through an `EmailSender` boundary after commit. Provider selection
 and public reset integration remain TODOs; the current service has no mail-vendor
-dependency. Password change is a separate, unimplemented flow.
+dependency.
+
+`PasswordRecoveryService.change_password` requires the current password and an
+owned current-session UUID. Current passwords accept 1 to 1024 characters so
+existing credentials remain usable after the registration minimum changes. New
+passwords use the same private validation/hashing helper as reset confirmation,
+with the configured minimum, a maximum of 1024 characters and preserved whitespace
+and Unicode. The new hash is computed before acquiring database locks.
+
+The service locks the active user and credential, verifies the current password
+and updates the existing credential and its timestamps. Disabled users, missing
+or malformed credentials and incorrect current passwords produce the same
+`Invalid current password.` error. It does not create credentials or link accounts.
+It then calls `SessionService.revoke_others_for_user`. This service locks the
+retained session directly in PostgreSQL with both session/owner UUIDs and checks
+expiry after acquiring the lock, bypassing Redis. A missing, foreign, expired,
+revoked or future retained session raises `InvalidSession` and the caller must
+roll back the credential update.
+
+Revocation updates only the user's other sessions and invalidates their cache
+entries before commit, including already-revoked sessions for retry. The first
+revocation timestamp is preserved. The current session's token, cache entry,
+expiry and metadata remain unchanged; another user's sessions are unaffected.
+User, credential and retained-session locks remain held until transaction
+completion. Concurrent changes recheck the current password after waiting for
+the user lock. The caller must roll back every error, including cache invalidation
+failure. If there are no other sessions, no Redis deletion is needed.
+Status: the HTTP password-change endpoint is not implemented.
 
 ## HTTP
 
@@ -359,3 +388,12 @@ acquisition. PostgreSQL/Redis checks cover credential timestamps, token consumpt
 revocation of all owned sessions without affecting another user, rollback/retry on
 cache failure, replay rejection and competing confirmations after commit/rollback.
 They also verify that user and credential locks remain held until commit.
+
+Password-change tests cover shared password policy, current-password bounds and
+verification, generic credential errors, canonical retained-session ownership and
+validity, and expiry after lock acquisition. PostgreSQL/Redis checks verify
+credential timestamps, retention of the current token/cache, revocation and replay
+rejection for other sessions, preservation of another user's sessions, no cache
+deletion when there are no other sessions, and rollback/retry after cache failure.
+Competing changes exercise user/session locks and password rechecking after the
+first transaction commits or rolls back.

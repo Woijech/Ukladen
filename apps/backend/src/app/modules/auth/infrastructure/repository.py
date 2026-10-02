@@ -172,6 +172,15 @@ class SqlAlchemySessionRepository:
             ip_address=ip_address(row.ip_address) if row.ip_address is not None else None,
         )
 
+    def get_for_user(self, session_id: UUID, user_id: UUID) -> AuthSession | None:
+        row = self.session.scalar(
+            select(SessionModel)
+            .where(SessionModel.id == session_id, SessionModel.user_id == user_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return self._to_domain(row) if row is not None else None
+
     def list_active_for_user(self, user_id: UUID, now: datetime) -> list[AuthSession]:
         rows = self.session.scalars(
             select(SessionModel)
@@ -207,6 +216,16 @@ class SqlAlchemySessionRepository:
             self.session.scalars(
                 update(SessionModel)
                 .where(SessionModel.user_id == user_id)
+                .values(revoked_at=func.coalesce(SessionModel.revoked_at, datetime.now(UTC)))
+                .returning(SessionModel.token_hash)
+            )
+        )
+
+    def revoke_others_for_user(self, user_id: UUID, current_session_id: UUID) -> list[str]:
+        return list(
+            self.session.scalars(
+                update(SessionModel)
+                .where(SessionModel.user_id == user_id, SessionModel.id != current_session_id)
                 .values(revoked_at=func.coalesce(SessionModel.revoked_at, datetime.now(UTC)))
                 .returning(SessionModel.token_hash)
             )

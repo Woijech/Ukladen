@@ -13,7 +13,12 @@ from app.modules.auth.application.ports import (
 from app.modules.auth.application.registration import normalize_email
 from app.modules.auth.application.service import SessionService
 from app.modules.auth.domain.entities import OneTimeToken, TokenType
-from app.modules.auth.domain.errors import InvalidOneTimeToken, InvalidPassword, InvalidRegistration
+from app.modules.auth.domain.errors import (
+    InvalidCredentials,
+    InvalidOneTimeToken,
+    InvalidPassword,
+    InvalidRegistration,
+)
 from app.modules.users.application.ports import UserAuthentication
 
 
@@ -68,12 +73,8 @@ class PasswordRecoveryService:
     def confirm_reset(self, token: str, new_password: str) -> UUID:
         if re.fullmatch(r"[A-Za-z0-9_-]{43}", token) is None:
             raise InvalidOneTimeToken("Invalid or expired token.")
-        if not self.minimum_password_length <= len(new_password) <= 1024:
-            raise InvalidPassword(
-                f"Password must contain between {self.minimum_password_length} and 1024 characters."
-            )
         # Hash before acquiring database locks; check expiry only after acquiring them.
-        password_hash = self.passwords.hash(new_password)
+        password_hash = self._hash_new_password(new_password)
         stored = self.repository.get_by_token_hash(self.hash_token(token))
         if stored is None or stored.token_type != TokenType.PASSWORD_RESET:
             raise InvalidOneTimeToken("Invalid or expired token.")
@@ -89,3 +90,25 @@ class PasswordRecoveryService:
         self.repository.mark_used(stored.id, now)
         self.sessions.revoke_all_for_user(stored.user_id)
         return stored.user_id
+
+    def change_password(
+        self, user_id: UUID, current_session_id: UUID, current_password: str, new_password: str
+    ) -> None:
+        if not 1 <= len(current_password) <= 1024:
+            raise InvalidCredentials("Invalid current password.")
+        password_hash = self._hash_new_password(new_password)
+        if not self.users.lock_active(user_id):
+            raise InvalidCredentials("Invalid current password.")
+        stored_hash = self.credentials.get_password_hash(user_id)
+        if stored_hash is None or not self.passwords.verify(current_password, stored_hash):
+            raise InvalidCredentials("Invalid current password.")
+        if not self.credentials.update_password_hash(user_id, password_hash, self.now()):
+            raise InvalidCredentials("Invalid current password.")
+        self.sessions.revoke_others_for_user(user_id, current_session_id)
+
+    def _hash_new_password(self, new_password: str) -> str:
+        if not self.minimum_password_length <= len(new_password) <= 1024:
+            raise InvalidPassword(
+                f"Password must contain between {self.minimum_password_length} and 1024 characters."
+            )
+        return self.passwords.hash(new_password)
