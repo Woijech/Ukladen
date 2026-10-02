@@ -2,13 +2,16 @@
 
 Status: foundation, auth contracts, persistence, password/token helpers, session
 services, registration, email-verification and password-login application flows implemented.
-HTTP authentication endpoints and email delivery are not implemented.
+Browser password login/logout endpoints and CSRF bootstrap are implemented.
+HTTP registration/verification and email delivery are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
 The application lifespan creates shared health clients, a SQLAlchemy engine and
-session factory, then disposes them on shutdown. Importing the API does not connect
-to PostgreSQL or Redis.
+session factory, and an Argon2 password hasher with a dummy hash generated once
+at startup. Authentication reuses the health clients' Redis connection, closed by
+their shutdown handler; the engine is also disposed on shutdown. Importing the API
+does not connect to PostgreSQL/Redis or hash passwords.
 
 ## Configuration
 
@@ -18,11 +21,25 @@ in the process working directory. Required settings are `DATABASE_URL`, `REDIS_U
 connection settings. Object storage credentials use `SecretStr`. Configuration
 must be supplied at startup; there are no hard-coded application credentials.
 `AUTH_SESSION_TTL_SECONDS` sets the lifetime used by `SessionService` and defaults
-to 30 days (2,592,000 seconds). It must be positive. Cookie settings are not implemented.
+to 30 days (2,592,000 seconds). It must be positive and also sets cookie lifetime.
 `AUTH_PASSWORD_MIN_LENGTH` defaults to 12 characters and accepts values from 1 to
 1024. Registration rejects passwords longer than 1024 characters before hashing.
 `AUTH_EMAIL_VERIFICATION_TTL_SECONDS` defaults to 24 hours (86,400 seconds) and
 must be positive. These settings are used by `RegistrationService`.
+
+`AUTH_SESSION_COOKIE_NAME` and `AUTH_CSRF_COOKIE_NAME` default to
+`__Host-ukladen_session` and `__Host-ukladen_csrf`. Cookies are HttpOnly, use
+`Path=/` without a domain, and default to `AUTH_COOKIE_SECURE=true` and
+`AUTH_COOKIE_SAMESITE=lax` (`strict` is also supported). Names must be distinct;
+`__Host-`/`__Secure-` names require Secure. `.env.example` explicitly selects
+unprefixed cookie names and disables Secure for local HTTP development.
+Settings validation errors omit input values to avoid exposing credentials.
+
+`AUTH_ALLOWED_ORIGINS` is a JSON list of exact browser origins, with no credentials,
+path, query or fragment. An empty list denies authentication mutations. Prefer
+same-origin deployment; the API does not install CORS middleware.
+`AUTH_LOGIN_RATE_LIMIT` defaults to 10 and `AUTH_LOGIN_RATE_WINDOW_SECONDS` to 60;
+both must be positive.
 
 ## Database
 
@@ -72,7 +89,7 @@ Browser sessions follow [ADR 0002](../adr/0002-use-opaque-browser-sessions.md).
 Argon2id settings and random salts. Verification returns false for incorrect
 passwords and malformed or unsupported stored hashes. It does not log passwords
 or hashes. Registration enforces length limits without trimming passwords or
-requiring particular character classes. Authentication endpoints are not implemented.
+requiring particular character classes. HTTP registration is not implemented.
 
 `generate_token` uses `secrets.token_urlsafe(32)` to generate opaque tokens from
 32 cryptographically random bytes. `hash_token` returns a lowercase SHA-256 digest
@@ -98,9 +115,11 @@ from republishing an active session after successful revocation. Invalidation
 failure propagates: callers must roll back instead of reporting successful logout.
 Use short validation transactions and complete them before beginning mutation
 transactions; commit mutations only after the service returns successfully.
-Sessions must be revoked through the service to invalidate Redis. HTTP/cookie
-integration, account-status checks during session validation and user-owned session
-endpoints are not implemented.
+Sessions must be revoked through the service to invalidate Redis. The authenticated
+HTTP dependency validates the cookie and checks the canonical user's active status
+in PostgreSQL on every request, including cache hits. Its short transaction completes
+before the route starts a mutation transaction. User-owned session listing and
+individual session-management endpoints are not implemented.
 
 `RegistrationService` validates bare email addresses using the standard library,
 trims surrounding whitespace and lowercases the email. It rejects display names,
@@ -121,8 +140,9 @@ roll back on any error to avoid partial registration. None commits independently
 for later delivery. Its representation hides both tokens. Only token hashes and
 the password hash are persisted; registration does not publish session data to
 Redis. Commit successfully before delivering cookies or verification email.
-HTTP registration, cookies, CSRF/rate limiting, Celery email delivery and
-HTTP verification confirmation remain unimplemented.
+HTTP registration, Celery email delivery and HTTP verification confirmation remain
+unimplemented. Cookie delivery, CSRF protection and rate limiting are implemented
+for password login.
 
 `EmailVerificationService` accepts the generated 43-character URL-safe token format
 and looks up only its hash through `EmailVerificationRepository`. The SQLAlchemy
@@ -156,16 +176,17 @@ on failure and commit before delivering a session token.
 
 Login verifies a supplied dummy Argon2 hash when no active user/password credential
 is found, reducing the timing difference from skipping password verification.
-Callers should generate that hash once at startup with the same password hasher;
-HTTP startup wiring is not implemented. Matching the dummy hash cannot authenticate
+HTTP startup generates that hash once with the same password hasher.
+Matching the dummy hash cannot authenticate
 an account without a real credential. Unverified active users can log in.
 Successful login returns the existing `IssuedSession` DTO and stores only the
 opaque token hash. It does not publish the new session to Redis.
 
 Application logout uses the existing `SessionService.revoke`; logout-all uses
 `SessionService.revoke_all_for_user`. Both invalidate Redis within the caller-owned
-transaction. HTTP login/logout, cookie delivery/clearing, authenticated request
-dependencies, rate limiting and CSRF protection remain unimplemented.
+transaction. HTTP login delivers its cookie only after commit; logout/logout-all
+clear the cookie only after successful revocation and commit. Failed cache
+invalidation rolls back revocation and retains the browser cookie for retry.
 
 ## HTTP
 
@@ -175,6 +196,35 @@ dependencies, rate limiting and CSRF protection remain unimplemented.
 | `GET /api/health/ready` | Checks PostgreSQL, Redis and SeaweedFS; returns 200 or 503. |
 | `GET /api/docs` | Interactive Swagger UI. |
 | `GET /api/openapi.json` | Generated OpenAPI schema. |
+| `GET /api/v1/auth/csrf` | Sets/reuses an HttpOnly CSRF cookie and returns its token. |
+| `POST /api/v1/auth/login` | Password login; returns user/session IDs and expiry, and sets a session cookie. |
+| `POST /api/v1/auth/logout` | Revokes the current session, clears its cookie and returns 204. |
+| `POST /api/v1/auth/logout-all` | Revokes the current user's sessions, clears the cookie and returns 204. |
+
+Authentication POST requests require an exact allowed `Origin` and matching
+43-character URL-safe tokens in the CSRF cookie and `X-CSRF-Token` header, compared
+in constant time. CSRF bootstrap rejects `Sec-Fetch-Site: cross-site` and reuses an
+existing valid token. The JSON token enables header submission while the cookie
+remains HttpOnly. Clients must include cookies. Production `__Host-` cookies also
+prevent subdomains from injecting domain-scoped authentication cookies.
+
+`RedisRateLimiter` uses an atomic INCR/EXPIRE Lua script for fixed login windows;
+denied attempts do not extend expiry. It keys limits by the hash of the ASGI peer
+address and does not parse forwarded headers itself. Configure trusted proxy
+handling at the server when deploying behind a proxy, or clients share the proxy's
+limit. Exceeded limits return 429 with `Retry-After`; unavailable or invalid Redis
+limiter state fails closed with a sanitized 503 response.
+
+Login returns Pydantic DTOs without raw session tokens or hashes; the token appears
+only in `Set-Cookie`. Password input uses `SecretStr` and is hidden from DTO
+representations. Session metadata uses the parsed peer IP and a user agent capped
+at 1024 characters. Credentials produce a generic 401; invalid/expired sessions
+and inactive users produce 401 and clear the session cookie. Repeating logout
+without a valid cookie therefore returns 401. SQL/cache/limiter failures return
+503 without connection details. Request validation returns a generic 422 without
+echoing input, including malformed JSON. Token-bearing responses, authentication
+results and these sanitized error responses use `Cache-Control: no-store`.
+CSRF rejection returns 403.
 
 Responses are Pydantic DTOs. The readiness service performs checks outside route
 handlers. Dependency failures are returned as booleans without connection details.
@@ -233,3 +283,10 @@ hash-only storage. PostgreSQL checks cover malformed/missing credentials, disabl
 accounts, rollback after session insertion, and user/credential locks until commit.
 Integration tests exercise login followed by logout and logout-all, including Redis
 invalidation and preservation of another user's sessions.
+
+HTTP tests cover cookie flags, CSRF/origin rejection, generic secret-safe errors,
+rate limits, commit failure, logout transaction boundaries and inactive users.
+With both integration URLs set, they also exercise complete browser flows against
+PostgreSQL/Redis in isolated temporary schemas, including replay rejection, account
+disabling, Redis validation fallback and revocation rollback/retry. Redis tests
+verify the native limiter's window and expiry and remove their generated test keys.

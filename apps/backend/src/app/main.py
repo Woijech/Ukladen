@@ -6,6 +6,10 @@ from fastapi import FastAPI, Request, Response
 from app.core.config import Settings, get_settings
 from app.core.health import HealthChecks, HealthResponse
 from app.db.session import create_database_engine, create_session_factory
+from app.modules.auth.infrastructure.password_hasher import Argon2PasswordHasher
+from app.modules.auth.infrastructure.request_protection import RedisRateLimiter
+from app.modules.auth.infrastructure.token_service import generate_token
+from app.modules.auth.presentation.routes import install_auth
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -16,7 +20,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         health = HealthChecks(engine, config)
         application.state.health = health
         application.state.session_factory = create_session_factory(engine)
+        application.state.settings = config
+        application.state.redis = health.redis
+        application.state.rate_limiter = RedisRateLimiter(health.redis)
+        application.state.passwords = Argon2PasswordHasher()
         try:
+            application.state.dummy_password_hash = application.state.passwords.hash(
+                generate_token()
+            )
             yield
         finally:
             health.close()
@@ -30,6 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url="/api/openapi.json",
         lifespan=lifespan,
     )
+    install_auth(application)
 
     @application.get("/api/health/live", response_model=HealthResponse)
     def liveness() -> HealthResponse:

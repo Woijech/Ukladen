@@ -1,9 +1,11 @@
-from pydantic import AnyHttpUrl, Field, PostgresDsn, RedisDsn, SecretStr
+from typing import Literal
+
+from pydantic import AnyHttpUrl, Field, PostgresDsn, RedisDsn, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)
 
     database_url: PostgresDsn
     redis_url: RedisDsn
@@ -14,6 +16,39 @@ class Settings(BaseSettings):
     auth_session_ttl_seconds: int = Field(default=30 * 24 * 60 * 60, gt=0)
     auth_password_min_length: int = Field(default=12, gt=0, le=1024)
     auth_email_verification_ttl_seconds: int = Field(default=24 * 60 * 60, gt=0)
+    auth_session_cookie_name: str = Field(
+        default="__Host-ukladen_session", pattern=r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+    )
+    auth_csrf_cookie_name: str = Field(
+        default="__Host-ukladen_csrf", pattern=r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+    )
+    auth_cookie_secure: bool = True
+    auth_cookie_samesite: Literal["lax", "strict"] = "lax"
+    auth_allowed_origins: list[AnyHttpUrl] = Field(default_factory=list)
+    auth_login_rate_limit: int = Field(default=10, gt=0)
+    auth_login_rate_window_seconds: int = Field(default=60, gt=0)
+
+    @model_validator(mode="after")
+    def validate_browser_auth(self) -> Settings:
+        names = (self.auth_session_cookie_name, self.auth_csrf_cookie_name)
+        if names[0] == names[1]:
+            raise ValueError("Session and CSRF cookie names must differ.")
+        if not self.auth_cookie_secure and any(
+            name.startswith(("__Host-", "__Secure-")) for name in names
+        ):
+            raise ValueError("Prefixed authentication cookies require Secure.")
+        for origin in self.auth_allowed_origins:
+            if (
+                origin.username
+                or origin.password
+                or origin.path not in (None, "/")
+                or origin.query
+                or origin.fragment
+            ):
+                raise ValueError(
+                    "Authentication origins must contain only a scheme, host and optional port."
+                )
+        return self
 
 
 def get_settings() -> Settings:

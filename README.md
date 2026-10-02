@@ -175,7 +175,9 @@ User-facing product text may initially be Russian.
 Phase 0 foundation is implemented. The repository contains a FastAPI modular
 monolith, Next.js shell, PostgreSQL 18/pgvector, Redis, Celery worker and Beat,
 SeaweedFS object storage, Traefik, Docker Compose and GitHub Actions CI.
-No business functionality is implemented.
+Authentication is partially implemented: application registration and email
+verification, plus browser password login, logout and logout-all. Registration
+and verification HTTP endpoints, email delivery and authentication UI are not implemented.
 
 ```text
 apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests
@@ -195,6 +197,21 @@ Open <http://localhost:8080> and <http://localhost:8080/api/docs>.
 All published ports bind to localhost. The first image build requires network
 access to download dependencies and images. These are local development settings.
 
+If `.env` already exists, copy the browser authentication settings from
+`.env.example` into it for local HTTP access. Production defaults use Secure
+`__Host-` cookies; local HTTP uses distinct unprefixed cookies with
+`AUTH_COOKIE_SECURE=false`. Set `AUTH_ALLOWED_ORIGINS` to the exact frontend
+origins (HTTPS in production). This allowlist provides CSRF validation, not CORS.
+
+For browser password login, call `GET /api/v1/auth/csrf` with cookies enabled,
+retain its `csrf_token`, then send it as `X-CSRF-Token` together with cookies and
+the browser's `Origin` on `POST /api/v1/auth/login` (`email` and `password` JSON).
+Successful login delivers an HttpOnly session cookie after committing the session.
+`POST /api/v1/auth/logout` and `/api/v1/auth/logout-all` require the same CSRF
+protection and return 204 after revocation. Login permits 10 attempts per client
+address per 60-second window by default. Public registration is not available yet,
+so login currently requires an existing account.
+
 Read [Local Development](docs/development/local-development.md) for host setup,
 checks and troubleshooting. Implementation details are in
 [Architecture Overview](docs/architecture/overview.md),
@@ -202,5 +219,6 @@ checks and troubleshooting. Implementation details are in
 and [Infrastructure](docs/architecture/infrastructure.md).
 
 Local storage uses SeaweedFS; [ADR 0001](docs/adr/0001-use-seaweedfs.md) records
-the provider decision. Production storage remains a separate deployment decision. Real IIS integration, authentication, calendar,
-tasks, notes, materials, search, AI and RAG remain **not implemented**.
+the provider decision. Production storage remains a separate deployment decision.
+Authentication is partially implemented as described above. Real IIS integration,
+calendar, tasks, notes, materials, search, AI and RAG remain **not implemented**.

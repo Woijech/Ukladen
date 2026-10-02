@@ -1,0 +1,152 @@
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.modules.auth.application.login import LoginService
+from app.modules.auth.application.ports import RateLimiterUnavailable, SessionCacheUnavailable
+from app.modules.auth.domain.errors import InvalidCredentials, InvalidSession
+from app.modules.auth.infrastructure.token_service import generate_token
+from app.modules.auth.presentation.dependencies import (
+    Config,
+    CurrentSession,
+    Database,
+    Sessions,
+    client_ip,
+    get_login,
+    is_token,
+    limit_login,
+    require_csrf,
+)
+from app.modules.auth.presentation.schemas import CsrfResponse, LoginRequest, LoginResponse
+
+router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+
+def clear_session_cookie(response: Response, settings: Config) -> None:
+    response.delete_cookie(
+        settings.auth_session_cookie_name,
+        path="/",
+        secure=settings.auth_cookie_secure,
+        httponly=True,
+        samesite=settings.auth_cookie_samesite,
+    )
+
+
+@router.get("/csrf", response_model=CsrfResponse)
+def csrf(request: Request, response: Response, settings: Config) -> CsrfResponse:
+    if request.headers.get("sec-fetch-site") == "cross-site":
+        raise HTTPException(403, "CSRF validation failed.")
+    token = request.cookies.get(settings.auth_csrf_cookie_name)
+    if not is_token(token):
+        token = generate_token()
+    response.set_cookie(
+        settings.auth_csrf_cookie_name,
+        token,
+        max_age=settings.auth_session_ttl_seconds,
+        path="/",
+        secure=settings.auth_cookie_secure,
+        httponly=True,
+        samesite=settings.auth_cookie_samesite,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return CsrfResponse(csrf_token=token)
+
+
+@router.post(
+    "/login",
+    response_model=LoginResponse,
+    dependencies=[Depends(require_csrf), Depends(limit_login)],
+)
+def login(
+    payload: LoginRequest,
+    request: Request,
+    response: Response,
+    settings: Config,
+    database: Database,
+    service: Annotated[LoginService, Depends(get_login)],
+) -> LoginResponse:
+    with database.begin():
+        issued = service.login(
+            payload.email,
+            payload.password.get_secret_value(),
+            user_agent=request.headers.get("user-agent", "")[:1024] or None,
+            ip_address=client_ip(request),
+        )
+    response.set_cookie(
+        settings.auth_session_cookie_name,
+        issued.token,
+        max_age=settings.auth_session_ttl_seconds,
+        expires=issued.session.expires_at,
+        path="/",
+        secure=settings.auth_cookie_secure,
+        httponly=True,
+        samesite=settings.auth_cookie_samesite,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return LoginResponse(
+        user_id=issued.session.user_id,
+        session_id=issued.session.id,
+        expires_at=issued.session.expires_at,
+    )
+
+
+@router.post("/logout", status_code=204, dependencies=[Depends(require_csrf)])
+def logout(
+    current: CurrentSession, database: Database, sessions: Sessions, settings: Config
+) -> Response:
+    with database.begin():
+        sessions.revoke(current.id)
+    response = Response(status_code=204, headers={"Cache-Control": "no-store"})
+    clear_session_cookie(response, settings)
+    return response
+
+
+@router.post("/logout-all", status_code=204, dependencies=[Depends(require_csrf)])
+def logout_all(
+    current: CurrentSession, database: Database, sessions: Sessions, settings: Config
+) -> Response:
+    with database.begin():
+        sessions.revoke_all_for_user(current.user_id)
+    response = Response(status_code=204, headers={"Cache-Control": "no-store"})
+    clear_session_cookie(response, settings)
+    return response
+
+
+def install_auth(application: FastAPI) -> None:
+    def invalid_request(request: Request, error: Exception) -> JSONResponse:
+        return JSONResponse(
+            {"detail": "Invalid request."}, status_code=422, headers={"Cache-Control": "no-store"}
+        )
+
+    def invalid_credentials(request: Request, error: Exception) -> JSONResponse:
+        return JSONResponse(
+            {"detail": "Invalid email or password."},
+            status_code=401,
+            headers={"Cache-Control": "no-store"},
+        )
+
+    def invalid_session(request: Request, error: Exception) -> JSONResponse:
+        response = JSONResponse(
+            {"detail": "Invalid or expired session."},
+            status_code=401,
+            headers={"Cache-Control": "no-store"},
+        )
+        clear_session_cookie(response, request.app.state.settings)
+        return response
+
+    def unavailable(request: Request, error: Exception) -> JSONResponse:
+        return JSONResponse(
+            {"detail": "Service unavailable."},
+            status_code=503,
+            headers={"Cache-Control": "no-store"},
+        )
+
+    application.add_exception_handler(RequestValidationError, invalid_request)
+    application.add_exception_handler(InvalidCredentials, invalid_credentials)
+    application.add_exception_handler(InvalidSession, invalid_session)
+    for error_type in (SQLAlchemyError, SessionCacheUnavailable, RateLimiterUnavailable):
+        application.add_exception_handler(error_type, unavailable)
+    application.include_router(router)

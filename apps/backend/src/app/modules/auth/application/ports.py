@@ -9,6 +9,16 @@ class SessionCacheUnavailable(Exception):
     """A cache operation could not finish safely."""
 
 
+class RateLimiterUnavailable(Exception):
+    """Request protection could not finish safely."""
+
+
+class RateLimiter(Protocol):
+    def check(self, key: str, limit: int, window_seconds: int) -> tuple[bool, int]:
+        """Return whether the request is allowed and seconds until the window expires."""
+        ...
+
+
 class PasswordHasher(Protocol):
     def hash(self, password: str) -> str: ...
 
