@@ -1,8 +1,8 @@
 # Ukladen Backend Foundation
 
 Status: foundation, auth contracts, persistence, password/token helpers, session
-services and registration application flow implemented. HTTP authentication
-endpoints and email delivery are not implemented.
+services, registration and email-verification application flows implemented.
+HTTP authentication endpoints and email delivery are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -53,8 +53,9 @@ revoked, consumed or not-yet-valid values. Tokens expire at `expires_at`, not af
 it. Session and token representations omit token hashes.
 
 `OneTimeToken.consume` checks validity and records `used_at` on the domain object.
-Atomic database consumption across concurrent requests is not implemented; it must
-be enforced by persistence when token flows are added.
+Email verification uses this check under a PostgreSQL row lock and persists the
+consumption in the same transaction as the user update. Password-reset token
+consumption is not implemented.
 
 `modules/auth/application/ports.py` defines synchronous `PasswordHasher`,
 `SessionRepository` and `SessionCache` protocols, matching the existing synchronous
@@ -120,7 +121,23 @@ for later delivery. Its representation hides both tokens. Only token hashes and
 the password hash are persisted; registration does not publish session data to
 Redis. Commit successfully before delivering cookies or verification email.
 HTTP registration, cookies, CSRF/rate limiting, Celery email delivery and
-verification confirmation remain unimplemented in this application-only step.
+HTTP verification confirmation remain unimplemented.
+
+`EmailVerificationService` accepts the generated 43-character URL-safe token format
+and looks up only its hash through `EmailVerificationRepository`. The SQLAlchemy
+adapter selects email-verification tokens with `FOR UPDATE` and refreshes their
+state. The service checks expiry and consumes the domain token after acquiring the
+lock, so time spent waiting cannot allow an expired token through. Unknown,
+expired, already-used, not-yet-valid and password-reset tokens are rejected.
+
+`SqlAlchemyEmailVerifier` implements the users-owned `EmailVerifier` interface.
+It records `email_verified_at`, preserves any earlier verification timestamp and
+does not change user status. Both adapters must share one SQLAlchemy session and
+caller-owned transaction. Commit only after confirmation succeeds; roll back any
+exception, including a missing or failed user update. Token-row locks remain held
+until transaction completion, so concurrent confirmations cannot both consume a
+token. A failed transaction leaves the token available for retry. The service
+returns only the user UUID and does not log or persist the raw token.
 
 ## HTTP
 
@@ -174,3 +191,9 @@ and verification-token limits, normalization, Argon2id persistence, hidden raw-t
 representations, duplicate emails for accounts with/without passwords, and rollback
 of all registration records after a late failure. PostgreSQL tests reuse the isolated
 temporary-schema fixture and roll back their changes.
+
+Email-verification tests cover malformed tokens, hashed lookup, expiry after lock
+acquisition, replay, future/expired/wrong-type tokens, preservation of prior
+verification and user status, and rollback when the user update fails. PostgreSQL
+concurrency tests exercise a blocked second confirmation, rejection after the
+first commits, and successful retry after the first rolls back.

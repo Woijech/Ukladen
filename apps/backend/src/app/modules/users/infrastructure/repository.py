@@ -1,6 +1,7 @@
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func
+from sqlalchemy import func, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -22,3 +23,19 @@ class SqlAlchemyUserRegistration:
         if user_id is None:
             raise EmailAlreadyExists("Email is already registered.")
         return user_id
+
+
+class SqlAlchemyEmailVerifier:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def mark_verified(self, user_id: UUID, verified_at: datetime) -> bool:
+        return (
+            self.session.scalar(
+                update(UserModel)
+                .where(UserModel.id == user_id)
+                .values(email_verified_at=func.coalesce(UserModel.email_verified_at, verified_at))
+                .returning(UserModel.id)
+            )
+            is not None
+        )

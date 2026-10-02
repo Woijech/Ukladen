@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from app.modules.auth.domain.entities import AuthSession, OneTimeToken
+from app.modules.auth.domain.entities import AuthSession, OneTimeToken, TokenType
 from app.modules.auth.infrastructure.orm import CredentialModel, OneTimeTokenModel, SessionModel
 
 
@@ -40,6 +40,40 @@ class SqlAlchemyRegistrationRepository:
             )
         )
         self.session.flush()
+
+
+class SqlAlchemyEmailVerificationRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get_by_token_hash(self, token_hash: str) -> OneTimeToken | None:
+        row = self.session.scalar(
+            select(OneTimeTokenModel)
+            .where(
+                OneTimeTokenModel.token_hash == token_hash,
+                OneTimeTokenModel.token_type == TokenType.EMAIL_VERIFICATION,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if row is None:
+            return None
+        return OneTimeToken(
+            id=row.id,
+            user_id=row.user_id,
+            token_type=TokenType.EMAIL_VERIFICATION,
+            token_hash=row.token_hash,
+            created_at=row.created_at,
+            expires_at=row.expires_at,
+            used_at=row.used_at,
+        )
+
+    def mark_used(self, token_id: UUID, used_at: datetime) -> None:
+        self.session.execute(
+            update(OneTimeTokenModel)
+            .where(OneTimeTokenModel.id == token_id)
+            .values(used_at=used_at)
+        )
 
 
 class SqlAlchemySessionRepository:

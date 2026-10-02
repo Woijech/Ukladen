@@ -25,6 +25,14 @@ class RegistrationRepository(Protocol):
     def create_one_time_token(self, token: OneTimeToken) -> None: ...
 
 
+class EmailVerificationRepository(Protocol):
+    """Lock a verification token until transaction completion; mark it used under that lock."""
+
+    def get_by_token_hash(self, token_hash: str) -> OneTimeToken | None: ...
+
+    def mark_used(self, token_id: UUID, used_at: datetime) -> None: ...
+
+
 class SessionRepository(Protocol):
     """Lookup locks rows until the caller completes its transaction."""
 
