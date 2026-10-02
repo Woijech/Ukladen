@@ -30,6 +30,10 @@ class CredentialRepository(Protocol):
 
     def get_password_hash(self, user_id: UUID) -> str | None: ...
 
+    def update_password_hash(self, user_id: UUID, password_hash: str, updated_at: datetime) -> bool:
+        """Update an existing credential in the caller's transaction; never create one."""
+        ...
+
 
 class RegistrationRepository(Protocol):
     """Persist credentials and one-time tokens in the caller's transaction."""
@@ -43,6 +47,16 @@ class RegistrationRepository(Protocol):
 
 class EmailVerificationRepository(Protocol):
     """Lock a verification token until transaction completion; mark it used under that lock."""
+
+    def get_by_token_hash(self, token_hash: str) -> OneTimeToken | None: ...
+
+    def mark_used(self, token_id: UUID, used_at: datetime) -> None: ...
+
+
+class PasswordResetRepository(Protocol):
+    """Persist reset tokens; lookup holds a row lock until transaction completion."""
+
+    def create(self, token: OneTimeToken) -> None: ...
 
     def get_by_token_hash(self, token_hash: str) -> OneTimeToken | None: ...
 

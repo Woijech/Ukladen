@@ -24,3 +24,7 @@ class RegistrationConflict(AuthError):
 
 class InvalidCredentials(AuthError):
     """The supplied credentials cannot authenticate an active user."""
+
+
+class InvalidPassword(AuthError):
+    """The proposed password does not satisfy the current password policy."""

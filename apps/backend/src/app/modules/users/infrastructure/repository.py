@@ -52,6 +52,16 @@ class SqlAlchemyUserAuthentication:
             .with_for_update()
         )
 
+    def lock_active(self, user_id: UUID) -> bool:
+        return (
+            self.session.scalar(
+                select(UserModel.id)
+                .where(UserModel.id == user_id, UserModel.status == "active")
+                .with_for_update()
+            )
+            is not None
+        )
+
     def is_active(self, user_id: UUID) -> bool:
         return (
             self.session.scalar(

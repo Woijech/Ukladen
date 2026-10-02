@@ -20,6 +20,21 @@ class SqlAlchemyCredentialRepository:
             .with_for_update()
         )
 
+    def update_password_hash(self, user_id: UUID, password_hash: str, updated_at: datetime) -> bool:
+        return (
+            self.session.scalar(
+                update(CredentialModel)
+                .where(CredentialModel.user_id == user_id)
+                .values(
+                    password_hash=password_hash,
+                    password_updated_at=updated_at,
+                    updated_at=updated_at,
+                )
+                .returning(CredentialModel.user_id)
+            )
+            is not None
+        )
+
 
 class SqlAlchemyRegistrationRepository:
     """Persist registration records without committing the caller's transaction."""
@@ -54,38 +69,60 @@ class SqlAlchemyRegistrationRepository:
         self.session.flush()
 
 
+def _get_one_time_token(
+    session: Session, token_hash: str, token_type: TokenType
+) -> OneTimeToken | None:
+    row = session.scalar(
+        select(OneTimeTokenModel)
+        .where(
+            OneTimeTokenModel.token_hash == token_hash,
+            OneTimeTokenModel.token_type == token_type,
+        )
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if row is None:
+        return None
+    return OneTimeToken(
+        id=row.id,
+        user_id=row.user_id,
+        token_type=TokenType(row.token_type),
+        token_hash=row.token_hash,
+        created_at=row.created_at,
+        expires_at=row.expires_at,
+        used_at=row.used_at,
+    )
+
+
+def _mark_token_used(session: Session, token_id: UUID, used_at: datetime) -> None:
+    session.execute(
+        update(OneTimeTokenModel).where(OneTimeTokenModel.id == token_id).values(used_at=used_at)
+    )
+
+
 class SqlAlchemyEmailVerificationRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
     def get_by_token_hash(self, token_hash: str) -> OneTimeToken | None:
-        row = self.session.scalar(
-            select(OneTimeTokenModel)
-            .where(
-                OneTimeTokenModel.token_hash == token_hash,
-                OneTimeTokenModel.token_type == TokenType.EMAIL_VERIFICATION,
-            )
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-        if row is None:
-            return None
-        return OneTimeToken(
-            id=row.id,
-            user_id=row.user_id,
-            token_type=TokenType.EMAIL_VERIFICATION,
-            token_hash=row.token_hash,
-            created_at=row.created_at,
-            expires_at=row.expires_at,
-            used_at=row.used_at,
-        )
+        return _get_one_time_token(self.session, token_hash, TokenType.EMAIL_VERIFICATION)
 
     def mark_used(self, token_id: UUID, used_at: datetime) -> None:
-        self.session.execute(
-            update(OneTimeTokenModel)
-            .where(OneTimeTokenModel.id == token_id)
-            .values(used_at=used_at)
-        )
+        _mark_token_used(self.session, token_id, used_at)
+
+
+class SqlAlchemyPasswordResetRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def create(self, token: OneTimeToken) -> None:
+        SqlAlchemyRegistrationRepository(self.session).create_one_time_token(token)
+
+    def get_by_token_hash(self, token_hash: str) -> OneTimeToken | None:
+        return _get_one_time_token(self.session, token_hash, TokenType.PASSWORD_RESET)
+
+    def mark_used(self, token_id: UUID, used_at: datetime) -> None:
+        _mark_token_used(self.session, token_id, used_at)
 
 
 class SqlAlchemySessionRepository:

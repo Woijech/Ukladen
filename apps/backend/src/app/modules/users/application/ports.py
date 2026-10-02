@@ -24,6 +24,10 @@ class UserAuthentication(Protocol):
 
     def get_active_id_by_email(self, email: str) -> UUID | None: ...
 
+    def lock_active(self, user_id: UUID) -> bool:
+        """Lock an active user by UUID until the caller's transaction completes."""
+        ...
+
     def is_active(self, user_id: UUID) -> bool:
         """Read canonical user status without acquiring a row lock."""
         ...

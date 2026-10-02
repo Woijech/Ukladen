@@ -1,9 +1,9 @@
 # Ukladen Backend Foundation
 
 Status: foundation, auth contracts, persistence, password/token helpers, session
-services, registration, email-verification and password-login application flows implemented.
+services, registration, email-verification, password-login and password-reset application flows implemented.
 Browser password login/logout, session-management endpoints and CSRF bootstrap are implemented.
-HTTP registration/verification and email delivery are not implemented.
+HTTP registration/verification/password-reset, email delivery and password change are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -26,6 +26,8 @@ to 30 days (2,592,000 seconds). It must be positive and also sets cookie lifetim
 1024. Registration rejects passwords longer than 1024 characters before hashing.
 `AUTH_EMAIL_VERIFICATION_TTL_SECONDS` defaults to 24 hours (86,400 seconds) and
 must be positive. These settings are used by `RegistrationService`.
+`AUTH_PASSWORD_RESET_TTL_SECONDS` defaults to one hour (3,600 seconds) and must
+be positive. `PasswordRecoveryService` uses it for newly issued reset tokens.
 
 `AUTH_SESSION_COOKIE_NAME` and `AUTH_CSRF_COOKIE_NAME` default to
 `__Host-ukladen_session` and `__Host-ukladen_csrf`. Cookies are HttpOnly, use
@@ -70,9 +72,8 @@ revoked, consumed or not-yet-valid values. Tokens expire at `expires_at`, not af
 it. Session and token representations omit token hashes.
 
 `OneTimeToken.consume` checks validity and records `used_at` on the domain object.
-Email verification uses this check under a PostgreSQL row lock and persists the
-consumption in the same transaction as the user update. Password-reset token
-consumption is not implemented.
+Email verification and password reset use this check under a PostgreSQL row lock
+and persist consumption in the same transaction as their user/credential updates.
 
 `modules/auth/application/ports.py` defines synchronous `PasswordHasher`,
 `SessionRepository` and `SessionCache` protocols, matching the existing synchronous
@@ -204,6 +205,41 @@ transaction. HTTP login delivers its cookie only after commit; logout/logout-all
 clear the cookie only after successful revocation and commit. Failed cache
 invalidation rolls back revocation and retains the browser cookie for retry.
 
+`PasswordRecoveryService.request_reset` reuses email normalization and locks the
+active user and existing credential in that order. Malformed/unknown emails,
+disabled users and accounts without password credentials return no delivery data
+and create no token. Eligible accounts receive a new password-reset token with
+only its SHA-256 hash persisted. The service returns `PasswordResetDelivery` for
+internal delivery after commit; its representation hides the raw token. It must
+never be returned from HTTP or logged. No email is sent or queued in this step.
+
+`confirm_reset` accepts the generated 43-character URL-safe token format and applies
+the current registration password-length policy while preserving whitespace and
+Unicode. It hashes the new password before acquiring database locks. Token lookup
+selects only password-reset rows with `FOR UPDATE` and refreshes their state,
+reusing the email-verification adapter's private lookup and consumption helpers.
+The service then locks the active user and existing credential, checks expiry
+after all locks are acquired, and consumes the token through the domain method.
+It updates the credential's hash, `password_updated_at` and `updated_at`, preserves
+`created_at`, marks the token used and revokes all of that user's sessions through
+`SessionService`. It does not create credentials, verify email, change user status
+or link external identities. Invalid/expired/used/wrong-type tokens and ineligible
+accounts produce the same `Invalid or expired token.` error.
+
+All reset adapters share one SQLAlchemy session and caller-owned transaction.
+The caller must commit on success and roll back every exception, including failed
+credential updates and cache invalidation. A rollback preserves the old password,
+unused token and unrevoked sessions so confirmation can be retried. Locks remain
+held until transaction completion; concurrent confirmations cannot both consume
+the same token. Reset confirmation returns only the user UUID.
+
+Status: HTTP password-reset request/confirmation and email delivery are not
+implemented. Their future transport must return a generic request acknowledgement
+regardless of account existence, add CSRF/rate protection, and deliver reset email
+asynchronously through an `EmailSender` boundary after commit. Provider selection
+and public reset integration remain TODOs; the current service has no mail-vendor
+dependency. Password change is a separate, unimplemented flow.
+
 ## HTTP
 
 | Endpoint | Behavior |
@@ -315,3 +351,11 @@ delivery after transaction completion. PostgreSQL/Redis checks cover ownership,
 expired/revoked/future exclusion, exact expiry boundaries, repeated revocation,
 cache invalidation, rejected token replay, preservation of another user's sessions
 and rollback/retry when cache invalidation fails.
+
+Password-reset tests cover eligibility, normalization, configurable lifetime and
+password limits, hidden raw tokens, hash-only persistence, Unicode/whitespace
+preservation, malformed/wrong-type/expired/future/used tokens and expiry after lock
+acquisition. PostgreSQL/Redis checks cover credential timestamps, token consumption,
+revocation of all owned sessions without affecting another user, rollback/retry on
+cache failure, replay rejection and competing confirmations after commit/rollback.
+They also verify that user and credential locks remain held until commit.
