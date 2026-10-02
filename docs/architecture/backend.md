@@ -1,7 +1,7 @@
 # Ukladen Backend Foundation
 
 Status: foundation, auth contracts, persistence, password/token helpers, session
-services, registration and email-verification application flows implemented.
+services, registration, email-verification and password-login application flows implemented.
 HTTP authentication endpoints and email delivery are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
@@ -99,7 +99,8 @@ failure propagates: callers must roll back instead of reporting successful logou
 Use short validation transactions and complete them before beginning mutation
 transactions; commit mutations only after the service returns successfully.
 Sessions must be revoked through the service to invalidate Redis. HTTP/cookie
-integration, account-status checks and user-owned session endpoints are not implemented.
+integration, account-status checks during session validation and user-owned session
+endpoints are not implemented.
 
 `RegistrationService` validates bare email addresses using the standard library,
 trims surrounding whitespace and lowercases the email. It rejects display names,
@@ -138,6 +139,33 @@ exception, including a missing or failed user update. Token-row locks remain hel
 until transaction completion, so concurrent confirmations cannot both consume a
 token. A failed transaction leaves the token available for retry. The service
 returns only the user UUID and does not log or persist the raw token.
+
+`LoginService` shares registration's email normalization and preserves password
+whitespace. Login accepts passwords from 1 to 1024 characters; it does not apply
+the current registration minimum to existing credentials. Malformed inputs,
+unknown emails, incorrect passwords, disabled accounts and accounts without a
+usable password credential all produce `Invalid email or password.`
+
+`SqlAlchemyUserAuthentication` returns an active user UUID through the users-owned
+`UserAuthentication` interface. `SqlAlchemyCredentialRepository` returns the stored
+hash through `CredentialRepository`. Both lookups acquire PostgreSQL row locks,
+in user-then-credential order, held until the caller completes the transaction.
+This prevents the selected user status or credential changing between lookup and
+session creation. All adapters must share the same SQLAlchemy session. Roll back
+on failure and commit before delivering a session token.
+
+Login verifies a supplied dummy Argon2 hash when no active user/password credential
+is found, reducing the timing difference from skipping password verification.
+Callers should generate that hash once at startup with the same password hasher;
+HTTP startup wiring is not implemented. Matching the dummy hash cannot authenticate
+an account without a real credential. Unverified active users can log in.
+Successful login returns the existing `IssuedSession` DTO and stores only the
+opaque token hash. It does not publish the new session to Redis.
+
+Application logout uses the existing `SessionService.revoke`; logout-all uses
+`SessionService.revoke_all_for_user`. Both invalidate Redis within the caller-owned
+transaction. HTTP login/logout, cookie delivery/clearing, authenticated request
+dependencies, rate limiting and CSRF protection remain unimplemented.
 
 ## HTTP
 
@@ -197,3 +225,11 @@ acquisition, replay, future/expired/wrong-type tokens, preservation of prior
 verification and user status, and rollback when the user update fails. PostgreSQL
 concurrency tests exercise a blocked second confirmation, rejection after the
 first commits, and successful retry after the first rolls back.
+
+Login tests cover generic rejection errors, dummy verification without authentication,
+input limits, existing passwords shorter than the registration minimum, Unicode and
+whitespace preservation, login before email verification, session metadata and
+hash-only storage. PostgreSQL checks cover malformed/missing credentials, disabled
+accounts, rollback after session insertion, and user/credential locks until commit.
+Integration tests exercise login followed by logout and logout-all, including Redis
+invalidation and preservation of another user's sessions.

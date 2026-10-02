@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, update
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -38,4 +38,16 @@ class SqlAlchemyEmailVerifier:
                 .returning(UserModel.id)
             )
             is not None
+        )
+
+
+class SqlAlchemyUserAuthentication:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get_active_id_by_email(self, email: str) -> UUID | None:
+        return self.session.scalar(
+            select(UserModel.id)
+            .where(func.lower(UserModel.email) == email, UserModel.status == "active")
+            .with_for_update()
         )

@@ -15,6 +15,12 @@ class PasswordHasher(Protocol):
     def verify(self, password: str, password_hash: str) -> bool: ...
 
 
+class CredentialRepository(Protocol):
+    """Look up and lock password credentials until the caller's transaction completes."""
+
+    def get_password_hash(self, user_id: UUID) -> str | None: ...
+
+
 class RegistrationRepository(Protocol):
     """Persist credentials and one-time tokens in the caller's transaction."""
 

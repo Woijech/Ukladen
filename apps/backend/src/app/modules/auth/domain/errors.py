@@ -16,3 +16,7 @@ class InvalidRegistration(AuthError):
 
 class RegistrationConflict(AuthError):
     """The email address already belongs to an account."""
+
+
+class InvalidCredentials(AuthError):
+    """The supplied credentials cannot authenticate an active user."""

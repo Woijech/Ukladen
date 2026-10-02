@@ -9,6 +9,18 @@ from app.modules.auth.domain.entities import AuthSession, OneTimeToken, TokenTyp
 from app.modules.auth.infrastructure.orm import CredentialModel, OneTimeTokenModel, SessionModel
 
 
+class SqlAlchemyCredentialRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get_password_hash(self, user_id: UUID) -> str | None:
+        return self.session.scalar(
+            select(CredentialModel.password_hash)
+            .where(CredentialModel.user_id == user_id)
+            .with_for_update()
+        )
+
+
 class SqlAlchemyRegistrationRepository:
     """Persist registration records without committing the caller's transaction."""
 

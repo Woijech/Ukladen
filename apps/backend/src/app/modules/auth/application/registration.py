@@ -14,7 +14,7 @@ from app.modules.auth.domain.errors import InvalidRegistration, RegistrationConf
 from app.modules.users.application.ports import EmailAlreadyExists, UserRegistration
 
 
-def _normalize_email(email: str) -> str:
+def normalize_email(email: str) -> str:
     normalized = email.strip().lower()
     if not normalized or len(normalized) > 320:
         raise InvalidRegistration("Invalid email address.")
@@ -60,7 +60,7 @@ class RegistrationService:
         user_agent: str | None = None,
         ip_address: IPv4Address | IPv6Address | None = None,
     ) -> RegistrationResult:
-        email = _normalize_email(email)
+        email = normalize_email(email)
         if not self.minimum_password_length <= len(password) <= 1024:
             raise InvalidRegistration(
                 f"Password must contain between {self.minimum_password_length} and 1024 characters."
