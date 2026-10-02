@@ -1,4 +1,5 @@
 from datetime import datetime
+from ipaddress import IPv4Address, IPv6Address
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
@@ -19,3 +20,13 @@ class LoginResponse(BaseModel):
 
 class CsrfResponse(BaseModel):
     csrf_token: str = Field(repr=False)
+
+
+class SessionResponse(BaseModel):
+    id: UUID
+    created_at: datetime
+    last_seen_at: datetime
+    expires_at: datetime
+    user_agent: str | None
+    ip_address: IPv4Address | IPv6Address | None
+    is_current: bool

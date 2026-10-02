@@ -2,7 +2,7 @@
 
 Status: foundation, auth contracts, persistence, password/token helpers, session
 services, registration, email-verification and password-login application flows implemented.
-Browser password login/logout endpoints and CSRF bootstrap are implemented.
+Browser password login/logout, session-management endpoints and CSRF bootstrap are implemented.
 HTTP registration/verification and email delivery are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
@@ -118,8 +118,24 @@ transactions; commit mutations only after the service returns successfully.
 Sessions must be revoked through the service to invalidate Redis. The authenticated
 HTTP dependency validates the cookie and checks the canonical user's active status
 in PostgreSQL on every request, including cache hits. Its short transaction completes
-before the route starts a mutation transaction. User-owned session listing and
-individual session-management endpoints are not implemented.
+before the route starts a mutation transaction.
+
+`SessionService.list_active_for_user` reads the authenticated user's sessions from
+PostgreSQL, excluding revoked, expired and not-yet-valid rows. Results are ordered
+by creation time descending, then UUID for ties. Listing does not update
+`last_seen_at` or populate the cache. The HTTP response contains only the session
+UUID, creation/last-seen/expiry timestamps, user agent, IP address and `is_current`.
+It omits tokens, token hashes and user IDs.
+
+`SessionService.revoke_for_user` uses a database update constrained by both session
+and owner UUID, then invalidates the returned token hash through the existing cache
+port. Missing and foreign sessions both become `SessionNotFound` and the same 404
+response. Stored owned sessions can be revoked repeatedly, including expired or
+already-revoked rows; the first revocation timestamp is preserved and invalidation
+is retried. Callers own transactions and must roll back cache failures. DELETE
+returns 204 only after commit and clears the cookie only for the current session.
+Deleting another session leaves the current cookie intact. An authenticated
+session is required, including for repeated deletion.
 
 `RegistrationService` validates bare email addresses using the standard library,
 trims surrounding whitespace and lowercases the email. It rejects display names,
@@ -200,8 +216,10 @@ invalidation rolls back revocation and retains the browser cookie for retry.
 | `POST /api/v1/auth/login` | Password login; returns user/session IDs and expiry, and sets a session cookie. |
 | `POST /api/v1/auth/logout` | Revokes the current session, clears its cookie and returns 204. |
 | `POST /api/v1/auth/logout-all` | Revokes the current user's sessions, clears the cookie and returns 204. |
+| `GET /api/v1/auth/sessions` | Lists only the authenticated user's active sessions and public metadata. |
+| `DELETE /api/v1/auth/sessions/{session_id}` | Revokes an owned session; returns 204 or a generic 404. |
 
-Authentication POST requests require an exact allowed `Origin` and matching
+Authentication POST and DELETE requests require an exact allowed `Origin` and matching
 43-character URL-safe tokens in the CSRF cookie and `X-CSRF-Token` header, compared
 in constant time. CSRF bootstrap rejects `Sec-Fetch-Site: cross-site` and reuses an
 existing valid token. The JSON token enables header submission while the cookie
@@ -290,3 +308,10 @@ With both integration URLs set, they also exercise complete browser flows agains
 PostgreSQL/Redis in isolated temporary schemas, including replay rejection, account
 disabling, Redis validation fallback and revocation rollback/retry. Redis tests
 verify the native limiter's window and expiry and remove their generated test keys.
+
+Session-management tests cover safe response fields, current-session identification,
+authentication/CSRF requirements, UUID validation, generic 404/503 errors and cookie
+delivery after transaction completion. PostgreSQL/Redis checks cover ownership,
+expired/revoked/future exclusion, exact expiry boundaries, repeated revocation,
+cache invalidation, rejected token replay, preservation of another user's sessions
+and rollback/retry when cache invalidation fails.

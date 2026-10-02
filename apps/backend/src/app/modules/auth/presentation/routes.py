@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -7,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.modules.auth.application.login import LoginService
 from app.modules.auth.application.ports import RateLimiterUnavailable, SessionCacheUnavailable
-from app.modules.auth.domain.errors import InvalidCredentials, InvalidSession
+from app.modules.auth.domain.errors import InvalidCredentials, InvalidSession, SessionNotFound
 from app.modules.auth.infrastructure.token_service import generate_token
 from app.modules.auth.presentation.dependencies import (
     Config,
@@ -20,7 +21,12 @@ from app.modules.auth.presentation.dependencies import (
     limit_login,
     require_csrf,
 )
-from app.modules.auth.presentation.schemas import CsrfResponse, LoginRequest, LoginResponse
+from app.modules.auth.presentation.schemas import (
+    CsrfResponse,
+    LoginRequest,
+    LoginResponse,
+    SessionResponse,
+)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -115,6 +121,43 @@ def logout_all(
     return response
 
 
+@router.get("/sessions", response_model=list[SessionResponse])
+def list_sessions(
+    current: CurrentSession, database: Database, sessions: Sessions, response: Response
+) -> list[SessionResponse]:
+    with database.begin():
+        active = sessions.list_active_for_user(current.user_id)
+    response.headers["Cache-Control"] = "no-store"
+    return [
+        SessionResponse(
+            id=session.id,
+            created_at=session.created_at,
+            last_seen_at=session.last_seen_at,
+            expires_at=session.expires_at,
+            user_agent=session.user_agent,
+            ip_address=session.ip_address,
+            is_current=session.id == current.id,
+        )
+        for session in active
+    ]
+
+
+@router.delete("/sessions/{session_id}", status_code=204, dependencies=[Depends(require_csrf)])
+def revoke_session(
+    session_id: UUID,
+    current: CurrentSession,
+    database: Database,
+    sessions: Sessions,
+    settings: Config,
+) -> Response:
+    with database.begin():
+        sessions.revoke_for_user(session_id, current.user_id)
+    response = Response(status_code=204, headers={"Cache-Control": "no-store"})
+    if session_id == current.id:
+        clear_session_cookie(response, settings)
+    return response
+
+
 def install_auth(application: FastAPI) -> None:
     def invalid_request(request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(
@@ -144,9 +187,17 @@ def install_auth(application: FastAPI) -> None:
             headers={"Cache-Control": "no-store"},
         )
 
+    def session_not_found(request: Request, error: Exception) -> JSONResponse:
+        return JSONResponse(
+            {"detail": "Session not found."},
+            status_code=404,
+            headers={"Cache-Control": "no-store"},
+        )
+
     application.add_exception_handler(RequestValidationError, invalid_request)
     application.add_exception_handler(InvalidCredentials, invalid_credentials)
     application.add_exception_handler(InvalidSession, invalid_session)
+    application.add_exception_handler(SessionNotFound, session_not_found)
     for error_type in (SQLAlchemyError, SessionCacheUnavailable, RateLimiterUnavailable):
         application.add_exception_handler(error_type, unavailable)
     application.include_router(router)

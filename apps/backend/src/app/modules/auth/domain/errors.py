@@ -6,6 +6,10 @@ class InvalidSession(AuthError):
     """The session is expired, revoked or not yet valid."""
 
 
+class SessionNotFound(AuthError):
+    """The requested session is missing or belongs to another user."""
+
+
 class InvalidOneTimeToken(AuthError):
     """The token is expired, consumed or not yet valid."""
 

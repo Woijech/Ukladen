@@ -12,7 +12,7 @@ from app.modules.auth.application.ports import (
     SessionRepository,
 )
 from app.modules.auth.domain.entities import AuthSession
-from app.modules.auth.domain.errors import InvalidSession
+from app.modules.auth.domain.errors import InvalidSession, SessionNotFound
 
 
 class SessionService:
@@ -86,6 +86,15 @@ class SessionService:
         token_hash = self.repository.revoke(session_id)
         if token_hash is not None:
             self.cache.delete(token_hash)
+
+    def list_active_for_user(self, user_id: UUID) -> list[AuthSession]:
+        return self.repository.list_active_for_user(user_id, self.now())
+
+    def revoke_for_user(self, session_id: UUID, user_id: UUID) -> None:
+        token_hash = self.repository.revoke_for_user(session_id, user_id)
+        if token_hash is None:
+            raise SessionNotFound("Session not found.")
+        self.cache.delete(token_hash)
 
     def revoke_all_for_user(self, user_id: UUID) -> None:
         self.cache.delete(*self.repository.revoke_all_for_user(user_id))

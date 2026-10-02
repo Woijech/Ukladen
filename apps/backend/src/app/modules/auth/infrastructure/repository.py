@@ -119,6 +119,10 @@ class SqlAlchemySessionRepository:
         )
         if row is None:
             return None
+        return self._to_domain(row)
+
+    @staticmethod
+    def _to_domain(row: SessionModel) -> AuthSession:
         return AuthSession(
             id=row.id,
             user_id=row.user_id,
@@ -129,6 +133,28 @@ class SqlAlchemySessionRepository:
             revoked_at=row.revoked_at,
             user_agent=row.user_agent,
             ip_address=ip_address(row.ip_address) if row.ip_address is not None else None,
+        )
+
+    def list_active_for_user(self, user_id: UUID, now: datetime) -> list[AuthSession]:
+        rows = self.session.scalars(
+            select(SessionModel)
+            .where(
+                SessionModel.user_id == user_id,
+                SessionModel.revoked_at.is_(None),
+                SessionModel.created_at <= now,
+                SessionModel.expires_at > now,
+            )
+            .order_by(SessionModel.created_at.desc(), SessionModel.id)
+            .execution_options(populate_existing=True)
+        )
+        return [self._to_domain(row) for row in rows]
+
+    def revoke_for_user(self, session_id: UUID, user_id: UUID) -> str | None:
+        return self.session.scalar(
+            update(SessionModel)
+            .where(SessionModel.id == session_id, SessionModel.user_id == user_id)
+            .values(revoked_at=func.coalesce(SessionModel.revoked_at, datetime.now(UTC)))
+            .returning(SessionModel.token_hash)
         )
 
     def revoke(self, session_id: UUID) -> str | None:

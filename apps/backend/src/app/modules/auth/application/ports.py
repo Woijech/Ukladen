@@ -50,11 +50,15 @@ class EmailVerificationRepository(Protocol):
 
 
 class SessionRepository(Protocol):
-    """Lookup locks rows until the caller completes its transaction."""
+    """Token lookup locks rows until the caller completes its transaction."""
 
     def create(self, session: AuthSession) -> None: ...
 
     def get_by_token_hash(self, token_hash: str) -> AuthSession | None: ...
+
+    def list_active_for_user(self, user_id: UUID, now: datetime) -> list[AuthSession]: ...
+
+    def revoke_for_user(self, session_id: UUID, user_id: UUID) -> str | None: ...
 
     def revoke(self, session_id: UUID) -> str | None: ...
 
