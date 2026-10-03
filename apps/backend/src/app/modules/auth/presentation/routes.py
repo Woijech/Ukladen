@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.modules.auth.application.dto import IssuedSession
+from app.modules.auth.application.google_link import GoogleLinkService
 from app.modules.auth.application.google_login import GoogleLoginService
 from app.modules.auth.application.google_oauth import GoogleOAuthService
 from app.modules.auth.application.login import LoginService
@@ -47,6 +48,7 @@ from app.modules.auth.presentation.dependencies import (
     get_email_sender,
     get_email_verification,
     get_email_verification_request,
+    get_google_link,
     get_google_login,
     get_google_oauth,
     get_login,
@@ -56,6 +58,7 @@ from app.modules.auth.presentation.dependencies import (
     limit_email_verification_confirm,
     limit_email_verification_request,
     limit_google_callback,
+    limit_google_link,
     limit_google_start,
     limit_login,
     limit_password_change,
@@ -71,6 +74,7 @@ from app.modules.auth.presentation.schemas import (
     EmailVerificationRequestResponse,
     EmailVerificationResendRequest,
     GoogleCallbackRequest,
+    GoogleLinkRequest,
     LoginRequest,
     LoginResponse,
     PasswordChangeRequest,
@@ -146,6 +150,34 @@ def google_start(
     return response
 
 
+@router.post("/google/link/start", dependencies=[Depends(require_csrf), Depends(limit_google_link)])
+def google_link_start(
+    payload: GoogleLinkRequest,
+    current: CurrentSession,
+    database: Database,
+    settings: Config,
+    oauth: Annotated[GoogleOAuthService, Depends(get_google_oauth)],
+    links: Annotated[GoogleLinkService, Depends(get_google_link)],
+) -> RedirectResponse:
+    if settings.auth_cookie_samesite != "lax":
+        raise ExternalIdentityUnavailable("External identity provider is unavailable.")
+    try:
+        with database.begin():
+            context = links.prepare(current, payload.current_password.get_secret_value())
+    except InvalidCredentials:
+        raise HTTPException(
+            401, "Invalid current password.", headers={"Cache-Control": "no-store"}
+        ) from None
+    authorization = oauth.start(context)
+    response = RedirectResponse(
+        authorization.url,
+        status_code=303,
+        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+    )
+    set_oauth_cookie(response, authorization.browser_token, settings)
+    return response
+
+
 @router.get("/google/callback", dependencies=[Depends(limit_google_callback)])
 def google_callback(
     request: Request,
@@ -153,25 +185,35 @@ def google_callback(
     database: Database,
     oauth: Annotated[GoogleOAuthService, Depends(get_google_oauth)],
     accounts: Annotated[GoogleLoginService, Depends(get_google_login)],
+    links: Annotated[GoogleLinkService, Depends(get_google_link)],
 ) -> Response:
     try:
         if any(len(request.query_params.getlist(name)) > 1 for name in ("code", "state", "error")):
             raise InvalidOAuthState("Invalid or expired OAuth state.")
         payload = GoogleCallbackRequest.model_validate(dict(request.query_params))
-        identity = oauth.resolve_callback(
+        result = oauth.resolve_callback(
             state=payload.state.get_secret_value() if payload.state else None,
             code=payload.code.get_secret_value() if payload.code else None,
             error=payload.error.get_secret_value() if payload.error else None,
             browser_token=request.cookies.get(settings.auth_oauth_cookie_name),
         )
         with database.begin():
-            issued = accounts.login(
-                identity,
-                user_agent=request.headers.get("user-agent", "")[:1024] or None,
-                ip_address=client_ip(request),
-            )
+            user_agent = request.headers.get("user-agent", "")[:1024] or None
+            peer = client_ip(request)
+            if result.link is None:
+                issued = accounts.login(result.identity, user_agent=user_agent, ip_address=peer)
+            else:
+                issued = links.complete(
+                    result.identity,
+                    result.link,
+                    request.cookies.get(settings.auth_session_cookie_name),
+                    user_agent=user_agent,
+                    ip_address=peer,
+                )
     except (
         InvalidOAuthState,
+        InvalidSession,
+        InvalidCredentials,
         InvalidExternalIdentity,
         ValidationError,
         AccountLinkingRequired,

@@ -1,4 +1,8 @@
-from app.modules.auth.application.dto import GoogleAuthorization, VerifiedGoogleIdentity
+from app.modules.auth.application.dto import (
+    GoogleAuthorization,
+    GoogleCallbackResult,
+    OAuthLinkContext,
+)
 from app.modules.auth.application.oauth_state import OAuthStateService
 from app.modules.auth.application.ports import ExternalIdentityProvider
 from app.modules.auth.domain.errors import InvalidExternalIdentity
@@ -9,8 +13,8 @@ class GoogleOAuthService:
         self.states = states
         self.provider = provider
 
-    def start(self) -> GoogleAuthorization:
-        started = self.states.start()
+    def start(self, link: OAuthLinkContext | None = None) -> GoogleAuthorization:
+        started = self.states.start(link)
         # ponytail: failed starts leave expiring state; add deletion if this pressures Redis.
         url = self.provider.build_authorization_url(
             state=started.state, nonce=started.nonce, code_challenge=started.code_challenge
@@ -24,10 +28,11 @@ class GoogleOAuthService:
         browser_token: str | None,
         code: str | None,
         error: str | None = None,
-    ) -> VerifiedGoogleIdentity:
+    ) -> GoogleCallbackResult:
         record = self.states.consume(state, browser_token)
         if error is not None or code is None:
             raise InvalidExternalIdentity("Invalid external identity.")
-        return self.provider.resolve_callback(
+        identity = self.provider.resolve_callback(
             code=code, code_verifier=record.code_verifier, nonce=record.nonce
         )
+        return GoogleCallbackResult(identity, record.link)

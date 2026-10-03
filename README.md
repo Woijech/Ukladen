@@ -182,7 +182,8 @@ confirmation. Celery email queuing with a development fake is implemented.
 Registration and password-reset requests queue messages after commit.
 A Google OIDC adapter validates provider identities, and an application service
 resolves Google accounts into ordinary sessions. Google browser login is implemented;
-explicit linking, production email delivery and authentication UI are not implemented.
+explicit Google linking is also implemented. Production email delivery and authentication
+UI are not implemented.
 
 ```text
 apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests
@@ -260,7 +261,17 @@ Start/callback rate limits default to 10 attempts per 60 seconds and use
 `AUTH_GOOGLE_CALLBACK_RATE_LIMIT` / `AUTH_GOOGLE_CALLBACK_RATE_WINDOW_SECONDS`.
 Start redirects to Google; callback commits the ordinary session before setting
 its cookie and redirecting to the configured success page. Failures redirect to
-the configured error page and preserve existing sessions. Explicit linking is pending. Tests use mocked HTTP and in-memory signing keys, with no Google
+the configured error page and preserve existing sessions.
+
+To explicitly link Google to a password account, authenticate first, then call
+`POST /api/v1/auth/google/link/start` with `current_password`, the session cookie
+and the usual Origin/CSRF header. The response redirects to Google with a new
+browser-bound flow. Callback requires the same still-active session and unchanged
+credential; it never transfers an identity owned by another user or changes profile,
+email or password. Linking requires `AUTH_COOKIE_SAMESITE=lax`. Its per-user limit
+defaults to 5 per 60 seconds, configured by `AUTH_GOOGLE_LINK_RATE_LIMIT` and
+`AUTH_GOOGLE_LINK_RATE_WINDOW_SECONDS`. Google-only accounts without a password
+cannot use password re-authentication to attach additional identities. Tests use mocked HTTP and in-memory signing keys, with no Google
 network calls.
 
 Authenticated clients can change their password with

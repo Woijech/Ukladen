@@ -23,6 +23,7 @@ from app.db.session import create_session_factory
 from app.main import create_app
 from app.modules.auth.application.dto import (
     GoogleAuthorization,
+    GoogleCallbackResult,
     IssuedSession,
     VerifiedGoogleIdentity,
 )
@@ -77,7 +78,7 @@ def oauth() -> Mock:
     oauth.start.return_value = GoogleAuthorization(
         "https://accounts.google.com/authorize?state=test", generate_token()
     )
-    oauth.resolve_callback.return_value = IDENTITY
+    oauth.resolve_callback.return_value = GoogleCallbackResult(IDENTITY)
     return oauth
 
 

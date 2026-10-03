@@ -4,7 +4,7 @@ from collections.abc import Callable
 from hashlib import sha256
 
 from app.core.config import Settings
-from app.modules.auth.application.dto import OAuthStateRecord, OAuthStateStart
+from app.modules.auth.application.dto import OAuthLinkContext, OAuthStateRecord, OAuthStateStart
 from app.modules.auth.application.ports import OAuthStateStore
 from app.modules.auth.domain.errors import InvalidOAuthState
 
@@ -25,9 +25,9 @@ class OAuthStateService:
         self.generate_token = generate_token
         self.hash_token = hash_token
 
-    def start(self) -> OAuthStateStart:
+    def start(self, link: OAuthLinkContext | None = None) -> OAuthStateStart:
         state, nonce, verifier, browser_token = (self.generate_token() for _ in range(4))
-        record = OAuthStateRecord(nonce, verifier, self.hash_token(browser_token))
+        record = OAuthStateRecord(nonce, verifier, self.hash_token(browser_token), link)
         self.store.create(self.hash_token(state), record, self.ttl_seconds)
         challenge = (
             urlsafe_b64encode(sha256(verifier.encode("ascii")).digest()).decode().rstrip("=")

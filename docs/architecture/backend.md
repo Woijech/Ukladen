@@ -9,7 +9,7 @@ bootstrap are implemented.
 Celery email queuing and a development fake are implemented.
 A Google OIDC identity adapter, account-resolution application service and
 browser-bound Redis OAuth state and Google browser login are implemented.
-Explicit linking and production email delivery are not implemented.
+Explicit Google linking is implemented; production email delivery is not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -508,7 +508,8 @@ transaction; callers must roll back on any failure and commit before delivering
 the returned `IssuedSession`. Session creation does not publish Redis data.
 
 An existing email raises `AccountLinkingRequired`, including password, Google-only
-and disabled accounts. Explicit linking/re-authentication is not implemented.
+and disabled accounts. Explicit password re-authentication and linking use the
+separate flow below; normal Google login never implicitly links.
 The existing email and provider/subject uniqueness constraints arbitrate concurrent
 creation. After an email conflict, the service rechecks the subject so two first
 logins for the same identity can authenticate the winning account. A subject conflict
@@ -552,10 +553,52 @@ records while preserving path/status/peer metadata. Reverse proxies must likewis
 omit authentication query strings from access logs; the current Traefik configuration
 does not enable access logging.
 
+## Explicit Google linking
+
+`POST /api/v1/auth/google/link/start` requires an authenticated session, Origin/CSRF
+validation, current password and a per-user rate limit. `GoogleLinkService.prepare`
+locks the active canonical user, credential and current session in that order,
+verifies the password with Argon2id (using the startup dummy hash for accounts
+without credentials), then rechecks session expiry/revocation. It returns an
+`OAuthLinkContext` containing user/session UUIDs and SHA-256 of the credential hash,
+never the password or credential hash itself. Password fingerprints are redacted.
+The caller completes this transaction before invoking Google/network initiation.
+The context lives only inside the expiring browser-bound Redis state and is
+returned internally with the verified identity as `GoogleCallbackResult`.
+Old ordinary-login state without a link context remains compatible.
+
+The shared callback selects linking only from the consumed server-side context.
+`GoogleLinkService.complete` locks user, credential and the original session,
+requires the incoming session cookie to match that session, checks status,
+expiry/revocation and the unchanged credential fingerprint, and only then inserts
+the identity and creates an ordinary session for that user. A subject already
+owned by this user is idempotent; an identity owned by another user cannot be
+transferred. Provider/subject uniqueness arbitrates competing users; failure
+rolls back both identity and new session. Cookie delivery follows commit. The old
+session is retained. User email, verification state, profile and credentials are
+preserved, including when the explicitly selected Google email differs.
+
+Logout/revocation, expiry, switching sessions, disabling the user or changing/resetting
+the password invalidates the pending link. Callback checks PostgreSQL even if Redis
+still contains a cached session. State is single-use; failures require fresh initiation.
+Google-only users cannot use this password re-authentication flow. Attaching other
+identities to Google-only accounts and unlinking are outside the current scope.
+
+`GoogleLinkRequest` accepts only `current_password` as a redacted SecretStr;
+caller-supplied user/identity IDs are rejected. Linking requires session cookies
+with SameSite=Lax, so the original session reaches the cross-site callback.
+Strict-cookie configurations fail closed before link initiation.
+`AUTH_GOOGLE_LINK_RATE_LIMIT` defaults to 5 and
+`AUTH_GOOGLE_LINK_RATE_WINDOW_SECONDS` to 60; both are positive.
+Wrong passwords return a fixed 401; invalid sessions, CSRF and rate limits use
+existing auth errors. Linking failure at callback uses the fixed frontend error
+redirect, preserving the existing session cookie without exposing private details.
+
 ## HTTP
 
 | Endpoint | Behavior |
 | --- | --- |
+| `POST /api/v1/auth/google/link/start` | Re-authenticate a password account and initiate explicit Google linking. |
 | `GET /api/v1/auth/google/start` | Start Google login with browser-bound state. |
 | `GET /api/v1/auth/google/callback` | Verify Google identity and commit an ordinary session, then redirect. |
 | `GET /api/health/live` | Always returns 200 while the API can serve requests. |
@@ -828,3 +871,10 @@ redirects, provider/Redis/database failures, duplicate/malformed queries, naviga
 checks, rate limits, settings validation and access-log query redaction. Isolated
 PostgreSQL/Redis tests use a fake provider to exercise account creation, replay,
 email collisions, wrong browsers, consent denial, session validation and logout.
+
+Explicit linking tests use isolated PostgreSQL schemas, generated Redis state and
+fake Google identities. They exercise current-password/CSRF/schema/rate guards,
+Strict-cookie rejection, Google-only rejection, preserved passwords/profiles,
+Google login after linking, replay, logout, session switching, disabled users,
+changed credentials, stale-cache revocation, expiry, competing owners, late-write
+rollback and fresh retry. Concurrent users cannot reassign a Google subject.

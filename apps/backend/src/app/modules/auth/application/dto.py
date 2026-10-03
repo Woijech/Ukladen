@@ -56,6 +56,15 @@ type OAuthToken = Annotated[
 
 
 @dataclass(frozen=True)
+class OAuthLinkContext:
+    user_id: UUID
+    session_id: UUID
+    password_fingerprint: Annotated[
+        str, Field(strict=True, min_length=64, max_length=64, pattern=r"^[0-9a-f]+$")
+    ] = field(repr=False)
+
+
+@dataclass(frozen=True)
 class OAuthStateRecord:
     """Temporary internal state; nonce/verifier are needed for provider validation."""
 
@@ -64,6 +73,7 @@ class OAuthStateRecord:
     browser_token_hash: Annotated[
         str, Field(strict=True, min_length=64, max_length=64, pattern=r"^[0-9a-f]+$")
     ] = field(repr=False)
+    link: OAuthLinkContext | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)
@@ -80,3 +90,9 @@ class OAuthStateStart:
 class GoogleAuthorization:
     url: str = field(repr=False)
     browser_token: str = field(repr=False)
+
+
+@dataclass(frozen=True)
+class GoogleCallbackResult:
+    identity: VerifiedGoogleIdentity
+    link: OAuthLinkContext | None = field(default=None, repr=False)

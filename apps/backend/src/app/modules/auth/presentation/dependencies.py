@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.modules.auth.application.google_link import GoogleLinkService
 from app.modules.auth.application.google_login import GoogleLoginService
 from app.modules.auth.application.google_oauth import GoogleOAuthService
 from app.modules.auth.application.login import LoginService
@@ -125,6 +126,18 @@ def get_google_login(database: Database, sessions: Sessions) -> GoogleLoginServi
         SqlAlchemyEmailVerifier(database),
         SqlAlchemyGoogleIdentityRepository(database),
         sessions,
+    )
+
+
+def get_google_link(request: Request, database: Database, sessions: Sessions) -> GoogleLinkService:
+    return GoogleLinkService(
+        SqlAlchemyUserAuthentication(database),
+        SqlAlchemyCredentialRepository(database),
+        request.app.state.passwords,
+        SqlAlchemyGoogleIdentityRepository(database),
+        sessions,
+        hash_token=hash_token,
+        dummy_password_hash=request.app.state.dummy_password_hash,
     )
 
 
@@ -321,6 +334,24 @@ def get_current_session(
 
 
 CurrentSession = Annotated[AuthSession, Depends(get_current_session)]
+
+
+def limit_google_link(
+    current: CurrentSession,
+    settings: Config,
+    limiter: Annotated[RateLimiter, Depends(get_rate_limiter)],
+) -> None:
+    allowed, retry = limiter.check(
+        f"google-link:{current.user_id}",
+        settings.auth_google_link_rate_limit,
+        settings.auth_google_link_rate_window_seconds,
+    )
+    if not allowed:
+        raise HTTPException(
+            429,
+            "Too many authentication attempts.",
+            headers={"Retry-After": str(retry), "Cache-Control": "no-store"},
+        )
 
 
 def limit_email_verification_request(

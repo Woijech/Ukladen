@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     auth_google_start_rate_window_seconds: int = Field(default=60, gt=0)
     auth_google_callback_rate_limit: int = Field(default=10, gt=0)
     auth_google_callback_rate_window_seconds: int = Field(default=60, gt=0)
+    auth_google_link_rate_limit: int = Field(default=5, gt=0)
+    auth_google_link_rate_window_seconds: int = Field(default=60, gt=0)
 
     @model_validator(mode="after")
     def validate_google(self) -> Settings:
