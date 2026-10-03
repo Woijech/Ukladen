@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     auth_csrf_cookie_name: str = Field(
         default="__Host-ukladen_csrf", pattern=r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
     )
+    auth_oauth_cookie_name: str = Field(
+        default="__Host-ukladen_oauth", pattern=r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
+    )
     auth_cookie_secure: bool = True
     auth_cookie_samesite: Literal["lax", "strict"] = "lax"
     auth_allowed_origins: list[AnyHttpUrl] = Field(default_factory=list)
@@ -45,6 +48,12 @@ class Settings(BaseSettings):
     google_client_id: str | None = Field(default=None, min_length=1, max_length=1024)
     google_client_secret: SecretStr | None = Field(default=None, min_length=1, repr=False)
     google_redirect_uri: AnyHttpUrl | None = None
+    frontend_auth_success_url: AnyHttpUrl | None = None
+    frontend_auth_error_url: AnyHttpUrl | None = None
+    auth_google_start_rate_limit: int = Field(default=10, gt=0)
+    auth_google_start_rate_window_seconds: int = Field(default=60, gt=0)
+    auth_google_callback_rate_limit: int = Field(default=10, gt=0)
+    auth_google_callback_rate_window_seconds: int = Field(default=60, gt=0)
 
     @model_validator(mode="after")
     def validate_google(self) -> Settings:
@@ -62,6 +71,20 @@ class Settings(BaseSettings):
             or (uri.scheme != "https" and uri.host not in ("localhost", "127.0.0.1", "[::1]"))
         ):
             raise ValueError("Google redirect URI requires HTTPS, except for local development.")
+        frontend = (self.frontend_auth_success_url, self.frontend_auth_error_url)
+        if any(url is not None for url in frontend) and any(url is None for url in frontend):
+            raise ValueError("Frontend authentication redirects must be configured together.")
+        for url in frontend:
+            if url is not None and (
+                url.username
+                or url.password
+                or url.query
+                or url.fragment
+                or (url.scheme != "https" and url.host not in ("localhost", "127.0.0.1", "[::1]"))
+            ):
+                raise ValueError(
+                    "Frontend authentication redirects require HTTPS or loopback HTTP."
+                )
         return self
 
     @model_validator(mode="after")
@@ -69,6 +92,10 @@ class Settings(BaseSettings):
         names = (self.auth_session_cookie_name, self.auth_csrf_cookie_name)
         if names[0] == names[1]:
             raise ValueError("Session and CSRF cookie names must differ.")
+        if self.auth_oauth_cookie_name in names:
+            raise ValueError("OAuth cookie name must differ from session and CSRF names.")
+        if self.frontend_auth_success_url is not None:
+            names += (self.auth_oauth_cookie_name,)
         if not self.auth_cookie_secure and any(
             name.startswith(("__Host-", "__Secure-")) for name in names
         ):

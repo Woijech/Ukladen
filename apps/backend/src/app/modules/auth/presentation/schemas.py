@@ -13,6 +13,12 @@ class LoginRequest(BaseModel):
     password: SecretStr = Field(min_length=1, max_length=1024, repr=False)
 
 
+class GoogleCallbackRequest(BaseModel):
+    state: SecretStr | None = Field(default=None, min_length=43, max_length=43, repr=False)
+    code: SecretStr | None = Field(default=None, min_length=1, max_length=4096, repr=False)
+    error: SecretStr | None = Field(default=None, min_length=1, max_length=1024, repr=False)
+
+
 class RegistrationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

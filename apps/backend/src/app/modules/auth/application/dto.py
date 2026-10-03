@@ -74,3 +74,9 @@ class OAuthStateStart:
     nonce: str = field(repr=False)
     code_challenge: str = field(repr=False)
     browser_token: str = field(repr=False)
+
+
+@dataclass(frozen=True)
+class GoogleAuthorization:
+    url: str = field(repr=False)
+    browser_token: str = field(repr=False)

@@ -8,18 +8,28 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.modules.auth.application.google_login import GoogleLoginService
+from app.modules.auth.application.google_oauth import GoogleOAuthService
 from app.modules.auth.application.login import LoginService
+from app.modules.auth.application.oauth_state import OAuthStateService
 from app.modules.auth.application.password_recovery import PasswordRecoveryService
-from app.modules.auth.application.ports import EmailDeliveryUnavailable, EmailSender, RateLimiter
+from app.modules.auth.application.ports import (
+    EmailDeliveryUnavailable,
+    EmailSender,
+    ExternalIdentityUnavailable,
+    RateLimiter,
+)
 from app.modules.auth.application.registration import RegistrationService
 from app.modules.auth.application.service import SessionService
 from app.modules.auth.application.verification import EmailVerificationService
 from app.modules.auth.application.verification_request import EmailVerificationRequestService
 from app.modules.auth.domain.entities import AuthSession
 from app.modules.auth.domain.errors import InvalidSession
+from app.modules.auth.infrastructure.oauth_state import RedisOAuthStateStore
 from app.modules.auth.infrastructure.repository import (
     SqlAlchemyCredentialRepository,
     SqlAlchemyEmailVerificationRepository,
+    SqlAlchemyGoogleIdentityRepository,
     SqlAlchemyPasswordResetRepository,
     SqlAlchemyRegistrationRepository,
     SqlAlchemySessionRepository,
@@ -89,6 +99,44 @@ def get_login(request: Request, database: Database, sessions: Sessions) -> Login
     )
 
 
+def get_google_oauth(request: Request, settings: Config) -> GoogleOAuthService:
+    provider = request.app.state.google_provider
+    if (
+        provider is None
+        or settings.frontend_auth_success_url is None
+        or settings.frontend_auth_error_url is None
+    ):
+        raise ExternalIdentityUnavailable("External identity provider is unavailable.")
+    return GoogleOAuthService(
+        OAuthStateService(
+            RedisOAuthStateStore(request.app.state.redis),
+            settings,
+            generate_token=generate_token,
+            hash_token=hash_token,
+        ),
+        provider,
+    )
+
+
+def get_google_login(database: Database, sessions: Sessions) -> GoogleLoginService:
+    return GoogleLoginService(
+        SqlAlchemyUserRegistration(database),
+        SqlAlchemyUserAuthentication(database),
+        SqlAlchemyEmailVerifier(database),
+        SqlAlchemyGoogleIdentityRepository(database),
+        sessions,
+    )
+
+
+def require_google_navigation(request: Request, settings: Config) -> None:
+    origin = request.headers.get("origin")
+    origins = {str(item).rstrip("/") for item in settings.auth_allowed_origins}
+    if request.headers.get("sec-fetch-site") == "cross-site" or (
+        origin is not None and origin not in origins
+    ):
+        raise HTTPException(403, "Authentication navigation rejected.")
+
+
 def get_password_recovery(
     request: Request, database: Database, sessions: Sessions, settings: Config
 ) -> PasswordRecoveryService:
@@ -140,6 +188,40 @@ def require_csrf(request: Request, settings: Config) -> None:
 
 def get_rate_limiter(request: Request) -> RateLimiter:
     return request.app.state.rate_limiter
+
+
+def limit_google_start(
+    request: Request, settings: Config, limiter: Annotated[RateLimiter, Depends(get_rate_limiter)]
+) -> None:
+    peer = request.client.host if request.client else "unknown"
+    allowed, retry = limiter.check(
+        f"google-start:{hash_token(peer)}",
+        settings.auth_google_start_rate_limit,
+        settings.auth_google_start_rate_window_seconds,
+    )
+    if not allowed:
+        raise HTTPException(
+            429,
+            "Too many authentication attempts.",
+            headers={"Retry-After": str(retry), "Cache-Control": "no-store"},
+        )
+
+
+def limit_google_callback(
+    request: Request, settings: Config, limiter: Annotated[RateLimiter, Depends(get_rate_limiter)]
+) -> None:
+    peer = request.client.host if request.client else "unknown"
+    allowed, retry = limiter.check(
+        f"google-callback:{hash_token(peer)}",
+        settings.auth_google_callback_rate_limit,
+        settings.auth_google_callback_rate_window_seconds,
+    )
+    if not allowed:
+        raise HTTPException(
+            429,
+            "Too many authentication attempts.",
+            headers={"Retry-After": str(retry), "Cache-Control": "no-store"},
+        )
 
 
 def limit_registration(

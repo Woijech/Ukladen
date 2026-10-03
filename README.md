@@ -181,8 +181,8 @@ management, password change, email-verification confirmation and password-reset
 confirmation. Celery email queuing with a development fake is implemented.
 Registration and password-reset requests queue messages after commit.
 A Google OIDC adapter validates provider identities, and an application service
-resolves Google accounts into ordinary sessions. Google browser login, production
-email delivery and authentication UI are not implemented.
+resolves Google accounts into ordinary sessions. Google browser login is implemented;
+explicit linking, production email delivery and authentication UI are not implemented.
 
 ```text
 apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests
@@ -250,9 +250,17 @@ It preserves existing accounts and commits user, identity and session together.
 Browser-bound Redis OAuth state is implemented with single-use consumption, nonce
 and S256 PKCE. `AUTH_OAUTH_STATE_TTL_SECONDS` defaults to 600; state and browser
 binding are stored hashed, with the nonce and verifier temporarily stored in Redis.
-Google start/callback endpoints and explicit linking are not implemented.
-Configuring credentials does not enable
-Google login yet. Tests use mocked HTTP and in-memory signing keys, with no Google
+Google start/callback endpoints are implemented. Also configure both
+`FRONTEND_AUTH_SUCCESS_URL` and `FRONTEND_AUTH_ERROR_URL` to enable browser login.
+They require HTTPS except loopback HTTP, with no credentials, query or fragment.
+Redirect destinations cannot be supplied by requests. `AUTH_OAUTH_COOKIE_NAME`
+defaults to `__Host-ukladen_oauth`; local HTTP must select an unprefixed name.
+Start/callback rate limits default to 10 attempts per 60 seconds and use
+`AUTH_GOOGLE_START_RATE_LIMIT` / `AUTH_GOOGLE_START_RATE_WINDOW_SECONDS` and
+`AUTH_GOOGLE_CALLBACK_RATE_LIMIT` / `AUTH_GOOGLE_CALLBACK_RATE_WINDOW_SECONDS`.
+Start redirects to Google; callback commits the ordinary session before setting
+its cookie and redirecting to the configured success page. Failures redirect to
+the configured error page and preserve existing sessions. Explicit linking is pending. Tests use mocked HTTP and in-memory signing keys, with no Google
 network calls.
 
 Authenticated clients can change their password with

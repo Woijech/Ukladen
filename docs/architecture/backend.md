@@ -8,8 +8,8 @@ password-reset request/confirmation, session-management endpoints and CSRF
 bootstrap are implemented.
 Celery email queuing and a development fake are implemented.
 A Google OIDC identity adapter, account-resolution application service and
-browser-bound Redis OAuth state are implemented. Google browser login, explicit
-linking and production email delivery are not implemented.
+browser-bound Redis OAuth state and Google browser login are implemented.
+Explicit linking and production email delivery are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -418,7 +418,8 @@ and callback resolution. `GoogleOidcProvider` implements it using a caller-owned
 HTTPX client; construction performs no I/O and disabled settings fail closed.
 The caller must validate and consume browser-bound OAuth state before invoking
 `resolve_callback`. This adapter neither owns browser state nor creates or links
-Ukladen accounts/sessions. Google start/callback routes are not implemented.
+Ukladen accounts/sessions. Google browser routes use this adapter through
+`GoogleOAuthService`, which consumes state before exchanging the authorization code.
 
 The adapter follows [Google's documented OIDC server flow](https://developers.google.com/identity/openid-connect/openid-connect).
 It obtains authorization, token and JWKS endpoints from the fixed Google discovery
@@ -468,7 +469,7 @@ and browser-binding tokens using the existing token helper. S256 produces the
 unpadded base64url SHA-256 verifier challenge. `OAuthStateStart` returns only the
 internal data needed to build the authorization URL and set a browser cookie;
 the verifier stays in the temporary `OAuthStateRecord`. Both DTOs redact their
-fields from representations. No cookies or HTTP endpoints are implemented here.
+fields from representations. HTTP routes deliver the binding token in an HttpOnly cookie.
 
 `OAuthStateStore` is the application boundary for temporary storage.
 `RedisOAuthStateStore` uses `ukladen:auth:oauth:<SHA-256(state)>` keys. The JSON value
@@ -486,10 +487,10 @@ mismatched states raise the same fixed `InvalidOAuthState`. Redis failures or fa
 creation raise fixed `OAuthStateUnavailable` without chained connection details.
 There is no process-local fallback and no token logging.
 
-Future HTTP callers must deliver the binding token through a Secure HttpOnly
-SameSite=Lax cookie (Secure may be disabled for local development), consume state
-before provider exchange/account mutation, and restart login after a consumed-state
-provider failure. Browser routes and their cookie handling are not implemented yet.
+Browser routes deliver the binding token through a Secure HttpOnly SameSite=Lax
+cookie (Secure may be disabled for local development), consume state before
+provider exchange/account mutation, and require restarting login after a
+consumed-state provider failure.
 
 ## Google account resolution
 
@@ -513,12 +514,50 @@ creation. After an email conflict, the service rechecks the subject so two first
 logins for the same identity can authenticate the winning account. A subject conflict
 with a different candidate email fails without overwriting the identity; rollback
 removes the losing candidate user, and a retry resolves the linked subject.
-Provider tokens never enter account resolution. This service is not wired to HTTP yet.
+Provider tokens never enter account resolution. The Google callback invokes this
+service only after state and provider validation, with one database transaction.
+
+## Google browser login
+
+`GET /api/v1/auth/google/start` rejects cross-site initiation and untrusted Origin
+headers, applies the per-peer Redis rate limit, creates state, sets the binding
+cookie and redirects to Google. `GET /api/v1/auth/google/callback` accepts the
+cross-site provider redirect, bounds/redacts query data, rejects duplicate code,
+state or error parameters, consumes state and verifies the provider before opening
+the account-resolution transaction. Commit precedes session cookie delivery.
+Responses use 303 redirects, `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
+The successful callback clears the OAuth cookie and redirects to the configured
+success URL. Failed callbacks redirect to the configured error URL, preserve
+existing session cookies and leave the binding cookie to expire or be replaced
+by the next initiation. They do not expose provider/error input. Rate-limit
+failures return 429 with Retry-After; unavailable configuration/protection returns 503.
+
+`FRONTEND_AUTH_SUCCESS_URL` and `FRONTEND_AUTH_ERROR_URL` must be configured
+together. Both require HTTPS except local loopback HTTP and prohibit credentials,
+query strings and fragments. They are fixed configuration, never request return URLs.
+Google browser login fails closed until provider and frontend settings are configured.
+`AUTH_OAUTH_COOKIE_NAME` defaults to `__Host-ukladen_oauth`, distinct from session
+and CSRF cookies. Enabled OAuth cookies obey Secure prefix rules and always use
+SameSite=Lax, HttpOnly, Path=/, no Domain, and the state lifetime. Local HTTP must
+select an unprefixed name. Existing deployments with Google disabled need no new
+cookie configuration. Start and callback independently default to 10 attempts
+per 60 seconds, using `AUTH_GOOGLE_START_RATE_LIMIT` /
+`AUTH_GOOGLE_START_RATE_WINDOW_SECONDS` and `AUTH_GOOGLE_CALLBACK_RATE_LIMIT` /
+`AUTH_GOOGLE_CALLBACK_RATE_WINDOW_SECONDS` (positive values).
+
+The application lifespan conditionally constructs the provider using the existing
+HTTP client and closes it with health clients. Construction makes no Google requests.
+`AuthAccessLogFilter` removes authentication query strings from Uvicorn access
+records while preserving path/status/peer metadata. Reverse proxies must likewise
+omit authentication query strings from access logs; the current Traefik configuration
+does not enable access logging.
 
 ## HTTP
 
 | Endpoint | Behavior |
 | --- | --- |
+| `GET /api/v1/auth/google/start` | Start Google login with browser-bound state. |
+| `GET /api/v1/auth/google/callback` | Verify Google identity and commit an ordinary session, then redirect. |
 | `GET /api/health/live` | Always returns 200 while the API can serve requests. |
 | `GET /api/health/ready` | Checks PostgreSQL, Redis and SeaweedFS; returns 200 or 503. |
 | `GET /api/docs` | Interactive Swagger UI. |
@@ -783,3 +822,9 @@ malformed callback/Redis inputs, fixed errors, outages and failed creation.
 With `AUTH_TEST_REDIS_URL`, generated keys exercise native expiry, `SET NX`
 collisions, wrong-browser preservation, replay rejection, simultaneous callbacks
 and expiry/replacement between read and atomic deletion. Keys are cleaned up.
+
+Google browser tests cover cookie flags, commit-before-cookie ordering, fixed
+redirects, provider/Redis/database failures, duplicate/malformed queries, navigation
+checks, rate limits, settings validation and access-log query redaction. Isolated
+PostgreSQL/Redis tests use a fake provider to exercise account creation, replay,
+email collisions, wrong browsers, consent denial, session validation and logout.

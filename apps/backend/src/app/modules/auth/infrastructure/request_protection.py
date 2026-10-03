@@ -1,3 +1,5 @@
+import logging
+
 from redis import Redis
 from redis.exceptions import RedisError
 
@@ -8,6 +10,21 @@ local count = redis.call('INCR', KEYS[1])
 if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
 return {count, redis.call('TTL', KEYS[1])}
 """
+
+
+class AuthAccessLogFilter(logging.Filter):
+    """Remove auth query strings from Uvicorn access records, including OAuth codes."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if isinstance(args, tuple) and len(args) == 5 and isinstance(args[2], str):
+            path = args[2].partition("?")[0]
+            if path.startswith("/api/v1/auth/"):
+                record.args = (*args[:2], path, *args[3:])
+        return True
+
+
+auth_access_log_filter = AuthAccessLogFilter()
 
 
 class RedisRateLimiter:

@@ -8,6 +8,7 @@ from app.core.config import Settings, get_settings
 from app.core.health import HealthChecks, HealthResponse
 from app.db.session import create_database_engine, create_session_factory
 from app.modules.auth.infrastructure.email_sender import CeleryEmailSender
+from app.modules.auth.infrastructure.google_oidc import GoogleOidcProvider
 from app.modules.auth.infrastructure.password_hasher import Argon2PasswordHasher
 from app.modules.auth.infrastructure.request_protection import RedisRateLimiter
 from app.modules.auth.infrastructure.token_service import generate_token
@@ -26,6 +27,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         application.state.redis = health.redis
         application.state.rate_limiter = RedisRateLimiter(health.redis)
         application.state.passwords = Argon2PasswordHasher()
+        application.state.google_provider = (
+            GoogleOidcProvider(config, health.http) if config.google_client_id is not None else None
+        )
         celery = Celery("ukladen", broker=str(config.redis_url), set_as_current=False)
         try:
             celery.conf.update(

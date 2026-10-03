@@ -4,15 +4,20 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.modules.auth.application.dto import IssuedSession
+from app.modules.auth.application.google_login import GoogleLoginService
+from app.modules.auth.application.google_oauth import GoogleOAuthService
 from app.modules.auth.application.login import LoginService
 from app.modules.auth.application.password_recovery import PasswordRecoveryService
 from app.modules.auth.application.ports import (
     EmailDeliveryUnavailable,
     EmailSender,
+    ExternalIdentityUnavailable,
+    OAuthStateUnavailable,
     RateLimiterUnavailable,
     SessionCacheUnavailable,
 )
@@ -20,7 +25,10 @@ from app.modules.auth.application.registration import RegistrationService
 from app.modules.auth.application.verification import EmailVerificationService
 from app.modules.auth.application.verification_request import EmailVerificationRequestService
 from app.modules.auth.domain.errors import (
+    AccountLinkingRequired,
     InvalidCredentials,
+    InvalidExternalIdentity,
+    InvalidOAuthState,
     InvalidOneTimeToken,
     InvalidPassword,
     InvalidRegistration,
@@ -28,6 +36,7 @@ from app.modules.auth.domain.errors import (
     RegistrationConflict,
     SessionNotFound,
 )
+from app.modules.auth.infrastructure.request_protection import auth_access_log_filter
 from app.modules.auth.infrastructure.token_service import generate_token
 from app.modules.auth.presentation.dependencies import (
     Config,
@@ -38,24 +47,30 @@ from app.modules.auth.presentation.dependencies import (
     get_email_sender,
     get_email_verification,
     get_email_verification_request,
+    get_google_login,
+    get_google_oauth,
     get_login,
     get_password_recovery,
     get_registration,
     is_token,
     limit_email_verification_confirm,
     limit_email_verification_request,
+    limit_google_callback,
+    limit_google_start,
     limit_login,
     limit_password_change,
     limit_password_reset_confirm,
     limit_password_reset_request,
     limit_registration,
     require_csrf,
+    require_google_navigation,
 )
 from app.modules.auth.presentation.schemas import (
     CsrfResponse,
     EmailVerificationRequest,
     EmailVerificationRequestResponse,
     EmailVerificationResendRequest,
+    GoogleCallbackRequest,
     LoginRequest,
     LoginResponse,
     PasswordChangeRequest,
@@ -91,6 +106,93 @@ def clear_session_cookie(response: Response, settings: Config) -> None:
         httponly=True,
         samesite=settings.auth_cookie_samesite,
     )
+
+
+def set_oauth_cookie(response: Response, token: str, settings: Config) -> None:
+    response.set_cookie(
+        settings.auth_oauth_cookie_name,
+        token,
+        max_age=settings.auth_oauth_state_ttl_seconds,
+        path="/",
+        secure=settings.auth_cookie_secure,
+        httponly=True,
+        samesite="lax",
+    )
+
+
+def clear_oauth_cookie(response: Response, settings: Config) -> None:
+    response.delete_cookie(
+        settings.auth_oauth_cookie_name,
+        path="/",
+        secure=settings.auth_cookie_secure,
+        httponly=True,
+        samesite="lax",
+    )
+
+
+@router.get(
+    "/google/start", dependencies=[Depends(require_google_navigation), Depends(limit_google_start)]
+)
+def google_start(
+    settings: Config, service: Annotated[GoogleOAuthService, Depends(get_google_oauth)]
+) -> RedirectResponse:
+    authorization = service.start()
+    response = RedirectResponse(
+        authorization.url,
+        status_code=303,
+        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+    )
+    set_oauth_cookie(response, authorization.browser_token, settings)
+    return response
+
+
+@router.get("/google/callback", dependencies=[Depends(limit_google_callback)])
+def google_callback(
+    request: Request,
+    settings: Config,
+    database: Database,
+    oauth: Annotated[GoogleOAuthService, Depends(get_google_oauth)],
+    accounts: Annotated[GoogleLoginService, Depends(get_google_login)],
+) -> Response:
+    try:
+        if any(len(request.query_params.getlist(name)) > 1 for name in ("code", "state", "error")):
+            raise InvalidOAuthState("Invalid or expired OAuth state.")
+        payload = GoogleCallbackRequest.model_validate(dict(request.query_params))
+        identity = oauth.resolve_callback(
+            state=payload.state.get_secret_value() if payload.state else None,
+            code=payload.code.get_secret_value() if payload.code else None,
+            error=payload.error.get_secret_value() if payload.error else None,
+            browser_token=request.cookies.get(settings.auth_oauth_cookie_name),
+        )
+        with database.begin():
+            issued = accounts.login(
+                identity,
+                user_agent=request.headers.get("user-agent", "")[:1024] or None,
+                ip_address=client_ip(request),
+            )
+    except (
+        InvalidOAuthState,
+        InvalidExternalIdentity,
+        ValidationError,
+        AccountLinkingRequired,
+        OAuthStateUnavailable,
+        ExternalIdentityUnavailable,
+        SQLAlchemyError,
+    ):
+        response = RedirectResponse(
+            str(settings.frontend_auth_error_url),
+            status_code=303,
+            headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+        )
+        return response
+    response = RedirectResponse(
+        str(settings.frontend_auth_success_url),
+        status_code=303,
+        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+    )
+    clear_oauth_cookie(response, settings)
+    set_session_cookie(response, issued, settings)
+    return response
 
 
 @router.get("/csrf", response_model=CsrfResponse)
@@ -396,6 +498,8 @@ def request_password_reset(
 
 
 def install_auth(application: FastAPI) -> None:
+    logging.getLogger("uvicorn.access").addFilter(auth_access_log_filter)
+
     def invalid_request(request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(
             {"detail": "Invalid request."}, status_code=422, headers={"Cache-Control": "no-store"}
@@ -440,6 +544,8 @@ def install_auth(application: FastAPI) -> None:
         SessionCacheUnavailable,
         RateLimiterUnavailable,
         EmailDeliveryUnavailable,
+        ExternalIdentityUnavailable,
+        OAuthStateUnavailable,
     ):
         application.add_exception_handler(error_type, unavailable)
     application.include_router(router)
