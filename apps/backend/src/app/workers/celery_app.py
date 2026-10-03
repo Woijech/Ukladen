@@ -3,8 +3,13 @@ from celery import Celery
 from app.core.config import get_settings
 
 settings = get_settings()
-celery_app = Celery("ukladen", broker=str(settings.redis_url))
+celery_app = Celery(
+    "ukladen",
+    broker=str(settings.redis_url),
+    include=["app.modules.auth.infrastructure.email_tasks"],
+)
 celery_app.conf.update(
+    task_protocol=2,
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",

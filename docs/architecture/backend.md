@@ -5,7 +5,8 @@ services, registration, email-verification, password-login, password-reset and
 password-change application flows implemented.
 Browser password login/logout/change, email-verification and password-reset
 confirmation, session-management endpoints and CSRF bootstrap are implemented.
-HTTP registration/password-reset request and email delivery are not implemented.
+Celery email queuing and a development fake are implemented.
+HTTP registration/password-reset request and production email delivery are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -56,6 +57,10 @@ namespace from login.
 `AUTH_PASSWORD_RESET_CONFIRM_RATE_WINDOW_SECONDS` to 60; both must be positive.
 Reset-confirmation limits also use the hashed ASGI peer address, with their own
 Redis key namespace.
+`AUTH_EMAIL_DELIVERY_MODE` accepts `disabled` (the default) or `fake`.
+`.env.example` explicitly enables the development fake; existing `.env` files
+are not modified. Disabled mode refuses email queuing and worker delivery with
+`EmailDeliveryUnavailable`. Fake mode sends no external email.
 
 ## Database
 
@@ -171,7 +176,7 @@ roll back on any error to avoid partial registration. None commits independently
 for later delivery. Its representation hides both tokens. Only token hashes and
 the password hash are persisted; registration does not publish session data to
 Redis. Commit successfully before delivering cookies or verification email.
-HTTP registration and Celery email delivery remain unimplemented. Cookie delivery,
+HTTP registration and automatic verification-email enqueueing remain unimplemented. Cookie delivery,
 CSRF protection and rate limiting are implemented for password login;
 email-verification confirmation also has CSRF and rate protection.
 
@@ -278,7 +283,7 @@ failures return a sanitized 503. These responses use `Cache-Control: no-store`.
 Failures do not clear or replace the cookie, allowing a rolled-back reset to be
 retried. CSRF rejection returns 403 before rate limiting or confirmation.
 
-Status: HTTP password-reset request and email delivery are not implemented.
+Status: HTTP password-reset request and automatic reset-email enqueueing are not implemented.
 The future request transport must return a generic acknowledgement regardless of
 account existence, add CSRF/rate protection, and deliver reset email
 asynchronously through an `EmailSender` boundary after commit. Provider selection
@@ -378,8 +383,43 @@ Beat scheduling.
 
 `workers/celery_app.py` configures a Redis broker, JSON serialization, UTC and no
 result backend. `foundation.ping` is an idempotent diagnostic task returning `pong`.
-Beat runs the same app with an empty periodic schedule. Business jobs and periodic
-tasks are not implemented. Redis does not hold authoritative user data.
+Beat runs the same app with an empty periodic schedule. Other business jobs and
+periodic tasks are not implemented. Redis does not hold authoritative user data.
+
+The auth application owns an `EmailSender` port with `send_email_verification`
+and `send_password_reset` methods. Both accept internal recipient/token data and
+return no message content. Callers must commit token creation before sending.
+`CeleryEmailSender` validates the recipient with existing email normalization and
+the 43-character URL-safe token format, then queues `auth.send_email`. It refuses
+disabled mode or Celery protocol 1, uses protocol 2 redacted `argsrepr`/`kwargsrepr`,
+ignores results and disables automatic publication retries. Queue or validation
+failures become a fixed `EmailDeliveryUnavailable` without exception chaining.
+Queue acceptance does not guarantee delivery; there is no transactional outbox
+or automatic recovery for a crash/failure between database commit and publication.
+The registration/reset request transports do not call this adapter yet.
+
+`workers/celery_app.py` includes `auth/infrastructure/email_tasks.py` so workers
+register `auth.send_email`. This bound task redacts request representations before
+validation, including malformed/direct/eager calls, checks delivery mode again,
+validates the message and invokes the `EmailSender` boundary. Its result is `None`,
+ignored, with no stored task errors. Settings, payload and sender failures become
+a fixed error; task failures do not expose the original exception or token.
+Email message DTOs use `SecretStr`, omit tokens from representations and mask them
+in JSON serialization. Raw tokens are extracted only for transport/delivery.
+
+The development `FakeEmailSender` keeps the latest 100 distinct messages per worker
+process in memory. Duplicate messages within that window are ignored. This is
+bounded inspection/test state, not durable delivery or cross-worker idempotency;
+it disappears on restart and has no HTTP inbox. Neither fake messages nor token
+contents are logged. TODO: select and implement a production mail provider behind
+`EmailSender`; real email delivery, durable retry/idempotency and frontend email
+links are not implemented.
+
+Celery JSON bodies temporarily carry raw one-time tokens through the trusted
+Redis broker because the worker needs them for email delivery. Redacted task
+headers hide tokens in normal Celery events/logs; they do not encrypt message
+bodies. Protect broker access and do not log payloads. No raw tokens are written
+to PostgreSQL or task results.
 
 ## Verification
 
@@ -481,3 +521,14 @@ login and rejection without side effects for invalid tokens, ineligible accounts
 or weak passwords. Cache-failure rollback preserves the password, token, sessions
 and cookie; confirmation succeeds on retry without login. Native Redis checks
 verify the configured limit and window using a unique peer key removed afterward.
+
+Email-delivery tests cover both message types, recipient normalization, explicit
+fake/disabled modes, refusal of protocol 1, safe queue options, bounded fake
+recording/deduplication, registration of the Celery task and ignored results.
+Eager task execution checks fixed settings/validation/sender errors and redaction
+of malformed jobs in Celery failure logs and tracebacks. With `AUTH_TEST_REDIS_URL`
+set, the integration test publishes both message types through native Celery/Kombu,
+reads them from a real Redis queue and executes the registered task against the
+fake. A unique Redis key prefix isolates all broker state; the test acknowledges
+messages and deletes its queue and prefixed keys afterward. Tests send no external
+email and do not start a separate worker process.

@@ -178,8 +178,9 @@ SeaweedFS object storage, Traefik, Docker Compose and GitHub Actions CI.
 Authentication is partially implemented: application registration, email
 verification and password reset, plus browser password login/logout, session
 management, password change, email-verification confirmation and password-reset
-confirmation. Registration and password-reset request HTTP endpoints, email
-delivery and authentication UI are not implemented.
+confirmation. Celery email queuing with a development fake is implemented.
+Registration and password-reset request HTTP endpoints, production email delivery
+and authentication UI are not implemented.
 
 ```text
 apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests
@@ -205,6 +206,13 @@ If `.env` already exists, copy the browser authentication settings from
 `AUTH_COOKIE_SECURE=false`. Set `AUTH_ALLOWED_ORIGINS` to the exact frontend
 origins (HTTPS in production). This allowlist provides CSRF validation, not CORS.
 
+`AUTH_EMAIL_DELIVERY_MODE` defaults to `disabled`. `.env.example` explicitly uses
+`fake` for development: queued verification/reset messages are captured only in
+worker memory, without sending external email or logging tokens. Existing `.env`
+files are not changed automatically. A production mail provider is not implemented;
+keep delivery disabled outside development. Registration/reset request endpoints
+do not enqueue messages yet.
+
 For browser password login, call `GET /api/v1/auth/csrf` with cookies enabled,
 retain its `csrf_token`, then send it as `X-CSRF-Token` together with cookies and
 the browser's `Origin` on `POST /api/v1/auth/login` (`email` and `password` JSON).
@@ -228,7 +236,7 @@ returns an empty 204, consumes the token and verifies its user's email without
 changing session cookies. Invalid, expired or used tokens return a generic 400;
 malformed request bodies return a generic 422. The default limit is five attempts
 per client address per 60-second window. Public registration and verification
-email delivery remain unimplemented.
+email delivery through the public registration flow remain unimplemented.
 
 Password-reset tokens can be confirmed with
 `POST /api/v1/auth/password-reset/confirm`, sending `token` and `new_password` in
@@ -238,7 +246,7 @@ account's sessions; it clears the browser session cookie. The new password uses
 the configured registration length policy. Invalid tokens and policy failures
 return fixed 400 errors; malformed request bodies return a generic 422. The
 default limit is five attempts per client address per 60-second window. Reset
-requests and reset-email delivery remain unimplemented.
+requests and reset-email delivery through HTTP remain unimplemented.
 
 Read [Local Development](docs/development/local-development.md) for host setup,
 checks and troubleshooting. Implementation details are in

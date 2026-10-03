@@ -13,6 +13,18 @@ class RateLimiterUnavailable(Exception):
     """Request protection could not finish safely."""
 
 
+class EmailDeliveryUnavailable(Exception):
+    """An authentication email could not be queued or delivered safely."""
+
+
+class EmailSender(Protocol):
+    """Send or enqueue internal token data only after its database transaction commits."""
+
+    def send_email_verification(self, email: str, token: str) -> None: ...
+
+    def send_password_reset(self, email: str, token: str) -> None: ...
+
+
 class RateLimiter(Protocol):
     def check(self, key: str, limit: int, window_seconds: int) -> tuple[bool, int]:
         """Return whether the request is allowed and seconds until the window expires."""
