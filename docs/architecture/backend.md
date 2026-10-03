@@ -3,8 +3,8 @@
 Status: foundation, auth contracts, persistence, password/token helpers, session
 services, registration, email-verification, password-login, password-reset and
 password-change application flows implemented.
-Browser password login/logout, session-management endpoints and CSRF bootstrap are implemented.
-HTTP registration/verification/password-reset/password-change and email delivery
+Browser password login/logout/change, session-management endpoints and CSRF bootstrap are implemented.
+HTTP registration/verification/password-reset and email delivery
 are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
@@ -44,6 +44,10 @@ path, query or fragment. An empty list denies authentication mutations. Prefer
 same-origin deployment; the API does not install CORS middleware.
 `AUTH_LOGIN_RATE_LIMIT` defaults to 10 and `AUTH_LOGIN_RATE_WINDOW_SECONDS` to 60;
 both must be positive.
+`AUTH_PASSWORD_CHANGE_RATE_LIMIT` defaults to 5 and
+`AUTH_PASSWORD_CHANGE_RATE_WINDOW_SECONDS` to 60; both must be positive.
+Password-change limits are keyed by the authenticated user UUID, shared across
+that user's sessions and client addresses.
 
 ## Database
 
@@ -267,7 +271,18 @@ User, credential and retained-session locks remain held until transaction
 completion. Concurrent changes recheck the current password after waiting for
 the user lock. The caller must roll back every error, including cache invalidation
 failure. If there are no other sessions, no Redis deletion is needed.
-Status: the HTTP password-change endpoint is not implemented.
+`POST /api/v1/auth/password/change` wires this service through the existing
+SQLAlchemy session, password hasher and session service. It requires authentication,
+CSRF validation and the per-user Redis rate limiter before invoking password change.
+Its request DTO uses `SecretStr` for both passwords, omits them from representations,
+rejects extra fields and bounds both inputs to 1–1024 characters. The application
+enforces the configured minimum for new passwords. It returns an empty 204 only
+after commit, with `Cache-Control: no-store`, and does not set or clear the current
+cookie. Invalid current passwords return a fixed 401; policy failures return a
+fixed 400. Transport validation returns the existing generic 422; invalid sessions
+use the existing 401 handler and clear the cookie. Rate limits return 429 with
+`Retry-After`; limiter/cache/database failures return a sanitized 503. Responses
+omit passwords, tokens and internal exception details.
 
 ## HTTP
 
@@ -283,6 +298,7 @@ Status: the HTTP password-change endpoint is not implemented.
 | `POST /api/v1/auth/logout-all` | Revokes the current user's sessions, clears the cookie and returns 204. |
 | `GET /api/v1/auth/sessions` | Lists only the authenticated user's active sessions and public metadata. |
 | `DELETE /api/v1/auth/sessions/{session_id}` | Revokes an owned session; returns 204 or a generic 404. |
+| `POST /api/v1/auth/password/change` | Requires the current password; changes it, retains the current session and revokes others. |
 
 Authentication POST and DELETE requests require an exact allowed `Origin` and matching
 43-character URL-safe tokens in the CSRF cookie and `X-CSRF-Token` header, compared
@@ -397,3 +413,11 @@ rejection for other sessions, preservation of another user's sessions, no cache
 deletion when there are no other sessions, and rollback/retry after cache failure.
 Competing changes exercise user/session locks and password rechecking after the
 first transaction commits or rolls back.
+
+Password-change HTTP tests cover authenticated owner propagation, CSRF ordering,
+per-user limits, secret-safe DTOs/validation/errors, no premature success on commit
+failure, and current-cookie retention. PostgreSQL/Redis flows exercise the native
+rate window, wrong-current-password and policy rejection, successful change,
+revoked-session replay rejection, login with the new password, old-password
+rejection, cache-failure rollback/retry and disabled-account rejection. Generated
+rate keys and session cache entries are removed after the isolated tests.

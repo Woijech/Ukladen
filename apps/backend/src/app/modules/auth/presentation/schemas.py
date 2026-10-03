@@ -12,6 +12,13 @@ class LoginRequest(BaseModel):
     password: SecretStr = Field(min_length=1, max_length=1024, repr=False)
 
 
+class PasswordChangeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: SecretStr = Field(min_length=1, max_length=1024, repr=False)
+    new_password: SecretStr = Field(min_length=1, max_length=1024, repr=False)
+
+
 class LoginResponse(BaseModel):
     user_id: UUID
     session_id: UUID

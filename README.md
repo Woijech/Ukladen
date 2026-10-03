@@ -175,9 +175,10 @@ User-facing product text may initially be Russian.
 Phase 0 foundation is implemented. The repository contains a FastAPI modular
 monolith, Next.js shell, PostgreSQL 18/pgvector, Redis, Celery worker and Beat,
 SeaweedFS object storage, Traefik, Docker Compose and GitHub Actions CI.
-Authentication is partially implemented: application registration and email
-verification, plus browser password login, logout and logout-all. Registration
-and verification HTTP endpoints, email delivery and authentication UI are not implemented.
+Authentication is partially implemented: application registration, email
+verification and password reset, plus browser password login/logout, session
+management and password change. Registration, verification and password-reset
+HTTP endpoints, email delivery and authentication UI are not implemented.
 
 ```text
 apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests
@@ -211,6 +212,13 @@ Successful login delivers an HttpOnly session cookie after committing the sessio
 protection and return 204 after revocation. Login permits 10 attempts per client
 address per 60-second window by default. Public registration is not available yet,
 so login currently requires an existing account.
+
+Authenticated clients can change their password with
+`POST /api/v1/auth/password/change`, sending `current_password` and `new_password`
+in JSON with the same cookies, `Origin` and CSRF header. Success returns 204,
+keeps the current session and revokes other sessions. The default limit is five
+attempts per user per 60-second window. The new password must meet the configured
+registration length policy; the default minimum is 12 characters.
 
 Read [Local Development](docs/development/local-development.md) for host setup,
 checks and troubleshooting. Implementation details are in

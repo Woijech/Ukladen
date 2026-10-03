@@ -9,12 +9,14 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.modules.auth.application.login import LoginService
+from app.modules.auth.application.password_recovery import PasswordRecoveryService
 from app.modules.auth.application.ports import RateLimiter
 from app.modules.auth.application.service import SessionService
 from app.modules.auth.domain.entities import AuthSession
 from app.modules.auth.domain.errors import InvalidSession
 from app.modules.auth.infrastructure.repository import (
     SqlAlchemyCredentialRepository,
+    SqlAlchemyPasswordResetRepository,
     SqlAlchemySessionRepository,
 )
 from app.modules.auth.infrastructure.session_cache import RedisSessionCache
@@ -55,6 +57,21 @@ def get_login(request: Request, database: Database, sessions: Sessions) -> Login
         request.app.state.passwords,
         sessions,
         dummy_password_hash=request.app.state.dummy_password_hash,
+    )
+
+
+def get_password_recovery(
+    request: Request, database: Database, sessions: Sessions, settings: Config
+) -> PasswordRecoveryService:
+    return PasswordRecoveryService(
+        SqlAlchemyUserAuthentication(database),
+        SqlAlchemyCredentialRepository(database),
+        SqlAlchemyPasswordResetRepository(database),
+        request.app.state.passwords,
+        sessions,
+        settings,
+        generate_token=generate_token,
+        hash_token=hash_token,
     )
 
 
@@ -105,6 +122,24 @@ def get_current_session(
 
 
 CurrentSession = Annotated[AuthSession, Depends(get_current_session)]
+
+
+def limit_password_change(
+    current: CurrentSession,
+    settings: Config,
+    limiter: Annotated[RateLimiter, Depends(get_rate_limiter)],
+) -> None:
+    allowed, retry_after = limiter.check(
+        f"password-change:{current.user_id}",
+        settings.auth_password_change_rate_limit,
+        settings.auth_password_change_rate_window_seconds,
+    )
+    if not allowed:
+        raise HTTPException(
+            429,
+            "Too many password change attempts.",
+            headers={"Retry-After": str(retry_after), "Cache-Control": "no-store"},
+        )
 
 
 def client_ip(request: Request) -> IPv4Address | IPv6Address | None:

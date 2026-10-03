@@ -7,8 +7,14 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.modules.auth.application.login import LoginService
+from app.modules.auth.application.password_recovery import PasswordRecoveryService
 from app.modules.auth.application.ports import RateLimiterUnavailable, SessionCacheUnavailable
-from app.modules.auth.domain.errors import InvalidCredentials, InvalidSession, SessionNotFound
+from app.modules.auth.domain.errors import (
+    InvalidCredentials,
+    InvalidPassword,
+    InvalidSession,
+    SessionNotFound,
+)
 from app.modules.auth.infrastructure.token_service import generate_token
 from app.modules.auth.presentation.dependencies import (
     Config,
@@ -17,14 +23,17 @@ from app.modules.auth.presentation.dependencies import (
     Sessions,
     client_ip,
     get_login,
+    get_password_recovery,
     is_token,
     limit_login,
+    limit_password_change,
     require_csrf,
 )
 from app.modules.auth.presentation.schemas import (
     CsrfResponse,
     LoginRequest,
     LoginResponse,
+    PasswordChangeRequest,
     SessionResponse,
 )
 
@@ -156,6 +165,38 @@ def revoke_session(
     if session_id == current.id:
         clear_session_cookie(response, settings)
     return response
+
+
+@router.post(
+    "/password/change",
+    status_code=204,
+    dependencies=[Depends(require_csrf), Depends(limit_password_change)],
+)
+def change_password(
+    payload: PasswordChangeRequest,
+    current: CurrentSession,
+    database: Database,
+    service: Annotated[PasswordRecoveryService, Depends(get_password_recovery)],
+) -> Response:
+    try:
+        with database.begin():
+            service.change_password(
+                current.user_id,
+                current.id,
+                payload.current_password.get_secret_value(),
+                payload.new_password.get_secret_value(),
+            )
+    except InvalidCredentials:
+        raise HTTPException(
+            401, "Invalid current password.", headers={"Cache-Control": "no-store"}
+        ) from None
+    except InvalidPassword:
+        raise HTTPException(
+            400,
+            "New password does not meet the password policy.",
+            headers={"Cache-Control": "no-store"},
+        ) from None
+    return Response(status_code=204, headers={"Cache-Control": "no-store"})
 
 
 def install_auth(application: FastAPI) -> None:
