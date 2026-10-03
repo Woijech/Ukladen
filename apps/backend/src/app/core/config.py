@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     auth_password_min_length: int = Field(default=12, gt=0, le=1024)
     auth_email_verification_ttl_seconds: int = Field(default=24 * 60 * 60, gt=0)
     auth_password_reset_ttl_seconds: int = Field(default=60 * 60, gt=0)
+    auth_oauth_state_ttl_seconds: int = Field(default=10 * 60, gt=0)
     auth_session_cookie_name: str = Field(
         default="__Host-ukladen_session", pattern=r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
     )

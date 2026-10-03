@@ -36,3 +36,7 @@ class InvalidExternalIdentity(AuthError):
 
 class AccountLinkingRequired(AuthError):
     """An existing email requires explicit account linking and re-authentication."""
+
+
+class InvalidOAuthState(AuthError):
+    """OAuth state is invalid, expired, consumed or belongs to another browser."""

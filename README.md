@@ -247,8 +247,11 @@ Ukladen browser authentication continues to use opaque server-side sessions.
 Account resolution authenticates linked subjects, creates verified Google-only
 users for unused emails, and requires explicit linking when an email already exists.
 It preserves existing accounts and commits user, identity and session together.
-Google start/callback endpoints, browser-bound Redis state and explicit linking
-are not implemented. Configuring credentials does not enable
+Browser-bound Redis OAuth state is implemented with single-use consumption, nonce
+and S256 PKCE. `AUTH_OAUTH_STATE_TTL_SECONDS` defaults to 600; state and browser
+binding are stored hashed, with the nonce and verifier temporarily stored in Redis.
+Google start/callback endpoints and explicit linking are not implemented.
+Configuring credentials does not enable
 Google login yet. Tests use mocked HTTP and in-memory signing keys, with no Google
 network calls.
 

@@ -7,9 +7,9 @@ Browser registration, password login/logout/change, email-verification request/c
 password-reset request/confirmation, session-management endpoints and CSRF
 bootstrap are implemented.
 Celery email queuing and a development fake are implemented.
-A Google OIDC identity adapter and account-resolution application service are
-implemented. Google browser login, explicit linking and production email delivery
-are not implemented.
+A Google OIDC identity adapter, account-resolution application service and
+browser-bound Redis OAuth state are implemented. Google browser login, explicit
+linking and production email delivery are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -418,8 +418,7 @@ and callback resolution. `GoogleOidcProvider` implements it using a caller-owned
 HTTPX client; construction performs no I/O and disabled settings fail closed.
 The caller must validate and consume browser-bound OAuth state before invoking
 `resolve_callback`. This adapter neither owns browser state nor creates or links
-Ukladen accounts/sessions. Google start/callback routes and browser-bound Redis
-state are not implemented.
+Ukladen accounts/sessions. Google start/callback routes are not implemented.
 
 The adapter follows [Google's documented OIDC server flow](https://developers.google.com/identity/openid-connect/openid-connect).
 It obtains authorization, token and JWKS endpoints from the fixed Google discovery
@@ -461,6 +460,36 @@ JWKS documents are cached per adapter using monotonic expiry, respecting max-age
 Age, no-store and no-cache, with a one-hour ceiling. Expired data is refetched and
 is not served on provider failure. Cache fills share one lock; replicas may fetch
 the same public data independently. The caller owns HTTP client cleanup.
+
+## Browser-bound OAuth state
+
+`OAuthStateService.start` generates independent random state, nonce, PKCE verifier
+and browser-binding tokens using the existing token helper. S256 produces the
+unpadded base64url SHA-256 verifier challenge. `OAuthStateStart` returns only the
+internal data needed to build the authorization URL and set a browser cookie;
+the verifier stays in the temporary `OAuthStateRecord`. Both DTOs redact their
+fields from representations. No cookies or HTTP endpoints are implemented here.
+
+`OAuthStateStore` is the application boundary for temporary storage.
+`RedisOAuthStateStore` uses `ukladen:auth:oauth:<SHA-256(state)>` keys. The JSON value
+contains a SHA-256 browser-token hash and the nonce/verifier needed for provider
+validation. Redis `SET NX EX` creates a record without overwriting another flow.
+`AUTH_OAUTH_STATE_TTL_SECONDS` defaults to 600 and must be positive. Redis expiry
+is authoritative for this temporary state; PostgreSQL is unaffected.
+
+Consumption validates callback token formats before I/O, bounds and validates
+the stored JSON, then compares the browser hash in constant time. A mismatched
+browser cannot delete the valid record. A Lua compare-and-delete consumes only
+the exact record read, so simultaneous callbacks have one winner and expiry or
+replacement between read and delete fails closed. Missing, expired, consumed and
+mismatched states raise the same fixed `InvalidOAuthState`. Redis failures or failed
+creation raise fixed `OAuthStateUnavailable` without chained connection details.
+There is no process-local fallback and no token logging.
+
+Future HTTP callers must deliver the binding token through a Secure HttpOnly
+SameSite=Lax cookie (Secure may be disabled for local development), consume state
+before provider exchange/account mutation, and restart login after a consumed-state
+provider failure. Browser routes and their cookie handling are not implemented yet.
 
 ## Google account resolution
 
@@ -748,3 +777,9 @@ canonical-account preservation, failed verification, hashed sessions, late-write
 rollback and retry, concurrent subject/email races, and the active-user lock.
 They use isolated PostgreSQL schemas and generated Redis session keys to validate
 ordinary session caching/revocation, with no provider network calls.
+
+OAuth-state tests cover the S256 reference vector, hashed storage, redacted DTOs,
+malformed callback/Redis inputs, fixed errors, outages and failed creation.
+With `AUTH_TEST_REDIS_URL`, generated keys exercise native expiry, `SET NX`
+collisions, wrong-browser preservation, replay rejection, simultaneous callbacks
+and expiry/replacement between read and atomic deletion. Keys are cleaned up.

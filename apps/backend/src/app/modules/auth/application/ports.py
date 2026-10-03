@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from app.modules.auth.application.dto import VerifiedGoogleIdentity
+from app.modules.auth.application.dto import OAuthStateRecord, VerifiedGoogleIdentity
 from app.modules.auth.domain.entities import AuthSession, OneTimeToken
 
 
@@ -20,6 +20,22 @@ class EmailDeliveryUnavailable(Exception):
 
 class ExternalIdentityUnavailable(Exception):
     """Provider configuration or communication is unavailable."""
+
+
+class OAuthStateUnavailable(Exception):
+    """OAuth state could not be stored or consumed safely."""
+
+
+class OAuthStateStore(Protocol):
+    """Expiring state, separate from canonical users and sessions."""
+
+    def create(self, state_hash: str, record: OAuthStateRecord, ttl_seconds: int) -> None:
+        """Create without overwriting; raise OAuthStateUnavailable on failure."""
+        ...
+
+    def consume(self, state_hash: str, browser_token_hash: str) -> OAuthStateRecord | None:
+        """Atomically consume once only for the matching browser; fail closed on outages."""
+        ...
 
 
 class ExternalIdentityProvider(Protocol):
