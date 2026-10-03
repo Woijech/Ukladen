@@ -7,7 +7,8 @@ Browser registration, password login/logout/change, email-verification request/c
 password-reset request/confirmation, session-management endpoints and CSRF
 bootstrap are implemented.
 Celery email queuing and a development fake are implemented.
-Google OIDC and production email delivery are not implemented.
+A Google OIDC identity adapter is implemented. Google browser login/account resolution
+and production email delivery are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -73,6 +74,13 @@ Request limits use the hashed ASGI peer address with a separate Redis key namesp
 `.env.example` explicitly enables the development fake; existing `.env` files
 are not modified. Disabled mode refuses email queuing and worker delivery with
 `EmailDeliveryUnavailable`. Fake mode sends no external email.
+
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REDIRECT_URI` are optional
+as a group: all must be unset or all supplied. The secret uses `SecretStr` and is
+omitted from settings representations. Callback URIs disallow credentials, query
+strings and fragments; HTTPS is required except for `localhost`, `127.0.0.1` and
+`[::1]` development URLs. Commented placeholders are provided in `.env.example`.
+The Google adapter consumes these settings; it is not wired into browser routes yet.
 
 ## Database
 
@@ -402,6 +410,57 @@ use the existing 401 handler and clear the cookie. Rate limits return 429 with
 `Retry-After`; limiter/cache/database failures return a sanitized 503. Responses
 omit passwords, tokens and internal exception details.
 
+## Google OIDC adapter
+
+`ExternalIdentityProvider` is the application boundary for authorization URL building
+and callback resolution. `GoogleOidcProvider` implements it using a caller-owned
+HTTPX client; construction performs no I/O and disabled settings fail closed.
+The caller must validate and consume browser-bound OAuth state before invoking
+`resolve_callback`. This adapter neither owns browser state nor creates or links
+Ukladen accounts/sessions. Google start/callback routes and account resolution are
+not implemented.
+
+The adapter follows [Google's documented OIDC server flow](https://developers.google.com/identity/openid-connect/openid-connect).
+It obtains authorization, token and JWKS endpoints from the fixed Google discovery
+URL, validates the issuer and RS256/S256 support, and restricts endpoints to HTTPS
+on their expected Google hosts without credentials, ports, query strings or
+fragments. Redirect following is disabled. Authorization URLs carry only the client
+ID, configured redirect URI, `openid email` scopes, code response type, state, nonce
+and S256 PKCE challenge. State, nonce and challenge must be 43-character URL-safe
+tokens. The future browser flow is responsible for generating/storing state and
+nonce and deriving the challenge from the verifier.
+
+Callback resolution bounds the authorization code and checks the nonce and PKCE
+verifier before I/O. The code exchange posts credentials/code/verifier in form data
+with `authorization_code` grant type, using the configured redirect URI. Requests
+use three-second timeouts and provider JSON bodies are limited to 64 KiB. Invalid
+code responses (400/401) become `InvalidExternalIdentity`; communication, malformed
+JSON, unexpected status and invalid discovery data become fixed
+`ExternalIdentityUnavailable` errors. The adapter performs no code-exchange retries.
+
+`PyJWT[crypto]>=2.13,<3` adds PyJWT and cryptography for RSA/JWT validation, reusing
+HTTPX for transport. The locked versions are PyJWT 2.15.1 and cryptography 50.0.2.
+ID tokens are bounded to 16 KiB; only RS256 with a nonempty bounded `kid` is accepted.
+Unsupported critical headers are rejected; token-provided key URLs are ignored.
+JWKS selection requires exactly one matching RSA signing key, compatible algorithm
+and verification use, no private key material and a minimum 2048-bit public key.
+An unknown key ID triggers one JWKS refresh before rejection, supporting rotation.
+PyJWT validates signature, Google issuer, exact client audience, expiry and issue
+time. Required claims include issuer, subject, audience, expiry, issue time, nonce,
+email and verification status. The adapter additionally requires a bounded ASCII
+subject, integer issue/expiry timestamps in order, matching authorized presenter
+when present, constant-time nonce equality and a strictly boolean true
+`email_verified`. Email validation/normalization reuses registration's standard
+library helper. Invalid claims/signatures become a fixed `InvalidExternalIdentity`
+without exposing provider content or chained exception text.
+
+`VerifiedGoogleIdentity` contains only subject and normalized email. Provider access,
+refresh and ID tokens are neither returned nor persisted/logged. Public discovery and
+JWKS documents are cached per adapter using monotonic expiry, respecting max-age,
+Age, no-store and no-cache, with a one-hour ceiling. Expired data is refetched and
+is not served on provider failure. Cache fills share one lock; replicas may fetch
+the same public data independently. The caller owns HTTP client cleanup.
+
 ## HTTP
 
 | Endpoint | Behavior |
@@ -650,3 +709,11 @@ rejection, rollback/retry after insertion failure, retained tokens after queue f
 and the native per-user rate window. HTTP flows inject the development fake; the
 separate delivery tests cover the actual broker. Temporary schemas and generated
 session/rate keys are cleaned up.
+
+Google adapter tests use HTTPX MockTransport and generated in-memory RSA keys, never
+real Google requests or committed keys. They cover authorization/form parameters,
+claim/signature/algorithm rejection, required claims, both documented Google issuers,
+nonce/PKCE input validation, unsafe discovery endpoints, malformed/oversized JSON,
+fixed HTTP/transport errors without code retry, inappropriate or ambiguous keys,
+key rotation and unknown-key rejection, public-cache freshness/expiry, safe logs,
+partial/unsafe settings, local callbacks and disabled-provider no-I/O behavior.

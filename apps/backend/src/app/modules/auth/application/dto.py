@@ -37,3 +37,11 @@ class EmailVerificationDelivery:
     email: str
     expires_at: datetime
     token: str = field(repr=False)
+
+
+@dataclass(frozen=True)
+class VerifiedGoogleIdentity:
+    """A signature- and claim-validated Google identity, without provider tokens."""
+
+    subject: str
+    email: str

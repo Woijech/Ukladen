@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
+from app.modules.auth.application.dto import VerifiedGoogleIdentity
 from app.modules.auth.domain.entities import AuthSession, OneTimeToken
 
 
@@ -15,6 +16,20 @@ class RateLimiterUnavailable(Exception):
 
 class EmailDeliveryUnavailable(Exception):
     """An authentication email could not be queued or delivered safely."""
+
+
+class ExternalIdentityUnavailable(Exception):
+    """Provider configuration or communication is unavailable."""
+
+
+class ExternalIdentityProvider(Protocol):
+    """Callers must validate and consume browser-bound OAuth state before resolving a callback."""
+
+    def build_authorization_url(self, *, state: str, nonce: str, code_challenge: str) -> str: ...
+
+    def resolve_callback(
+        self, *, code: str, code_verifier: str, nonce: str
+    ) -> VerifiedGoogleIdentity: ...
 
 
 class EmailSender(Protocol):

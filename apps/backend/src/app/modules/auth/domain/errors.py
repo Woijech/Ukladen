@@ -28,3 +28,7 @@ class InvalidCredentials(AuthError):
 
 class InvalidPassword(AuthError):
     """The proposed password does not satisfy the current password policy."""
+
+
+class InvalidExternalIdentity(AuthError):
+    """The provider response cannot establish a verified identity."""

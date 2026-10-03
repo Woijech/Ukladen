@@ -41,6 +41,27 @@ class Settings(BaseSettings):
     auth_password_reset_request_rate_limit: int = Field(default=5, gt=0)
     auth_password_reset_request_rate_window_seconds: int = Field(default=60, gt=0)
     auth_email_delivery_mode: Literal["disabled", "fake"] = "disabled"
+    google_client_id: str | None = Field(default=None, min_length=1, max_length=1024)
+    google_client_secret: SecretStr | None = Field(default=None, min_length=1, repr=False)
+    google_redirect_uri: AnyHttpUrl | None = None
+
+    @model_validator(mode="after")
+    def validate_google(self) -> Settings:
+        configured = (self.google_client_id, self.google_client_secret, self.google_redirect_uri)
+        if any(value is not None for value in configured) and any(
+            value is None for value in configured
+        ):
+            raise ValueError("Google configuration requires client ID, secret and redirect URI.")
+        uri = self.google_redirect_uri
+        if uri is not None and (
+            uri.username
+            or uri.password
+            or uri.query
+            or uri.fragment
+            or (uri.scheme != "https" and uri.host not in ("localhost", "127.0.0.1", "[::1]"))
+        ):
+            raise ValueError("Google redirect URI requires HTTPS, except for local development.")
+        return self
 
     @model_validator(mode="after")
     def validate_browser_auth(self) -> Settings:
