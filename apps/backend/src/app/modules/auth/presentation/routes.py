@@ -7,6 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.modules.auth.application.dto import IssuedSession
 from app.modules.auth.application.login import LoginService
 from app.modules.auth.application.password_recovery import PasswordRecoveryService
 from app.modules.auth.application.ports import (
@@ -15,12 +16,15 @@ from app.modules.auth.application.ports import (
     RateLimiterUnavailable,
     SessionCacheUnavailable,
 )
+from app.modules.auth.application.registration import RegistrationService
 from app.modules.auth.application.verification import EmailVerificationService
 from app.modules.auth.domain.errors import (
     InvalidCredentials,
     InvalidOneTimeToken,
     InvalidPassword,
+    InvalidRegistration,
     InvalidSession,
+    RegistrationConflict,
     SessionNotFound,
 )
 from app.modules.auth.infrastructure.token_service import generate_token
@@ -34,12 +38,14 @@ from app.modules.auth.presentation.dependencies import (
     get_email_verification,
     get_login,
     get_password_recovery,
+    get_registration,
     is_token,
     limit_email_verification_confirm,
     limit_login,
     limit_password_change,
     limit_password_reset_confirm,
     limit_password_reset_request,
+    limit_registration,
     require_csrf,
 )
 from app.modules.auth.presentation.schemas import (
@@ -51,11 +57,25 @@ from app.modules.auth.presentation.schemas import (
     PasswordResetConfirmationRequest,
     PasswordResetRequest,
     PasswordResetRequestResponse,
+    RegistrationRequest,
     SessionResponse,
 )
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
+
+
+def set_session_cookie(response: Response, issued: IssuedSession, settings: Config) -> None:
+    response.set_cookie(
+        settings.auth_session_cookie_name,
+        issued.token,
+        max_age=settings.auth_session_ttl_seconds,
+        expires=issued.session.expires_at,
+        path="/",
+        secure=settings.auth_cookie_secure,
+        httponly=True,
+        samesite=settings.auth_cookie_samesite,
+    )
 
 
 def clear_session_cookie(response: Response, settings: Config) -> None:
@@ -108,21 +128,60 @@ def login(
             user_agent=request.headers.get("user-agent", "")[:1024] or None,
             ip_address=client_ip(request),
         )
-    response.set_cookie(
-        settings.auth_session_cookie_name,
-        issued.token,
-        max_age=settings.auth_session_ttl_seconds,
-        expires=issued.session.expires_at,
-        path="/",
-        secure=settings.auth_cookie_secure,
-        httponly=True,
-        samesite=settings.auth_cookie_samesite,
-    )
+    set_session_cookie(response, issued, settings)
     response.headers["Cache-Control"] = "no-store"
     return LoginResponse(
         user_id=issued.session.user_id,
         session_id=issued.session.id,
         expires_at=issued.session.expires_at,
+    )
+
+
+@router.post(
+    "/register",
+    status_code=201,
+    response_model=LoginResponse,
+    dependencies=[Depends(require_csrf), Depends(limit_registration)],
+)
+def register(
+    payload: RegistrationRequest,
+    request: Request,
+    response: Response,
+    settings: Config,
+    database: Database,
+    sender: Annotated[EmailSender, Depends(get_email_sender)],
+    service: Annotated[RegistrationService, Depends(get_registration)],
+) -> LoginResponse:
+    try:
+        with database.begin():
+            result = service.register(
+                payload.email,
+                payload.password.get_secret_value(),
+                user_agent=request.headers.get("user-agent", "")[:1024] or None,
+                ip_address=client_ip(request),
+            )
+    except InvalidRegistration:
+        raise HTTPException(
+            400, "Invalid registration input.", headers={"Cache-Control": "no-store"}
+        ) from None
+    except RegistrationConflict:
+        raise HTTPException(
+            409, "Registration could not be completed.", headers={"Cache-Control": "no-store"}
+        ) from None
+    set_session_cookie(response, result.session, settings)
+    try:
+        sender.send_email_verification(result.email, result.verification_token)
+    except EmailDeliveryUnavailable:
+        # ponytail: publication after commit can lose mail; add an outbox for durable delivery.
+        logger.warning(
+            "Registration email queue failed.",
+            extra={"user_id": str(result.user_id), "event": "auth.registration.email_queue_failed"},
+        )
+    response.headers["Cache-Control"] = "no-store"
+    return LoginResponse(
+        user_id=result.user_id,
+        session_id=result.session.session.id,
+        expires_at=result.session.session.expires_at,
     )
 
 

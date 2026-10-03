@@ -11,6 +11,7 @@ from app.core.config import Settings
 from app.modules.auth.application.login import LoginService
 from app.modules.auth.application.password_recovery import PasswordRecoveryService
 from app.modules.auth.application.ports import EmailDeliveryUnavailable, EmailSender, RateLimiter
+from app.modules.auth.application.registration import RegistrationService
 from app.modules.auth.application.service import SessionService
 from app.modules.auth.application.verification import EmailVerificationService
 from app.modules.auth.domain.entities import AuthSession
@@ -19,6 +20,7 @@ from app.modules.auth.infrastructure.repository import (
     SqlAlchemyCredentialRepository,
     SqlAlchemyEmailVerificationRepository,
     SqlAlchemyPasswordResetRepository,
+    SqlAlchemyRegistrationRepository,
     SqlAlchemySessionRepository,
 )
 from app.modules.auth.infrastructure.session_cache import RedisSessionCache
@@ -26,6 +28,7 @@ from app.modules.auth.infrastructure.token_service import generate_token, hash_t
 from app.modules.users.infrastructure.repository import (
     SqlAlchemyEmailVerifier,
     SqlAlchemyUserAuthentication,
+    SqlAlchemyUserRegistration,
 )
 
 
@@ -59,6 +62,20 @@ def get_sessions(request: Request, database: Database, settings: Config) -> Sess
 
 
 Sessions = Annotated[SessionService, Depends(get_sessions)]
+
+
+def get_registration(
+    request: Request, database: Database, sessions: Sessions, settings: Config
+) -> RegistrationService:
+    return RegistrationService(
+        SqlAlchemyUserRegistration(database),
+        SqlAlchemyRegistrationRepository(database),
+        request.app.state.passwords,
+        sessions,
+        settings,
+        generate_token=generate_token,
+        hash_token=hash_token,
+    )
 
 
 def get_login(request: Request, database: Database, sessions: Sessions) -> LoginService:
@@ -110,6 +127,23 @@ def require_csrf(request: Request, settings: Config) -> None:
 
 def get_rate_limiter(request: Request) -> RateLimiter:
     return request.app.state.rate_limiter
+
+
+def limit_registration(
+    request: Request, settings: Config, limiter: Annotated[RateLimiter, Depends(get_rate_limiter)]
+) -> None:
+    peer = request.client.host if request.client else "unknown"
+    allowed, retry_after = limiter.check(
+        f"register:{hash_token(peer)}",
+        settings.auth_register_rate_limit,
+        settings.auth_register_rate_window_seconds,
+    )
+    if not allowed:
+        raise HTTPException(
+            429,
+            "Too many registration attempts.",
+            headers={"Retry-After": str(retry_after), "Cache-Control": "no-store"},
+        )
 
 
 def limit_login(

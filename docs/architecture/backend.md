@@ -3,11 +3,11 @@
 Status: foundation, auth contracts, persistence, password/token helpers, session
 services, registration, email-verification, password-login, password-reset and
 password-change application flows implemented.
-Browser password login/logout/change, email-verification confirmation,
+Browser registration, password login/logout/change, email-verification confirmation,
 password-reset request/confirmation, session-management endpoints and CSRF
 bootstrap are implemented.
 Celery email queuing and a development fake are implemented.
-HTTP registration and production email delivery are not implemented.
+Google OIDC and production email delivery are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -47,6 +47,9 @@ path, query or fragment. An empty list denies authentication mutations. Prefer
 same-origin deployment; the API does not install CORS middleware.
 `AUTH_LOGIN_RATE_LIMIT` defaults to 10 and `AUTH_LOGIN_RATE_WINDOW_SECONDS` to 60;
 both must be positive.
+`AUTH_REGISTER_RATE_LIMIT` defaults to 5 and `AUTH_REGISTER_RATE_WINDOW_SECONDS`
+to 60; both must be positive. Registration uses the hashed ASGI peer address with
+a separate Redis key namespace.
 `AUTH_PASSWORD_CHANGE_RATE_LIMIT` defaults to 5 and
 `AUTH_PASSWORD_CHANGE_RATE_WINDOW_SECONDS` to 60; both must be positive.
 Password-change limits are keyed by the authenticated user UUID, shared across
@@ -114,7 +117,7 @@ Browser sessions follow [ADR 0002](../adr/0002-use-opaque-browser-sessions.md).
 Argon2id settings and random salts. Verification returns false for incorrect
 passwords and malformed or unsupported stored hashes. It does not log passwords
 or hashes. Registration enforces length limits without trimming passwords or
-requiring particular character classes. HTTP registration is not implemented.
+requiring particular character classes.
 
 `generate_token` uses `secrets.token_urlsafe(32)` to generate opaque tokens from
 32 cryptographically random bytes. `hash_token` returns a lowercase SHA-256 digest
@@ -181,9 +184,33 @@ roll back on any error to avoid partial registration. None commits independently
 for later delivery. Its representation hides both tokens. Only token hashes and
 the password hash are persisted; registration does not publish session data to
 Redis. Commit successfully before delivering cookies or verification email.
-HTTP registration and automatic verification-email enqueueing remain unimplemented. Cookie delivery,
-CSRF protection and rate limiting are implemented for password login;
-email-verification confirmation also has CSRF and rate protection.
+`POST /api/v1/auth/register` wires this service with the users-owned registration
+adapter, credential/token repository, existing password hasher and session service,
+all sharing one SQLAlchemy session. Its DTO rejects extra fields, bounds email to
+1–320 characters and wraps the password in `SecretStr` with 1–1024 bounds; the
+application enforces the configured registration minimum. CSRF validation and a
+configurable peer-address Redis limiter run before mutation. Disabled email delivery
+fails closed with a sanitized 503 before creating any records.
+
+The route commits the complete registration before delivering the HttpOnly cookie
+through the same setter as login and calling `EmailSender.send_email_verification`.
+It returns 201 with only user UUID, session UUID and expiry, plus `Cache-Control:
+no-store`; raw tokens and hashes never appear in response JSON. User agents are
+capped at 1024 characters and IP addresses come from the ASGI peer. Registration
+does not require or validate an existing session cookie. New users remain active
+and can log in before email verification.
+
+Invalid registration input returns a fixed 400, duplicate accounts a fixed 409,
+and invalid transport a generic 422. Database or commit failure returns a sanitized
+503 without issuing a cookie or queuing mail; all registration records roll back.
+Existing password, Google-only and disabled accounts are never overwritten or
+linked. If publication fails after commit, the account and session remain valid
+and the route retains 201/cookie delivery. The warning contains only a fixed message,
+user UUID and event, without recipient, token or exception traceback. There is no
+transactional outbox or verification resend endpoint yet; a failed publication can
+leave an unverified account without delivered verification mail. A production email
+provider and configurable verification requirements for sensitive features remain
+unimplemented.
 
 `EmailVerificationService` accepts the generated 43-character URL-safe token format
 and looks up only its hash through `EmailVerificationRepository`. The SQLAlchemy
@@ -356,6 +383,7 @@ omit passwords, tokens and internal exception details.
 | `GET /api/docs` | Interactive Swagger UI. |
 | `GET /api/openapi.json` | Generated OpenAPI schema. |
 | `GET /api/v1/auth/csrf` | Sets/reuses an HttpOnly CSRF cookie and returns its token. |
+| `POST /api/v1/auth/register` | Creates an account/session and queues verification email after commit; returns 201 and a session cookie. |
 | `POST /api/v1/auth/login` | Password login; returns user/session IDs and expiry, and sets a session cookie. |
 | `POST /api/v1/auth/logout` | Revokes the current session, clears its cookie and returns 204. |
 | `POST /api/v1/auth/logout-all` | Revokes the current user's sessions, clears the cookie and returns 204. |
@@ -374,7 +402,7 @@ remains HttpOnly. Clients must include cookies. Production `__Host-` cookies als
 prevent subdomains from injecting domain-scoped authentication cookies.
 
 `RedisRateLimiter` uses an atomic INCR/EXPIRE Lua script for fixed request windows;
-denied attempts do not extend expiry. Login, email-verification confirmation and
+denied attempts do not extend expiry. Registration, login, email-verification confirmation and
 password-reset request/confirmation use hashed ASGI peer addresses; password change uses
 the user UUID. The limiter does not parse forwarded headers itself. Configure trusted proxy
 handling at the server when deploying behind a proxy, or clients share the proxy's
@@ -416,8 +444,8 @@ ignores results and disables automatic publication retries. Queue or validation
 failures become a fixed `EmailDeliveryUnavailable` without exception chaining.
 Queue acceptance does not guarantee delivery; there is no transactional outbox
 or automatic recovery for a crash/failure between database commit and publication.
-The reset-request transport calls this adapter after token creation commits;
-public registration is not implemented.
+Registration and reset-request transports call this adapter after token creation
+commits.
 
 The API lifespan owns a Celery producer configured from its supplied `REDIS_URL`,
 using JSON/protocol 2, ignored results and three-second connection/socket limits.
@@ -569,3 +597,15 @@ through an independent database connection before sending, request-to-confirmati
 and login with the new password, rejected session replay, queue-failure persistence
 and retry, and the native configurable rate window. The HTTP flows use the injected
 development fake; the separate email-delivery test exercises the actual Redis queue.
+
+Registration HTTP tests cover commit-before-cookie/email ordering, safe public DTOs,
+production cookie flags, bounded user agents, peer limits ignoring forwarded headers,
+CSRF/rate protection, disabled email delivery, fixed errors and secret-safe queue
+failure logs. PostgreSQL/Redis checks verify committed account/credential/session/
+verification-token state through an independent connection before sending, hash-only
+persistence, login before verification, confirmation and replay rejection, preservation
+of duplicate password/Google-only/disabled accounts, complete rollback after a late
+database failure, retained accounts/sessions after publication failure, and a native
+Redis rate window. The HTTP tests inject the development fake; the separate delivery
+tests exercise the actual Redis broker. Generated session/rate keys and temporary
+schemas are removed after testing.

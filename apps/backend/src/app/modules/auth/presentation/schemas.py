@@ -13,6 +13,13 @@ class LoginRequest(BaseModel):
     password: SecretStr = Field(min_length=1, max_length=1024, repr=False)
 
 
+class RegistrationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: str = Field(min_length=1, max_length=320)
+    password: SecretStr = Field(min_length=1, max_length=1024, repr=False)
+
+
 class PasswordChangeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

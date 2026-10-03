@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     auth_allowed_origins: list[AnyHttpUrl] = Field(default_factory=list)
     auth_login_rate_limit: int = Field(default=10, gt=0)
     auth_login_rate_window_seconds: int = Field(default=60, gt=0)
+    auth_register_rate_limit: int = Field(default=5, gt=0)
+    auth_register_rate_window_seconds: int = Field(default=60, gt=0)
     auth_password_change_rate_limit: int = Field(default=5, gt=0)
     auth_password_change_rate_window_seconds: int = Field(default=60, gt=0)
     auth_email_verification_confirm_rate_limit: int = Field(default=5, gt=0)

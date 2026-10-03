@@ -179,8 +179,8 @@ Authentication is partially implemented: application registration, email
 verification and password reset, plus browser password login/logout, session
 management, password change, email-verification confirmation and password-reset
 confirmation. Celery email queuing with a development fake is implemented.
-Password-reset requests can queue messages after commit. Registration HTTP,
-production email delivery and authentication UI are not implemented.
+Registration and password-reset requests queue messages after commit.
+Google OIDC, production email delivery and authentication UI are not implemented.
 
 ```text
 apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests
@@ -210,8 +210,8 @@ origins (HTTPS in production). This allowlist provides CSRF validation, not CORS
 `fake` for development: queued verification/reset messages are captured only in
 worker memory, without sending external email or logging tokens. Existing `.env`
 files are not changed automatically. A production mail provider is not implemented;
-keep delivery disabled outside development. Password-reset requests use this queue;
-public registration is not implemented.
+keep delivery disabled outside development. Registration and password-reset requests
+use this queue.
 
 For browser password login, call `GET /api/v1/auth/csrf` with cookies enabled,
 retain its `csrf_token`, then send it as `X-CSRF-Token` together with cookies and
@@ -219,8 +219,20 @@ the browser's `Origin` on `POST /api/v1/auth/login` (`email` and `password` JSON
 Successful login delivers an HttpOnly session cookie after committing the session.
 `POST /api/v1/auth/logout` and `/api/v1/auth/logout-all` require the same CSRF
 protection and return 204 after revocation. Login permits 10 attempts per client
-address per 60-second window by default. Public registration is not available yet,
-so login currently requires an existing account.
+address per 60-second window by default.
+
+Register with `POST /api/v1/auth/register`, sending `email` and `password` in JSON
+with the same CSRF protection. Passwords accept 12–1024 characters by default;
+whitespace and Unicode are preserved. Success returns 201 with user/session IDs
+and expiry, sets the session cookie and queues verification email only after the
+account, credential, session and hashed verification token commit. The default
+limit is five attempts per client address per 60-second window, configurable with
+`AUTH_REGISTER_RATE_LIMIT` and `AUTH_REGISTER_RATE_WINDOW_SECONDS`. Invalid input
+returns 400, duplicate emails 409, invalid transport 422 and database failures 503;
+none issues a session cookie. Disabled email delivery returns 503 before creation.
+A queue failure after commit retains 201 and the session, with safe metadata-only
+logging; the account remains unverified. There is no durable publication recovery
+or verification resend endpoint yet. Users may log in before verification.
 
 Authenticated clients can change their password with
 `POST /api/v1/auth/password/change`, sending `current_password` and `new_password`
@@ -235,8 +247,8 @@ CSRF cookie, allowed `Origin` and CSRF header. Login is unnecessary. Success
 returns an empty 204, consumes the token and verifies its user's email without
 changing session cookies. Invalid, expired or used tokens return a generic 400;
 malformed request bodies return a generic 422. The default limit is five attempts
-per client address per 60-second window. Public registration and verification
-email delivery through the public registration flow remain unimplemented.
+per client address per 60-second window. Registration queues verification messages
+through the development fake; real email delivery remains unimplemented.
 
 Password-reset tokens can be confirmed with
 `POST /api/v1/auth/password-reset/confirm`, sending `token` and `new_password` in
