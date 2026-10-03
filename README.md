@@ -231,8 +231,8 @@ limit is five attempts per client address per 60-second window, configurable wit
 returns 400, duplicate emails 409, invalid transport 422 and database failures 503;
 none issues a session cookie. Disabled email delivery returns 503 before creation.
 A queue failure after commit retains 201 and the session, with safe metadata-only
-logging; the account remains unverified. There is no durable publication recovery
-or verification resend endpoint yet. Users may log in before verification.
+logging; the account remains unverified. There is no durable publication recovery.
+Users may log in before verification and request another verification message.
 
 Authenticated clients can change their password with
 `POST /api/v1/auth/password/change`, sending `current_password` and `new_password`
@@ -249,6 +249,19 @@ changing session cookies. Invalid, expired or used tokens return a generic 400;
 malformed request bodies return a generic 422. The default limit is five attempts
 per client address per 60-second window. Registration queues verification messages
 through the development fake; real email delivery remains unimplemented.
+
+Signed-in users can resend verification with
+`POST /api/v1/auth/email-verification/request`, sending `{}` in JSON with the
+session cookie and the same CSRF protection. The server uses the current user's
+stored email; caller-supplied recipients are rejected. Success returns 202 and
+`Email verification request accepted.`, retaining the session cookie. Already
+verified users receive the same acknowledgement without mail or a new token.
+The default limit is five requests per user per 60-second window, configured with
+`AUTH_EMAIL_VERIFICATION_REQUEST_RATE_LIMIT` and
+`AUTH_EMAIL_VERIFICATION_REQUEST_RATE_WINDOW_SECONDS`. Disabled delivery returns
+503 before issuance. The token commits before queuing; queue failure retains 202,
+so the user can request another message. Earlier unused tokens stay valid until
+their original expiry, and each token remains single-use.
 
 Password-reset tokens can be confirmed with
 `POST /api/v1/auth/password-reset/confirm`, sending `token` and `new_password` in

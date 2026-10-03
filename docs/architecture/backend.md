@@ -3,7 +3,7 @@
 Status: foundation, auth contracts, persistence, password/token helpers, session
 services, registration, email-verification, password-login, password-reset and
 password-change application flows implemented.
-Browser registration, password login/logout/change, email-verification confirmation,
+Browser registration, password login/logout/change, email-verification request/confirmation,
 password-reset request/confirmation, session-management endpoints and CSRF
 bootstrap are implemented.
 Celery email queuing and a development fake are implemented.
@@ -58,6 +58,10 @@ that user's sessions and client addresses.
 `AUTH_EMAIL_VERIFICATION_CONFIRM_RATE_WINDOW_SECONDS` to 60; both must be positive.
 Confirmation limits use the hashed ASGI peer address and a separate Redis key
 namespace from login.
+`AUTH_EMAIL_VERIFICATION_REQUEST_RATE_LIMIT` defaults to 5 and
+`AUTH_EMAIL_VERIFICATION_REQUEST_RATE_WINDOW_SECONDS` to 60; both must be positive.
+Resend limits are keyed by the authenticated user UUID, shared across sessions and
+client addresses, in their own Redis namespace.
 `AUTH_PASSWORD_RESET_CONFIRM_RATE_LIMIT` defaults to 5 and
 `AUTH_PASSWORD_RESET_CONFIRM_RATE_WINDOW_SECONDS` to 60; both must be positive.
 Reset-confirmation limits also use the hashed ASGI peer address, with their own
@@ -207,10 +211,10 @@ Existing password, Google-only and disabled accounts are never overwritten or
 linked. If publication fails after commit, the account and session remain valid
 and the route retains 201/cookie delivery. The warning contains only a fixed message,
 user UUID and event, without recipient, token or exception traceback. There is no
-transactional outbox or verification resend endpoint yet; a failed publication can
-leave an unverified account without delivered verification mail. A production email
-provider and configurable verification requirements for sensitive features remain
-unimplemented.
+transactional outbox; a failed publication can leave an unverified account without
+delivered verification mail. The authenticated resend endpoint permits a new request.
+A production email provider and configurable verification requirements for sensitive
+features remain unimplemented.
 
 `EmailVerificationService` accepts the generated 43-character URL-safe token format
 and looks up only its hash through `EmailVerificationRepository`. The SQLAlchemy
@@ -241,6 +245,30 @@ input receives the existing generic 422 without echoing the token. Rate limits
 return 429 with `Retry-After`; database/limiter failures return a sanitized 503.
 These responses use `Cache-Control: no-store` and do not expose tokens or user IDs.
 CSRF rejection returns 403 before rate limiting or confirmation.
+
+`EmailVerificationRequestService.request` uses the users-owned `EmailVerifier`
+lookup to read and lock an active, unverified user's canonical email by UUID. It
+returns no delivery data for missing, disabled or already verified users. Eligible
+users receive a new email-verification token with the configured lifetime, computed
+after acquiring the user lock. `SqlAlchemyRegistrationRepository` stores only its
+SHA-256 hash within the same caller-owned transaction. `EmailVerificationDelivery`
+is internal and hides the raw token from its representation; callers must commit
+before sending. Requesting another token leaves all earlier tokens untouched and
+valid until their original expiry. Each token can be consumed only once.
+
+`POST /api/v1/auth/email-verification/request` requires an authenticated active
+session, CSRF validation and per-user Redis limiting. Its DTO accepts only an empty
+JSON object; recipient email and user IDs cannot be supplied. The route uses the
+current session's user UUID, commits token creation, then queues through the existing
+`EmailSender`. Eligible and already verified users receive the same 202 with
+`Email verification request accepted.` and `Cache-Control: no-store`; neither sets
+nor clears the session cookie. Invalid sessions receive the existing 401 and cookie
+clearing, CSRF rejection 403, malformed transport 422, and rate rejection 429 with
+`Retry-After`. Database/commit, limiter and disabled delivery failures return the
+sanitized 503; no mail is queued or token committed on issuance failure. After-commit
+queue failure retains 202 and logs only a fixed message, user UUID and failure event,
+without recipient, token or traceback. A subsequent request can issue a fresh token;
+production mail and durable publication recovery remain unimplemented.
 
 `LoginService` shares registration's email normalization and preserves password
 whitespace. Login accepts passwords from 1 to 1024 characters; it does not apply
@@ -390,6 +418,7 @@ omit passwords, tokens and internal exception details.
 | `GET /api/v1/auth/sessions` | Lists only the authenticated user's active sessions and public metadata. |
 | `DELETE /api/v1/auth/sessions/{session_id}` | Revokes an owned session; returns 204 or a generic 404. |
 | `POST /api/v1/auth/password/change` | Requires the current password; changes it, retains the current session and revokes others. |
+| `POST /api/v1/auth/email-verification/request` | Requests verification mail for the authenticated user after token commit; returns 202 and retains the cookie. |
 | `POST /api/v1/auth/email-verification/confirm` | Consumes a valid verification token and verifies its user's email; returns 204 without requiring login. |
 | `POST /api/v1/auth/password-reset/confirm` | Changes the password, consumes a reset token, revokes owned sessions and clears the browser session cookie; returns 204 without requiring login. |
 | `POST /api/v1/auth/password-reset/request` | Returns the same 202 for every account outcome; commits an eligible reset token before email queuing. |
@@ -403,9 +432,9 @@ prevent subdomains from injecting domain-scoped authentication cookies.
 
 `RedisRateLimiter` uses an atomic INCR/EXPIRE Lua script for fixed request windows;
 denied attempts do not extend expiry. Registration, login, email-verification confirmation and
-password-reset request/confirmation use hashed ASGI peer addresses; password change uses
-the user UUID. The limiter does not parse forwarded headers itself. Configure trusted proxy
-handling at the server when deploying behind a proxy, or clients share the proxy's
+password-reset request/confirmation use hashed ASGI peer addresses; password change and
+email-verification requests use the user UUID. The limiter does not parse forwarded
+headers itself. Configure trusted proxy handling at the server when deploying behind a proxy, or clients share the proxy's
 limit. Exceeded limits return 429 with `Retry-After`; unavailable or invalid Redis
 limiter state fails closed with a sanitized 503 response.
 
@@ -444,8 +473,8 @@ ignores results and disables automatic publication retries. Queue or validation
 failures become a fixed `EmailDeliveryUnavailable` without exception chaining.
 Queue acceptance does not guarantee delivery; there is no transactional outbox
 or automatic recovery for a crash/failure between database commit and publication.
-Registration and reset-request transports call this adapter after token creation
-commits.
+Registration, verification-request and reset-request transports call this adapter
+after token creation commits.
 
 The API lifespan owns a Celery producer configured from its supplied `REDIS_URL`,
 using JSON/protocol 2, ignored results and three-second connection/socket limits.
@@ -609,3 +638,15 @@ database failure, retained accounts/sessions after publication failure, and a na
 Redis rate window. The HTTP tests inject the development fake; the separate delivery
 tests exercise the actual Redis broker. Generated session/rate keys and temporary
 schemas are removed after testing.
+
+Verification-request tests cover locked canonical email selection, ineligible-user
+no-ops, configurable lifetime, hidden delivery tokens, current-user propagation,
+commit-before-queue ordering, cookie retention, authentication/CSRF/rate protection,
+rejection of caller-supplied recipients, fixed errors and safe queue-failure logs.
+PostgreSQL/Redis tests verify committed hashed tokens through an independent connection
+before sending, preservation and single use of earlier tokens, confirmation followed
+by verified-user no-op, isolation from other users, user-row locks, disabled-user
+rejection, rollback/retry after insertion failure, retained tokens after queue failure,
+and the native per-user rate window. HTTP flows inject the development fake; the
+separate delivery tests cover the actual broker. Temporary schemas and generated
+session/rate keys are cleaned up.

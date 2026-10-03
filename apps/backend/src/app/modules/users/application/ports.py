@@ -14,7 +14,11 @@ class UserRegistration(Protocol):
 
 
 class EmailVerifier(Protocol):
-    """Record verification in the caller's transaction; return False for a missing user."""
+    """Read and update canonical email verification in the caller's transaction."""
+
+    def get_unverified_email(self, user_id: UUID) -> str | None:
+        """Lock an active, unverified user; return no email for an ineligible user."""
+        ...
 
     def mark_verified(self, user_id: UUID, verified_at: datetime) -> bool: ...
 

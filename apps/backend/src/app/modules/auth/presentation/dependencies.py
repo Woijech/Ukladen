@@ -14,6 +14,7 @@ from app.modules.auth.application.ports import EmailDeliveryUnavailable, EmailSe
 from app.modules.auth.application.registration import RegistrationService
 from app.modules.auth.application.service import SessionService
 from app.modules.auth.application.verification import EmailVerificationService
+from app.modules.auth.application.verification_request import EmailVerificationRequestService
 from app.modules.auth.domain.entities import AuthSession
 from app.modules.auth.domain.errors import InvalidSession
 from app.modules.auth.infrastructure.repository import (
@@ -107,6 +108,18 @@ def get_email_verification(database: Database) -> EmailVerificationService:
     return EmailVerificationService(
         SqlAlchemyEmailVerificationRepository(database),
         SqlAlchemyEmailVerifier(database),
+        hash_token=hash_token,
+    )
+
+
+def get_email_verification_request(
+    database: Database, settings: Config
+) -> EmailVerificationRequestService:
+    return EmailVerificationRequestService(
+        SqlAlchemyEmailVerifier(database),
+        SqlAlchemyRegistrationRepository(database),
+        settings,
+        generate_token=generate_token,
         hash_token=hash_token,
     )
 
@@ -226,6 +239,24 @@ def get_current_session(
 
 
 CurrentSession = Annotated[AuthSession, Depends(get_current_session)]
+
+
+def limit_email_verification_request(
+    current: CurrentSession,
+    settings: Config,
+    limiter: Annotated[RateLimiter, Depends(get_rate_limiter)],
+) -> None:
+    allowed, retry_after = limiter.check(
+        f"email-verification-request:{current.user_id}",
+        settings.auth_email_verification_request_rate_limit,
+        settings.auth_email_verification_request_rate_window_seconds,
+    )
+    if not allowed:
+        raise HTTPException(
+            429,
+            "Too many email verification requests.",
+            headers={"Retry-After": str(retry_after), "Cache-Control": "no-store"},
+        )
 
 
 def limit_password_change(

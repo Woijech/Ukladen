@@ -27,3 +27,13 @@ class PasswordResetDelivery:
     email: str
     expires_at: datetime
     token: str = field(repr=False)
+
+
+@dataclass(frozen=True)
+class EmailVerificationDelivery:
+    """Internal delivery data; commit before sending, never return it from HTTP."""
+
+    user_id: UUID
+    email: str
+    expires_at: datetime
+    token: str = field(repr=False)

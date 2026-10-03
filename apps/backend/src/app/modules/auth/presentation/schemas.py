@@ -33,6 +33,14 @@ class EmailVerificationRequest(BaseModel):
     token: SecretStr = Field(min_length=43, max_length=43, repr=False)
 
 
+class EmailVerificationResendRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class EmailVerificationRequestResponse(BaseModel):
+    detail: Literal["Email verification request accepted."] = "Email verification request accepted."
+
+
 class PasswordResetConfirmationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

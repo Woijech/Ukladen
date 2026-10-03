@@ -18,6 +18,7 @@ from app.modules.auth.application.ports import (
 )
 from app.modules.auth.application.registration import RegistrationService
 from app.modules.auth.application.verification import EmailVerificationService
+from app.modules.auth.application.verification_request import EmailVerificationRequestService
 from app.modules.auth.domain.errors import (
     InvalidCredentials,
     InvalidOneTimeToken,
@@ -36,11 +37,13 @@ from app.modules.auth.presentation.dependencies import (
     client_ip,
     get_email_sender,
     get_email_verification,
+    get_email_verification_request,
     get_login,
     get_password_recovery,
     get_registration,
     is_token,
     limit_email_verification_confirm,
+    limit_email_verification_request,
     limit_login,
     limit_password_change,
     limit_password_reset_confirm,
@@ -51,6 +54,8 @@ from app.modules.auth.presentation.dependencies import (
 from app.modules.auth.presentation.schemas import (
     CsrfResponse,
     EmailVerificationRequest,
+    EmailVerificationRequestResponse,
+    EmailVerificationResendRequest,
     LoginRequest,
     LoginResponse,
     PasswordChangeRequest,
@@ -294,6 +299,38 @@ def confirm_email_verification(
             400, "Invalid or expired token.", headers={"Cache-Control": "no-store"}
         ) from None
     return Response(status_code=204, headers={"Cache-Control": "no-store"})
+
+
+@router.post(
+    "/email-verification/request",
+    status_code=202,
+    response_model=EmailVerificationRequestResponse,
+    dependencies=[Depends(require_csrf), Depends(limit_email_verification_request)],
+)
+def request_email_verification(
+    payload: EmailVerificationResendRequest,
+    current: CurrentSession,
+    response: Response,
+    database: Database,
+    sender: Annotated[EmailSender, Depends(get_email_sender)],
+    service: Annotated[EmailVerificationRequestService, Depends(get_email_verification_request)],
+) -> EmailVerificationRequestResponse:
+    with database.begin():
+        delivery = service.request(current.user_id)
+    if delivery is not None:
+        try:
+            sender.send_email_verification(delivery.email, delivery.token)
+        except EmailDeliveryUnavailable:
+            # ponytail: publication after commit can lose mail; add an outbox for durable delivery.
+            logger.warning(
+                "Email verification queue failed.",
+                extra={
+                    "user_id": str(current.user_id),
+                    "event": "auth.email_verification.email_queue_failed",
+                },
+            )
+    response.headers["Cache-Control"] = "no-store"
+    return EmailVerificationRequestResponse()
 
 
 @router.post(

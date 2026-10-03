@@ -29,6 +29,17 @@ class SqlAlchemyEmailVerifier:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    def get_unverified_email(self, user_id: UUID) -> str | None:
+        return self.session.scalar(
+            select(UserModel.email)
+            .where(
+                UserModel.id == user_id,
+                UserModel.status == "active",
+                UserModel.email_verified_at.is_(None),
+            )
+            .with_for_update()
+        )
+
     def mark_verified(self, user_id: UUID, verified_at: datetime) -> bool:
         return (
             self.session.scalar(
