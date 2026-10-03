@@ -1,8 +1,8 @@
 # Authentication Email Delivery
 
 Status: SMTP delivery, fake delivery and disabled mode are implemented.
-Frontend authentication forms, automatic delivery retries and durable publication
-recovery are not implemented.
+The browser email-verification page is implemented. Login, registration and password-reset
+forms, automatic delivery retries and durable publication recovery are not implemented.
 
 Registration, verification resend and password-reset requests commit their
 single-use token hashes to PostgreSQL, then enqueue `auth.send_email` through the
@@ -24,12 +24,21 @@ SMTP_USERNAME='your-smtp-username'
 SMTP_PASSWORD='your-smtp-password'
 SMTP_FROM_EMAIL=noreply@your-authorized-domain.example
 SMTP_TIMEOUT_SECONDS=10
+AUTH_EMAIL_VERIFICATION_URL=http://localhost:8080/auth/verify-email
 ```
 
 Use `SMTP_SECURITY=tls` with port 465 when the service requires implicit TLS.
 Both encrypted modes verify certificates and hostnames. There is no insecure TLS
 fallback. Username/password are optional only for a relay that does not require
 authentication; otherwise provide both. Never commit `.env` or credentials.
+
+`AUTH_EMAIL_VERIFICATION_URL` enables a clickable verification link in both the
+plain-text and HTML email bodies. Set it to the frontend's public URL ending in
+`/auth/verify-email`. Its origin must appear in `AUTH_ALLOWED_ORIGINS`, with HTTPS
+except for loopback development. Credentials, query strings and existing fragments
+are rejected. Existing `.env` files need this setting added explicitly. If unset,
+verification emails retain the manual token-only format. Password-reset emails
+still use their existing token-only format.
 
 For local HTTP, retain these settings from `.env.example`. Quote the complete JSON
 origin list so that both dotenv readers and `uv --env-file` preserve its contents:
@@ -95,8 +104,24 @@ printf '%s\n%s\n' "$AUTH_EMAIL" "$AUTH_PASSWORD" |
   auth_post register
 ```
 
-The worker should send a message with subject `Verify your Ukladen email`. Copy
-the token from the private email body, then submit it without putting it in a URL:
+The worker should send a message with subject `Verify your Ukladen email`. When
+`AUTH_EMAIL_VERIFICATION_URL` is configured, open its confirmation link in a browser.
+The page automatically obtains the CSRF cookie/token and submits the existing
+POST confirmation endpoint. It displays `Почта подтверждена` on success; registration
+in the same browser is unnecessary. An expired, invalid or reused token displays
+an error; it does not authenticate the browser or create a session.
+
+The email link carries its token in a URL fragment (`#token=...`), never a query
+parameter. Fragments are not sent in HTTP requests. The page removes the fragment
+from the address bar immediately and sets no-referrer/no-store/noindex policies.
+Tokens are not persisted in local/session storage or included in rendered HTML.
+An ordinary GET preview or prefetch does not consume the token; confirmation
+requires executing the page's JavaScript and its CSRF-protected POST. A scanner
+that executes that complete browser flow can still consume a link, as with other
+automatic browser confirmation flows. Opening the page requires JavaScript.
+
+For token-only emails or a manual API check, copy the token from the private body
+and submit it using the existing API:
 
 ```bash
 read -r -s -p 'Verification token from your email: ' AUTH_VERIFY_TOKEN
@@ -117,8 +142,8 @@ printf '{}' | auth_post email-verification/request
 
 Expected: HTTP 202 and another verification email. This requires the registration
 session or another logged-in session. After verification, the endpoint still
-returns 202 but sends no email. There is no public token inbox or frontend
-verification page; confirmation currently uses the API above.
+returns 202 but sends no email. There is no public token inbox. Previously sent
+token-only emails are unchanged; request a fresh message before testing links.
 
 ## End-to-End Password Reset
 

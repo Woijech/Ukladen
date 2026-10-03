@@ -409,7 +409,8 @@ store and Redis as a session cache. Only session token hashes are persisted.
 Status: backend authentication is implemented, including email/password flows,
 Google OIDC login and explicit linking with password re-authentication. Authentication
 email delivery uses the existing Celery worker and a configurable SMTP adapter;
-the deployment supplies its SMTP service. Frontend authentication UI is not implemented. See
+the deployment supplies its SMTP service. Browser email verification is implemented;
+other frontend authentication UI is not implemented. See
 [backend architecture](docs/architecture/backend.md) for current runtime details.
 
 ## 5.2 users

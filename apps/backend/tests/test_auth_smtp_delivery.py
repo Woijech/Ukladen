@@ -10,6 +10,7 @@ from threading import Thread
 from types import ModuleType
 from typing import cast
 from unittest.mock import Mock, create_autospec
+from urllib.parse import parse_qs, urlsplit
 from uuid import UUID, uuid4
 
 import pytest
@@ -89,6 +90,68 @@ def test_smtp_configuration_fails_closed_without_exposing_credentials(
         Settings.model_validate(smtp_settings.model_dump() | update)
     assert "smtp-secret" not in str(error.value)
     assert "smtp-secret" not in repr(smtp_settings) and "smtp-user" not in repr(smtp_settings)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://app.example.com/auth/verify-email",
+        "https://other.example.com/auth/verify-email",
+        "https://user:secret@app.example.com/auth/verify-email",
+        "https://app.example.com/auth/verify-email?token=secret",
+        "https://app.example.com/auth/verify-email#token=secret",
+        "https://app.example.com/other",
+    ],
+)
+def test_verification_link_configuration_rejects_unsafe_destinations(
+    smtp_settings: Settings, url: str
+) -> None:
+    with pytest.raises(ValidationError):
+        Settings.model_validate(
+            smtp_settings.model_dump()
+            | {
+                "auth_allowed_origins": ["https://app.example.com"],
+                "auth_email_verification_url": url,
+            }
+        )
+
+
+@pytest.mark.parametrize("origin", ["https://app.example.com", "http://localhost:8080"])
+@pytest.mark.parametrize("kind", list(TokenType))
+def test_verification_email_has_clickable_fragment_link_but_reset_remains_token_only(
+    smtp_settings: Settings, monkeypatch: pytest.MonkeyPatch, origin: str, kind: TokenType
+) -> None:
+    configured = Settings.model_validate(
+        smtp_settings.model_dump()
+        | {
+            "auth_allowed_origins": [origin],
+            "auth_email_verification_url": f"{origin}/auth/verify-email",
+        }
+    )
+    connection = create_autospec(smtplib.SMTP, instance=True)
+    connection.__enter__.return_value = connection
+    connection.send_message.return_value = {}
+    monkeypatch.setattr(email_sender.smtplib, "SMTP", Mock(return_value=connection))
+    sender = SmtpEmailSender(configured)
+    method = (
+        sender.send_email_verification
+        if kind == TokenType.EMAIL_VERIFICATION
+        else sender.send_password_reset
+    )
+    method(EMAIL, TOKEN)
+    message = connection.send_message.call_args.args[0]
+    plain = message.get_body(preferencelist=("plain",))
+    assert plain and TOKEN in plain.get_content()
+    if kind == TokenType.EMAIL_VERIFICATION:
+        link = f"{origin}/auth/verify-email#token={TOKEN}"
+        html = message.get_body(preferencelist=("html",))
+        assert message.is_multipart() and html and f'href="{link}"' in html.get_content()
+        assert link in plain.get_content()
+        parsed = urlsplit(link)
+        assert not parsed.query and parse_qs(parsed.fragment) == {"token": [TOKEN]}
+        assert TOKEN not in str(message.items())
+    else:
+        assert not message.is_multipart() and "/auth/verify-email" not in plain.get_content()
 
 
 @pytest.mark.parametrize("security", ["starttls", "tls", "none"])
@@ -273,6 +336,8 @@ def test_worker_delivers_both_messages_over_real_smtp(
             "smtp_security": "none",
             "smtp_username": None,
             "smtp_password": None,
+            "auth_allowed_origins": ["https://testserver"],
+            "auth_email_verification_url": "https://testserver/auth/verify-email",
         }
     )
     monkeypatch.setattr(email_tasks, "get_settings", lambda: configured)
@@ -284,7 +349,8 @@ def test_worker_delivers_both_messages_over_real_smtp(
             assert result.successful() and result.get() is None
             message = message_from_bytes(messages.get(timeout=5), policy=policy.default)
             assert isinstance(message, SmtpMessage)
-            assert message["To"] == EMAIL and TOKEN in message.get_content()
+            plain = message.get_body(preferencelist=("plain",))
+            assert message["To"] == EMAIL and plain and TOKEN in plain.get_content()
     assert messages.empty() and not email_tasks.fake_sender.messages
     assert TOKEN not in caplog.text
 
@@ -307,6 +373,8 @@ def test_live_auth_flows_commit_then_queue_and_deliver_smtp(
             "smtp_security": "none",
             "smtp_username": None,
             "smtp_password": None,
+            "auth_allowed_origins": ["https://testserver"],
+            "auth_email_verification_url": "https://testserver/auth/verify-email",
         }
     )
     monkeypatch.setattr(email_tasks, "get_settings", lambda: configured)
@@ -346,7 +414,13 @@ def test_live_auth_flows_commit_then_queue_and_deliver_smtp(
                     assert result.successful() and result.get() is None
                     message = message_from_bytes(messages.get(timeout=5), policy=policy.default)
                     assert isinstance(message, SmtpMessage)
-                    assert message["To"] == EMAIL and token in message.get_content()
+                    plain = message.get_body(preferencelist=("plain",))
+                    assert message["To"] == EMAIL and plain and token in plain.get_content()
+                    if expected_kind == TokenType.EMAIL_VERIFICATION:
+                        assert (
+                            f"https://testserver/auth/verify-email#token={token}"
+                            in plain.get_content()
+                        )
                     delivered_tokens.append(token)
                     return token
                 finally:

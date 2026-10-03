@@ -4,6 +4,8 @@ import ssl
 from collections import deque
 from email.message import EmailMessage as SmtpMessage
 from email.utils import formatdate, make_msgid
+from html import escape
+from urllib.parse import urlencode
 
 from celery import Celery
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
@@ -133,6 +135,20 @@ class SmtpEmailSender:
                 f"It expires {lifetime} seconds after the request. "
                 "If you did not request this email, you can ignore it.\n"
             )
+            if verification and config.auth_email_verification_url is not None:
+                link = f"{config.auth_email_verification_url}#{urlencode({'token': token})}"
+                message.set_content(
+                    f"Verify your Ukladen email by opening this link:\n\n{link}\n\n"
+                    f"The link expires {lifetime} seconds after the request. "
+                    "If you did not request this email, you can ignore it.\n"
+                )
+                message.add_alternative(
+                    "<html><body><p>Verify your Ukladen email:</p>"
+                    f'<p><a href="{escape(link, quote=True)}">Confirm email address</a></p>'
+                    f"<p>The link expires {lifetime} seconds after the request. "
+                    "If you did not request this email, you can ignore it.</p></body></html>",
+                    subtype="html",
+                )
             if config.smtp_security == "tls":
                 connection = smtplib.SMTP_SSL(
                     config.smtp_host,

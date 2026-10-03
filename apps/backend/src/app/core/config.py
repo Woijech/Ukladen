@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     auth_password_reset_request_rate_limit: int = Field(default=5, gt=0)
     auth_password_reset_request_rate_window_seconds: int = Field(default=60, gt=0)
     auth_email_delivery_mode: Literal["disabled", "fake", "smtp"] = "disabled"
+    auth_email_verification_url: AnyHttpUrl | None = None
     smtp_host: str | None = Field(default=None, min_length=1, max_length=253, pattern=r"^[\w.:-]+$")
     smtp_port: int = Field(default=587, gt=0, le=65535)
     smtp_security: Literal["starttls", "tls", "none"] = "starttls"
@@ -65,6 +66,25 @@ class Settings(BaseSettings):
     auth_google_callback_rate_window_seconds: int = Field(default=60, gt=0)
     auth_google_link_rate_limit: int = Field(default=5, gt=0)
     auth_google_link_rate_window_seconds: int = Field(default=60, gt=0)
+
+    @model_validator(mode="after")
+    def validate_email_verification_url(self) -> Settings:
+        url = self.auth_email_verification_url
+        if url is not None and (
+            url.username
+            or url.password
+            or url.query
+            or url.fragment
+            or url.path != "/auth/verify-email"
+            or (url.scheme != "https" and url.host not in ("localhost", "127.0.0.1", "[::1]"))
+            or str(url).removesuffix("/auth/verify-email")
+            not in {str(origin).rstrip("/") for origin in self.auth_allowed_origins}
+        ):
+            raise ValueError(
+                "Email verification URL must use /auth/verify-email on an allowed origin, "
+                "with HTTPS except loopback development and no credentials, query or fragment."
+            )
+        return self
 
     @model_validator(mode="after")
     def validate_smtp(self) -> Settings:

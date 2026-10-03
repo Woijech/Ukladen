@@ -10,7 +10,8 @@ Celery email queuing, a development fake and configurable SMTP delivery are impl
 A Google OIDC identity adapter, account-resolution application service and
 browser-bound Redis OAuth state and Google browser login are implemented.
 Explicit Google linking is implemented. A deployment must supply its SMTP service;
-frontend authentication UI and durable email publication recovery are not implemented.
+browser email verification is implemented. Other frontend authentication UI and
+durable email publication recovery are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -76,6 +77,13 @@ Request limits use the hashed ASGI peer address with a separate Redis key namesp
 `.env.example` explicitly enables the development fake; existing `.env` files
 are not modified. Disabled mode refuses email queuing and worker delivery with
 `EmailDeliveryUnavailable`. Fake mode sends no external email.
+
+`AUTH_EMAIL_VERIFICATION_URL` optionally enables email links to the frontend
+`/auth/verify-email` page. It must use an allowed origin, HTTPS except loopback
+development, and no credentials, query or fragment. The worker appends the token
+as `#token=...` to the configured URL. If unset, manual token-only verification
+emails remain available. `.env.example` sets the local frontend URL; existing
+deployments must configure their public URL explicitly.
 
 SMTP mode requires `SMTP_HOST` and a bare `SMTP_FROM_EMAIL`. `SMTP_USERNAME` and
 `SMTP_PASSWORD` must be configured together when authentication is needed; both
@@ -713,9 +721,12 @@ The SMTP adapter creates a plain-text verification/reset message with a fixed
 subject, sender, normalized recipient, Date and Message-ID. The raw single-use
 token appears only in the private email body and existing trusted broker payload,
 never in HTTP responses or logs. Messages describe the configured lifetime from
-the original request. No frontend confirmation page exists, so emails contain a
-token rather than a link to an unimplemented page. Clients use the existing POST
-confirmation endpoints with Origin/CSRF protection.
+the original request. Configured verification links appear in plain-text and HTML
+alternatives; the token is a fragment rather than a server-visible query string.
+The frontend reads and removes it, obtains CSRF protection and calls the existing
+POST confirmation API. GET previews do not confirm an address. The frontend does
+not persist tokens or change confirmation rules. Without a configured URL,
+verification emails remain token-only; password-reset email is always token-only.
 
 Each job uses a new timeout-bounded SMTP connection, upgrades with STARTTLS before
 authentication or uses implicit TLS, and verifies certificates and hostnames using

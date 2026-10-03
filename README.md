@@ -180,7 +180,8 @@ verification, login/logout/logout-all, password reset/change, session management
 Google OIDC browser login and explicit account linking with password re-authentication.
 Browser authentication uses opaque HttpOnly sessions, PostgreSQL storage, Redis
 caching/rate limiting and CSRF protection. Celery queues email after commit using
-a development fake or a configurable SMTP adapter. Authentication UI is not implemented.
+a development fake or a configurable SMTP adapter. Browser email verification is
+implemented; other authentication UI is not implemented.
 
 ```text
 apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests
@@ -216,6 +217,15 @@ share the existing Celery queue. Configure `SMTP_HOST`, `SMTP_FROM_EMAIL`,
 or `SMTP_SECURITY=tls` / `SMTP_PORT=465` as required by your service. Both TLS modes
 verify server certificates. No provider SDK is required. See
 [auth email setup and end-to-end checks](docs/development/auth-email.md).
+
+Set `AUTH_EMAIL_VERIFICATION_URL=http://localhost:8080/auth/verify-email` locally
+to include a clickable confirmation link in verification emails. Existing `.env`
+files need this new setting added explicitly. Deployment uses your frontend's
+public HTTPS URL with the same path and an origin in `AUTH_ALLOWED_ORIGINS`.
+Opening the link automatically confirms through the existing CSRF-protected POST
+API and displays the result. Its token stays in a fragment and is removed from
+the address bar; GET previews do not consume it. Password-reset email remains
+token-only. Request a new verification email to test the link after rebuilding.
 
 For browser password login, call `GET /api/v1/auth/csrf` with cookies enabled,
 retain its `csrf_token`, then send it as `X-CSRF-Token` together with cookies and
