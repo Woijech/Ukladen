@@ -44,10 +44,13 @@ def celery() -> Mock:
 
 
 @pytest.mark.parametrize("kind", list(TokenType))
+@pytest.mark.parametrize("mode", ["fake", "smtp"])
 def test_queue_payload_and_representations(
-    celery: Mock, fake_settings: Settings, kind: TokenType
+    celery: Mock, fake_settings: Settings, kind: TokenType, mode: str
 ) -> None:
-    sender: EmailSender = CeleryEmailSender(celery, fake_settings)
+    sender: EmailSender = CeleryEmailSender(
+        celery, fake_settings.model_copy(update={"auth_email_delivery_mode": mode})
+    )
     method = (
         sender.send_email_verification
         if kind == TokenType.EMAIL_VERIFICATION
@@ -88,7 +91,7 @@ def test_enqueue_errors_are_sanitized_and_fail_closed(
 def test_delivery_defaults_disabled_and_rejects_unknown_provider(settings: Settings) -> None:
     assert Settings.model_fields["auth_email_delivery_mode"].default == "disabled"
     with pytest.raises(ValidationError):
-        Settings.model_validate(settings.model_dump() | {"auth_email_delivery_mode": "smtp"})
+        Settings.model_validate(settings.model_dump() | {"auth_email_delivery_mode": "unknown"})
 
 
 def test_fake_records_both_kinds_without_logging_and_bounds_memory(

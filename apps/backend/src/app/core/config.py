@@ -1,3 +1,5 @@
+from email.errors import HeaderParseError
+from email.headerregistry import Address
 from typing import Literal
 
 from pydantic import AnyHttpUrl, Field, PostgresDsn, RedisDsn, SecretStr, model_validator
@@ -44,7 +46,14 @@ class Settings(BaseSettings):
     auth_password_reset_confirm_rate_window_seconds: int = Field(default=60, gt=0)
     auth_password_reset_request_rate_limit: int = Field(default=5, gt=0)
     auth_password_reset_request_rate_window_seconds: int = Field(default=60, gt=0)
-    auth_email_delivery_mode: Literal["disabled", "fake"] = "disabled"
+    auth_email_delivery_mode: Literal["disabled", "fake", "smtp"] = "disabled"
+    smtp_host: str | None = Field(default=None, min_length=1, max_length=253, pattern=r"^[\w.:-]+$")
+    smtp_port: int = Field(default=587, gt=0, le=65535)
+    smtp_security: Literal["starttls", "tls", "none"] = "starttls"
+    smtp_username: SecretStr | None = Field(default=None, min_length=1, repr=False)
+    smtp_password: SecretStr | None = Field(default=None, min_length=1, repr=False)
+    smtp_from_email: str | None = Field(default=None, min_length=1, max_length=320)
+    smtp_timeout_seconds: float = Field(default=10, gt=0, le=60, allow_inf_nan=False)
     google_client_id: str | None = Field(default=None, min_length=1, max_length=1024)
     google_client_secret: SecretStr | None = Field(default=None, min_length=1, repr=False)
     google_redirect_uri: AnyHttpUrl | None = None
@@ -56,6 +65,27 @@ class Settings(BaseSettings):
     auth_google_callback_rate_window_seconds: int = Field(default=60, gt=0)
     auth_google_link_rate_limit: int = Field(default=5, gt=0)
     auth_google_link_rate_window_seconds: int = Field(default=60, gt=0)
+
+    @model_validator(mode="after")
+    def validate_smtp(self) -> Settings:
+        if self.auth_email_delivery_mode != "smtp":
+            return self
+        if self.smtp_host is None or self.smtp_from_email is None:
+            raise ValueError("SMTP delivery requires a host and sender email address.")
+        credentials = (self.smtp_username, self.smtp_password)
+        if any(value is not None for value in credentials) and any(
+            value is None for value in credentials
+        ):
+            raise ValueError("SMTP username and password must be configured together.")
+        if self.smtp_security == "none" and self.smtp_username is not None:
+            raise ValueError("SMTP authentication requires TLS.")
+        try:
+            address = Address(addr_spec=self.smtp_from_email)
+        except ValueError, HeaderParseError:
+            raise ValueError("SMTP sender must be a bare email address.") from None
+        if not address.username or not address.domain or address.addr_spec != self.smtp_from_email:
+            raise ValueError("SMTP sender must be a bare email address.")
+        return self
 
     @model_validator(mode="after")
     def validate_google(self) -> Settings:

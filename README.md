@@ -180,7 +180,7 @@ verification, login/logout/logout-all, password reset/change, session management
 Google OIDC browser login and explicit account linking with password re-authentication.
 Browser authentication uses opaque HttpOnly sessions, PostgreSQL storage, Redis
 caching/rate limiting and CSRF protection. Celery queues email after commit using
-a development fake. Production email delivery and authentication UI are not implemented.
+a development fake or a configurable SMTP adapter. Authentication UI is not implemented.
 
 ```text
 apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests
@@ -209,9 +209,13 @@ origins (HTTPS in production). This allowlist provides CSRF validation, not CORS
 `AUTH_EMAIL_DELIVERY_MODE` defaults to `disabled`. `.env.example` explicitly uses
 `fake` for development: queued verification/reset messages are captured only in
 worker memory, without sending external email or logging tokens. Existing `.env`
-files are not changed automatically. A production mail provider is not implemented;
-keep delivery disabled outside development. Registration and password-reset requests
-use this queue.
+files are not changed automatically. Real delivery uses `AUTH_EMAIL_DELIVERY_MODE=smtp`
+with your SMTP service; registration, verification resend and password-reset requests
+share the existing Celery queue. Configure `SMTP_HOST`, `SMTP_FROM_EMAIL`,
+`SMTP_USERNAME` and `SMTP_PASSWORD`, with `SMTP_SECURITY=starttls` / `SMTP_PORT=587`
+or `SMTP_SECURITY=tls` / `SMTP_PORT=465` as required by your service. Both TLS modes
+verify server certificates. No provider SDK is required. See
+[auth email setup and end-to-end checks](docs/development/auth-email.md).
 
 For browser password login, call `GET /api/v1/auth/csrf` with cookies enabled,
 retain its `csrf_token`, then send it as `X-CSRF-Token` together with cookies and
@@ -285,7 +289,7 @@ returns an empty 204, consumes the token and verifies its user's email without
 changing session cookies. Invalid, expired or used tokens return a generic 400;
 malformed request bodies return a generic 422. The default limit is five attempts
 per client address per 60-second window. Registration queues verification messages
-through the development fake; real email delivery remains unimplemented.
+through the configured fake or SMTP worker adapter.
 
 Signed-in users can resend verification with
 `POST /api/v1/auth/email-verification/request`, sending `{}` in JSON with the
@@ -310,15 +314,15 @@ return fixed 400 errors; malformed request bodies return a generic 422. The
 default limit is five attempts per client address per 60-second window.
 
 Request a reset with `POST /api/v1/auth/password-reset/request`, sending `email` in
-JSON with the same CSRF protection; login is unnecessary. With fake delivery enabled,
+JSON with the same CSRF protection; login is unnecessary. With fake or SMTP delivery enabled,
 all account outcomes return 202 and `Password reset request accepted.` Eligible
 accounts receive a hashed reset token in PostgreSQL, committed before its email
 message is queued. Disabled delivery returns a generic 503 before account lookup.
 The default request limit is five attempts per client address per minute. Requests
 preserve session cookies and never return tokens or account details. Queue failure
 after commit still returns the generic acknowledgement, with only safe server
-metadata logged; clients can retry. There is no durable delivery guarantee or
-production mail provider, and fake messages remain only in worker memory.
+metadata logged; clients can retry. There is no durable delivery guarantee. SMTP
+mode sends through the configured service; fake messages remain only in worker memory.
 
 Read [Local Development](docs/development/local-development.md) for host setup,
 checks and troubleshooting. Implementation details are in

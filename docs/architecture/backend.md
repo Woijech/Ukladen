@@ -6,10 +6,11 @@ password-change application flows implemented.
 Browser registration, password login/logout/change, email-verification request/confirmation,
 password-reset request/confirmation, session-management endpoints and CSRF
 bootstrap are implemented.
-Celery email queuing and a development fake are implemented.
+Celery email queuing, a development fake and configurable SMTP delivery are implemented.
 A Google OIDC identity adapter, account-resolution application service and
 browser-bound Redis OAuth state and Google browser login are implemented.
-Explicit Google linking is implemented; production email delivery is not implemented.
+Explicit Google linking is implemented. A deployment must supply its SMTP service;
+frontend authentication UI and durable email publication recovery are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -71,10 +72,21 @@ Redis key namespace.
 `AUTH_PASSWORD_RESET_REQUEST_RATE_LIMIT` defaults to 5 and
 `AUTH_PASSWORD_RESET_REQUEST_RATE_WINDOW_SECONDS` to 60; both must be positive.
 Request limits use the hashed ASGI peer address with a separate Redis key namespace.
-`AUTH_EMAIL_DELIVERY_MODE` accepts `disabled` (the default) or `fake`.
+`AUTH_EMAIL_DELIVERY_MODE` accepts `disabled` (the default), `fake` or `smtp`.
 `.env.example` explicitly enables the development fake; existing `.env` files
 are not modified. Disabled mode refuses email queuing and worker delivery with
 `EmailDeliveryUnavailable`. Fake mode sends no external email.
+
+SMTP mode requires `SMTP_HOST` and a bare `SMTP_FROM_EMAIL`. `SMTP_USERNAME` and
+`SMTP_PASSWORD` must be configured together when authentication is needed; both
+use `SecretStr` and are omitted from settings representations. `SMTP_PORT` defaults
+to 587 and accepts 1–65535. `SMTP_SECURITY` defaults to `starttls`, also accepts
+`tls` (implicit TLS, normally port 465) or `none` for a trusted local development
+receiver. Authentication without TLS is rejected. `SMTP_TIMEOUT_SECONDS` defaults
+to 10 and must be finite, positive and at most 60. Required SMTP fields and the
+sender address are validated at startup in SMTP mode. No SMTP connection occurs
+in the API process, during import or during settings validation. See
+[auth email setup](../development/auth-email.md).
 
 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REDIRECT_URI` are optional
 as a group: all must be unset or all supplied. The secret uses `SecretStr` and is
@@ -222,8 +234,8 @@ and the route retains 201/cookie delivery. The warning contains only a fixed mes
 user UUID and event, without recipient, token or exception traceback. There is no
 transactional outbox; a failed publication can leave an unverified account without
 delivered verification mail. The authenticated resend endpoint permits a new request.
-A production email provider and configurable verification requirements for sensitive
-features remain unimplemented.
+SMTP delivery is available through the worker. Configurable verification requirements
+for sensitive features remain unimplemented.
 
 `EmailVerificationService` accepts the generated 43-character URL-safe token format
 and looks up only its hash through `EmailVerificationRepository`. The SQLAlchemy
@@ -277,7 +289,7 @@ clearing, CSRF rejection 403, malformed transport 422, and rate rejection 429 wi
 sanitized 503; no mail is queued or token committed on issuance failure. After-commit
 queue failure retains 202 and logs only a fixed message, user UUID and failure event,
 without recipient, token or traceback. A subsequent request can issue a fresh token;
-production mail and durable publication recovery remain unimplemented.
+durable publication recovery remains unimplemented.
 
 `LoginService` shares registration's email normalization and preserves password
 whitespace. Login accepts passwords from 1 to 1024 characters; it does not apply
@@ -356,7 +368,7 @@ retried. CSRF rejection returns 403 before rate limiting or confirmation.
 bounded to 1–320 characters. It requires CSRF and the peer-address Redis limiter
 before lookup. `get_email_sender` refuses disabled delivery with the generic 503
 before invoking the application service, regardless of account existence. No
-login or session validation is required. With fake delivery enabled, eligible,
+login or session validation is required. With fake or SMTP delivery enabled, eligible,
 unknown, disabled, passwordless and malformed bare-email outcomes all return the
 same 202 Pydantic acknowledgement: `Password reset request accepted.` The response
 uses `Cache-Control: no-store`, omits internal delivery data and preserves cookies.
@@ -370,8 +382,8 @@ only a fixed message, user UUID and failure event; it does not include email,
 token or exception details. Clients can retry to issue a new token. Without an
 outbox, a process crash or broker failure can lose a message; no durable delivery
 or automatic retry is claimed. Transport validation returns generic 422, CSRF
-rejection 403, and rate rejection 429 with `Retry-After`. Production mail delivery
-remains TODO; the current service has no mail-vendor dependency.
+rejection 403, and rate rejection 429 with `Retry-After`. Delivery uses the configured
+worker adapter; the application service has no mail-vendor dependency.
 
 `PasswordRecoveryService.change_password` requires the current password and an
 owned current-session UUID. Current passwords accept 1 to 1024 characters so
@@ -689,9 +701,33 @@ The development `FakeEmailSender` keeps the latest 100 distinct messages per wor
 process in memory. Duplicate messages within that window are ignored. This is
 bounded inspection/test state, not durable delivery or cross-worker idempotency;
 it disappears on restart and has no HTTP inbox. Neither fake messages nor token
-contents are logged. TODO: select and implement a production mail provider behind
-`EmailSender`; real email delivery, durable retry/idempotency and frontend email
-links are not implemented.
+contents are logged. The fake remains available for automated tests and development.
+
+`SmtpEmailSender` implements the same port using Python's standard-library
+`smtplib`, `ssl` and `email` modules. SMTP mode selects it in `auth.send_email`;
+fake mode retains the process-local fake and disabled mode fails closed. Both
+adapters reuse the validated `EmailMessage` recipient/token DTO. The producer
+accepts fake or SMTP mode without changing task names, payloads or redaction.
+
+The SMTP adapter creates a plain-text verification/reset message with a fixed
+subject, sender, normalized recipient, Date and Message-ID. The raw single-use
+token appears only in the private email body and existing trusted broker payload,
+never in HTTP responses or logs. Messages describe the configured lifetime from
+the original request. No frontend confirmation page exists, so emails contain a
+token rather than a link to an unimplemented page. Clients use the existing POST
+confirmation endpoints with Origin/CSRF protection.
+
+Each job uses a new timeout-bounded SMTP connection, upgrades with STARTTLS before
+authentication or uses implicit TLS, and verifies certificates and hostnames using
+the default SSL context. STARTTLS failure never falls back to plaintext. Provider
+errors, timeouts and rejected recipients become the fixed `EmailDeliveryUnavailable`
+without exception chaining. SMTP debug output is never enabled. The worker keeps
+ignored results and redacted task representations for both modes. SMTP acceptance
+does not guarantee inbox delivery; downstream bounces are handled by the supplied
+SMTP service. Automatic delivery retries, durable idempotency and an outbox are
+not implemented; duplicate jobs can send the same token again but cannot bypass
+single-use confirmation. Deployment requires an SMTP service and an authorized
+sender; no particular external vendor is embedded in the architecture.
 
 Celery JSON bodies temporarily carry raw one-time tokens through the trusted
 Redis broker because the worker needs them for email delivery. Redacted task
@@ -809,7 +845,15 @@ set, the integration test publishes both message types through native Celery/Kom
 reads them from a real Redis queue and executes the registered task against the
 fake. A unique Redis key prefix isolates all broker state; the test acknowledges
 messages and deletes its queue and prefixed keys afterward. Tests send no external
-email and do not start a separate worker process.
+email and do not start a separate worker process. SMTP tests cover configuration,
+both message types, STARTTLS/implicit TLS, certificate verification, authentication
+ordering, no plaintext fallback and sanitized connection/authentication/delivery
+failures. A loopback SMTP receiver exercises actual SMTP transmission without a
+new dependency. With PostgreSQL/Redis enabled, an HTTP integration test registers,
+resends, verifies and resets a password through a Celery in-memory broker and the
+SMTP worker adapter, checking commit-before-delivery, token redaction, session
+revocation, new-password login and replay rejection. The existing Redis broker
+integration test continues to exercise native queue serialization and cleanup.
 
 Reset-request HTTP tests cover cookie retention and requests without login,
 identical acknowledgements, commit-before-queue ordering, no queuing on transaction

@@ -45,7 +45,10 @@ docker compose down
 
 Stopping the stack preserves database and object volumes. Source edits require an
 image rebuild; the full stack runs built applications rather than source mounts.
-No authentication or other business endpoints exist.
+Authentication endpoints are implemented. Real verification/reset email can use
+your SMTP service through the existing worker; see
+[auth email setup and end-to-end tests](auth-email.md). Source and configuration
+changes require refreshing the API and worker containers.
 
 ## Project Name and Existing Data
 

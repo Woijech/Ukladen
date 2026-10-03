@@ -407,8 +407,9 @@ Browser authentication uses HttpOnly cookies, PostgreSQL as the canonical sessio
 store and Redis as a session cache. Only session token hashes are persisted.
 [ADR 0002](docs/adr/0002-use-opaque-browser-sessions.md) records this decision.
 Status: backend authentication is implemented, including email/password flows,
-Google OIDC login and explicit linking with password re-authentication. Production
-email delivery and frontend authentication UI are not implemented. See
+Google OIDC login and explicit linking with password re-authentication. Authentication
+email delivery uses the existing Celery worker and a configurable SMTP adapter;
+the deployment supplies its SMTP service. Frontend authentication UI is not implemented. See
 [backend architecture](docs/architecture/backend.md) for current runtime details.
 
 ## 5.2 users
