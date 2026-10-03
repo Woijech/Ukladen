@@ -31,6 +31,7 @@ from app.modules.auth.presentation.dependencies import (
     limit_email_verification_confirm,
     limit_login,
     limit_password_change,
+    limit_password_reset_confirm,
     require_csrf,
 )
 from app.modules.auth.presentation.schemas import (
@@ -39,6 +40,7 @@ from app.modules.auth.presentation.schemas import (
     LoginRequest,
     LoginResponse,
     PasswordChangeRequest,
+    PasswordResetConfirmationRequest,
     SessionResponse,
 )
 
@@ -222,6 +224,37 @@ def confirm_email_verification(
             400, "Invalid or expired token.", headers={"Cache-Control": "no-store"}
         ) from None
     return Response(status_code=204, headers={"Cache-Control": "no-store"})
+
+
+@router.post(
+    "/password-reset/confirm",
+    status_code=204,
+    dependencies=[Depends(require_csrf), Depends(limit_password_reset_confirm)],
+)
+def confirm_password_reset(
+    payload: PasswordResetConfirmationRequest,
+    database: Database,
+    settings: Config,
+    service: Annotated[PasswordRecoveryService, Depends(get_password_recovery)],
+) -> Response:
+    try:
+        with database.begin():
+            service.confirm_reset(
+                payload.token.get_secret_value(), payload.new_password.get_secret_value()
+            )
+    except InvalidOneTimeToken:
+        raise HTTPException(
+            400, "Invalid or expired token.", headers={"Cache-Control": "no-store"}
+        ) from None
+    except InvalidPassword:
+        raise HTTPException(
+            400,
+            "New password does not meet the password policy.",
+            headers={"Cache-Control": "no-store"},
+        ) from None
+    response = Response(status_code=204, headers={"Cache-Control": "no-store"})
+    clear_session_cookie(response, settings)
+    return response
 
 
 def install_auth(application: FastAPI) -> None:

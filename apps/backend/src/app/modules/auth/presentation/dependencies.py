@@ -138,6 +138,23 @@ def limit_email_verification_confirm(
         )
 
 
+def limit_password_reset_confirm(
+    request: Request, settings: Config, limiter: Annotated[RateLimiter, Depends(get_rate_limiter)]
+) -> None:
+    peer = request.client.host if request.client else "unknown"
+    allowed, retry_after = limiter.check(
+        f"password-reset-confirm:{hash_token(peer)}",
+        settings.auth_password_reset_confirm_rate_limit,
+        settings.auth_password_reset_confirm_rate_window_seconds,
+    )
+    if not allowed:
+        raise HTTPException(
+            429,
+            "Too many password reset attempts.",
+            headers={"Retry-After": str(retry_after), "Cache-Control": "no-store"},
+        )
+
+
 def get_current_session(
     request: Request, database: Database, sessions: Sessions, settings: Config
 ) -> AuthSession:

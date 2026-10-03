@@ -3,9 +3,9 @@
 Status: foundation, auth contracts, persistence, password/token helpers, session
 services, registration, email-verification, password-login, password-reset and
 password-change application flows implemented.
-Browser password login/logout/change, email-verification confirmation,
-session-management endpoints and CSRF bootstrap are implemented.
-HTTP registration/password-reset and email delivery are not implemented.
+Browser password login/logout/change, email-verification and password-reset
+confirmation, session-management endpoints and CSRF bootstrap are implemented.
+HTTP registration/password-reset request and email delivery are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -52,6 +52,10 @@ that user's sessions and client addresses.
 `AUTH_EMAIL_VERIFICATION_CONFIRM_RATE_WINDOW_SECONDS` to 60; both must be positive.
 Confirmation limits use the hashed ASGI peer address and a separate Redis key
 namespace from login.
+`AUTH_PASSWORD_RESET_CONFIRM_RATE_LIMIT` defaults to 5 and
+`AUTH_PASSWORD_RESET_CONFIRM_RATE_WINDOW_SECONDS` to 60; both must be positive.
+Reset-confirmation limits also use the hashed ASGI peer address, with their own
+Redis key namespace.
 
 ## Database
 
@@ -257,9 +261,26 @@ unused token and unrevoked sessions so confirmation can be retried. Locks remain
 held until transaction completion; concurrent confirmations cannot both consume
 the same token. Reset confirmation returns only the user UUID.
 
-Status: HTTP password-reset request/confirmation and email delivery are not
-implemented. Their future transport must return a generic request acknowledgement
-regardless of account existence, add CSRF/rate protection, and deliver reset email
+`POST /api/v1/auth/password-reset/confirm` calls `confirm_reset` through the existing
+`get_password_recovery` dependency and its shared SQLAlchemy session. The route
+owns one transaction and returns an empty 204 with `Cache-Control: no-store` only
+after commit. It then clears the browser session cookie without creating a new
+session. No login or session validation is required: the reset token authorizes
+the change. CSRF validation and the peer-address Redis limiter run before the
+service. The request DTO forbids extra fields, hides both `SecretStr` values from
+representations, requires a 43-character token and bounds the new password to
+1–1024 characters. The application validates the URL-safe token format and the
+configured password minimum. Invalid/expired/used/wrong-type tokens and ineligible
+accounts receive a fixed 400; password-policy failures receive a separate fixed
+400. Invalid request bodies receive the existing generic 422 without echoing
+secrets. Rate limiting returns 429 with `Retry-After`; database/cache/limiter
+failures return a sanitized 503. These responses use `Cache-Control: no-store`.
+Failures do not clear or replace the cookie, allowing a rolled-back reset to be
+retried. CSRF rejection returns 403 before rate limiting or confirmation.
+
+Status: HTTP password-reset request and email delivery are not implemented.
+The future request transport must return a generic acknowledgement regardless of
+account existence, add CSRF/rate protection, and deliver reset email
 asynchronously through an `EmailSender` boundary after commit. Provider selection
 and public reset integration remain TODOs; the current service has no mail-vendor
 dependency.
@@ -318,6 +339,7 @@ omit passwords, tokens and internal exception details.
 | `DELETE /api/v1/auth/sessions/{session_id}` | Revokes an owned session; returns 204 or a generic 404. |
 | `POST /api/v1/auth/password/change` | Requires the current password; changes it, retains the current session and revokes others. |
 | `POST /api/v1/auth/email-verification/confirm` | Consumes a valid verification token and verifies its user's email; returns 204 without requiring login. |
+| `POST /api/v1/auth/password-reset/confirm` | Changes the password, consumes a reset token, revokes owned sessions and clears the browser session cookie; returns 204 without requiring login. |
 
 Authentication POST and DELETE requests require an exact allowed `Origin` and matching
 43-character URL-safe tokens in the CSRF cookie and `X-CSRF-Token` header, compared
@@ -327,9 +349,9 @@ remains HttpOnly. Clients must include cookies. Production `__Host-` cookies als
 prevent subdomains from injecting domain-scoped authentication cookies.
 
 `RedisRateLimiter` uses an atomic INCR/EXPIRE Lua script for fixed request windows;
-denied attempts do not extend expiry. Login and email-verification confirmation
-use hashed ASGI peer addresses; password change uses the user UUID. The limiter
-does not parse forwarded headers itself. Configure trusted proxy
+denied attempts do not extend expiry. Login, email-verification confirmation and
+password-reset confirmation use hashed ASGI peer addresses; password change uses
+the user UUID. The limiter does not parse forwarded headers itself. Configure trusted proxy
 handling at the server when deploying behind a proxy, or clients share the proxy's
 limit. Exceeded limits return 429 with `Retry-After`; unavailable or invalid Redis
 limiter state fails closed with a sanitized 503 response.
@@ -449,3 +471,13 @@ PostgreSQL/Redis checks cover single use, expired/future/unknown/malformed/wrong
 tokens, retention of existing sessions, preservation of prior verification and
 disabled status, rollback/retry after a late user-update failure and native Redis
 rate windows. The rate-window test owns a unique peer key and removes it afterward.
+
+Password-reset HTTP tests cover confirmation without login, secret-safe DTOs and
+validation, fixed errors, CSRF ordering, peer-address limits, positive rate
+settings and cookie clearing only after commit. PostgreSQL/Redis flows exercise
+successful reset, consumption/replay, revocation/cache invalidation/replay rejection
+for owned sessions, preservation of another user's sessions, old/new password
+login and rejection without side effects for invalid tokens, ineligible accounts
+or weak passwords. Cache-failure rollback preserves the password, token, sessions
+and cookie; confirmation succeeds on retry without login. Native Redis checks
+verify the configured limit and window using a unique peer key removed afterward.

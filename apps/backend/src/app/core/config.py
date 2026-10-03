@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     auth_password_change_rate_window_seconds: int = Field(default=60, gt=0)
     auth_email_verification_confirm_rate_limit: int = Field(default=5, gt=0)
     auth_email_verification_confirm_rate_window_seconds: int = Field(default=60, gt=0)
+    auth_password_reset_confirm_rate_limit: int = Field(default=5, gt=0)
+    auth_password_reset_confirm_rate_window_seconds: int = Field(default=60, gt=0)
 
     @model_validator(mode="after")
     def validate_browser_auth(self) -> Settings:
