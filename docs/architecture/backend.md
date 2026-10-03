@@ -3,18 +3,20 @@
 Status: foundation, auth contracts, persistence, password/token helpers, session
 services, registration, email-verification, password-login, password-reset and
 password-change application flows implemented.
-Browser password login/logout/change, email-verification and password-reset
-confirmation, session-management endpoints and CSRF bootstrap are implemented.
+Browser password login/logout/change, email-verification confirmation,
+password-reset request/confirmation, session-management endpoints and CSRF
+bootstrap are implemented.
 Celery email queuing and a development fake are implemented.
-HTTP registration/password-reset request and production email delivery are not implemented.
+HTTP registration and production email delivery are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
 The application lifespan creates shared health clients, a SQLAlchemy engine and
-session factory, and an Argon2 password hasher with a dummy hash generated once
-at startup. Authentication reuses the health clients' Redis connection, closed by
-their shutdown handler; the engine is also disposed on shutdown. Importing the API
-does not connect to PostgreSQL/Redis or hash passwords.
+session factory, a Celery producer and an Argon2 password hasher with a dummy hash
+generated once at startup. Authentication reuses the health clients' Redis
+connection, closed by their shutdown handler; the Celery producer is closed and
+the engine disposed on shutdown. Importing the API does not connect to
+PostgreSQL/Redis or hash passwords.
 
 ## Configuration
 
@@ -57,6 +59,9 @@ namespace from login.
 `AUTH_PASSWORD_RESET_CONFIRM_RATE_WINDOW_SECONDS` to 60; both must be positive.
 Reset-confirmation limits also use the hashed ASGI peer address, with their own
 Redis key namespace.
+`AUTH_PASSWORD_RESET_REQUEST_RATE_LIMIT` defaults to 5 and
+`AUTH_PASSWORD_RESET_REQUEST_RATE_WINDOW_SECONDS` to 60; both must be positive.
+Request limits use the hashed ASGI peer address with a separate Redis key namespace.
 `AUTH_EMAIL_DELIVERY_MODE` accepts `disabled` (the default) or `fake`.
 `.env.example` explicitly enables the development fake; existing `.env` files
 are not modified. Disabled mode refuses email queuing and worker delivery with
@@ -283,12 +288,26 @@ failures return a sanitized 503. These responses use `Cache-Control: no-store`.
 Failures do not clear or replace the cookie, allowing a rolled-back reset to be
 retried. CSRF rejection returns 403 before rate limiting or confirmation.
 
-Status: HTTP password-reset request and automatic reset-email enqueueing are not implemented.
-The future request transport must return a generic acknowledgement regardless of
-account existence, add CSRF/rate protection, and deliver reset email
-asynchronously through an `EmailSender` boundary after commit. Provider selection
-and public reset integration remain TODOs; the current service has no mail-vendor
-dependency.
+`POST /api/v1/auth/password-reset/request` accepts a DTO containing only `email`,
+bounded to 1–320 characters. It requires CSRF and the peer-address Redis limiter
+before lookup. `get_email_sender` refuses disabled delivery with the generic 503
+before invoking the application service, regardless of account existence. No
+login or session validation is required. With fake delivery enabled, eligible,
+unknown, disabled, passwordless and malformed bare-email outcomes all return the
+same 202 Pydantic acknowledgement: `Password reset request accepted.` The response
+uses `Cache-Control: no-store`, omits internal delivery data and preserves cookies.
+
+The route owns the token-creation transaction and calls `EmailSender.send_password_reset`
+only after commit, only when the service returns eligible delivery data. Database
+or commit failure returns a sanitized 503 and does not enqueue. If publication
+fails after commit, the token remains committed and the response remains the same
+202, so queue health cannot disclose account eligibility. The warning contains
+only a fixed message, user UUID and failure event; it does not include email,
+token or exception details. Clients can retry to issue a new token. Without an
+outbox, a process crash or broker failure can lose a message; no durable delivery
+or automatic retry is claimed. Transport validation returns generic 422, CSRF
+rejection 403, and rate rejection 429 with `Retry-After`. Production mail delivery
+remains TODO; the current service has no mail-vendor dependency.
 
 `PasswordRecoveryService.change_password` requires the current password and an
 owned current-session UUID. Current passwords accept 1 to 1024 characters so
@@ -345,6 +364,7 @@ omit passwords, tokens and internal exception details.
 | `POST /api/v1/auth/password/change` | Requires the current password; changes it, retains the current session and revokes others. |
 | `POST /api/v1/auth/email-verification/confirm` | Consumes a valid verification token and verifies its user's email; returns 204 without requiring login. |
 | `POST /api/v1/auth/password-reset/confirm` | Changes the password, consumes a reset token, revokes owned sessions and clears the browser session cookie; returns 204 without requiring login. |
+| `POST /api/v1/auth/password-reset/request` | Returns the same 202 for every account outcome; commits an eligible reset token before email queuing. |
 
 Authentication POST and DELETE requests require an exact allowed `Origin` and matching
 43-character URL-safe tokens in the CSRF cookie and `X-CSRF-Token` header, compared
@@ -355,7 +375,7 @@ prevent subdomains from injecting domain-scoped authentication cookies.
 
 `RedisRateLimiter` uses an atomic INCR/EXPIRE Lua script for fixed request windows;
 denied attempts do not extend expiry. Login, email-verification confirmation and
-password-reset confirmation use hashed ASGI peer addresses; password change uses
+password-reset request/confirmation use hashed ASGI peer addresses; password change uses
 the user UUID. The limiter does not parse forwarded headers itself. Configure trusted proxy
 handling at the server when deploying behind a proxy, or clients share the proxy's
 limit. Exceeded limits return 429 with `Retry-After`; unavailable or invalid Redis
@@ -396,7 +416,13 @@ ignores results and disables automatic publication retries. Queue or validation
 failures become a fixed `EmailDeliveryUnavailable` without exception chaining.
 Queue acceptance does not guarantee delivery; there is no transactional outbox
 or automatic recovery for a crash/failure between database commit and publication.
-The registration/reset request transports do not call this adapter yet.
+The reset-request transport calls this adapter after token creation commits;
+public registration is not implemented.
+
+The API lifespan owns a Celery producer configured from its supplied `REDIS_URL`,
+using JSON/protocol 2, ignored results and three-second connection/socket limits.
+It does not replace Celery's current app or import worker tasks, and is closed on
+shutdown. `get_email_sender` supplies its adapter after checking delivery mode.
 
 `workers/celery_app.py` includes `auth/infrastructure/email_tasks.py` so workers
 register `auth.send_email`. This bound task redacts request representations before
@@ -532,3 +558,14 @@ reads them from a real Redis queue and executes the registered task against the
 fake. A unique Redis key prefix isolates all broker state; the test acknowledges
 messages and deletes its queue and prefixed keys afterward. Tests send no external
 email and do not start a separate worker process.
+
+Reset-request HTTP tests cover cookie retention and requests without login,
+identical acknowledgements, commit-before-queue ordering, no queuing on transaction
+failure, disabled delivery before account lookup, safe queue-failure metadata,
+CSRF/rate ordering, generic transport errors and producer lifecycle configuration.
+PostgreSQL/Redis checks exercise eligible/unknown/disabled/passwordless/malformed
+email outcomes, hashed token storage and lifetime, verification of committed state
+through an independent database connection before sending, request-to-confirmation
+and login with the new password, rejected session replay, queue-failure persistence
+and retry, and the native configurable rate window. The HTTP flows use the injected
+development fake; the separate email-delivery test exercises the actual Redis queue.

@@ -1,11 +1,13 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from celery import Celery
 from fastapi import FastAPI, Request, Response
 
 from app.core.config import Settings, get_settings
 from app.core.health import HealthChecks, HealthResponse
 from app.db.session import create_database_engine, create_session_factory
+from app.modules.auth.infrastructure.email_sender import CeleryEmailSender
 from app.modules.auth.infrastructure.password_hasher import Argon2PasswordHasher
 from app.modules.auth.infrastructure.request_protection import RedisRateLimiter
 from app.modules.auth.infrastructure.token_service import generate_token
@@ -24,12 +26,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         application.state.redis = health.redis
         application.state.rate_limiter = RedisRateLimiter(health.redis)
         application.state.passwords = Argon2PasswordHasher()
+        celery = Celery("ukladen", broker=str(config.redis_url), set_as_current=False)
         try:
+            celery.conf.update(
+                task_protocol=2,
+                task_serializer="json",
+                accept_content=["json"],
+                task_ignore_result=True,
+                broker_connection_timeout=3,
+                broker_transport_options={"socket_connect_timeout": 3, "socket_timeout": 3},
+            )
+            application.state.email_sender = CeleryEmailSender(celery, config)
             application.state.dummy_password_hash = application.state.passwords.hash(
                 generate_token()
             )
             yield
         finally:
+            celery.close()
             health.close()
             engine.dispose()
 

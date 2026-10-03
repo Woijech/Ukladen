@@ -179,8 +179,8 @@ Authentication is partially implemented: application registration, email
 verification and password reset, plus browser password login/logout, session
 management, password change, email-verification confirmation and password-reset
 confirmation. Celery email queuing with a development fake is implemented.
-Registration and password-reset request HTTP endpoints, production email delivery
-and authentication UI are not implemented.
+Password-reset requests can queue messages after commit. Registration HTTP,
+production email delivery and authentication UI are not implemented.
 
 ```text
 apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests
@@ -210,8 +210,8 @@ origins (HTTPS in production). This allowlist provides CSRF validation, not CORS
 `fake` for development: queued verification/reset messages are captured only in
 worker memory, without sending external email or logging tokens. Existing `.env`
 files are not changed automatically. A production mail provider is not implemented;
-keep delivery disabled outside development. Registration/reset request endpoints
-do not enqueue messages yet.
+keep delivery disabled outside development. Password-reset requests use this queue;
+public registration is not implemented.
 
 For browser password login, call `GET /api/v1/auth/csrf` with cookies enabled,
 retain its `csrf_token`, then send it as `X-CSRF-Token` together with cookies and
@@ -245,8 +245,18 @@ JSON with the same CSRF protection. Login is unnecessary. Success returns an emp
 account's sessions; it clears the browser session cookie. The new password uses
 the configured registration length policy. Invalid tokens and policy failures
 return fixed 400 errors; malformed request bodies return a generic 422. The
-default limit is five attempts per client address per 60-second window. Reset
-requests and reset-email delivery through HTTP remain unimplemented.
+default limit is five attempts per client address per 60-second window.
+
+Request a reset with `POST /api/v1/auth/password-reset/request`, sending `email` in
+JSON with the same CSRF protection; login is unnecessary. With fake delivery enabled,
+all account outcomes return 202 and `Password reset request accepted.` Eligible
+accounts receive a hashed reset token in PostgreSQL, committed before its email
+message is queued. Disabled delivery returns a generic 503 before account lookup.
+The default request limit is five attempts per client address per minute. Requests
+preserve session cookies and never return tokens or account details. Queue failure
+after commit still returns the generic acknowledgement, with only safe server
+metadata logged; clients can retry. There is no durable delivery guarantee or
+production mail provider, and fake messages remain only in worker memory.
 
 Read [Local Development](docs/development/local-development.md) for host setup,
 checks and troubleshooting. Implementation details are in

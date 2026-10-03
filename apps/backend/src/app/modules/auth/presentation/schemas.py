@@ -1,5 +1,6 @@
 from datetime import datetime
 from ipaddress import IPv4Address, IPv6Address
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
@@ -30,6 +31,16 @@ class PasswordResetConfirmationRequest(BaseModel):
 
     token: SecretStr = Field(min_length=43, max_length=43, repr=False)
     new_password: SecretStr = Field(min_length=1, max_length=1024, repr=False)
+
+
+class PasswordResetRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: str = Field(min_length=1, max_length=320)
+
+
+class PasswordResetRequestResponse(BaseModel):
+    detail: Literal["Password reset request accepted."] = "Password reset request accepted."
 
 
 class LoginResponse(BaseModel):

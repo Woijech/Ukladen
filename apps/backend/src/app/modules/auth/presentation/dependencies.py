@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.modules.auth.application.login import LoginService
 from app.modules.auth.application.password_recovery import PasswordRecoveryService
-from app.modules.auth.application.ports import RateLimiter
+from app.modules.auth.application.ports import EmailDeliveryUnavailable, EmailSender, RateLimiter
 from app.modules.auth.application.service import SessionService
 from app.modules.auth.application.verification import EmailVerificationService
 from app.modules.auth.domain.entities import AuthSession
@@ -40,6 +40,12 @@ def get_database(request: Request) -> Iterator[Session]:
 
 Config = Annotated[Settings, Depends(get_config)]
 Database = Annotated[Session, Depends(get_database)]
+
+
+def get_email_sender(request: Request, settings: Config) -> EmailSender:
+    if settings.auth_email_delivery_mode == "disabled":
+        raise EmailDeliveryUnavailable("Email delivery is unavailable.")
+    return request.app.state.email_sender
 
 
 def get_sessions(request: Request, database: Database, settings: Config) -> SessionService:
@@ -151,6 +157,23 @@ def limit_password_reset_confirm(
         raise HTTPException(
             429,
             "Too many password reset attempts.",
+            headers={"Retry-After": str(retry_after), "Cache-Control": "no-store"},
+        )
+
+
+def limit_password_reset_request(
+    request: Request, settings: Config, limiter: Annotated[RateLimiter, Depends(get_rate_limiter)]
+) -> None:
+    peer = request.client.host if request.client else "unknown"
+    allowed, retry_after = limiter.check(
+        f"password-reset-request:{hash_token(peer)}",
+        settings.auth_password_reset_request_rate_limit,
+        settings.auth_password_reset_request_rate_window_seconds,
+    )
+    if not allowed:
+        raise HTTPException(
+            429,
+            "Too many password reset requests.",
             headers={"Retry-After": str(retry_after), "Cache-Control": "no-store"},
         )
 

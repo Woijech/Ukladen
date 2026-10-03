@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 from uuid import UUID
 
@@ -8,7 +9,12 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.modules.auth.application.login import LoginService
 from app.modules.auth.application.password_recovery import PasswordRecoveryService
-from app.modules.auth.application.ports import RateLimiterUnavailable, SessionCacheUnavailable
+from app.modules.auth.application.ports import (
+    EmailDeliveryUnavailable,
+    EmailSender,
+    RateLimiterUnavailable,
+    SessionCacheUnavailable,
+)
 from app.modules.auth.application.verification import EmailVerificationService
 from app.modules.auth.domain.errors import (
     InvalidCredentials,
@@ -24,6 +30,7 @@ from app.modules.auth.presentation.dependencies import (
     Database,
     Sessions,
     client_ip,
+    get_email_sender,
     get_email_verification,
     get_login,
     get_password_recovery,
@@ -32,6 +39,7 @@ from app.modules.auth.presentation.dependencies import (
     limit_login,
     limit_password_change,
     limit_password_reset_confirm,
+    limit_password_reset_request,
     require_csrf,
 )
 from app.modules.auth.presentation.schemas import (
@@ -41,10 +49,13 @@ from app.modules.auth.presentation.schemas import (
     LoginResponse,
     PasswordChangeRequest,
     PasswordResetConfirmationRequest,
+    PasswordResetRequest,
+    PasswordResetRequestResponse,
     SessionResponse,
 )
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 def clear_session_cookie(response: Response, settings: Config) -> None:
@@ -257,6 +268,37 @@ def confirm_password_reset(
     return response
 
 
+@router.post(
+    "/password-reset/request",
+    status_code=202,
+    response_model=PasswordResetRequestResponse,
+    dependencies=[Depends(require_csrf), Depends(limit_password_reset_request)],
+)
+def request_password_reset(
+    payload: PasswordResetRequest,
+    response: Response,
+    database: Database,
+    sender: Annotated[EmailSender, Depends(get_email_sender)],
+    service: Annotated[PasswordRecoveryService, Depends(get_password_recovery)],
+) -> PasswordResetRequestResponse:
+    with database.begin():
+        delivery = service.request_reset(payload.email)
+    if delivery is not None:
+        try:
+            sender.send_password_reset(delivery.email, delivery.token)
+        except EmailDeliveryUnavailable:
+            # ponytail: publication after commit can lose mail; add an outbox for durable delivery.
+            logger.warning(
+                "Password reset email queue failed.",
+                extra={
+                    "user_id": str(delivery.user_id),
+                    "event": "auth.password_reset.email_queue_failed",
+                },
+            )
+    response.headers["Cache-Control"] = "no-store"
+    return PasswordResetRequestResponse()
+
+
 def install_auth(application: FastAPI) -> None:
     def invalid_request(request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(
@@ -297,6 +339,11 @@ def install_auth(application: FastAPI) -> None:
     application.add_exception_handler(InvalidCredentials, invalid_credentials)
     application.add_exception_handler(InvalidSession, invalid_session)
     application.add_exception_handler(SessionNotFound, session_not_found)
-    for error_type in (SQLAlchemyError, SessionCacheUnavailable, RateLimiterUnavailable):
+    for error_type in (
+        SQLAlchemyError,
+        SessionCacheUnavailable,
+        RateLimiterUnavailable,
+        EmailDeliveryUnavailable,
+    ):
         application.add_exception_handler(error_type, unavailable)
     application.include_router(router)

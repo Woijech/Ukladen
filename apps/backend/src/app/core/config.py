@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     auth_email_verification_confirm_rate_window_seconds: int = Field(default=60, gt=0)
     auth_password_reset_confirm_rate_limit: int = Field(default=5, gt=0)
     auth_password_reset_confirm_rate_window_seconds: int = Field(default=60, gt=0)
+    auth_password_reset_request_rate_limit: int = Field(default=5, gt=0)
+    auth_password_reset_request_rate_window_seconds: int = Field(default=60, gt=0)
     auth_email_delivery_mode: Literal["disabled", "fake"] = "disabled"
 
     @model_validator(mode="after")
