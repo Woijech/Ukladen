@@ -878,3 +878,10 @@ Strict-cookie rejection, Google-only rejection, preserved passwords/profiles,
 Google login after linking, replay, logout, session switching, disabled users,
 changed credentials, stale-cache revocation, expiry, competing owners, late-write
 rollback and fresh retry. Concurrent users cannot reassign a Google subject.
+
+The backend GitHub Actions job starts disposable PostgreSQL/pgvector and Redis
+services and supplies `AUTH_TEST_DATABASE_URL` / `AUTH_TEST_REDIS_URL`. The regular
+pytest command therefore runs native integration/concurrency checks rather than
+skipping them. CI credentials belong only to the disposable test database; tests
+still create/drop isolated schemas and clean generated Redis keys/queues. Google
+calls remain fake or mocked.
