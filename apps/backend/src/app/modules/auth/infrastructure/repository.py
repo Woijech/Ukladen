@@ -3,10 +3,48 @@ from ipaddress import ip_address
 from uuid import UUID
 
 from sqlalchemy import func, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.modules.auth.domain.entities import AuthSession, OneTimeToken, TokenType
-from app.modules.auth.infrastructure.orm import CredentialModel, OneTimeTokenModel, SessionModel
+from app.modules.auth.domain.errors import InvalidExternalIdentity
+from app.modules.auth.infrastructure.orm import (
+    CredentialModel,
+    IdentityModel,
+    OneTimeTokenModel,
+    SessionModel,
+)
+
+
+class SqlAlchemyGoogleIdentityRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get_user_id(self, subject: str) -> UUID | None:
+        return self.session.scalar(
+            select(IdentityModel.user_id).where(
+                IdentityModel.provider == "google", IdentityModel.provider_subject == subject
+            )
+        )
+
+    def create(self, user_id: UUID, subject: str, email: str, created_at: datetime) -> None:
+        identity_id = self.session.scalar(
+            insert(IdentityModel)
+            .values(
+                user_id=user_id,
+                provider="google",
+                provider_subject=subject,
+                provider_email=email,
+                created_at=created_at,
+                updated_at=created_at,
+            )
+            .on_conflict_do_nothing(
+                index_elements=[IdentityModel.provider, IdentityModel.provider_subject]
+            )
+            .returning(IdentityModel.id)
+        )
+        if identity_id is None:
+            raise InvalidExternalIdentity("Google identity could not be resolved.")
 
 
 class SqlAlchemyCredentialRepository:

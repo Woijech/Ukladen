@@ -32,6 +32,16 @@ class ExternalIdentityProvider(Protocol):
     ) -> VerifiedGoogleIdentity: ...
 
 
+class GoogleIdentityRepository(Protocol):
+    """Resolve Google subjects and insert identities in the caller's transaction."""
+
+    def get_user_id(self, subject: str) -> UUID | None: ...
+
+    def create(self, user_id: UUID, subject: str, email: str, created_at: datetime) -> None:
+        """Never overwrite a subject's owner; conflicts raise InvalidExternalIdentity."""
+        ...
+
+
 class EmailSender(Protocol):
     """Send or enqueue internal token data only after its database transaction commits."""
 

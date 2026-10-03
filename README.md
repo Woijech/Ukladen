@@ -180,8 +180,9 @@ verification and password reset, plus browser password login/logout, session
 management, password change, email-verification confirmation and password-reset
 confirmation. Celery email queuing with a development fake is implemented.
 Registration and password-reset requests queue messages after commit.
-A Google OIDC adapter validates provider identities; Google browser login/account
-resolution, production email delivery and authentication UI are not implemented.
+A Google OIDC adapter validates provider identities, and an application service
+resolves Google accounts into ordinary sessions. Google browser login, production
+email delivery and authentication UI are not implemented.
 
 ```text
 apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests
@@ -243,8 +244,11 @@ commented placeholders; existing `.env` files are not changed. The adapter uses
 Google discovery/JWKS data, PKCE and signed ID-token validation, returning only the
 verified Google subject and normalized email. `PyJWT[crypto]` supplies RSA validation;
 Ukladen browser authentication continues to use opaque server-side sessions.
-Google start/callback endpoints, browser-bound Redis state, account resolution and
-explicit linking are not implemented. Configuring credentials does not enable
+Account resolution authenticates linked subjects, creates verified Google-only
+users for unused emails, and requires explicit linking when an email already exists.
+It preserves existing accounts and commits user, identity and session together.
+Google start/callback endpoints, browser-bound Redis state and explicit linking
+are not implemented. Configuring credentials does not enable
 Google login yet. Tests use mocked HTTP and in-memory signing keys, with no Google
 network calls.
 

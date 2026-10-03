@@ -32,3 +32,7 @@ class InvalidPassword(AuthError):
 
 class InvalidExternalIdentity(AuthError):
     """The provider response cannot establish a verified identity."""
+
+
+class AccountLinkingRequired(AuthError):
+    """An existing email requires explicit account linking and re-authentication."""

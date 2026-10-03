@@ -7,8 +7,9 @@ Browser registration, password login/logout/change, email-verification request/c
 password-reset request/confirmation, session-management endpoints and CSRF
 bootstrap are implemented.
 Celery email queuing and a development fake are implemented.
-A Google OIDC identity adapter is implemented. Google browser login/account resolution
-and production email delivery are not implemented.
+A Google OIDC identity adapter and account-resolution application service are
+implemented. Google browser login, explicit linking and production email delivery
+are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -417,8 +418,8 @@ and callback resolution. `GoogleOidcProvider` implements it using a caller-owned
 HTTPX client; construction performs no I/O and disabled settings fail closed.
 The caller must validate and consume browser-bound OAuth state before invoking
 `resolve_callback`. This adapter neither owns browser state nor creates or links
-Ukladen accounts/sessions. Google start/callback routes and account resolution are
-not implemented.
+Ukladen accounts/sessions. Google start/callback routes and browser-bound Redis
+state are not implemented.
 
 The adapter follows [Google's documented OIDC server flow](https://developers.google.com/identity/openid-connect/openid-connect).
 It obtains authorization, token and JWKS endpoints from the fixed Google discovery
@@ -460,6 +461,30 @@ JWKS documents are cached per adapter using monotonic expiry, respecting max-age
 Age, no-store and no-cache, with a one-hour ceiling. Expired data is refetched and
 is not served on provider failure. Cache fills share one lock; replicas may fetch
 the same public data independently. The caller owns HTTP client cleanup.
+
+## Google account resolution
+
+`GoogleLoginService` accepts only `VerifiedGoogleIdentity`, after provider and
+browser-state validation. It uses the Google subject to resolve an existing
+identity through `GoogleIdentityRepository`; linked users must be active under
+the canonical users-module row lock. The Google email cannot replace their
+Ukladen email, verification status, credentials or profile.
+
+For an unlinked subject with an unused normalized email, the service creates a
+user through the users-module registration port, marks the email verified,
+inserts a Google identity and creates an ordinary opaque session. No password
+credential or email-verification token is created. All adapters share one caller-owned
+transaction; callers must roll back on any failure and commit before delivering
+the returned `IssuedSession`. Session creation does not publish Redis data.
+
+An existing email raises `AccountLinkingRequired`, including password, Google-only
+and disabled accounts. Explicit linking/re-authentication is not implemented.
+The existing email and provider/subject uniqueness constraints arbitrate concurrent
+creation. After an email conflict, the service rechecks the subject so two first
+logins for the same identity can authenticate the winning account. A subject conflict
+with a different candidate email fails without overwriting the identity; rollback
+removes the losing candidate user, and a retry resolves the linked subject.
+Provider tokens never enter account resolution. This service is not wired to HTTP yet.
 
 ## HTTP
 
@@ -717,3 +742,9 @@ nonce/PKCE input validation, unsafe discovery endpoints, malformed/oversized JSO
 fixed HTTP/transport errors without code retry, inappropriate or ambiguous keys,
 key rotation and unknown-key rejection, public-cache freshness/expiry, safe logs,
 partial/unsafe settings, local callbacks and disabled-provider no-I/O behavior.
+
+Google account-resolution tests cover linked/new/disabled users, email collisions,
+canonical-account preservation, failed verification, hashed sessions, late-write
+rollback and retry, concurrent subject/email races, and the active-user lock.
+They use isolated PostgreSQL schemas and generated Redis session keys to validate
+ordinary session caching/revocation, with no provider network calls.
