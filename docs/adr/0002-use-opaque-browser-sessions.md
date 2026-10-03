@@ -2,7 +2,7 @@
 
 Date: 2026-10-01
 Status: accepted by the repository owner.
-Runtime authentication status: not implemented.
+Runtime authentication status: implemented; see [backend architecture](../architecture/backend.md).
 
 ## Context
 
@@ -31,6 +31,6 @@ Session expiry and revocation belong to the backend. Revocation must invalidate
 cached sessions so Redis cannot continue authenticating a revoked session.
 Backend replicas share PostgreSQL and Redis rather than process-local session state.
 
-This change records the design only. It adds no endpoints, database tables,
-configuration or dependencies. Runtime implementation follows
+The original decision recorded the design only. Subsequent implementation added
+endpoints, persistence, configuration and tests following
 [AUTH_SPEC.md](../modules/auth/AUTH_SPEC.md).

@@ -1,1 +1,1 @@
-"""Auth domain rules and application ports. Runtime authentication is not implemented."""
+"""Browser authentication, password recovery, sessions and verified external identities."""

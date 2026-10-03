@@ -175,15 +175,12 @@ User-facing product text may initially be Russian.
 Phase 0 foundation is implemented. The repository contains a FastAPI modular
 monolith, Next.js shell, PostgreSQL 18/pgvector, Redis, Celery worker and Beat,
 SeaweedFS object storage, Traefik, Docker Compose and GitHub Actions CI.
-Authentication is partially implemented: application registration, email
-verification and password reset, plus browser password login/logout, session
-management, password change, email-verification confirmation and password-reset
-confirmation. Celery email queuing with a development fake is implemented.
-Registration and password-reset requests queue messages after commit.
-A Google OIDC adapter validates provider identities, and an application service
-resolves Google accounts into ordinary sessions. Google browser login is implemented;
-explicit Google linking is also implemented. Production email delivery and authentication
-UI are not implemented.
+The backend authentication module is implemented: email/password registration,
+verification, login/logout/logout-all, password reset/change, session management,
+Google OIDC browser login and explicit account linking with password re-authentication.
+Browser authentication uses opaque HttpOnly sessions, PostgreSQL storage, Redis
+caching/rate limiting and CSRF protection. Celery queues email after commit using
+a development fake. Production email delivery and authentication UI are not implemented.
 
 ```text
 apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests

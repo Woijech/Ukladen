@@ -406,7 +406,10 @@ sessions
 Browser authentication uses HttpOnly cookies, PostgreSQL as the canonical session
 store and Redis as a session cache. Only session token hashes are persisted.
 [ADR 0002](docs/adr/0002-use-opaque-browser-sessions.md) records this decision.
-Status: runtime authentication is not implemented.
+Status: backend authentication is implemented, including email/password flows,
+Google OIDC login and explicit linking with password re-authentication. Production
+email delivery and frontend authentication UI are not implemented. See
+[backend architecture](docs/architecture/backend.md) for current runtime details.
 
 ## 5.2 users
 
