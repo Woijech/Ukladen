@@ -177,8 +177,9 @@ monolith, Next.js shell, PostgreSQL 18/pgvector, Redis, Celery worker and Beat,
 SeaweedFS object storage, Traefik, Docker Compose and GitHub Actions CI.
 Authentication is partially implemented: application registration, email
 verification and password reset, plus browser password login/logout, session
-management and password change. Registration, verification and password-reset
-HTTP endpoints, email delivery and authentication UI are not implemented.
+management, password change and email-verification confirmation. Registration
+and password-reset HTTP endpoints, email delivery and authentication UI are not
+implemented.
 
 ```text
 apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests
@@ -219,6 +220,15 @@ in JSON with the same cookies, `Origin` and CSRF header. Success returns 204,
 keeps the current session and revokes other sessions. The default limit is five
 attempts per user per 60-second window. The new password must meet the configured
 registration length policy; the default minimum is 12 characters.
+
+Email-verification tokens can be confirmed with
+`POST /api/v1/auth/email-verification/confirm`, sending `token` in JSON with the
+CSRF cookie, allowed `Origin` and CSRF header. Login is unnecessary. Success
+returns an empty 204, consumes the token and verifies its user's email without
+changing session cookies. Invalid, expired or used tokens return a generic 400;
+malformed request bodies return a generic 422. The default limit is five attempts
+per client address per 60-second window. Public registration and verification
+email delivery remain unimplemented.
 
 Read [Local Development](docs/development/local-development.md) for host setup,
 checks and troubleshooting. Implementation details are in

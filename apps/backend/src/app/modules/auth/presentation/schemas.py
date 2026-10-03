@@ -19,6 +19,12 @@ class PasswordChangeRequest(BaseModel):
     new_password: SecretStr = Field(min_length=1, max_length=1024, repr=False)
 
 
+class EmailVerificationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    token: SecretStr = Field(min_length=43, max_length=43, repr=False)
+
+
 class LoginResponse(BaseModel):
     user_id: UUID
     session_id: UUID

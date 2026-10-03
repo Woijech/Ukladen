@@ -9,8 +9,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.modules.auth.application.login import LoginService
 from app.modules.auth.application.password_recovery import PasswordRecoveryService
 from app.modules.auth.application.ports import RateLimiterUnavailable, SessionCacheUnavailable
+from app.modules.auth.application.verification import EmailVerificationService
 from app.modules.auth.domain.errors import (
     InvalidCredentials,
+    InvalidOneTimeToken,
     InvalidPassword,
     InvalidSession,
     SessionNotFound,
@@ -22,15 +24,18 @@ from app.modules.auth.presentation.dependencies import (
     Database,
     Sessions,
     client_ip,
+    get_email_verification,
     get_login,
     get_password_recovery,
     is_token,
+    limit_email_verification_confirm,
     limit_login,
     limit_password_change,
     require_csrf,
 )
 from app.modules.auth.presentation.schemas import (
     CsrfResponse,
+    EmailVerificationRequest,
     LoginRequest,
     LoginResponse,
     PasswordChangeRequest,
@@ -195,6 +200,26 @@ def change_password(
             400,
             "New password does not meet the password policy.",
             headers={"Cache-Control": "no-store"},
+        ) from None
+    return Response(status_code=204, headers={"Cache-Control": "no-store"})
+
+
+@router.post(
+    "/email-verification/confirm",
+    status_code=204,
+    dependencies=[Depends(require_csrf), Depends(limit_email_verification_confirm)],
+)
+def confirm_email_verification(
+    payload: EmailVerificationRequest,
+    database: Database,
+    service: Annotated[EmailVerificationService, Depends(get_email_verification)],
+) -> Response:
+    try:
+        with database.begin():
+            service.confirm(payload.token.get_secret_value())
+    except InvalidOneTimeToken:
+        raise HTTPException(
+            400, "Invalid or expired token.", headers={"Cache-Control": "no-store"}
         ) from None
     return Response(status_code=204, headers={"Cache-Control": "no-store"})
 

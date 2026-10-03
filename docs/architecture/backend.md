@@ -3,9 +3,9 @@
 Status: foundation, auth contracts, persistence, password/token helpers, session
 services, registration, email-verification, password-login, password-reset and
 password-change application flows implemented.
-Browser password login/logout/change, session-management endpoints and CSRF bootstrap are implemented.
-HTTP registration/verification/password-reset and email delivery
-are not implemented.
+Browser password login/logout/change, email-verification confirmation,
+session-management endpoints and CSRF bootstrap are implemented.
+HTTP registration/password-reset and email delivery are not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -48,6 +48,10 @@ both must be positive.
 `AUTH_PASSWORD_CHANGE_RATE_WINDOW_SECONDS` to 60; both must be positive.
 Password-change limits are keyed by the authenticated user UUID, shared across
 that user's sessions and client addresses.
+`AUTH_EMAIL_VERIFICATION_CONFIRM_RATE_LIMIT` defaults to 5 and
+`AUTH_EMAIL_VERIFICATION_CONFIRM_RATE_WINDOW_SECONDS` to 60; both must be positive.
+Confirmation limits use the hashed ASGI peer address and a separate Redis key
+namespace from login.
 
 ## Database
 
@@ -163,9 +167,9 @@ roll back on any error to avoid partial registration. None commits independently
 for later delivery. Its representation hides both tokens. Only token hashes and
 the password hash are persisted; registration does not publish session data to
 Redis. Commit successfully before delivering cookies or verification email.
-HTTP registration, Celery email delivery and HTTP verification confirmation remain
-unimplemented. Cookie delivery, CSRF protection and rate limiting are implemented
-for password login.
+HTTP registration and Celery email delivery remain unimplemented. Cookie delivery,
+CSRF protection and rate limiting are implemented for password login;
+email-verification confirmation also has CSRF and rate protection.
 
 `EmailVerificationService` accepts the generated 43-character URL-safe token format
 and looks up only its hash through `EmailVerificationRepository`. The SQLAlchemy
@@ -182,6 +186,20 @@ exception, including a missing or failed user update. Token-row locks remain hel
 until transaction completion, so concurrent confirmations cannot both consume a
 token. A failed transaction leaves the token available for retry. The service
 returns only the user UUID and does not log or persist the raw token.
+
+`POST /api/v1/auth/email-verification/confirm` calls this existing service through
+`get_email_verification`, sharing one SQLAlchemy session between its adapters and
+the route's transaction. It requires CSRF validation and the peer-address Redis
+rate limiter; no authenticated session is required or validated. The DTO accepts
+only a `token` field, uses `SecretStr`, hides it from representations and requires
+43 characters. The service enforces the URL-safe format. Confirmation returns an
+empty 204 with `Cache-Control: no-store` only after commit; it does not set or clear
+session cookies, create sessions or change user status. Invalid/unknown/expired/
+future/used/wrong-type tokens receive the same fixed 400. Malformed transport
+input receives the existing generic 422 without echoing the token. Rate limits
+return 429 with `Retry-After`; database/limiter failures return a sanitized 503.
+These responses use `Cache-Control: no-store` and do not expose tokens or user IDs.
+CSRF rejection returns 403 before rate limiting or confirmation.
 
 `LoginService` shares registration's email normalization and preserves password
 whitespace. Login accepts passwords from 1 to 1024 characters; it does not apply
@@ -299,6 +317,7 @@ omit passwords, tokens and internal exception details.
 | `GET /api/v1/auth/sessions` | Lists only the authenticated user's active sessions and public metadata. |
 | `DELETE /api/v1/auth/sessions/{session_id}` | Revokes an owned session; returns 204 or a generic 404. |
 | `POST /api/v1/auth/password/change` | Requires the current password; changes it, retains the current session and revokes others. |
+| `POST /api/v1/auth/email-verification/confirm` | Consumes a valid verification token and verifies its user's email; returns 204 without requiring login. |
 
 Authentication POST and DELETE requests require an exact allowed `Origin` and matching
 43-character URL-safe tokens in the CSRF cookie and `X-CSRF-Token` header, compared
@@ -307,9 +326,10 @@ existing valid token. The JSON token enables header submission while the cookie
 remains HttpOnly. Clients must include cookies. Production `__Host-` cookies also
 prevent subdomains from injecting domain-scoped authentication cookies.
 
-`RedisRateLimiter` uses an atomic INCR/EXPIRE Lua script for fixed login windows;
-denied attempts do not extend expiry. It keys limits by the hash of the ASGI peer
-address and does not parse forwarded headers itself. Configure trusted proxy
+`RedisRateLimiter` uses an atomic INCR/EXPIRE Lua script for fixed request windows;
+denied attempts do not extend expiry. Login and email-verification confirmation
+use hashed ASGI peer addresses; password change uses the user UUID. The limiter
+does not parse forwarded headers itself. Configure trusted proxy
 handling at the server when deploying behind a proxy, or clients share the proxy's
 limit. Exceeded limits return 429 with `Retry-After`; unavailable or invalid Redis
 limiter state fails closed with a sanitized 503 response.
@@ -421,3 +441,11 @@ rate window, wrong-current-password and policy rejection, successful change,
 revoked-session replay rejection, login with the new password, old-password
 rejection, cache-failure rollback/retry and disabled-account rejection. Generated
 rate keys and session cache entries are removed after the isolated tests.
+
+Email-verification HTTP tests cover confirmation without login, cookie retention,
+hashed peer limits without trusting forwarded headers, CSRF ordering, secret-safe
+DTOs/validation/errors, positive rate settings and no success before commit.
+PostgreSQL/Redis checks cover single use, expired/future/unknown/malformed/wrong-type
+tokens, retention of existing sessions, preservation of prior verification and
+disabled status, rollback/retry after a late user-update failure and native Redis
+rate windows. The rate-window test owns a unique peer key and removes it afterward.

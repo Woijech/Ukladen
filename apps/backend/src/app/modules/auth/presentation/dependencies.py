@@ -12,16 +12,21 @@ from app.modules.auth.application.login import LoginService
 from app.modules.auth.application.password_recovery import PasswordRecoveryService
 from app.modules.auth.application.ports import RateLimiter
 from app.modules.auth.application.service import SessionService
+from app.modules.auth.application.verification import EmailVerificationService
 from app.modules.auth.domain.entities import AuthSession
 from app.modules.auth.domain.errors import InvalidSession
 from app.modules.auth.infrastructure.repository import (
     SqlAlchemyCredentialRepository,
+    SqlAlchemyEmailVerificationRepository,
     SqlAlchemyPasswordResetRepository,
     SqlAlchemySessionRepository,
 )
 from app.modules.auth.infrastructure.session_cache import RedisSessionCache
 from app.modules.auth.infrastructure.token_service import generate_token, hash_token
-from app.modules.users.infrastructure.repository import SqlAlchemyUserAuthentication
+from app.modules.users.infrastructure.repository import (
+    SqlAlchemyEmailVerifier,
+    SqlAlchemyUserAuthentication,
+)
 
 
 def get_config(request: Request) -> Settings:
@@ -75,6 +80,14 @@ def get_password_recovery(
     )
 
 
+def get_email_verification(database: Database) -> EmailVerificationService:
+    return EmailVerificationService(
+        SqlAlchemyEmailVerificationRepository(database),
+        SqlAlchemyEmailVerifier(database),
+        hash_token=hash_token,
+    )
+
+
 def is_token(value: str | None) -> TypeGuard[str]:
     return value is not None and re.fullmatch(r"[A-Za-z0-9_-]{43}", value) is not None
 
@@ -105,6 +118,23 @@ def limit_login(
     if not allowed:
         raise HTTPException(
             429, "Too many login attempts.", headers={"Retry-After": str(retry_after)}
+        )
+
+
+def limit_email_verification_confirm(
+    request: Request, settings: Config, limiter: Annotated[RateLimiter, Depends(get_rate_limiter)]
+) -> None:
+    peer = request.client.host if request.client else "unknown"
+    allowed, retry_after = limiter.check(
+        f"email-verification-confirm:{hash_token(peer)}",
+        settings.auth_email_verification_confirm_rate_limit,
+        settings.auth_email_verification_confirm_rate_window_seconds,
+    )
+    if not allowed:
+        raise HTTPException(
+            429,
+            "Too many email verification attempts.",
+            headers={"Retry-After": str(retry_after), "Cache-Control": "no-store"},
         )
 
 
