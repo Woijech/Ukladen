@@ -13,6 +13,7 @@ from app.modules.auth.infrastructure.password_hasher import Argon2PasswordHasher
 from app.modules.auth.infrastructure.request_protection import RedisRateLimiter
 from app.modules.auth.infrastructure.token_service import generate_token
 from app.modules.auth.presentation.routes import install_auth
+from app.modules.users.presentation.routes import install_users
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -59,6 +60,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     install_auth(application)
+    install_users(application)
 
     @application.get("/api/health/live", response_model=HealthResponse)
     def liveness() -> HealthResponse:

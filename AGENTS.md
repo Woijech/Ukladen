@@ -283,6 +283,9 @@ An abstraction is justified when it protects a real boundary:
 
 Prefer small, cohesive changes.
 
+After completing and verifying a substantial change, create a local commit for
+that change. Include only task-related files; push only when explicitly requested.
+
 Do not modify unrelated files.
 
 Never commit:

@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.modules.users.application.ports import EmailAlreadyExists
+from app.modules.users.domain.profile import UserProfile
 from app.modules.users.infrastructure.orm import UserModel
 
 
@@ -79,4 +80,43 @@ class SqlAlchemyUserAuthentication:
                 select(UserModel.id).where(UserModel.id == user_id, UserModel.status == "active")
             )
             is not None
+        )
+
+
+class SqlAlchemyProfileRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get_active(self, user_id: UUID) -> UserProfile | None:
+        row = self.session.scalar(
+            select(UserModel)
+            .where(UserModel.id == user_id, UserModel.status == "active")
+            .execution_options(populate_existing=True)
+        )
+        return self._to_profile(row)
+
+    def update_active(self, user_id: UUID, changes: dict[str, str | None]) -> UserProfile | None:
+        row = self.session.scalar(
+            update(UserModel)
+            .where(UserModel.id == user_id, UserModel.status == "active")
+            .values(**changes, updated_at=func.clock_timestamp())
+            .returning(UserModel)
+            .execution_options(populate_existing=True)
+        )
+        return self._to_profile(row)
+
+    @staticmethod
+    def _to_profile(row: UserModel | None) -> UserProfile | None:
+        if row is None:
+            return None
+        return UserProfile(
+            id=row.id,
+            email=row.email,
+            email_verified_at=row.email_verified_at,
+            status=row.status,
+            display_name=row.display_name,
+            timezone=row.timezone,
+            locale=row.locale,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
         )

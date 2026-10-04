@@ -13,6 +13,9 @@ Explicit Google linking is implemented. A deployment must supply its SMTP servic
 browser email verification is implemented. Other frontend authentication UI and
 durable email publication recovery are not implemented.
 
+The backend users profile API is implemented. It reuses browser authentication and
+CSRF protection; see [profile contracts and API examples](../development/user-profile.md).
+
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
 The application lifespan creates shared health clients, a SQLAlchemy engine and
@@ -123,6 +126,31 @@ Alembic gets its URL from application settings. `0001_enable_vector` enables the
 Alembic imports both modules' ORM models into its metadata. Schema changes must use
 migrations. Compose runs migration once before starting API processes; HTTP
 startup does not create tables.
+
+`0003_users_profile` adds nullable `display_name` and required `timezone` / `locale`
+with database defaults `UTC` / `ru`. Existing accounts, including Google-only users,
+receive those defaults without changing their existing fields or authentication
+records. Downgrade removes only the three profile columns and their constraints.
+
+## Users profiles
+
+`users/domain/profile.py` owns profile data and validation. `ProfileService` uses
+the users-owned database port, returning canonical active users or the existing
+authentication-style 401 for missing/disabled users. The infrastructure adapter
+reads PostgreSQL and performs an active-user-constrained `UPDATE ... RETURNING`,
+writing only supplied profile columns and `updated_at`. Concurrent partial updates
+therefore preserve unrelated fields and authentication data. Routes own synchronous
+transactions; responses are dedicated DTOs and are returned only after commit.
+
+`GET /api/v1/users/me` requires an active authenticated session and does not write
+profile data or timestamps. `PATCH /api/v1/users/me` also requires the existing CSRF
+cookie/header and allowed Origin. Both return `Cache-Control: no-store`. Display
+names are trimmed, nullable and limited to 100 characters; timezone identifiers
+are validated using standard-library `zoneinfo`; locales accept only `ru` and `en`.
+Unknown/protected fields, empty patches, empty names and null timezone/locale values
+are rejected. Omitted fields remain unchanged; explicit null clears only the name.
+The existing backend image supplies system timezone data; no dependency was added.
+Frontend profiles and other users-module features are not implemented.
 
 ## Authentication contracts
 
@@ -618,6 +646,8 @@ redirect, preserving the existing session cookie without exposing private detail
 
 | Endpoint | Behavior |
 | --- | --- |
+| `GET /api/v1/users/me` | Reads the authenticated active user's canonical profile. |
+| `PATCH /api/v1/users/me` | Updates only supplied supported profile fields after authentication and CSRF validation. |
 | `POST /api/v1/auth/google/link/start` | Re-authenticate a password account and initiate explicit Google linking. |
 | `GET /api/v1/auth/google/start` | Start Google login with browser-bound state. |
 | `GET /api/v1/auth/google/callback` | Verify Google identity and commit an ordinary session, then redirect. |

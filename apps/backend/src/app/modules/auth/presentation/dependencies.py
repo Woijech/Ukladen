@@ -194,9 +194,9 @@ def require_csrf(request: Request, settings: Config) -> None:
     cookie = request.cookies.get(settings.auth_csrf_cookie_name)
     header = request.headers.get("x-csrf-token")
     if request.headers.get("origin") not in origins or not is_token(cookie) or not is_token(header):
-        raise HTTPException(403, "CSRF validation failed.")
+        raise HTTPException(403, "CSRF validation failed.", headers={"Cache-Control": "no-store"})
     if not compare_digest(cookie, header):
-        raise HTTPException(403, "CSRF validation failed.")
+        raise HTTPException(403, "CSRF validation failed.", headers={"Cache-Control": "no-store"})
 
 
 def get_rate_limiter(request: Request) -> RateLimiter:

@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
+from app.modules.users.domain.profile import UserProfile
+
 
 class EmailAlreadyExists(Exception):
     """A user already owns the email address, compared case-insensitively."""
@@ -34,4 +36,14 @@ class UserAuthentication(Protocol):
 
     def is_active(self, user_id: UUID) -> bool:
         """Read canonical user status without acquiring a row lock."""
+        ...
+
+
+class ProfileRepository(Protocol):
+    """Read and update active canonical users in the caller's transaction."""
+
+    def get_active(self, user_id: UUID) -> UserProfile | None: ...
+
+    def update_active(self, user_id: UUID, changes: dict[str, str | None]) -> UserProfile | None:
+        """Write only supplied columns; never commit independently."""
         ...
