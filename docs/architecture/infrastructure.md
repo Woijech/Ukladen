@@ -1,6 +1,7 @@
 # Ukladen Infrastructure Foundation
 
-Status: local Compose deployment implemented. Production deployment is not implemented.
+Status: local Compose and home-server Cloudflare Tunnel configuration implemented.
+Public activation requires account/DNS setup; managed production deployment is not implemented.
 
 ## Runtime
 
@@ -54,9 +55,23 @@ All published ports bind to `127.0.0.1`: Traefik 8080, web 3000, API 8000,
 PostgreSQL 5432, Redis 6379, SeaweedFS S3 8333 and Admin UI 23646. Other SeaweedFS
 component ports are not published to the host. Traefik serves plain HTTP locally.
 `.env.example` contains development credentials; `.env` is ignored by Git.
-Production service accounts, TLS, secrets management, backups, redundancy and
-application authorization are not implemented. A production storage provider
+Managed production deployment, production service accounts, secrets management,
+backup automation and redundancy are not implemented. A production storage provider
 remains a separate deployment decision.
+
+## Home Server Exposure
+
+`docker-compose.home.yml` overlays the local stack, replaces backend env files
+with `.env.home`, and removes all host port publications. Cloudflared 2026.9.3
+connects outbound to Cloudflare and routes `ukladen.app` to Traefik on the dedicated
+edge network. Cloudflare terminates browser TLS. Traefik trusts forwarded headers
+only from cloudflared; Uvicorn trusts the Traefik and connector hops in the chain,
+using fixed edge addresses outside the dynamic allocation range.
+The home profile uses Secure cookies and the public HTTPS origin. Traefik access
+logs are disabled to avoid recording authentication query data. Existing volumes
+and restart policies are reused; backup automation and durable email delivery
+remain unimplemented. See [ADR 0003](../adr/0003-use-cloudflare-tunnel-for-home-hosting.md)
+and [setup instructions](../deployment/home-server.md).
 
 ## CI
 

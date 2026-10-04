@@ -1,0 +1,66 @@
+# Use with docker-compose.yml and --env-file .env.home (Compose >= 2.24.4).
+x-home-backend: &home-backend
+  env_file: !override [.env.home]
+  environment:
+    CLOUDFLARE_TUNNEL_TOKEN: ""
+
+services:
+  postgres:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  seaweedfs:
+    ports: !reset []
+  migrate:
+    <<: *home-backend
+  worker:
+    <<: *home-backend
+  beat:
+    <<: *home-backend
+  api:
+    <<: *home-backend
+    ports: !reset []
+    environment:
+      CLOUDFLARE_TUNNEL_TOKEN: ""
+      FORWARDED_ALLOW_IPS: 172.30.0.3,172.30.0.2
+    networks: [default, edge]
+  web:
+    ports: !reset []
+    networks: [default, edge]
+  traefik:
+    command:
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.forwardedheaders.trustedips=172.30.0.2/32
+      - --providers.file.filename=/etc/traefik/routes.yml
+      - --ping=true
+      - --accesslog=false
+    ports: !reset []
+    volumes: !override
+      - ./infra/traefik/routes.home.yml:/etc/traefik/routes.yml:ro,z
+    networks:
+      edge:
+        ipv4_address: 172.30.0.3
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.3
+    command: tunnel --no-autoupdate --metrics 127.0.0.1:2000 run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in .env.home}
+    networks:
+      edge:
+        ipv4_address: 172.30.0.2
+    depends_on:
+      traefik: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, cloudflared, tunnel, --metrics, "127.0.0.1:2000", ready]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+networks:
+  edge:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+          ip_range: 172.30.0.128/25

@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+!.env.home.example
 .venv/
 __pycache__/
 *.py[cod]
@@ -14,3 +15,4 @@ test-results/
 .codegraph/
 .DS_Store
 celerybeat-schedule*
+backups/

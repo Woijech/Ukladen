@@ -340,6 +340,12 @@ checks and troubleshooting. Implementation details are in
 [Backend](docs/architecture/backend.md), [Frontend](docs/architecture/frontend.md)
 and [Infrastructure](docs/architecture/infrastructure.md).
 
+For hosting `ukladen.app` on a home PC through Cloudflare Tunnel, follow
+[Home Server Setup](docs/deployment/home-server.md). The optional
+`docker-compose.home.yml` overlay removes host ports, uses `.env.home` and Secure
+cookies, and reuses the existing data volumes. Domain/tunnel activation requires
+your Cloudflare account; the checked-in configuration does not publish the site.
+
 Local storage uses SeaweedFS; [ADR 0001](docs/adr/0001-use-seaweedfs.md) records
 the provider decision. Production storage remains a separate deployment decision.
 Authentication is partially implemented as described above. Real IIS integration,
