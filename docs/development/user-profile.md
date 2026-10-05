@@ -165,5 +165,6 @@ and failed-commit rollback, preservation of auth records, canonical eligibility,
 concurrent partial updates and migration compatibility. Integration tests skip
 when their test URLs are unset. Tests send no external email or Google requests.
 
-Frontend, academic profiles, groups, account deletion, administrative
-management and public user lookup are outside this slice and not implemented here.
+Academic profiles and group selection use the separate [academics API](academic-profile.md).
+Frontend profiles, account deletion, administrative management and public user
+lookup are outside this slice and not implemented here.

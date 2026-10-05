@@ -16,6 +16,10 @@ durable email publication recovery are not implemented.
 The backend users profile API is implemented. It reuses browser authentication and
 CSRF protection; see [profile contracts and API examples](../development/user-profile.md).
 
+The backend academics API is implemented: authenticated group catalogue/context and
+current-user academic profiles. See [academic profile contracts](../development/academic-profile.md)
+and the [verified IIS investigation](../integrations/bsuir-iis-investigation.md).
+
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
 The application lifespan creates shared health clients, a SQLAlchemy engine and
@@ -135,6 +139,16 @@ records. Downgrade removes only the three profile columns and their constraints.
 `0004_users_avatar` adds a nullable, user-owned `avatar_key`. Existing accounts
 start without an avatar; images remain private objects in S3-compatible storage.
 Downgrade removes the reference and constraint without changing other user/auth data.
+
+`0005_academics_profile` creates selected `university_groups` metadata snapshots and
+one `academic_profiles` row per participating user. Existing users/auth/avatar data
+is preserved; profiles are created only by group selection. Academic mutations
+reuse canonical active-user locks, session authentication and Origin/CSRF checks.
+Routes own short read and write transactions with IIS validation between them.
+The IIS adapter implements an academics-owned port and reuses the shared HTTP
+client with bounded timeouts and sanitized response validation. Read-only source
+term labels and period dates are returned as live context, not editable semesters.
+No full-catalogue cache, scraping, schedule synchronization or jobs are implemented.
 
 ## Users profiles
 
@@ -653,6 +667,10 @@ redirect, preserving the existing session cookie without exposing private detail
 
 | Endpoint | Behavior |
 | --- | --- |
+| `GET /api/v1/academics/groups` | Reads the live IIS group catalogue for authenticated selection. |
+| `GET /api/v1/academics/groups/{group_id}/context` | Reads observed subgroup choices and source period dates/labels. |
+| `GET /api/v1/academics/me` | Reads a stored academic profile or JSON null before selection. |
+| `PATCH /api/v1/academics/me` | Creates/updates the session owner’s academic selection after Origin/CSRF and IIS validation. |
 | `GET /api/v1/users/me` | Reads the authenticated active user's canonical profile. |
 | `PATCH /api/v1/users/me` | Updates only supplied supported profile fields after authentication and CSRF validation. |
 | `PUT /api/v1/users/me/avatar` | Validates and normalizes an image, stores it privately in S3 and commits its reference. |

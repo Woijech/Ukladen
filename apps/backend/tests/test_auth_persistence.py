@@ -60,6 +60,8 @@ def test_migration_round_trip(database_connection: Connection) -> None:
     expected = {
         "alembic_version",
         "users",
+        "university_groups",
+        "academic_profiles",
         "auth_credentials",
         "auth_identities",
         "auth_sessions",

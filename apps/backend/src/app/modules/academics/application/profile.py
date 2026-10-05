@@ -40,6 +40,9 @@ class AcademicService:
             raise ProfileUnavailable()
         return self.repository.get(user_id)
 
+    def list_groups(self) -> list[UniversityGroup]:
+        return self.provider.list_groups()
+
     def get_group(self, group_id: int) -> UniversityGroup:
         group = next((g for g in self.provider.list_groups() if g.id == group_id), None)
         if group is None:
