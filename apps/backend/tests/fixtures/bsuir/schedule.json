@@ -1,0 +1,148 @@
+{
+  "startDate": "01.09.2026",
+  "endDate": "28.12.2026",
+  "startExamsDate": "29.12.2026",
+  "endExamsDate": "25.01.2027",
+  "employeeDto": null,
+  "studentGroupDto": {
+    "name": "353501",
+    "facultyId": 20026,
+    "facultyAbbrev": "ФКСиС",
+    "facultyName": "Факультет компьютерных систем и сетей",
+    "specialityDepartmentEducationFormId": 20657,
+    "specialityName": "Информатика и технологии программирования",
+    "specialityAbbrev": "ИиТП",
+    "course": 4,
+    "id": 24066,
+    "educationDegree": 1
+  },
+  "schedules": {
+    "Суббота": [
+      {
+        "auditories": [
+          "4-4 к."
+        ],
+        "endLessonTime": "09:55",
+        "lessonTypeAbbrev": "ЛК",
+        "note": null,
+        "numSubgroup": 0,
+        "startLessonTime": "08:30",
+        "studentGroups": [
+          {
+            "specialityName": "Информатика и технологии программирования",
+            "specialityCode": "6-05-0612-02",
+            "numberOfStudents": 32,
+            "name": "353501",
+            "educationDegree": 1
+          }
+        ],
+        "subject": "ТОФД",
+        "subjectFullName": "Технологии обработки финансовой документации",
+        "weekNumber": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "employees": [],
+        "dateLesson": null,
+        "startLessonDate": "05.09.2026",
+        "endLessonDate": "26.12.2026",
+        "announcement": false,
+        "split": false
+      },
+      {
+        "auditories": [
+          "407-5 к."
+        ],
+        "endLessonTime": "15:00",
+        "lessonTypeAbbrev": "ЛР",
+        "note": null,
+        "numSubgroup": 1,
+        "startLessonTime": "13:35",
+        "studentGroups": [
+          {
+            "specialityName": "Информатика и технологии программирования",
+            "specialityCode": "6-05-0612-02",
+            "numberOfStudents": 32,
+            "name": "353501",
+            "educationDegree": 1
+          }
+        ],
+        "subject": "МЗИ",
+        "subjectFullName": "Методы защиты информации",
+        "weekNumber": [
+          1
+        ],
+        "employees": [
+          {
+            "id": 556819,
+            "firstName": "Артём",
+            "middleName": "Вадимович",
+            "lastName": "Герчик",
+            "degree": "",
+            "degreeAbbrev": "",
+            "rank": null,
+            "urlId": "a-gerchik",
+            "jobPositions": null,
+            "chief": false
+          }
+        ],
+        "dateLesson": null,
+        "startLessonDate": "05.09.2026",
+        "endLessonDate": "26.12.2026",
+        "announcement": false,
+        "split": false
+      },
+      {
+        "auditories": [
+          "407-5 к."
+        ],
+        "endLessonTime": "15:00",
+        "lessonTypeAbbrev": "ЛР",
+        "note": null,
+        "numSubgroup": 2,
+        "startLessonTime": "13:35",
+        "studentGroups": [
+          {
+            "specialityName": "Информатика и технологии программирования",
+            "specialityCode": "6-05-0612-02",
+            "numberOfStudents": 32,
+            "name": "353501",
+            "educationDegree": 1
+          }
+        ],
+        "subject": "МЗИ",
+        "subjectFullName": "Методы защиты информации",
+        "weekNumber": [
+          3
+        ],
+        "employees": [
+          {
+            "id": 556819,
+            "firstName": "Артём",
+            "middleName": "Вадимович",
+            "lastName": "Герчик",
+            "degree": "",
+            "degreeAbbrev": "",
+            "rank": null,
+            "urlId": "a-gerchik",
+            "jobPositions": null,
+            "chief": false
+          }
+        ],
+        "dateLesson": null,
+        "startLessonDate": "19.09.2026",
+        "endLessonDate": "12.12.2026",
+        "announcement": false,
+        "split": false
+      }
+    ]
+  },
+  "nextSchedules": null,
+  "currentTerm": "Осенний",
+  "nextTerm": null,
+  "exams": [],
+  "currentPeriod": "Осенний",
+  "isZaochOrDist": false
+}

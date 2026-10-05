@@ -1,0 +1,38 @@
+[
+  {
+    "name": "310101",
+    "facultyId": 20017,
+    "facultyAbbrev": "ФКП",
+    "facultyName": "Факультет компьютерного проектирования",
+    "specialityDepartmentEducationFormId": 20831,
+    "specialityName": "Информационные системы и технологии",
+    "specialityAbbrev": "ИСиТ (ИСиТвОПБ)",
+    "course": 4,
+    "id": 24684,
+    "educationDegree": 1
+  },
+  {
+    "name": "350505",
+    "facultyId": 20026,
+    "facultyAbbrev": "ФКСиС",
+    "facultyName": "Факультет компьютерных систем и сетей",
+    "specialityDepartmentEducationFormId": 20839,
+    "specialityName": "Компьютерная инженерия",
+    "specialityAbbrev": "КИ (ВМСиС)",
+    "course": null,
+    "id": 24725,
+    "educationDegree": 1
+  },
+  {
+    "name": "353501",
+    "facultyId": 20026,
+    "facultyAbbrev": "ФКСиС",
+    "facultyName": "Факультет компьютерных систем и сетей",
+    "specialityDepartmentEducationFormId": 20657,
+    "specialityName": "Информатика и технологии программирования",
+    "specialityAbbrev": "ИиТП",
+    "course": 4,
+    "id": 24066,
+    "educationDegree": 1
+  }
+]

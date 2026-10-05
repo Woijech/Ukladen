@@ -52,8 +52,8 @@ Authentication was unnecessary for the successful sampled public requests.
 | Rooms | Lesson `auditories` | Documented/live string arrays, e.g. `4-4 к.`; API page also documents `GET /auditories` | Room labels sufficient; room-directory response/joins not verified |
 | Update signal | `GET /last-update-date/student-group?id=24066` | Documented alternative `groupNumber=353501`; live 200 `{"lastUpdateDate":"13.01.2025"}` | Signal exists, but sampled timestamp predates the 2026 schedule; do not assume complete change detection |
 
-The official page additionally documents `GET /faculties`, `/specialities`,
-`/departments`, `/employees/all`, teacher schedules and announcements. These are
+The official page additionally documents lists of faculties, specialities,
+departments and teachers, plus teacher schedules and announcements. These are
 not required by academics and were not live-tested. No endpoint was inferred
 from a guessed name. Schedule investigation does not implement those modules.
 
