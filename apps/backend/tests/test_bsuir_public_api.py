@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from pathlib import Path
 
 import httpx
@@ -97,3 +98,167 @@ def test_directory_identity_and_upstream_failures(failure: str) -> None:
         with pytest.raises(AcademicProviderUnavailable) as error:
             IisPublicProvider(client).list_teachers()
         assert "private" not in str(error.value)
+
+
+def response_for(request: httpx.Request) -> httpx.Response:
+    name = {
+        "/api/v1/employees/all": "employees",
+        "/api/v1/departments": "departments",
+        "/api/v1/schedule": "group_schedule",
+        "/api/v1/employees/schedule/s-nesterenkov": "employee_schedule",
+        "/api/v1/announcements/employees": "employee_announcements",
+        "/api/v1/announcements/departments": "department_announcements",
+    }.get(request.url.path)
+    if name:
+        return httpx.Response(200, json=public_payload(name))
+    if request.url.path == "/api/v1/student-groups":
+        return httpx.Response(200, json=json.loads((FIXTURES / "groups.json").read_text()))
+    if request.url.path.startswith("/api/v1/last-update-date/"):
+        return httpx.Response(200, json={"lastUpdateDate": "13.01.2025"})
+    if request.url.path == "/api/v1/schedule/current-week":
+        return httpx.Response(200, json=2)
+    pytest.fail(f"Unexpected IIS request: {request.url}")
+
+
+def test_complete_schedule_and_announcement_request_contract() -> None:
+    requests: list[httpx.Request] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return response_for(request)
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        provider = IisPublicProvider(client)
+        group = provider.get_group_schedule("353501")
+        assert group and group.group and group.group.id == 24066
+        assert dict(requests[-1].url.params) == {"studentGroup": "353501"}
+        assert group.starts_on == date(2026, 9, 1)
+        assert group.schedules and "Суббота" in group.schedules
+        lesson = group.schedules["Суббота"][0]
+        assert lesson.week_numbers == [1, 2, 3, 4]
+        assert lesson.rooms == ["4-4 к."] and lesson.starts_at.hour == 8
+        teacher = provider.get_teacher_schedule(501822)
+        assert teacher and teacher.teacher and teacher.teacher.id == 501822
+        assert provider.get_teacher_schedule_by_url_id("s-nesterenkov") == teacher
+        assert teacher.schedules
+        announcement_lesson = teacher.schedules["Четверг"][0]
+        assert announcement_lesson.announcement and announcement_lesson.subject is None
+        assert announcement_lesson.teachers is None and announcement_lesson.note
+        page = provider.get_teacher_announcements(501822, date_from=date(2026, 10, 5))
+        assert dict(requests[-1].url.params) == {
+            "url-id": "s-nesterenkov",
+            "page": "0",
+            "size": "20",
+            "dateFrom": "2026-10-05",
+        }
+        assert page.number == 0 and page.last and len(page.content) == 2
+        assert page.content[0].date == date(2026, 12, 31)
+        assert page.content[0].auditory and page.content[0].starts_at
+        assert provider.get_teacher_announcements_by_url_id("s-nesterenkov").content == page.content
+        assert len(provider.get_department_announcements(20027)) == 2
+        assert dict(requests[-1].url.params) == {"url-id": "kaf-poit"}
+        for arguments, expected in [
+            ({"group_id": 24066}, {"id": "24066"}),
+            ({"group_number": "353501"}, {"groupNumber": "353501"}),
+        ]:
+            assert provider.get_group_update_date(**arguments) == date(2025, 1, 13)
+            assert dict(requests[-1].url.params) == expected
+        for arguments, expected in [
+            ({"teacher_id": 501822}, {"id": "501822"}),
+            ({"url_id": "s-nesterenkov"}, {"url-id": "s-nesterenkov"}),
+        ]:
+            assert provider.get_teacher_update_date(**arguments) == date(2025, 1, 13)
+            assert dict(requests[-1].url.params) == expected
+        assert provider.get_current_week() == 2
+
+
+def test_missing_schedule_is_distinct_from_unknown_group() -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        return (
+            response_for(request)
+            if request.url.path.endswith("student-groups")
+            else httpx.Response(404)
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        provider = IisPublicProvider(client)
+        assert provider.get_group_schedule("353501") is None
+        with pytest.raises(UniversityEntityNotFound):
+            provider.get_group_schedule("000000")
+        assert provider.get_teacher_schedule_by_url_id("s-nesterenkov") is None
+        assert provider.get_group_update_date(group_id=24066) is None
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("studentGroupDto", {"id": 999, "name": "353501"}),
+        ("startDate", "invalid"),
+        ("startDate", "01.01.2029"),
+        ("schedules", {"Monday": [{"numSubgroup": True}]}),
+    ],
+)
+def test_bad_full_schedule_is_unavailable(field: str, value: object) -> None:
+    data = public_payload("group_schedule")
+    data[field] = value
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        return (
+            httpx.Response(200, json=data)
+            if request.url.path.endswith("/schedule")
+            else response_for(request)
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        with pytest.raises(AcademicProviderUnavailable):
+            IisPublicProvider(client).get_group_schedule("353501")
+
+
+@pytest.mark.parametrize("week", [True, "2", None, 0, 5])
+def test_current_week_is_strict_and_bounded(week: object) -> None:
+    with httpx.Client(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=week))
+    ) as client:
+        with pytest.raises(AcademicProviderUnavailable):
+            IisPublicProvider(client).get_current_week()
+
+
+@pytest.mark.parametrize("slug", ["../schedule", "s/teacher", "?id=1", "", "https://other.test"])
+def test_invalid_teacher_slug_never_reaches_upstream(slug: str) -> None:
+    def fail(_: httpx.Request) -> httpx.Response:
+        pytest.fail("Unsafe URL identifier reached IIS")
+
+    with httpx.Client(transport=httpx.MockTransport(fail)) as client:
+        with pytest.raises(InvalidUniversityRequest):
+            IisPublicProvider(client).get_teacher_schedule_by_url_id(slug)
+
+
+def test_explicit_announcement_pages_preserve_metadata() -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        assert dict(request.url.params) == {"url-id": "s-nesterenkov", "page": "1", "size": "1"}
+        data = public_payload("employee_announcements")
+        data.update(number=1, size=1, content=data["content"][1:], totalPages=2, last=True)
+        return httpx.Response(200, json=data)
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        page = IisPublicProvider(client).get_teacher_announcements_by_url_id(
+            "s-nesterenkov", page=1, size=1
+        )
+        assert page.number == 1 and page.total_elements == 2 and len(page.content) == 1
+
+
+def test_request_strips_injected_client_credentials() -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        assert not request.headers.get("cookie") and not request.headers.get("authorization")
+        return response_for(request)
+
+    with httpx.Client(
+        transport=httpx.MockTransport(respond),
+        cookies={"session": "private"},
+        headers={"Authorization": "Bearer private"},
+        auth=("private", "private"),
+    ) as client:
+        provider = IisPublicProvider(client)
+        provider.list_groups()
+        provider.get_group_schedule("353501")
+        provider.list_teachers()

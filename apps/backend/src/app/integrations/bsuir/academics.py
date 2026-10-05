@@ -117,13 +117,16 @@ class IisAcademicProvider:
     def _get(
         self, path: str, *, params: dict[str, str] | None = None, allow_missing: bool = False
     ) -> httpx.Response:
-        response = self.client.get(
+        request = self.client.build_request(
+            "GET",
             IIS_API + path,
             params=params,
             timeout=httpx.Timeout(5, connect=3),
             headers={"Accept": "application/json"},
-            follow_redirects=False,
         )
+        request.headers.pop("cookie", None)
+        request.headers.pop("authorization", None)
+        response = self.client.send(request, auth=None, follow_redirects=False)
         if not (allow_missing and response.status_code == 404):
             response.raise_for_status()
         return response

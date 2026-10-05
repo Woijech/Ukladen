@@ -17,3 +17,9 @@ See `docs/integrations/bsuir-iis-investigation.md` for evidence and limitations.
 same date. Teacher photo/calendar links are removed. Nullable middle names,
 room notes/departments and the speciality's object-valued education form are
 preserved. See `docs/integrations/bsuir-iis-public-api.md` for the expanded contract.
+
+The same file includes full lesson structures from the group and teacher
+responses, two teacher announcements with their page envelope, and department
+announcements. Contact/calendar/photo fields and long announcement text are
+removed or replaced. Synthetic next-period/exam fixtures reuse these lessons to
+verify filtering; their business precedence and recurrence are not inferred.

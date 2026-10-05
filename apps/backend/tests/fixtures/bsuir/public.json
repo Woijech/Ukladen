@@ -98,5 +98,405 @@
       },
       "department": null
     }
-  ]
+  ],
+  "employee_schedule": {
+    "startDate": "03.09.2026",
+    "endDate": "25.12.2026",
+    "startExamsDate": null,
+    "endExamsDate": null,
+    "employeeDto": {
+      "id": 501822,
+      "firstName": "Сергей",
+      "middleName": "Николаевич",
+      "lastName": "Нестеренков",
+      "degree": "кандидат технических наук",
+      "degreeAbbrev": "к.т.н.",
+      "rank": "доцент",
+      "urlId": "s-nesterenkov",
+      "jobPositions": null,
+      "chief": false
+    },
+    "studentGroupDto": null,
+    "schedules": {
+      "Четверг": [
+        {
+          "auditories": [
+            "304-5 к."
+          ],
+          "endLessonTime": "00:01",
+          "lessonTypeAbbrev": null,
+          "note": "Sanitized announcement text.",
+          "numSubgroup": 0,
+          "startLessonTime": "00:00",
+          "studentGroups": [
+            {
+              "specialityName": "Программная инженерия",
+              "specialityCode": "6-05-0612-01",
+              "numberOfStudents": 27,
+              "name": "351001",
+              "educationDegree": 1
+            }
+          ],
+          "subject": null,
+          "subjectFullName": null,
+          "weekNumber": [
+            2
+          ],
+          "employees": null,
+          "dateLesson": "31.12.2026",
+          "startLessonDate": "31.12.2026",
+          "endLessonDate": "31.12.2026",
+          "announcement": true,
+          "split": false
+        },
+        {
+          "auditories": [
+            "214-4 к."
+          ],
+          "endLessonTime": "13:25",
+          "lessonTypeAbbrev": "ЛК",
+          "note": null,
+          "numSubgroup": 0,
+          "startLessonTime": "12:00",
+          "studentGroups": [
+            {
+              "specialityName": "Программная инженерия",
+              "specialityCode": "7-06-0612-01",
+              "numberOfStudents": 11,
+              "name": "656301",
+              "educationDegree": 2
+            }
+          ],
+          "subject": "УПвСИТ",
+          "subjectFullName": "Управление проектами в сфере информационных технологий",
+          "weekNumber": [
+            1
+          ],
+          "employees": null,
+          "dateLesson": null,
+          "startLessonDate": "03.09.2026",
+          "endLessonDate": "26.11.2026",
+          "announcement": false,
+          "split": true
+        }
+      ]
+    },
+    "nextSchedules": null,
+    "currentTerm": null,
+    "nextTerm": null,
+    "exams": [],
+    "currentPeriod": "Осенний",
+    "isZaochOrDist": null
+  },
+  "employee_announcements": {
+    "content": [
+      {
+        "id": 2890,
+        "employee": "Нестеренков С. Н. (доцент)",
+        "auditory": {
+          "id": 327,
+          "name": "304",
+          "buildingNumber": "5 к.",
+          "auditoryType": "рабочий кабинет"
+        },
+        "urlId": "s-nesterenkov",
+        "content": "Sanitized announcement text.",
+        "date": "2026-12-31",
+        "startTime": "00:00",
+        "endTime": "00:01",
+        "employeeDepartments": [
+          "Каф.ПОИТ",
+          "ОИТ",
+          "Каф.ВВС",
+          "Каф.ЭВМ",
+          "Каф.СУ",
+          "Каф.Информатики",
+          "Каф.ИТАС",
+          "Деканат ФКСиС"
+        ],
+        "studentGroups": [
+          {
+            "id": 24130,
+            "name": "351001",
+            "zaochOrDist": false
+          }
+        ],
+        "repeatGroup": null
+      },
+      {
+        "id": 2889,
+        "employee": "Нестеренков С. Н. (доцент)",
+        "auditory": {
+          "id": 327,
+          "name": "304",
+          "buildingNumber": "5 к.",
+          "auditoryType": "рабочий кабинет"
+        },
+        "urlId": "s-nesterenkov",
+        "content": "Sanitized announcement text.",
+        "date": "2026-11-30",
+        "startTime": "00:00",
+        "endTime": "00:01",
+        "employeeDepartments": [
+          "Каф.ПОИТ",
+          "ОИТ",
+          "Каф.ВВС",
+          "Каф.ЭВМ",
+          "Каф.СУ",
+          "Каф.Информатики",
+          "Каф.ИТАС",
+          "Деканат ФКСиС"
+        ],
+        "studentGroups": [
+          {
+            "id": 23865,
+            "name": "250501",
+            "zaochOrDist": false
+          }
+        ],
+        "repeatGroup": null
+      }
+    ],
+    "pageable": {
+      "pageNumber": 0,
+      "pageSize": 20,
+      "sort": {
+        "sorted": true,
+        "empty": false,
+        "unsorted": false
+      },
+      "offset": 0,
+      "paged": true,
+      "unpaged": false
+    },
+    "last": true,
+    "totalElements": 2,
+    "totalPages": 1,
+    "size": 20,
+    "number": 0,
+    "sort": {
+      "sorted": true,
+      "empty": false,
+      "unsorted": false
+    },
+    "first": true,
+    "numberOfElements": 10,
+    "empty": false
+  },
+  "department_announcements": [
+    {
+      "id": 2889,
+      "employee": "Нестеренков С. Н. (доцент)",
+      "auditory": {
+        "id": 327,
+        "name": "304",
+        "buildingNumber": "5 к.",
+        "auditoryType": "рабочий кабинет"
+      },
+      "urlId": "s-nesterenkov",
+      "content": "Sanitized announcement text.",
+      "date": "2026-11-30",
+      "startTime": "00:00",
+      "endTime": "00:01",
+      "employeeDepartments": [
+        "Каф.ПОИТ",
+        "ОИТ",
+        "Каф.ВВС",
+        "Каф.ЭВМ",
+        "Каф.СУ",
+        "Каф.Информатики",
+        "Каф.ИТАС",
+        "Деканат ФКСиС"
+      ],
+      "studentGroups": [
+        {
+          "id": 23865,
+          "name": "250501",
+          "zaochOrDist": false
+        }
+      ],
+      "repeatGroup": null
+    },
+    {
+      "id": 2890,
+      "employee": "Нестеренков С. Н. (доцент)",
+      "auditory": {
+        "id": 327,
+        "name": "304",
+        "buildingNumber": "5 к.",
+        "auditoryType": "рабочий кабинет"
+      },
+      "urlId": "s-nesterenkov",
+      "content": "Sanitized announcement text.",
+      "date": "2026-12-31",
+      "startTime": "00:00",
+      "endTime": "00:01",
+      "employeeDepartments": [
+        "Каф.ПОИТ",
+        "ОИТ",
+        "Каф.ВВС",
+        "Каф.ЭВМ",
+        "Каф.СУ",
+        "Каф.Информатики",
+        "Каф.ИТАС",
+        "Деканат ФКСиС"
+      ],
+      "studentGroups": [
+        {
+          "id": 24130,
+          "name": "351001",
+          "zaochOrDist": false
+        }
+      ],
+      "repeatGroup": null
+    }
+  ],
+  "group_schedule": {
+    "startDate": "01.09.2026",
+    "endDate": "28.12.2026",
+    "startExamsDate": "29.12.2026",
+    "endExamsDate": "25.01.2027",
+    "employeeDto": null,
+    "studentGroupDto": {
+      "name": "353501",
+      "facultyId": 20026,
+      "facultyAbbrev": "ФКСиС",
+      "facultyName": "Факультет компьютерных систем и сетей",
+      "specialityDepartmentEducationFormId": 20657,
+      "specialityName": "Информатика и технологии программирования",
+      "specialityAbbrev": "ИиТП",
+      "course": 4,
+      "id": 24066,
+      "educationDegree": 1
+    },
+    "schedules": {
+      "Суббота": [
+        {
+          "auditories": [
+            "4-4 к."
+          ],
+          "endLessonTime": "09:55",
+          "lessonTypeAbbrev": "ЛК",
+          "note": null,
+          "numSubgroup": 0,
+          "startLessonTime": "08:30",
+          "studentGroups": [
+            {
+              "specialityName": "Информатика и технологии программирования",
+              "specialityCode": "6-05-0612-02",
+              "numberOfStudents": 32,
+              "name": "353501",
+              "educationDegree": 1
+            }
+          ],
+          "subject": "ТОФД",
+          "subjectFullName": "Технологии обработки финансовой документации",
+          "weekNumber": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "employees": [],
+          "dateLesson": null,
+          "startLessonDate": "05.09.2026",
+          "endLessonDate": "26.12.2026",
+          "announcement": false,
+          "split": false
+        },
+        {
+          "auditories": [
+            "407-5 к."
+          ],
+          "endLessonTime": "15:00",
+          "lessonTypeAbbrev": "ЛР",
+          "note": null,
+          "numSubgroup": 1,
+          "startLessonTime": "13:35",
+          "studentGroups": [
+            {
+              "specialityName": "Информатика и технологии программирования",
+              "specialityCode": "6-05-0612-02",
+              "numberOfStudents": 32,
+              "name": "353501",
+              "educationDegree": 1
+            }
+          ],
+          "subject": "МЗИ",
+          "subjectFullName": "Методы защиты информации",
+          "weekNumber": [
+            1
+          ],
+          "employees": [
+            {
+              "id": 556819,
+              "firstName": "Артём",
+              "middleName": "Вадимович",
+              "lastName": "Герчик",
+              "degree": "",
+              "degreeAbbrev": "",
+              "rank": null,
+              "urlId": "a-gerchik",
+              "jobPositions": null,
+              "chief": false
+            }
+          ],
+          "dateLesson": null,
+          "startLessonDate": "05.09.2026",
+          "endLessonDate": "26.12.2026",
+          "announcement": false,
+          "split": false
+        },
+        {
+          "auditories": [
+            "407-5 к."
+          ],
+          "endLessonTime": "15:00",
+          "lessonTypeAbbrev": "ЛР",
+          "note": null,
+          "numSubgroup": 2,
+          "startLessonTime": "13:35",
+          "studentGroups": [
+            {
+              "specialityName": "Информатика и технологии программирования",
+              "specialityCode": "6-05-0612-02",
+              "numberOfStudents": 32,
+              "name": "353501",
+              "educationDegree": 1
+            }
+          ],
+          "subject": "МЗИ",
+          "subjectFullName": "Методы защиты информации",
+          "weekNumber": [
+            3
+          ],
+          "employees": [
+            {
+              "id": 556819,
+              "firstName": "Артём",
+              "middleName": "Вадимович",
+              "lastName": "Герчик",
+              "degree": "",
+              "degreeAbbrev": "",
+              "rank": null,
+              "urlId": "a-gerchik",
+              "jobPositions": null,
+              "chief": false
+            }
+          ],
+          "dateLesson": null,
+          "startLessonDate": "19.09.2026",
+          "endLessonDate": "12.12.2026",
+          "announcement": false,
+          "split": false
+        }
+      ]
+    },
+    "nextSchedules": null,
+    "currentTerm": "Осенний",
+    "nextTerm": null,
+    "exams": [],
+    "currentPeriod": "Осенний",
+    "isZaochOrDist": false
+  }
 }
