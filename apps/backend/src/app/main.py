@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request, Response
 from app.core.config import Settings, get_settings
 from app.core.health import HealthChecks, HealthResponse
 from app.db.session import create_database_engine, create_session_factory
+from app.integrations.storage.s3 import S3AvatarStorage
 from app.modules.auth.infrastructure.email_sender import CeleryEmailSender
 from app.modules.auth.infrastructure.google_oidc import GoogleOidcProvider
 from app.modules.auth.infrastructure.password_hasher import Argon2PasswordHasher
@@ -42,11 +43,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 broker_transport_options={"socket_connect_timeout": 3, "socket_timeout": 3},
             )
             application.state.email_sender = CeleryEmailSender(celery, config)
+            application.state.avatar_storage = S3AvatarStorage(config)
             application.state.dummy_password_hash = application.state.passwords.hash(
                 generate_token()
             )
             yield
         finally:
+            if hasattr(application.state, "avatar_storage"):
+                application.state.avatar_storage.close()
             celery.close()
             health.close()
             engine.dispose()

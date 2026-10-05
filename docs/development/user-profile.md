@@ -38,6 +38,7 @@ and JSON token through `GET /api/v1/auth/csrf`. Both endpoints return HTTP 200 w
   "display_name": "Alex",
   "timezone": "Europe/Minsk",
   "locale": "ru",
+  "avatar_url": null,
   "created_at": "2026-10-05T09:00:00Z",
   "updated_at": "2026-10-05T09:15:00Z"
 }
@@ -47,6 +48,9 @@ Values above are illustrative; IDs and timestamps come from the stored account.
 New or migrated accounts initially return `display_name: null`, `timezone: UTC`
 and `locale: ru`. Unverified active users and Google-only accounts are eligible.
 The response contains no credentials, tokens, hashes or internal auth records.
+`avatar_url` is null when no avatar exists, otherwise `/api/v1/users/me/avatar`.
+Avatar changes use the separate [avatar API](user-avatar.md); `avatar_key` and
+`avatar_url` cannot be supplied in the profile patch.
 
 The patch accepts only the three profile fields. Omitted fields stay unchanged;
 `{"display_name": null}` clears the name. `{}` is invalid. Fields such as `id`,
@@ -161,5 +165,5 @@ and failed-commit rollback, preservation of auth records, canonical eligibility,
 concurrent partial updates and migration compatibility. Integration tests skip
 when their test URLs are unset. Tests send no external email or Google requests.
 
-Frontend, academic profiles, groups, avatars, account deletion, administrative
+Frontend, academic profiles, groups, account deletion, administrative
 management and public user lookup are outside this slice and not implemented here.

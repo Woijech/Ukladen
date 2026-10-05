@@ -36,14 +36,16 @@ and idempotent business jobs require design in their own slice.
 
 The upstream `chrislusf/seaweedfs:4.48` image runs master, volume, filer, S3 gateway
 and Admin UI together in one process. Unused WebDAV, Iceberg and Lance endpoints are
-disabled. No host Go compiler, custom storage image or additional application
-dependency is needed.
+disabled. SeaweedFS needs no host Go compiler or custom storage image.
 
 `S3_ACCESS_KEY` and `S3_SECRET_KEY` seed the S3 credentials and configure password
 authentication on the local Admin UI. `S3_BUCKET` seeds the initial bucket.
 Anonymous object operations are not enabled. The S3 gateway provides `/readyz`
 for container and API readiness probes; probes do not verify bucket permissions.
-Application file upload/download functionality is not implemented.
+Private user avatar upload/read/removal are implemented through the backend's
+S3 adapter. General material/file upload APIs are not implemented. The API lifespan
+owns a timeout-bounded boto3 client using the existing endpoint, bucket and credentials;
+avatar processing uses Pillow. See [avatar API](../development/user-avatar.md).
 
 The provider decision is recorded in [ADR 0001](../adr/0001-use-seaweedfs.md).
 Old MinIO volumes are retained and cannot be attached directly to SeaweedFS.

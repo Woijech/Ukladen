@@ -24,6 +24,7 @@ class UserProfile:
     locale: str
     created_at: datetime
     updated_at: datetime
+    avatar_key: str | None = None
 
 
 def normalize_profile_changes(changes: Mapping[str, object]) -> dict[str, str | None]:

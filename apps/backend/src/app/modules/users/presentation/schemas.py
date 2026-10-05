@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.modules.users.domain.profile import normalize_profile_changes
+from app.modules.users.domain.profile import UserProfile, normalize_profile_changes
 
 
 class ProfilePatch(BaseModel):
@@ -36,3 +36,10 @@ class ProfileResponse(BaseModel):
     locale: Literal["ru", "en"]
     created_at: AwareDatetime
     updated_at: AwareDatetime
+    avatar_url: str | None = None
+
+    @classmethod
+    def from_profile(cls, profile: UserProfile) -> Self:
+        response = cls.model_validate(profile)
+        response.avatar_url = "/api/v1/users/me/avatar" if profile.avatar_key else None
+        return response

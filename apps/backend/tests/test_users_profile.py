@@ -46,6 +46,8 @@ from app.modules.users.presentation.schemas import ProfilePatch, ProfileResponse
         {"updated_at": None},
         {"password": "secret"},
         {"preferences": {}},
+        {"avatar_key": "avatars/other-user/image.png"},
+        {"avatar_url": "https://attacker.example/image.png"},
         {"display_name": "Alex", "unknown": "value"},
     ],
 )

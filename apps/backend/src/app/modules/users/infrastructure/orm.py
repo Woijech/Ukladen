@@ -17,6 +17,7 @@ class UserModel(Base):
     display_name: Mapped[str | None] = mapped_column(String(100))
     timezone: Mapped[str] = mapped_column(String(), server_default="UTC")
     locale: Mapped[str] = mapped_column(String(2), server_default="ru")
+    avatar_key: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -32,4 +33,9 @@ class UserModel(Base):
         ),
         CheckConstraint("char_length(timezone) > 0", name="ck_users_timezone"),
         CheckConstraint("locale IN ('ru', 'en')", name="ck_users_locale"),
+        CheckConstraint(
+            "avatar_key IS NULL OR avatar_key ~ "
+            "('^avatars/' || id::text || '/[0-9a-f]{32}[.]png$')",
+            name="ck_users_avatar_key",
+        ),
     )

@@ -132,6 +132,10 @@ with database defaults `UTC` / `ru`. Existing accounts, including Google-only us
 receive those defaults without changing their existing fields or authentication
 records. Downgrade removes only the three profile columns and their constraints.
 
+`0004_users_avatar` adds a nullable, user-owned `avatar_key`. Existing accounts
+start without an avatar; images remain private objects in S3-compatible storage.
+Downgrade removes the reference and constraint without changing other user/auth data.
+
 ## Users profiles
 
 `users/domain/profile.py` owns profile data and validation. `ProfileService` uses
@@ -150,7 +154,10 @@ are validated using standard-library `zoneinfo`; locales accept only `ru` and `e
 Unknown/protected fields, empty patches, empty names and null timezone/locale values
 are rejected. Omitted fields remain unchanged; explicit null clears only the name.
 The existing backend image supplies system timezone data; no dependency was added.
-Frontend profiles and other users-module features are not implemented.
+The profile response includes `avatar_url`, null until an avatar is uploaded.
+Avatar upload/read/removal are implemented through `/api/v1/users/me/avatar`;
+see [avatar API](../development/user-avatar.md). Frontend profiles and other
+users-module features are not implemented.
 
 ## Authentication contracts
 
@@ -648,6 +655,9 @@ redirect, preserving the existing session cookie without exposing private detail
 | --- | --- |
 | `GET /api/v1/users/me` | Reads the authenticated active user's canonical profile. |
 | `PATCH /api/v1/users/me` | Updates only supplied supported profile fields after authentication and CSRF validation. |
+| `PUT /api/v1/users/me/avatar` | Validates and normalizes an image, stores it privately in S3 and commits its reference. |
+| `GET /api/v1/users/me/avatar` | Returns only the current active user's avatar as PNG. |
+| `DELETE /api/v1/users/me/avatar` | Clears the reference after authentication/CSRF validation and cleans up the previous object. |
 | `POST /api/v1/auth/google/link/start` | Re-authenticate a password account and initiate explicit Google linking. |
 | `GET /api/v1/auth/google/start` | Start Google login with browser-bound state. |
 | `GET /api/v1/auth/google/callback` | Verify Google identity and commit an ordinary session, then redirect. |

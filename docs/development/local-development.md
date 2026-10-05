@@ -135,8 +135,9 @@ into Alembic metadata. Review every generated migration.
 TODO: obtain verified IIS contracts before designing a schedule provider port or
 adapter. No IIS fields, response payloads or fake business records are defined.
 TODO: specify business schemas, HTTP contracts, authentication and AI tool contracts
-in their respective future phases. Storage upload APIs and S3 adapters are not
-implemented. Observability services and production deployment are not implemented.
+in their respective future phases. Private avatar upload/read/removal are implemented;
+general material upload APIs are not implemented. See [avatar API](user-avatar.md).
+Observability services and production deployment are not implemented.
 
 ## Upgrading an Existing MinIO Foundation
 

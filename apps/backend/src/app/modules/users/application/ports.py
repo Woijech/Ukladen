@@ -47,3 +47,31 @@ class ProfileRepository(Protocol):
     def update_active(self, user_id: UUID, changes: dict[str, str | None]) -> UserProfile | None:
         """Write only supplied columns; never commit independently."""
         ...
+
+    def lock_active(self, user_id: UUID) -> UserProfile | None:
+        """Read and lock an active user until transaction completion."""
+        ...
+
+    def update_avatar(self, user_id: UUID, key: str | None) -> UserProfile | None: ...
+
+    def lock_avatar_key(self, user_id: UUID) -> str | None:
+        """Read the canonical key under a lock, including disabled users, for compensation."""
+        ...
+
+
+class AvatarStorageUnavailable(Exception):
+    """An avatar storage operation could not finish safely."""
+
+
+class AvatarStorage(Protocol):
+    def put(self, key: str, content: bytes) -> None: ...
+
+    def get(self, key: str) -> bytes | None: ...
+
+    def delete(self, key: str) -> None: ...
+
+
+class AvatarImageProcessor(Protocol):
+    def normalize(self, content: bytes, content_type: str) -> bytes:
+        """Validate and return a metadata-free, square PNG, or raise InvalidAvatar."""
+        ...

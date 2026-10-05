@@ -105,6 +105,30 @@ class SqlAlchemyProfileRepository:
         )
         return self._to_profile(row)
 
+    def lock_active(self, user_id: UUID) -> UserProfile | None:
+        row = self.session.scalar(
+            select(UserModel)
+            .where(UserModel.id == user_id, UserModel.status == "active")
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return self._to_profile(row)
+
+    def update_avatar(self, user_id: UUID, key: str | None) -> UserProfile | None:
+        row = self.session.scalar(
+            update(UserModel)
+            .where(UserModel.id == user_id, UserModel.status == "active")
+            .values(avatar_key=key, updated_at=func.clock_timestamp())
+            .returning(UserModel)
+            .execution_options(populate_existing=True)
+        )
+        return self._to_profile(row)
+
+    def lock_avatar_key(self, user_id: UUID) -> str | None:
+        return self.session.scalar(
+            select(UserModel.avatar_key).where(UserModel.id == user_id).with_for_update()
+        )
+
     @staticmethod
     def _to_profile(row: UserModel | None) -> UserProfile | None:
         if row is None:
@@ -119,4 +143,5 @@ class SqlAlchemyProfileRepository:
             locale=row.locale,
             created_at=row.created_at,
             updated_at=row.updated_at,
+            avatar_key=row.avatar_key,
         )

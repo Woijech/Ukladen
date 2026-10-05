@@ -47,6 +47,7 @@ from app.modules.users.presentation.routes import get_profiles
 
 URL = "/api/v1/users/me"
 FIELDS = {
+    "avatar_url",
     "id",
     "email",
     "email_verified_at",

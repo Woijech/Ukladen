@@ -101,7 +101,11 @@ def test_migration_preserves_existing_password_and_google_accounts(
     command.check(config)
     after = stored_auth()
     after["users"] = [
-        {k: v for k, v in row.items() if k not in {"display_name", "timezone", "locale"}}
+        {
+            k: v
+            for k, v in row.items()
+            if k not in {"display_name", "timezone", "locale", "avatar_key"}
+        }
         for row in after["users"]
     ]
     assert after == before
