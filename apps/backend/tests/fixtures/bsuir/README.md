@@ -11,3 +11,9 @@ fields were removed. These fixtures are excerpts, not complete schedules.
 Tests mutate copies to exercise failures; populated exam cases are synthetic
 variants of captured lessons, not a claim of live exam verification.
 See `docs/integrations/bsuir-iis-investigation.md` for evidence and limitations.
+
+`public.json` contains verified directory excerpts from `/employees/all`,
+`/faculties`, `/departments`, `/specialities` and `/auditories` captured on the
+same date. Teacher photo/calendar links are removed. Nullable middle names,
+room notes/departments and the speciality's object-valued education form are
+preserved. See `docs/integrations/bsuir-iis-public-api.md` for the expanded contract.

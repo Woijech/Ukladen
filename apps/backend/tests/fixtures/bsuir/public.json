@@ -1,0 +1,102 @@
+{
+  "employees": [
+    {
+      "firstName": "Сергей",
+      "lastName": "Нестеренков",
+      "middleName": "Николаевич",
+      "degree": "к.т.н.",
+      "rank": "доцент",
+      "academicDepartment": [
+        "Каф.ПОИТ",
+        "Каф.ВВС",
+        "Каф.ЭВМ",
+        "Каф.СУ",
+        "Каф.Информатики",
+        "Каф.ИТАС"
+      ],
+      "id": 501822,
+      "urlId": "s-nesterenkov",
+      "fio": "Нестеренков С. Н. (доцент)"
+    },
+    {
+      "firstName": "Цичэн",
+      "lastName": "Го",
+      "middleName": null,
+      "degree": "",
+      "rank": null,
+      "academicDepartment": [
+        "Каф.ИКТ"
+      ],
+      "id": 556640,
+      "urlId": "ts-go",
+      "fio": "Го Ц."
+    }
+  ],
+  "faculties": [
+    {
+      "name": "Аспирантура",
+      "abbrev": "Аспирантура",
+      "id": 20055
+    }
+  ],
+  "departments": [
+    {
+      "id": 20027,
+      "name": "Кафедра программного обеспечения информационных технологий",
+      "abbrev": "Каф.ПОИТ",
+      "urlId": "kaf-poit"
+    }
+  ],
+  "specialities": [
+    {
+      "id": 20888,
+      "name": "Автоматизация и управление технологическими процессами и производствами",
+      "abbrev": "АиУТПиП",
+      "educationForm": {
+        "id": 2,
+        "name": "заочная"
+      },
+      "facultyId": 20055,
+      "code": "05.13.06"
+    }
+  ],
+  "auditories": [
+    {
+      "id": 214,
+      "name": "303",
+      "note": "",
+      "capacity": null,
+      "auditoryType": {
+        "id": 3,
+        "name": "лабораторные занятия",
+        "abbrev": "лб"
+      },
+      "buildingNumber": {
+        "id": 3,
+        "name": "3 к."
+      },
+      "department": {
+        "idDepartment": 20223,
+        "abbrev": "Каф.ИИС",
+        "name": "Кафедра информационно-измерительных систем",
+        "nameAndAbbrev": "Кафедра информационно-измерительных систем (Каф.ИИС)"
+      }
+    },
+    {
+      "id": 240,
+      "name": "507а",
+      "note": null,
+      "capacity": null,
+      "auditoryType": {
+        "id": 3,
+        "name": "лабораторные занятия",
+        "abbrev": "лб"
+      },
+      "buildingNumber": {
+        "id": 4,
+        "name": "4 к."
+      },
+      "department": null
+    }
+  ]
+}
