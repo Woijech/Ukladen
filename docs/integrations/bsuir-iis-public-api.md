@@ -45,3 +45,24 @@ arbitrary dates, synchronization guarantees or authenticated IIS account APIs.
 Calendar persistence, personal overrides and background synchronization remain
 separate project phases. XML is documented upstream but has not been verified;
 Ukladen requests and validates JSON.
+
+## Schedule expansion verification (2026-10-07)
+
+Read the rendered official API documentation and academic calendar again, and the
+public frontend bundle `main.7a86da6b.js`. The calendar's `mo` implementation
+numbers Monday-based weeks from the week containing September 1, repeats 1–4,
+and continues through January and summer until the next academic year. The
+schedule widget advances the week number on Sunday-to-Monday transitions. This
+is observed official frontend behavior, not a new documented endpoint contract.
+Holiday colors in that calendar do not establish lesson cancellations.
+
+Ukladen expands regular rows by weekday, lesson date bounds (root bounds are a
+fallback) and academic week. An explicit `dateLesson` is retained as an exact
+date; dated exam/session rows retain their actual lesson type rather than assuming
+that every row is an examination. Dated announcements are separate announcement
+events. Notes remain source text; they never trigger inferred cancellations.
+Next-period recurring rows require their own date bounds. Undated exam rows,
+undated announcements and `split=true` fail expansion with a safe unsupported
+state: TODO obtain authoritative exception/split rules before implementing them.
+The last valid import survives such failures. The verified raw read API still
+returns every original field, including unsupported rows.
