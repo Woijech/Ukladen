@@ -7,6 +7,10 @@ student. The [IIS investigation](../integrations/bsuir-iis-investigation.md)
 records the verified public JSON contract. No HTML parser, new dependency,
 frontend, schedule import or background job was added.
 
+The subsequent [university read API](university-api.md) adds full schedule queries
+and `GET /api/v1/schedule/me` using this saved group/subgroup. Calendar persistence
+and background synchronization remain unimplemented.
+
 ## Endpoints
 
 All endpoints require an active opaque browser session and return

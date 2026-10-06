@@ -1,6 +1,7 @@
 # Ukladen Architecture Overview
 
-Status: foundation implemented; business functionality is not implemented.
+Status: foundation, backend authentication, user profiles, academic profiles and
+public university/schedule reads implemented.
 
 The product name is **Ukladen**. Technical identifiers use lowercase `ukladen`:
 the Compose project, Celery application and default PostgreSQL database. Package
@@ -12,12 +13,14 @@ Celery Beat use the same backend image and codebase. They are processes of a mod
 monolith, not independent services with separate business data.
 
 PostgreSQL 18 is the authoritative data store. The initial Alembic migration enables
-pgvector; there are no business tables. Redis is the Celery broker. SeaweedFS is local
+pgvector; subsequent migrations create users, auth and academic-profile tables.
+Redis serves Celery, session caching, OAuth state and request protection. SeaweedFS is local
 S3-compatible storage; startup creates a private `materials` bucket by default.
 Traefik routes `/api` to FastAPI and other paths to Next.js on one local origin.
 
-The implemented HTTP surface is operational: API liveness/readiness, OpenAPI and
-frontend liveness. The frontend renders a shell and an API connection indicator.
+The HTTP surface includes health checks, browser authentication, user and academic
+profiles, university directories and schedule queries. See the
+[backend architecture](backend.md) and [university read API](../development/university-api.md).
 
 ## Boundaries
 
@@ -35,8 +38,8 @@ external clients. Inter-module access must use application services or interface
 
 ## Scope
 
-Status: not implemented — authentication, academic onboarding, IIS integration,
-calendar resolution, tasks, reminders, notes, materials, relations, search,
+Status: not implemented — calendar resolution, schedule persistence/synchronization,
+tasks, reminders, notes, materials, relations, search,
 notifications, AI and RAG. Observability beyond process/access logs, production
 TLS, production credentials and deployment automation are not implemented.
 

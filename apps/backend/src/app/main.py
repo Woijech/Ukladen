@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request, Response
 from app.core.config import Settings, get_settings
 from app.core.health import HealthChecks, HealthResponse
 from app.db.session import create_database_engine, create_session_factory
-from app.integrations.bsuir.academics import IisAcademicProvider
+from app.integrations.bsuir.public_api import IisPublicProvider
 from app.integrations.storage.s3 import S3AvatarStorage
 from app.modules.academics.presentation.routes import install_academics
 from app.modules.auth.infrastructure.email_sender import CeleryEmailSender
@@ -16,6 +16,7 @@ from app.modules.auth.infrastructure.password_hasher import Argon2PasswordHasher
 from app.modules.auth.infrastructure.request_protection import RedisRateLimiter
 from app.modules.auth.infrastructure.token_service import generate_token
 from app.modules.auth.presentation.routes import install_auth
+from app.modules.schedule.presentation.routes import install_schedule
 from app.modules.users.presentation.routes import install_users
 
 
@@ -26,7 +27,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         engine = create_database_engine(config)
         health = HealthChecks(engine, config)
         application.state.health = health
-        application.state.academic_provider = IisAcademicProvider(health.http)
+        university = IisPublicProvider(health.http)
+        application.state.academic_provider = university
+        application.state.university_provider = university
+        application.state.schedule_provider = university
         application.state.session_factory = create_session_factory(engine)
         application.state.settings = config
         application.state.redis = health.redis
@@ -69,6 +73,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_auth(application)
     install_users(application)
     install_academics(application)
+    install_schedule(application)
 
     @application.get("/api/health/live", response_model=HealthResponse)
     def liveness() -> HealthResponse:

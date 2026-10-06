@@ -27,6 +27,10 @@ class ScheduleService:
     def __init__(self, provider: ScheduleProvider) -> None:
         self.provider = provider
 
+    def for_group(self, group_number: str, subgroup: int | None = None) -> Schedule | None:
+        schedule = self.provider.get_group_schedule(group_number)
+        return select_subgroup(schedule, subgroup) if schedule is not None else None
+
     def for_profile(self, profile: AcademicProfile | None) -> Schedule | None:
         if profile is None:
             raise AcademicProfileRequired()

@@ -20,6 +20,14 @@ The backend academics API is implemented: authenticated group catalogue/context 
 current-user academic profiles. See [academic profile contracts](../development/academic-profile.md)
 and the [verified IIS investigation](../integrations/bsuir-iis-investigation.md).
 
+The public IIS read API is implemented behind application-owned directory and
+schedule ports. Authenticated endpoints provide teacher lookup by ID, full group
+and teacher schedules, directories, announcements, update dates and the current
+academic week. `/api/v1/schedule/me` uses the saved academic group/subgroup and
+retains whole-group lessons. See [university API contracts](../development/university-api.md).
+Schedule/calendar persistence, recurrence expansion, personal overrides and
+background synchronization remain unimplemented.
+
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
 The application lifespan creates shared health clients, a SQLAlchemy engine and

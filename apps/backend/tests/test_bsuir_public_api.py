@@ -104,6 +104,9 @@ def response_for(request: httpx.Request) -> httpx.Response:
     name = {
         "/api/v1/employees/all": "employees",
         "/api/v1/departments": "departments",
+        "/api/v1/faculties": "faculties",
+        "/api/v1/specialities": "specialities",
+        "/api/v1/auditories": "auditories",
         "/api/v1/schedule": "group_schedule",
         "/api/v1/employees/schedule/s-nesterenkov": "employee_schedule",
         "/api/v1/announcements/employees": "employee_announcements",
