@@ -1,6 +1,6 @@
 # Application logging
 
-Status: structured API and Celery logging implemented. No remote log collector,
+Status: structured API/Celery diagnostics and browser failure logging implemented. No remote log collector,
 metrics service or browser telemetry upload is configured.
 
 The backend writes one JSON object per line to stderr. `LOG_LEVEL` controls the
@@ -16,10 +16,44 @@ health probes are `DEBUG`; rejected requests are `WARNING`; server failures are
 `ERROR`. Application failures keep exception types and stack locations, without
 exception messages, source text, chained exception payloads or local variables.
 
-The producer propagates the request ID in Celery protocol-2 headers. Task logs
+The producer propagates the request ID in Celery protocol-2 headers and logs
+accepted publication with `published_task_id` / `published_task_name`. Task logs
 include the task ID, known task name, state and duration, without arguments or
 return values. Periodic jobs have a task ID but no originating HTTP request ID.
 Request/task contexts are reset after execution.
+
+Standalone Alembic commands use the same safe logger for migration start,
+completion and failure. Embedded migrations preserve the host application's
+logging configuration.
+
+## Operational events
+
+API handlers record handled service failures before returning safe responses.
+Dependency adapters record IIS transport/response validation, Google token/key
+failures, Redis session/cache/state/limiter failures (including cache fallback),
+SMTP delivery and S3 failures. S3 error codes are allowlisted; SDK error payloads
+are omitted. Avatar cleanup/recovery failures are visible without object keys.
+Authentication redirects log rejection categories without OAuth query data.
+
+Schedule imports record start, final source state, group ID/number, event count
+and duration. Unsupported recurrence reasons are allowlisted (for example
+`split_precedence`). An obsolete import is explicitly logged as discarded and
+reports zero applied events. Due-group dispatch records selected/queued counts.
+Expected import failures are stored as source state, so `task.finished` can have
+`SUCCESS` while `schedule.sync_finished` has `error` or `unsupported`. Inspect
+the latter or the authenticated `GET /api/v1/schedule/me/sync-status` endpoint.
+
+The browser console records fixed JSON events for failed health checks, email
+verification network/API failures, and rendering boundaries. Failed API responses
+include a validated request ID when available. Browser messages, stacks, token
+fragments and response bodies are omitted. Browser diagnostics stay in DevTools;
+they are not uploaded. Next.js retains its native server diagnostics.
+
+Docker uses the `json-file` driver with three files of up to 10 MB per container,
+including the home tunnel. Rotation takes effect after container recreation.
+Traefik raw access logs are disabled in both profiles to avoid OAuth query leakage;
+API request summaries provide safe access diagnostics. Proxy/tunnel process logs
+remain available through Compose.
 
 ```bash
 docker compose logs -f --tail=100 --timestamps api worker beat
@@ -31,6 +65,21 @@ For the home deployment, use the same `--env-file .env.home -f docker-compose.ym
 -f docker-compose.home.yml` options as when starting the stack. `Ctrl+C` stops
 following logs without stopping services. Source/configuration changes require
 rebuilding the backend image and recreating API/worker/Beat containers.
+Frontend changes require rebuilding/recreating `web` as well. Changing `LOG_LEVEL`
+requires container recreation; changing application code requires a rebuild.
+
+For an existing running local stack:
+
+```bash
+docker compose build api web
+docker compose run --rm --no-deps migrate
+docker compose up -d --no-deps api worker beat web traefik
+```
+
+For the home stack, add `--env-file .env.home -f docker-compose.yml
+-f docker-compose.home.yml` immediately after `docker compose` in each command.
+These commands leave the database, Redis and storage containers running. Their
+rotation settings, and the tunnel's, take effect on their next recreation.
 
 New log calls must use fixed event names and explicit safe scalar metadata. Never
 log passwords, session/CSRF/OAuth tokens, token hashes, email recipients, connection

@@ -48,7 +48,9 @@ external clients. Inter-module access must use application services or interface
 
 Status: not implemented — calendar resolution, personal schedule overrides,
 tasks, reminders, notes, materials, relations, search,
-notifications, AI and RAG. Observability beyond process/access logs, production
+notifications, AI and RAG. Structured diagnostics, request/task correlation and
+container log rotation are implemented; see [logging](../development/logging.md).
+Remote observability services, metrics, tracing, production
 TLS, production credentials and deployment automation are not implemented.
 
 The storage provider replacement is recorded in [ADR 0001](../adr/0001-use-seaweedfs.md).

@@ -24,7 +24,13 @@ One-shot `migrate` applies Alembic. SeaweedFS creates the configured bucket duri
 startup; there is no separate storage initializer. Startup waits for database,
 Redis and storage health, successful migration, then API and frontend health.
 Worker health uses Celery inspect ping. Beat has process monitoring only and writes
-its empty schedule under `/tmp`. Run only one Beat instance.
+its schedule under `/tmp`. Run only one Beat instance.
+
+Backend processes emit safe JSON application diagnostics with request/task IDs.
+All containers use Docker log rotation (three files of up to 10 MB). Raw Traefik
+access logging is disabled in both profiles; API route templates provide request
+diagnostics without authentication query data. Frontend browser failures are
+reported locally in DevTools. See [logging](../development/logging.md).
 
 PostgreSQL and SeaweedFS use separate named volumes. PostgreSQL 18's volume mounts
 at `/var/lib/postgresql`; SeaweedFS's data mounts at `/data`.

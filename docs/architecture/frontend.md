@@ -41,6 +41,13 @@ headers, invalid input, server/network failures and mutation-free GET previews.
 Browser tests mock API responses; backend tests cover real PostgreSQL/Redis/SMTP
 flows. Compose health verification checks the real backend separately.
 
+Rendering errors use App Router `error.tsx` and `global-error.tsx` fallbacks with
+a retry action and fixed JSON browser diagnostics. Failed health checks and email
+verification requests log safe event/status metadata; verification responses can
+include the backend request ID. Error messages, stacks, URLs and token fragments
+are omitted from these diagnostics. Browser logs remain local to DevTools; no
+remote telemetry SDK is installed. See [logging](../development/logging.md).
+
 ESLint 9 is retained because the installed Next.js React plugins fail with ESLint
 10. TODO: upgrade lint tooling when those plugins support ESLint 10.
 

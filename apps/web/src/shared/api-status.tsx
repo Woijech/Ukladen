@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 export function ApiStatus() {
   const { isPending, isError } = useQuery({
@@ -13,6 +14,10 @@ export function ApiStatus() {
       return data;
     },
   });
+
+  useEffect(() => {
+    if (isError) console.warn(JSON.stringify({ event: "web.api_health_failed" }));
+  }, [isError]);
 
   return <p role="status">{isPending ? "Проверка соединения…" : isError ? "Сервис временно недоступен" : "Соединение установлено"}</p>;
 }

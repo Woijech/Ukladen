@@ -1,5 +1,11 @@
 name: ukladen
 
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 x-backend: &backend
   image: ukladen-backend:local
   build: ./apps/backend
@@ -10,9 +16,11 @@ x-backend: &backend
     S3_ENDPOINT: http://seaweedfs:8333
   init: true
   restart: unless-stopped
+  logging: *logging
 
 services:
   postgres:
+    logging: *logging
     image: pgvector/pgvector:pg18
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
@@ -28,6 +36,7 @@ services:
     restart: unless-stopped
 
   redis:
+    logging: *logging
     image: redis:7.4-alpine
     ports: ["127.0.0.1:6379:6379"]
     healthcheck:
@@ -38,6 +47,7 @@ services:
     restart: unless-stopped
 
   seaweedfs:
+    logging: *logging
     image: chrislusf/seaweedfs:4.48
     user: seaweed
     command: mini -dir=/data -s3.port=8333 -webdav=false -s3.port.iceberg=0 -s3.port.lance=0
@@ -94,6 +104,7 @@ services:
       api: { condition: service_healthy }
 
   web:
+    logging: *logging
     image: ukladen-web:local
     build: ./apps/web
     init: true
@@ -108,12 +119,13 @@ services:
     restart: unless-stopped
 
   traefik:
+    logging: *logging
     image: traefik:v3.6
     command:
       - --entrypoints.web.address=:80
       - --providers.file.filename=/etc/traefik/routes.yml
       - --ping=true
-      - --accesslog=true
+      - --accesslog=false
     ports: ["127.0.0.1:8080:80"]
     volumes: ["./infra/traefik/routes.yml:/etc/traefik/routes.yml:ro,z"]
     depends_on:

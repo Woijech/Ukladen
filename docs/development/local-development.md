@@ -137,7 +137,9 @@ adapter. No IIS fields, response payloads or fake business records are defined.
 TODO: specify business schemas, HTTP contracts, authentication and AI tool contracts
 in their respective future phases. Private avatar upload/read/removal are implemented;
 general material upload APIs are not implemented. See [avatar API](user-avatar.md).
-Observability services and production deployment are not implemented.
+Structured application logs and container rotation are implemented; see
+[logging and debugging](logging.md). Remote observability services and managed
+production deployment are not implemented.
 
 ## Upgrading an Existing MinIO Foundation
 

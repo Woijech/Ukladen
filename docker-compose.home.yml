@@ -41,6 +41,11 @@ services:
       edge:
         ipv4_address: 172.30.0.3
   cloudflared:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     image: cloudflare/cloudflared:2026.9.3
     command: tunnel --no-autoupdate --metrics 127.0.0.1:2000 run
     environment:

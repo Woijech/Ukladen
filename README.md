@@ -336,6 +336,7 @@ mode sends through the configured service; fake messages remain only in worker m
 
 Read [Local Development](docs/development/local-development.md) for host setup,
 checks and troubleshooting. Implementation details are in
+the [logging and debugging guide](docs/development/logging.md),
 [Architecture Overview](docs/architecture/overview.md),
 [Backend](docs/architecture/backend.md), [Frontend](docs/architecture/frontend.md)
 and [Infrastructure](docs/architecture/infrastructure.md).

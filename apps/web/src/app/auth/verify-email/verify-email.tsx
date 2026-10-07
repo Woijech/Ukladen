@@ -13,15 +13,28 @@ const messages: Record<VerificationStatus, string> = {
   error: "Не удалось подтвердить почту. Попробуйте снова открыть ссылку из письма позже.",
 };
 
+function logFailure(stage: "csrf" | "confirmation" | "network", response?: Response) {
+  const requestId = response?.headers.get("x-request-id");
+  console.warn(JSON.stringify({
+    event: "web.email_verification_failed", stage,
+    status_code: response?.status,
+    request_id: requestId && /^[0-9a-f]{32}$/.test(requestId) ? requestId : undefined,
+  }));
+}
+
 async function confirmEmail(token: string | null): Promise<VerificationStatus> {
   if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) return "invalid";
   try {
     const csrf = await fetch("/api/v1/auth/csrf", {
       credentials: "same-origin", cache: "no-store", redirect: "error", referrerPolicy: "no-referrer",
     });
-    if (!csrf.ok) return csrf.status === 429 ? "limited" : "error";
+    if (!csrf.ok) {
+      logFailure("csrf", csrf);
+      return csrf.status === 429 ? "limited" : "error";
+    }
     const data: { csrf_token?: unknown } = await csrf.json();
     if (typeof data.csrf_token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(data.csrf_token)) {
+      logFailure("csrf", csrf);
       return "error";
     }
     const response = await fetch("/api/v1/auth/email-verification/confirm", {
@@ -35,8 +48,10 @@ async function confirmEmail(token: string | null): Promise<VerificationStatus> {
     });
     if (response.status === 204) return "success";
     if (response.status === 400) return "invalid";
+    logFailure("confirmation", response);
     return response.status === 429 ? "limited" : "error";
   } catch {
+    logFailure("network");
     return "error";
   }
 }

@@ -11,6 +11,10 @@ for (const scenario of [
   { code: 503, text: "Не удалось подтвердить почту" },
 ]) {
   test(`verification submits one CSRF-protected POST and handles ${scenario.code}`, async ({ page }) => {
+    const diagnostics: string[] = [];
+    page.on("console", message => {
+      if (message.text().startsWith('{"event":"web.')) diagnostics.push(message.text());
+    });
     let confirmations = 0;
     await page.route("**/api/v1/auth/csrf", async route => {
       expect(route.request().method()).toBe("GET");
@@ -29,13 +33,21 @@ for (const scenario of [
       expect(request.headers().origin).toBe("http://127.0.0.1:3001");
       expect(request.headers().referer).toBeUndefined();
       expect(request.url()).not.toContain(token);
-      await route.fulfill({ status: scenario.code, body: "" });
+      await route.fulfill({ status: scenario.code, body: "", headers: { "X-Request-ID": "a".repeat(32) } });
     });
     await page.goto(`${path}#token=${token}`);
     await expect(page.getByRole("status")).toContainText(scenario.text);
     await expect(page).toHaveURL(path);
     expect(confirmations).toBe(1);
     expect(await page.evaluate(() => window.localStorage.length + window.sessionStorage.length)).toBe(0);
+    if (scenario.code === 429 || scenario.code === 503) {
+      expect(diagnostics.map(entry => JSON.parse(entry))).toContainEqual({
+        event: "web.email_verification_failed", stage: "confirmation",
+        status_code: scenario.code, request_id: "a".repeat(32),
+      });
+    }
+    expect(diagnostics.join("\n")).not.toContain(token);
+    expect(diagnostics.join("\n")).not.toContain(csrf);
   });
 }
 
