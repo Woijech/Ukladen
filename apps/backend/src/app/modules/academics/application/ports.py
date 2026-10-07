@@ -22,3 +22,7 @@ class AcademicProfileRepository(Protocol):
     def save(
         self, user_id: UUID, group: UniversityGroup, subgroup: int | None
     ) -> AcademicProfile: ...
+
+
+class SelectedGroupDirectory(Protocol):
+    def selected_groups(self) -> list[UniversityGroup]: ...

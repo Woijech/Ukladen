@@ -17,6 +17,7 @@ from app.modules.auth.infrastructure.request_protection import RedisRateLimiter
 from app.modules.auth.infrastructure.token_service import generate_token
 from app.modules.auth.presentation.routes import install_auth
 from app.modules.calendar.presentation.routes import install_calendar
+from app.modules.schedule.infrastructure.jobs import CeleryScheduleJobs
 from app.modules.schedule.presentation.routes import install_schedule
 from app.modules.users.presentation.routes import install_users
 
@@ -51,6 +52,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 broker_transport_options={"socket_connect_timeout": 3, "socket_timeout": 3},
             )
             application.state.email_sender = CeleryEmailSender(celery, config)
+            application.state.schedule_jobs = CeleryScheduleJobs(
+                celery, enabled=config.schedule_sync_enabled
+            )
             application.state.avatar_storage = S3AvatarStorage(config)
             application.state.dummy_password_hash = application.state.passwords.hash(
                 generate_token()

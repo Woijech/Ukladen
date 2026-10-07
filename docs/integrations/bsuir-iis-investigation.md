@@ -6,8 +6,10 @@ Status: investigation completed before academics implementation.
 The subsequent [complete public read investigation](bsuir-iis-public-api.md)
 verifies the additional directories, teacher schedules and announcements.
 Their backend functions and HTTP reads are now implemented; see
-[university API contracts](../development/university-api.md). Calendar recurrence,
-storage and synchronization remain unimplemented.
+[university API contracts](../development/university-api.md). Subsequent implementation
+added verified dated expansion, storage and synchronization; see
+[schedule contracts](../development/schedule.md) for current support and remaining
+exception limitations. The investigation below records the original scope.
 
 ## Method and evidence
 

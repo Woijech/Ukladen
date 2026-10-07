@@ -1,9 +1,9 @@
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.modules.academics.domain.profile import AcademicProfile, UniversityGroup
 from app.modules.academics.infrastructure.orm import AcademicProfileModel, UniversityGroupModel
@@ -63,3 +63,26 @@ class SqlAlchemyAcademicProfileRepository:
         profile = self.get(user_id)
         assert profile is not None
         return profile
+
+    def selected_groups(self) -> list[UniversityGroup]:
+        rows = self.session.scalars(
+            select(UniversityGroupModel)
+            .join(AcademicProfileModel, AcademicProfileModel.group_id == UniversityGroupModel.id)
+            .distinct()
+            .order_by(UniversityGroupModel.id)
+        )
+        return [
+            UniversityGroup(
+                **{field.name: getattr(row, field.name) for field in fields(UniversityGroup)}
+            )
+            for row in rows
+        ]
+
+
+class SqlAlchemySelectedGroupDirectory:
+    def __init__(self, sessions: sessionmaker[Session]) -> None:
+        self.sessions = sessions
+
+    def selected_groups(self) -> list[UniversityGroup]:
+        with self.sessions.begin() as database:
+            return SqlAlchemyAcademicProfileRepository(database).selected_groups()

@@ -6,7 +6,10 @@ settings = get_settings()
 celery_app = Celery(
     "ukladen",
     broker=str(settings.redis_url),
-    include=["app.modules.auth.infrastructure.email_tasks"],
+    include=[
+        "app.modules.auth.infrastructure.email_tasks",
+        "app.modules.schedule.infrastructure.tasks",
+    ],
 )
 celery_app.conf.update(
     task_protocol=2,
@@ -17,7 +20,11 @@ celery_app.conf.update(
     enable_utc=True,
     timezone="UTC",
     broker_connection_retry_on_startup=True,
-    beat_schedule={},
+    beat_schedule={
+        "schedule-refresh-selected": {"task": "schedule.refresh_selected", "schedule": 60.0}
+    }
+    if settings.schedule_sync_enabled
+    else {},
 )
 
 

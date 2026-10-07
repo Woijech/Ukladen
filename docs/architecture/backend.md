@@ -25,14 +25,15 @@ schedule ports. Authenticated endpoints provide teacher lookup by ID, full group
 and teacher schedules, directories, announcements, update dates and the current
 academic week. `/api/v1/schedule/me` uses the saved academic group/subgroup and
 retains whole-group lessons. See [university API contracts](../development/university-api.md).
-Official schedule persistence, recurrence expansion, personal overrides and
-background synchronization remain unimplemented.
+Official schedule persistence, verified recurrence expansion and Celery synchronization
+are implemented; see [schedule contracts](../development/schedule.md). Calendar
+resolution and personal overrides remain unimplemented.
 
 Personal calendar event persistence and HTTP API are implemented: a domain
 entity, owner-scoped SQLAlchemy repository, application service and
 `/api/v1/calendar/events` endpoints with partial updates. See
 [calendar contracts](../development/calendar.md). Personal calendar resolution,
-schedule persistence/synchronization, overrides, conflicts, free slots and task
+overrides, conflicts, free slots and task
 blocks: not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
@@ -761,8 +762,10 @@ Beat scheduling.
 
 `workers/celery_app.py` configures a Redis broker, JSON serialization, UTC and no
 result backend. `foundation.ping` is an idempotent diagnostic task returning `pong`.
-Beat runs the same app with an empty periodic schedule. Other business jobs and
-periodic tasks are not implemented. Redis does not hold authoritative user data.
+Beat runs the same app and dispatches due selected-group schedule imports every
+60 seconds. The schedule worker uses fenced PostgreSQL leases and atomic imports;
+see [schedule contracts](../development/schedule.md). Other business jobs are not
+implemented. Redis does not hold authoritative user data.
 
 The auth application owns an `EmailSender` port with `send_email_verification`
 and `send_password_reset` methods. Both accept internal recipient/token data and

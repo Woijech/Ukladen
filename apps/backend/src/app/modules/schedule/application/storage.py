@@ -39,4 +39,12 @@ class ScheduleStore(Protocol):
     def events(
         self, group_id: int, starts_at: datetime, ends_at: datetime, subgroup: int | None
     ) -> list[OfficialEvent]: ...
+    def read(
+        self,
+        group_id: int,
+        group_number: str,
+        starts_at: datetime,
+        ends_at: datetime,
+        subgroup: int | None,
+    ) -> tuple[ScheduleState, list[OfficialEvent]]: ...
     def event(self, event_id: UUID) -> OfficialEvent | None: ...

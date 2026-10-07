@@ -94,10 +94,10 @@ Unexpected payloads fail rather than silently manufacturing schedule data.
 No additional package dependency, database table, migration or Redis cache was
 needed for this read slice.
 
-Calendar event expansion, schedule storage, Celery synchronization, cancellation
-and split precedence, personal overrides and calendar UI: **Status: not implemented.**
-These require a separate schedule/calendar phase. The existing academic profile
-and current-schedule query provide the input for it.
+Official event expansion, schedule storage and Celery synchronization are implemented
+in the [schedule module](schedule.md), with new stored-event endpoints. The existing
+GET routes above retain their live contracts. Authoritative cancellation/split
+precedence, personal overrides and calendar UI: **Status: not implemented.**
 
 ## Verification
 

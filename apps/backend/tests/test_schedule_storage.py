@@ -133,3 +133,12 @@ def test_ambiguous_parallel_lessons_never_share_identity(store: SqlAlchemySchedu
     saved = store.event(second.id)
     retired = store.event(first.id)
     assert saved and saved.active and retired and not retired.active
+
+
+def test_concurrent_claims_only_allow_one_worker(store: SqlAlchemyScheduleStore) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    now = datetime.now(UTC)
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        claims = list(workers.map(lambda _: store.claim(24066, "353501", now), range(2)))
+    assert len([claim for claim in claims if claim is not None]) == 1

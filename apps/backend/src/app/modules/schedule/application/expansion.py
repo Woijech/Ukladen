@@ -46,11 +46,16 @@ def expand_schedule(schedule: Schedule) -> list[OfficialEvent]:
                 raise UnsupportedSchedule("invalid_period")
             if not lesson.week_numbers:
                 raise UnsupportedSchedule("missing_week_numbers")
-            day = start + timedelta(days=(weekday - start.weekday()) % 7)
+            offset = (weekday - start.weekday()) % 7
+            if (end - start).days < offset:
+                return
+            day = start + timedelta(days=offset)
             days = []
             while day <= end:
                 if academic_week(day) in lesson.week_numbers:
                     days.append(day)
+                if (end - day).days < 7:
+                    break
                 day += timedelta(days=7)
         for day in days:
             teachers = sorted(lesson.teachers or [], key=lambda teacher: teacher.id)

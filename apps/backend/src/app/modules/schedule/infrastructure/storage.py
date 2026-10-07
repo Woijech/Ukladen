@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Literal, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -189,6 +189,44 @@ class SqlAlchemyScheduleStore:
             query = query.where(OfficialScheduleEventModel.subgroup.in_([0, subgroup]))
         with self.sessions.begin() as database:
             return [event_entity(row) for row in database.scalars(query)]
+
+    def read(
+        self,
+        group_id: int,
+        group_number: str,
+        starts_at: datetime,
+        ends_at: datetime,
+        subgroup: int | None,
+    ) -> tuple[ScheduleState, list[OfficialEvent]]:
+        conditions = [
+            OfficialScheduleEventModel.group_id == ScheduleSourceModel.group_id,
+            OfficialScheduleEventModel.active,
+            OfficialScheduleEventModel.starts_at < ends_at,
+            OfficialScheduleEventModel.ends_at > starts_at,
+        ]
+        if subgroup is not None:
+            conditions.append(OfficialScheduleEventModel.subgroup.in_([0, subgroup]))
+        with self.sessions.begin() as database:
+            rows = database.execute(
+                select(ScheduleSourceModel, OfficialScheduleEventModel)
+                .outerjoin(OfficialScheduleEventModel, and_(*conditions))
+                .where(ScheduleSourceModel.group_id == group_id)
+                .order_by(OfficialScheduleEventModel.starts_at, OfficialScheduleEventModel.id)
+            ).all()
+            if not rows:
+                return ScheduleState(group_id, group_number), []
+            source = rows[0][0]
+            if source.group_number != group_number:
+                raise AcademicProfileConflict()
+            state = ScheduleState(
+                source.group_id,
+                source.group_number,
+                cast(SyncState, source.status),
+                source.last_attempt_at,
+                source.last_success_at,
+                source.error_code,
+            )
+            return state, [event_entity(row[1]) for row in rows if row[1] is not None]
 
     def event(self, event_id: UUID) -> OfficialEvent | None:
         with self.sessions.begin() as database:

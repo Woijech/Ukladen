@@ -13,7 +13,7 @@ The Compose project is `ukladen`. Images are `ukladen-backend:local` and
 | --- | --- |
 | `api` | FastAPI/Uvicorn, backend image, non-root user. |
 | `worker` | Celery worker, same backend image, concurrency 2. |
-| `beat` | Celery Beat, same backend image, empty periodic schedule. |
+| `beat` | Celery Beat, same backend image, dispatches due selected-group schedule imports every 60 seconds. |
 | `web` | Next.js standalone server, non-root user. |
 | `postgres` | PostgreSQL 18 image with pgvector available. |
 | `redis` | Redis 7.4, temporary broker data, no persistent volume. |

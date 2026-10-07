@@ -156,7 +156,7 @@ def test_unknown_entities_and_upstream_errors_are_distinct(
 
 def test_openapi_documents_every_read_route(client: TestClient) -> None:
     paths = client.get("/api/openapi.json").json()["paths"]
-    assert len([path for path in paths if path.startswith("/api/v1/schedule/")]) == 12
+    assert len([path for path in paths if path.startswith("/api/v1/schedule/")]) == 17
     assert paths["/api/v1/schedule/me"]["get"]["responses"]["200"]
     assert paths["/api/v1/academics/teachers/{teacher_id}"]["get"]["responses"]["200"]
 

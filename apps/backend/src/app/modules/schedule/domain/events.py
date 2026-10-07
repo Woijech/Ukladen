@@ -72,6 +72,8 @@ class OfficialEvent:
 
 
 def academic_week(day: date) -> int:
+    if day.year == 1 and day.month < 9:
+        raise UnsupportedSchedule("invalid_academic_year")
     year = day.year if day.month >= 9 else day.year - 1
     september = date(year, 9, 1)
     monday = september - timedelta(days=september.weekday())
