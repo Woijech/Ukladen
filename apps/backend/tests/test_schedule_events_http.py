@@ -105,6 +105,7 @@ def test_sync_requires_csrf_and_handles_rate_limit_and_broker_failure(enrolled: 
     [
         "?date_from=2026-09-30&date_to=2026-09-01",
         "?date_from=2026-01-01&date_to=2027-01-02",
+        "?date_from=0001-01-01&date_to=0001-01-01",
         "?date_from=invalid&date_to=2026-09-30",
         "?date_from=2026-09-01",
     ],

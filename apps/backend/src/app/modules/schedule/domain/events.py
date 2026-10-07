@@ -48,7 +48,7 @@ class OfficialEvent:
     @property
     def identity_key(self) -> tuple[object, ...]:
         # A unique same-day lesson keeps its ID when its time, room or teacher changes.
-        # TODO: IIS has no stable lesson ID; date/subject changes need explicit reconciliation.
+        # ponytail: IIS has no stable lesson ID; date/subject changes need explicit reconciliation.
         return (
             self.kind,
             self.local_date,
@@ -81,7 +81,12 @@ def academic_week(day: date) -> int:
 
 
 def date_interval(date_from: date, date_to: date) -> tuple[datetime, datetime]:
-    if date_to < date_from or (date_to - date_from).days >= 366 or date_to == date.max:
+    if (
+        date_from == date.min
+        or date_to < date_from
+        or (date_to - date_from).days >= 366
+        or date_to == date.max
+    ):
         raise InvalidScheduleRange()
     return (
         datetime.combine(date_from, datetime.min.time(), MINSK).astimezone(UTC),

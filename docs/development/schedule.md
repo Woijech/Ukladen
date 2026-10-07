@@ -97,7 +97,8 @@ calendar. Exact-dated lessons, examinations/session rows and announcements retai
 their dates. Next-period recurring rows require their own date bounds. Materialized
 periods are bounded to 366 days per recurring row, with at most 20,000 distinct
 events per import. Recurring rows require valid week numbers and increasing times.
-Cross-midnight source rows are unsupported rather than assigned a guessed end date.
+Cross-midnight source rows, unrepresentable boundary dates and source times with
+unexpected timezone offsets are unsupported rather than assigned guessed times.
 
 Authoritative split/exception/cancellation precedence is still unavailable. A split
 row, undated announcement, undated exam or incomplete next-period bounds fails the
@@ -114,7 +115,7 @@ notifications and frontend UI remain separate, unimplemented modules.
 ## Verification (2026-10-07)
 
 Ruff, Ruff format, Pyright and `docker compose config --quiet` passed. The full
-backend suite ran with disposable PostgreSQL 18 and Redis 7.4: 1000 passed, one
+backend suite ran with disposable PostgreSQL 18 and Redis 7.4: 1005 passed, one
 existing S3 avatar integration check skipped because dedicated test storage
 settings were not supplied. Checks include Alembic round trips, metadata parity,
 concurrent/fenced claims, stable identity, offline subgroup reads, CSRF/rate limits,
@@ -124,3 +125,16 @@ A cookie-free live smoke expanded group 353501 into 313 official events covering
 2026-09-01 through 2026-12-28. Group 310101 contains split rows and correctly
 returned the unsupported outcome; its raw GET remains available. Live IIS calls
 are a separate manual smoke and are not part of ordinary pytest runs.
+
+## Running the new backend version
+
+Rebuild the backend image, apply migrations, then recreate the backend processes:
+
+```bash
+docker compose build api
+docker compose run --rm migrate
+docker compose up -d api worker beat
+```
+
+The implementation task verified migrations only in disposable databases; it did
+not apply them to the running application database or deploy the new version.

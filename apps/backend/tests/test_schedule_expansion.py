@@ -108,3 +108,24 @@ def test_inclusive_bounded_range() -> None:
     ]:
         with pytest.raises(InvalidScheduleRange):
             date_interval(*dates)
+
+
+@pytest.mark.parametrize(
+    "patch",
+    [
+        {"date": date.min},
+        {"date": date.max},
+        {"starts_at": datetime(2026, 9, 1, 9, tzinfo=UTC).timetz()},
+    ],
+)
+def test_invalid_source_dates_and_explicit_timezones_fail_safely(patch: dict[str, object]) -> None:
+    schedule = schedule_fixture()
+    assert schedule.schedules
+    lesson = schedule.schedules["Понедельник"][0].model_copy(update=patch)
+    with pytest.raises(UnsupportedSchedule):
+        expand_schedule(schedule.model_copy(update={"schedules": {"Понедельник": [lesson]}}))
+
+
+def test_minimum_query_date_is_rejected_without_datetime_underflow() -> None:
+    with pytest.raises(InvalidScheduleRange):
+        date_interval(date.min, date.min)

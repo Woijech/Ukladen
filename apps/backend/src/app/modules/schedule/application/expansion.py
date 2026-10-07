@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
 from app.modules.schedule.application.provider import Lesson, Schedule
@@ -33,16 +33,26 @@ def expand_schedule(schedule: Schedule) -> list[OfficialEvent]:
         if lesson.split:
             # TODO: obtain an authoritative split/exception precedence contract from IIS.
             raise UnsupportedSchedule("split_precedence")
+        if lesson.starts_at.tzinfo is not None or lesson.ends_at.tzinfo is not None:
+            raise UnsupportedSchedule("nonlocal_source_time")
         if lesson.ends_at <= lesson.starts_at:
             raise UnsupportedSchedule("invalid_time")
         if lesson.date is not None:
+            if lesson.date in (date.min, date.max):
+                raise UnsupportedSchedule("invalid_date")
             days = [lesson.date]
         else:
             if weekday is None or lesson.announcement:
                 raise UnsupportedSchedule("undated_exception")
             start = lesson.starts_on or (None if next_period else schedule.starts_on)
             end = lesson.ends_on or (None if next_period else schedule.ends_on)
-            if start is None or end is None or start > end or (end - start).days >= 366:
+            if (
+                start is None
+                or end is None
+                or end == date.max
+                or start > end
+                or (end - start).days >= 366
+            ):
                 raise UnsupportedSchedule("invalid_period")
             if not lesson.week_numbers:
                 raise UnsupportedSchedule("missing_week_numbers")
