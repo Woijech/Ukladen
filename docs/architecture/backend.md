@@ -27,7 +27,9 @@ academic week. `/api/v1/schedule/me` uses the saved academic group/subgroup and
 retains whole-group lessons. See [university API contracts](../development/university-api.md).
 Official schedule persistence, verified recurrence expansion and Celery synchronization
 are implemented; see [schedule contracts](../development/schedule.md). Calendar
-resolution and personal overrides remain unimplemented.
+resolution, personal-event CRUD and personal overrides are implemented, backend only;
+see [calendar contracts](../development/calendar.md). Free slots, conflicts and task
+blocks remain unimplemented.
 
 Personal calendar event persistence and HTTP API are implemented: a domain
 entity, owner-scoped SQLAlchemy repository, application service and

@@ -183,6 +183,12 @@ caching/rate limiting and CSRF protection. Celery queues email after commit usin
 a development fake or a configurable SMTP adapter. Browser email verification is
 implemented; other authentication UI is not implemented.
 
+Backend user/academic profiles, official IIS schedule storage/synchronization and
+the personal calendar API are implemented. Calendar supports personal events,
+per-user schedule overrides and resolved reads; see
+[Calendar API](docs/development/calendar.md). Calendar UI, free slots and task blocks
+remain unimplemented.
+
 ```text
 apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests
 apps/web         Next.js/React/TypeScript shell and browser tests
@@ -349,7 +355,6 @@ your Cloudflare account; the checked-in configuration does not publish the site.
 
 Local storage uses SeaweedFS; [ADR 0001](docs/adr/0001-use-seaweedfs.md) records
 the provider decision. Production storage remains a separate deployment decision.
-Authentication is partially implemented as described above. Real IIS schedule
-reads and personal calendar event persistence and HTTP endpoints are implemented;
-official schedule persistence/synchronization, calendar resolution, overrides,
-tasks, notes, materials, search, AI and RAG remain **not implemented**.
+Backend authentication, profiles, IIS schedule integration and the personal calendar
+are implemented as described above. Calendar UI, free slots, tasks, notes, materials,
+search, AI and RAG remain **not implemented**.

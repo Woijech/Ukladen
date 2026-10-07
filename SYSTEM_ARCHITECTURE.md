@@ -474,6 +474,10 @@ user override layer
 resolved personal calendar
 ```
 
+Status: backend personal events, per-user overrides and resolved calendar reads are
+implemented; see [calendar contracts](docs/development/calendar.md). Free-slot/conflict
+queries, task blocks and the calendar frontend are not implemented.
+
 ## 5.6 tasks
 
 ```text

@@ -4,7 +4,9 @@ Status: implemented — verified dated expansion, PostgreSQL storage, background
 synchronization and authenticated persisted-event HTTP endpoints.
 
 The schedule module owns official university facts. Personal events, skipped lessons,
-overrides, occupied time and free slots belong to calendar and are not implemented.
+overrides, occupied time and free slots belong to calendar. Personal events, overrides
+and resolved calendar reads are implemented; see [calendar contracts](calendar.md).
+Occupied-interval/free-slot queries remain unimplemented.
 Existing public IIS read endpoints retain their response contracts.
 
 ## Persistence and identity
@@ -109,8 +111,9 @@ parsed as commands. Holiday colors do not suppress lessons. See the verified
 
 Teacher schedules and standalone announcements retain their existing live GET
 endpoints. They are not independently imported into the group event store, avoiding
-duplicate official lessons. Calendar resolution, personal overrides, free slots,
-notifications and frontend UI remain separate, unimplemented modules.
+duplicate official lessons. Calendar resolution and personal overrides are implemented
+in the separate calendar module. Free slots, notifications and frontend UI remain
+unimplemented.
 
 ## Verification (2026-10-07)
 

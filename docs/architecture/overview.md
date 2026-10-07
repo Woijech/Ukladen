@@ -1,8 +1,8 @@
 # Ukladen Architecture Overview
 
 Status: foundation, backend authentication, user profiles, academic profiles and
-public university reads, persisted official schedule synchronization and personal
-calendar event persistence/API implemented.
+public university reads, persisted official schedule synchronization and the backend
+personal calendar implemented.
 
 The product name is **Ukladen**. Technical identifiers use lowercase `ukladen`:
 the Compose project, Celery application and default PostgreSQL database. Package
@@ -21,13 +21,12 @@ S3-compatible storage; startup creates a private `materials` bucket by default.
 Traefik routes `/api` to FastAPI and other paths to Next.js on one local origin.
 
 The HTTP surface includes health checks, browser authentication, user and academic
-profiles, university directories, live schedule queries and stored dated events. See the
+profiles, university directories, live schedule queries, stored dated events and the
+resolved personal calendar. See [calendar contracts](../development/calendar.md) and the
 [backend architecture](backend.md) and [university read API](../development/university-api.md).
 
-The calendar module implements personal event persistence with owner-scoped
-repository operations, an application service and HTTP endpoints. Calendar
-resolution, overrides, conflicts, free
-slots and UI are not implemented; see
+The calendar module implements personal events, resolution and official overrides.
+Conflicts, free slots and UI are not implemented; see
 [calendar contracts](../development/calendar.md).
 
 ## Boundaries
@@ -46,7 +45,7 @@ external clients. Inter-module access must use application services or interface
 
 ## Scope
 
-Status: not implemented — calendar resolution, personal schedule overrides,
+Status: not implemented — free slots, conflict checks, task blocks, calendar UI,
 tasks, reminders, notes, materials, relations, search,
 notifications, AI and RAG. Structured diagnostics, request/task correlation and
 container log rotation are implemented; see [logging](../development/logging.md).

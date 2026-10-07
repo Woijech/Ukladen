@@ -1,28 +1,54 @@
-from dataclasses import asdict
-from datetime import UTC, datetime
+from dataclasses import asdict, fields
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import delete, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.modules.calendar.domain.events import PersonalCalendarEvent
-from app.modules.calendar.infrastructure.orm import PersonalCalendarEventModel
+from app.modules.calendar.infrastructure.legacy_repository import (
+    SqlAlchemyPersonalCalendarEventRepository as SqlAlchemyPersonalCalendarEventRepository,
+)
+from app.modules.calendar.domain.events import CalendarConflict, PersonalEvent, ScheduleOverride
+from app.modules.calendar.infrastructure.orm import (
+    PersonalCalendarEventModel,
+    ScheduleOverrideModel,
+)
 
 
-class SqlAlchemyPersonalCalendarEventRepository:
+def personal_entity(row: PersonalCalendarEventModel) -> PersonalEvent:
+    return PersonalEvent(
+        **{field.name: getattr(row, field.name) for field in fields(PersonalEvent)}
+    )
+
+
+def override_entity(row: ScheduleOverrideModel) -> ScheduleOverride:
+    return ScheduleOverride(
+        **{field.name: getattr(row, field.name) for field in fields(ScheduleOverride)}
+    )
+
+
+class SqlAlchemyCalendarRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def create(self, user_id: UUID, event: PersonalCalendarEvent) -> PersonalCalendarEvent:
-        self._require_owner(user_id, event)
-        row = self.session.scalars(
-            insert(PersonalCalendarEventModel)
-            .values(**asdict(event))
-            .returning(PersonalCalendarEventModel)
-        ).one()
-        return self._to_event(row)
+    def personal_events(
+        self, user_id: UUID, starts_at: datetime, ends_at: datetime
+    ) -> list[PersonalEvent]:
+        return [
+            personal_entity(row)
+            for row in self.session.scalars(
+                select(PersonalCalendarEventModel)
+                .where(
+                    PersonalCalendarEventModel.user_id == user_id,
+                    PersonalCalendarEventModel.starts_at < ends_at,
+                    PersonalCalendarEventModel.ends_at > starts_at,
+                )
+                .order_by(PersonalCalendarEventModel.starts_at, PersonalCalendarEventModel.id)
+            )
+        ]
 
-    def get(self, user_id: UUID, event_id: UUID) -> PersonalCalendarEvent | None:
+    def personal_event(self, user_id: UUID, event_id: UUID) -> PersonalEvent | None:
         row = self.session.scalar(
             select(PersonalCalendarEventModel)
             .where(
@@ -31,50 +57,30 @@ class SqlAlchemyPersonalCalendarEventRepository:
             )
             .execution_options(populate_existing=True)
         )
-        return self._to_event(row) if row is not None else None
+        return personal_entity(row) if row is not None else None
 
-    def list_for_period(
-        self, user_id: UUID, starts_at: datetime, ends_at: datetime
-    ) -> list[PersonalCalendarEvent]:
-        if starts_at.utcoffset() is None or ends_at.utcoffset() is None:
-            raise ValueError("Period timestamps must be timezone-aware.")
-        starts_at, ends_at = starts_at.astimezone(UTC), ends_at.astimezone(UTC)
-        if starts_at >= ends_at:
-            raise ValueError("Period end must be after its start.")
-        rows = self.session.scalars(
-            select(PersonalCalendarEventModel)
-            .where(
-                PersonalCalendarEventModel.user_id == user_id,
-                PersonalCalendarEventModel.starts_at < ends_at,
-                PersonalCalendarEventModel.ends_at > starts_at,
-            )
-            .order_by(PersonalCalendarEventModel.starts_at, PersonalCalendarEventModel.id)
-            .execution_options(populate_existing=True)
-        )
-        return [self._to_event(row) for row in rows]
+    def create_personal(self, event: PersonalEvent) -> None:
+        self.session.add(PersonalCalendarEventModel(**asdict(event)))
+        self.session.flush()
 
-    def update(self, user_id: UUID, event: PersonalCalendarEvent) -> PersonalCalendarEvent | None:
-        self._require_owner(user_id, event)
-        row = self.session.scalar(
+    def save_personal(self, event: PersonalEvent, expected_version: int) -> None:
+        values = asdict(event)
+        for field in ("id", "user_id", "created_at"):
+            values.pop(field)
+        saved = self.session.scalar(
             update(PersonalCalendarEventModel)
             .where(
-                PersonalCalendarEventModel.user_id == user_id,
                 PersonalCalendarEventModel.id == event.id,
+                PersonalCalendarEventModel.user_id == event.user_id,
+                PersonalCalendarEventModel.version == expected_version,
             )
-            .values(
-                title=event.title,
-                description=event.description,
-                starts_at=event.starts_at,
-                ends_at=event.ends_at,
-                is_busy=event.is_busy,
-                updated_at=func.clock_timestamp(),
-            )
-            .returning(PersonalCalendarEventModel)
-            .execution_options(populate_existing=True)
+            .values(**values)
+            .returning(PersonalCalendarEventModel.id)
         )
-        return self._to_event(row) if row is not None else None
+        if saved is None:
+            raise CalendarConflict()
 
-    def delete(self, user_id: UUID, event_id: UUID) -> bool:
+    def delete_personal(self, user_id: UUID, event_id: UUID) -> bool:
         return (
             self.session.scalar(
                 delete(PersonalCalendarEventModel)
@@ -87,21 +93,99 @@ class SqlAlchemyPersonalCalendarEventRepository:
             is not None
         )
 
-    @staticmethod
-    def _require_owner(user_id: UUID, event: PersonalCalendarEvent) -> None:
-        if event.user_id != user_id:
-            raise ValueError("Event owner must match the requested user.")
+    def moved_overrides(
+        self, user_id: UUID, starts_at: datetime, ends_at: datetime
+    ) -> list[ScheduleOverride]:
+        return [
+            override_entity(row)
+            for row in self.session.scalars(
+                select(ScheduleOverrideModel).where(
+                    ScheduleOverrideModel.user_id == user_id,
+                    ScheduleOverrideModel.starts_at < ends_at,
+                    ScheduleOverrideModel.ends_at > starts_at,
+                )
+            )
+        ]
 
-    @staticmethod
-    def _to_event(row: PersonalCalendarEventModel) -> PersonalCalendarEvent:
-        return PersonalCalendarEvent(
-            id=row.id,
-            user_id=row.user_id,
-            title=row.title,
-            description=row.description,
-            starts_at=row.starts_at.astimezone(UTC),
-            ends_at=row.ends_at.astimezone(UTC),
-            is_busy=row.is_busy,
-            created_at=row.created_at.astimezone(UTC),
-            updated_at=row.updated_at.astimezone(UTC),
+    def overrides_for_events(
+        self, user_id: UUID, event_ids: tuple[UUID, ...]
+    ) -> list[ScheduleOverride]:
+        if not event_ids:
+            return []
+        return [
+            override_entity(row)
+            for row in self.session.scalars(
+                select(ScheduleOverrideModel).where(
+                    ScheduleOverrideModel.user_id == user_id,
+                    ScheduleOverrideModel.official_event_id.in_(event_ids),
+                )
+            )
+        ]
+
+    def list_overrides(self, user_id: UUID, limit: int, offset: int) -> list[ScheduleOverride]:
+        return [
+            override_entity(row)
+            for row in self.session.scalars(
+                select(ScheduleOverrideModel)
+                .where(ScheduleOverrideModel.user_id == user_id)
+                .order_by(
+                    ScheduleOverrideModel.created_at.desc(), ScheduleOverrideModel.official_event_id
+                )
+                .limit(limit)
+                .offset(offset)
+            )
+        ]
+
+    def override(self, user_id: UUID, event_id: UUID) -> ScheduleOverride | None:
+        row = self.session.scalar(
+            select(ScheduleOverrideModel)
+            .where(
+                ScheduleOverrideModel.user_id == user_id,
+                ScheduleOverrideModel.official_event_id == event_id,
+            )
+            .execution_options(populate_existing=True)
+        )
+        return override_entity(row) if row is not None else None
+
+    def save_override(self, override: ScheduleOverride, expected_version: int) -> None:
+        values = asdict(override)
+        if expected_version == 0:
+            saved = self.session.scalar(
+                insert(ScheduleOverrideModel)
+                .values(**values)
+                .on_conflict_do_nothing(
+                    index_elements=[
+                        ScheduleOverrideModel.user_id,
+                        ScheduleOverrideModel.official_event_id,
+                    ]
+                )
+                .returning(ScheduleOverrideModel.official_event_id)
+            )
+        else:
+            for field in ("user_id", "official_event_id", "created_at"):
+                values.pop(field)
+            saved = self.session.scalar(
+                update(ScheduleOverrideModel)
+                .where(
+                    ScheduleOverrideModel.user_id == override.user_id,
+                    ScheduleOverrideModel.official_event_id == override.official_event_id,
+                    ScheduleOverrideModel.version == expected_version,
+                )
+                .values(**values)
+                .returning(ScheduleOverrideModel.official_event_id)
+            )
+        if saved is None:
+            raise CalendarConflict()
+
+    def delete_override(self, user_id: UUID, event_id: UUID) -> bool:
+        return (
+            self.session.scalar(
+                delete(ScheduleOverrideModel)
+                .where(
+                    ScheduleOverrideModel.user_id == user_id,
+                    ScheduleOverrideModel.official_event_id == event_id,
+                )
+                .returning(ScheduleOverrideModel.official_event_id)
+            )
+            is not None
         )

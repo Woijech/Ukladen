@@ -35,6 +35,12 @@ SMTP delivery and S3 failures. S3 error codes are allowlisted; SDK error payload
 are omitted. Avatar cleanup/recovery failures are visible without object keys.
 Authentication redirects log rejection categories without OAuth query data.
 
+Calendar reads record resolved event counts and schedule source state. Personal-event
+creation/update/deletion and override writes/deletion are logged only after commit.
+Calendar rejections record fixed reasons with safe exception locations. Existing request
+IDs correlate these events; titles, descriptions, locations, event UUIDs and input times
+are omitted. See [calendar contracts](calendar.md) for the event names.
+
 Schedule imports record start, final source state, group ID/number, event count
 and duration. Unsupported recurrence reasons are allowlisted (for example
 `split_precedence`). An obsolete import is explicitly logged as discarded and

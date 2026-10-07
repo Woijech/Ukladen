@@ -1,10 +1,11 @@
 from collections import defaultdict
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import asdict
 from datetime import datetime, timedelta
 from typing import Literal, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -35,9 +36,24 @@ def event_entity(row: OfficialScheduleEventModel) -> OfficialEvent:
 
 
 class SqlAlchemyScheduleStore:
-    def __init__(self, sessions: sessionmaker[Session], interval_seconds: int = 3600) -> None:
+    def __init__(
+        self,
+        sessions: sessionmaker[Session],
+        interval_seconds: int = 3600,
+        *,
+        read_session: Session | None = None,
+    ) -> None:
         self.sessions = sessions
         self.interval = timedelta(seconds=interval_seconds)
+        self.read_session = read_session
+
+    def _reading(self) -> AbstractContextManager[Session]:
+        """Calendar reads join its caller-owned snapshot; standalone reads stay unchanged."""
+        return (
+            nullcontext(self.read_session)
+            if self.read_session is not None
+            else self.sessions.begin()
+        )
 
     def claim(
         self, group_id: int, group_number: str, now: datetime, *, force: bool = False
@@ -149,7 +165,7 @@ class SqlAlchemyScheduleStore:
         return source
 
     def state(self, group_id: int, group_number: str) -> ScheduleState:
-        with self.sessions.begin() as database:
+        with self._reading() as database:
             row = database.get(ScheduleSourceModel, group_id)
             if row is None:
                 return ScheduleState(group_id, group_number)
@@ -165,7 +181,7 @@ class SqlAlchemyScheduleStore:
             )
 
     def group_id(self, group_number: str) -> int | None:
-        with self.sessions.begin() as database:
+        with self._reading() as database:
             return database.scalar(
                 select(ScheduleSourceModel.group_id).where(
                     ScheduleSourceModel.group_number == group_number
@@ -187,7 +203,7 @@ class SqlAlchemyScheduleStore:
         )
         if subgroup is not None:
             query = query.where(OfficialScheduleEventModel.subgroup.in_([0, subgroup]))
-        with self.sessions.begin() as database:
+        with self._reading() as database:
             return [event_entity(row) for row in database.scalars(query)]
 
     def read(
@@ -197,16 +213,22 @@ class SqlAlchemyScheduleStore:
         starts_at: datetime,
         ends_at: datetime,
         subgroup: int | None,
+        event_ids: tuple[UUID, ...] = (),
     ) -> tuple[ScheduleState, list[OfficialEvent]]:
         conditions = [
             OfficialScheduleEventModel.group_id == ScheduleSourceModel.group_id,
             OfficialScheduleEventModel.active,
-            OfficialScheduleEventModel.starts_at < ends_at,
-            OfficialScheduleEventModel.ends_at > starts_at,
+            or_(
+                and_(
+                    OfficialScheduleEventModel.starts_at < ends_at,
+                    OfficialScheduleEventModel.ends_at > starts_at,
+                ),
+                OfficialScheduleEventModel.id.in_(event_ids),
+            ),
         ]
         if subgroup is not None:
             conditions.append(OfficialScheduleEventModel.subgroup.in_([0, subgroup]))
-        with self.sessions.begin() as database:
+        with self._reading() as database:
             rows = database.execute(
                 select(ScheduleSourceModel, OfficialScheduleEventModel)
                 .outerjoin(OfficialScheduleEventModel, and_(*conditions))
@@ -229,6 +251,19 @@ class SqlAlchemyScheduleStore:
             return state, [event_entity(row[1]) for row in rows if row[1] is not None]
 
     def event(self, event_id: UUID) -> OfficialEvent | None:
-        with self.sessions.begin() as database:
+        with self._reading() as database:
             row = database.get(OfficialScheduleEventModel, event_id)
             return event_entity(row) if row else None
+
+    def by_ids(self, event_ids: tuple[UUID, ...]) -> list[OfficialEvent]:
+        if not event_ids:
+            return []
+        with self._reading() as database:
+            return [
+                event_entity(row)
+                for row in database.scalars(
+                    select(OfficialScheduleEventModel).where(
+                        OfficialScheduleEventModel.id.in_(event_ids)
+                    )
+                )
+            ]

@@ -1,1 +1,2 @@
 """Calendar application contracts."""
+
