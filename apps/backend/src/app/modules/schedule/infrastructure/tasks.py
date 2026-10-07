@@ -1,6 +1,9 @@
+import logging
+
 import httpx
 
 from app.core.config import get_settings
+from app.core.logging import log_failure
 from app.db.session import create_database_engine, create_session_factory
 from app.integrations.bsuir.public_api import IisPublicProvider
 from app.modules.academics.infrastructure.repository import SqlAlchemySelectedGroupDirectory
@@ -12,6 +15,8 @@ from app.modules.schedule.application.synchronization import (
 from app.modules.schedule.infrastructure.jobs import CeleryScheduleJobs, SyncRequest
 from app.modules.schedule.infrastructure.storage import SqlAlchemyScheduleStore
 from app.workers.celery_app import celery_app
+
+logger = logging.getLogger(__name__)
 
 
 @celery_app.task(name="schedule.sync_group", ignore_result=True, store_errors_even_if_ignored=False)
@@ -32,7 +37,8 @@ def sync_group(**payload: object) -> None:
                 )
         finally:
             engine.dispose()
-    except Exception:
+    except Exception as error:
+        log_failure(logger, "schedule.task_failed", error)
         raise ScheduleSyncUnavailable("Schedule synchronization is unavailable.") from None
 
 
@@ -57,5 +63,6 @@ def refresh_selected() -> None:
             ).refresh()
         finally:
             engine.dispose()
-    except Exception:
+    except Exception as error:
+        log_failure(logger, "schedule.task_failed", error)
         raise ScheduleSyncUnavailable("Schedule synchronization is unavailable.") from None

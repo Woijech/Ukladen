@@ -1,8 +1,10 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
+from app.core.logging import log_failure
 from app.modules.auth.domain.errors import InvalidSession
 from app.modules.auth.presentation.dependencies import CurrentSession, Database, require_csrf
 from app.modules.users.application.ports import AvatarStorageUnavailable
@@ -64,6 +66,7 @@ def install_users(application: FastAPI) -> None:
             status, detail = 404, "Avatar not found."
         else:
             status, detail = 503, "Service unavailable."
+            log_failure(logging.getLogger(__name__), "users.avatar_unavailable", error)
         return JSONResponse(
             {"detail": detail}, status_code=status, headers={"Cache-Control": "no-store"}
         )

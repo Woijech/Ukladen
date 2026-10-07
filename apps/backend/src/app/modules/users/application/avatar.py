@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
+from app.core.logging import stack_frames
 from app.modules.users.application.ports import (
     AvatarImageProcessor,
     AvatarStorage,
@@ -78,9 +79,16 @@ class AvatarService:
             return
         try:
             self.storage.delete(key)
-        except AvatarStorageUnavailable:
+        except AvatarStorageUnavailable as error:
             # ponytail: best-effort compensation; add durable cleanup if orphan recovery is needed.
-            logger.warning("Avatar cleanup failed.", extra={"event": "avatar_cleanup_failed"})
+            logger.warning(
+                "Avatar cleanup failed.",
+                extra={
+                    "event": "avatar_cleanup_failed",
+                    "error_type": type(error).__name__,
+                    "traceback": stack_frames(error.__traceback__),
+                },
+            )
 
     def cleanup_failed_upload(
         self, user_id: UUID, key: str, recovery_repository: ProfileRepository

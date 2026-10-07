@@ -1,10 +1,11 @@
-from contextlib import suppress
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 
+from app.core.logging import log_failure
 from app.modules.auth.presentation.dependencies import CurrentSession, Database, require_csrf
 from app.modules.users.application.avatar import AvatarService
 from app.modules.users.application.ports import AvatarStorage
@@ -68,11 +69,13 @@ async def upload_avatar(
                 result = ProfileResponse.from_profile(change.profile)
         except SQLAlchemyError:
             # Use an independent connection; retain the object if commit status is uncertain.
-            with suppress(SQLAlchemyError):
+            try:
                 with request.app.state.session_factory() as recovery, recovery.begin():
                     avatars.cleanup_failed_upload(
                         current.user_id, prepared.key, SqlAlchemyProfileRepository(recovery)
                     )
+            except SQLAlchemyError as error:
+                log_failure(logging.getLogger(__name__), "users.avatar_recovery_failed", error)
             raise
         except Exception:
             avatars.cleanup(prepared.key)

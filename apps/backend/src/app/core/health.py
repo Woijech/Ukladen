@@ -7,6 +7,7 @@ from redis import Redis
 from sqlalchemy import Engine, text
 
 from app.core.config import Settings
+from app.core.logging import log_failure
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +46,14 @@ class HealthChecks:
             try:
                 check()
                 checks[name] = True
-            except Exception:
-                logger.warning("Readiness check failed: %s", name)
+            except Exception as error:
+                log_failure(
+                    logger,
+                    "health.dependency_failed",
+                    error,
+                    level=logging.WARNING,
+                    dependency=name,
+                )
                 checks[name] = False
         return HealthResponse(status="ok" if all(checks.values()) else "unavailable", checks=checks)
 

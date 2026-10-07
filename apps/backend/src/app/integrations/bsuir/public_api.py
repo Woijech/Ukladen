@@ -1,3 +1,4 @@
+import logging
 import re
 from collections.abc import Mapping
 from datetime import date, datetime, time
@@ -7,7 +8,8 @@ import httpx
 from pydantic import TypeAdapter, ValidationError
 from pydantic.alias_generators import to_snake
 
-from app.integrations.bsuir.academics import IisAcademicProvider
+from app.core.logging import log_failure
+from app.integrations.bsuir.academics import IisAcademicProvider, diagnostic_route
 from app.modules.academics.application.directory import (
     Department,
     DirectoryRecord,
@@ -50,6 +52,7 @@ ALIASES = {
     "lastUpdateDate": "date",
 }
 DATE_KEYS = {"date", "starts_on", "ends_on", "exams_start_on", "exams_end_on"}
+logger = logging.getLogger(__name__)
 TIME_KEYS = {"starts_at", "ends_at"}
 
 
@@ -112,7 +115,8 @@ class IisPublicProvider(IisAcademicProvider):
             if response.status_code == 404:
                 return None
             return result.validate_python(normalize_payload(response.json()), strict=True)
-        except httpx.HTTPError, ValidationError, ValueError, TypeError:
+        except (httpx.HTTPError, ValidationError, ValueError, TypeError) as error:
+            log_failure(logger, "iis.invalid_response", error, route=diagnostic_route(path))
             raise AcademicProviderUnavailable() from None
 
     def _catalogue[T: DirectoryRecord](self, path: str, result: TypeAdapter[list[T]]) -> list[T]:

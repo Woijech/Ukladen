@@ -30,6 +30,8 @@ _FIELDS = {
     "selected_count",
     "error_type",
     "traceback",
+    "published_task_id",
+    "published_task_name",
 }
 
 

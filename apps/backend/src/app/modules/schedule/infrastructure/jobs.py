@@ -1,7 +1,12 @@
+import logging
+
 from celery import Celery
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.logging import log_failure
 from app.modules.schedule.application.synchronization import ScheduleSyncUnavailable
+
+logger = logging.getLogger(__name__)
 
 
 class SyncRequest(BaseModel):
@@ -28,5 +33,10 @@ class CeleryScheduleJobs:
                 retry=False,
                 expires=120,
             )
-        except Exception:
+            logger.info(
+                "schedule.sync_queued",
+                extra={"group_id": job.group_id, "group_number": job.group_number},
+            )
+        except Exception as error:
+            log_failure(logger, "schedule.enqueue_failed", error)
             raise ScheduleSyncUnavailable("Schedule synchronization is unavailable.") from None

@@ -1,6 +1,9 @@
+import logging
+
 from celery import Task
 
 from app.core.config import get_settings
+from app.core.logging import log_failure
 from app.modules.auth.application.ports import EmailDeliveryUnavailable, EmailSender
 from app.modules.auth.domain.entities import TokenType
 from app.modules.auth.infrastructure.email_sender import (
@@ -9,6 +12,8 @@ from app.modules.auth.infrastructure.email_sender import (
     SmtpEmailSender,
 )
 from app.workers.celery_app import celery_app
+
+logger = logging.getLogger(__name__)
 
 fake_sender = FakeEmailSender()
 
@@ -34,5 +39,6 @@ def send_auth_email(task: Task, *args: object, **payload: object) -> None:
             sender.send_email_verification(message.email, token)
         else:
             sender.send_password_reset(message.email, token)
-    except Exception:
+    except Exception as error:
+        log_failure(logger, "auth.email_task_failed", error)
         raise EmailDeliveryUnavailable("Email delivery is unavailable.") from None

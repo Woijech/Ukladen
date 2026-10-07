@@ -1,9 +1,11 @@
+import logging
 from hmac import compare_digest
 
 from pydantic import TypeAdapter, ValidationError
 from redis import Redis
 from redis.exceptions import RedisError
 
+from app.core.logging import log_failure
 from app.modules.auth.application.dto import OAuthStateRecord
 from app.modules.auth.application.ports import OAuthStateUnavailable
 from app.modules.auth.domain.errors import InvalidOAuthState
@@ -14,6 +16,9 @@ if redis.call('GET', KEYS[1]) == ARGV[1] then
 end
 return 0
 """
+
+
+logger = logging.getLogger(__name__)
 
 
 class RedisOAuthStateStore:
@@ -30,9 +35,13 @@ class RedisOAuthStateStore:
                 ex=ttl_seconds,
                 nx=True,
             )
-        except RedisError:
+        except RedisError as error:
+            log_failure(
+                logger, "auth.oauth_state_failed", error, dependency="redis", operation="create"
+            )
             raise OAuthStateUnavailable("OAuth state is unavailable.") from None
         if created is not True:
+            logger.error("auth.oauth_state_collision")
             raise OAuthStateUnavailable("OAuth state is unavailable.")
 
     def consume(self, state_hash: str, browser_token_hash: str) -> OAuthStateRecord | None:
@@ -51,10 +60,14 @@ class RedisOAuthStateStore:
             if not compare_digest(record.browser_token_hash, browser_token_hash):
                 return None
             consumed = self.redis.eval(_CONSUME, 1, key, payload)
-        except RedisError:
+        except RedisError as error:
+            log_failure(
+                logger, "auth.oauth_state_failed", error, dependency="redis", operation="consume"
+            )
             raise OAuthStateUnavailable("OAuth state is unavailable.") from None
         if consumed == 0:
             return None
         if consumed != 1:
+            logger.error("auth.oauth_state_invalid_result")
             raise OAuthStateUnavailable("OAuth state is unavailable.")
         return record

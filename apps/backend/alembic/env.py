@@ -1,7 +1,8 @@
-from logging.config import fileConfig
+import logging
 
 from alembic import context
 from app.core.config import get_settings
+from app.core.logging import configure_logging, log_failure
 from app.db.session import Base, create_database_engine
 from app.modules.academics.infrastructure import orm as academics_orm  # noqa: F401
 from app.modules.auth.infrastructure import orm as auth_orm  # noqa: F401
@@ -10,8 +11,12 @@ from app.modules.schedule.infrastructure import orm as schedule_orm  # noqa: F40
 from app.modules.users.infrastructure import orm as users_orm  # noqa: F401
 
 config = context.config
-if config.config_file_name:
-    fileConfig(config.config_file_name)
+# A CLI migration configures its own process. Embedded migrations preserve the
+# host's handlers and loggers; fileConfig would disable application diagnostics.
+if config.attributes.get("connection") is None:
+    configure_logging(get_settings().log_level)
+
+logger = logging.getLogger("app.db.migrations")
 
 target_metadata = Base.metadata
 
@@ -45,7 +50,14 @@ def run_migrations_online() -> None:
         engine.dispose()
 
 
-if context.is_offline_mode():
-    run_migrations_offline()
+logger.info("database.migration_started")
+try:
+    if context.is_offline_mode():
+        run_migrations_offline()
+    else:
+        run_migrations_online()
+except Exception as error:
+    log_failure(logger, "database.migration_failed", error)
+    raise
 else:
-    run_migrations_online()
+    logger.info("database.migration_completed")

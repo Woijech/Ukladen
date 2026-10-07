@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 from typing import Annotated
 from uuid import UUID
@@ -5,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Path, Query, Request
 from fastapi.responses import JSONResponse
 
+from app.core.logging import log_failure
 from app.modules.academics.presentation.routes import Academics, IdentifierPath, no_store
 from app.modules.auth.application.ports import RateLimiter
 from app.modules.auth.presentation.dependencies import (
@@ -251,6 +253,7 @@ def install_schedule(application: FastAPI) -> None:
             status, detail = 404, "Schedule event or imported group not found."
         else:
             status, detail = 503, "Schedule synchronization is unavailable."
+            log_failure(logging.getLogger(__name__), "schedule.sync_unavailable", error)
         return JSONResponse(
             {"detail": detail}, status_code=status, headers={"Cache-Control": "no-store"}
         )

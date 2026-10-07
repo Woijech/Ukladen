@@ -1,8 +1,10 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, FastAPI, Path, Request, Response
 from fastapi.responses import JSONResponse
 
+from app.core.logging import log_failure
 from app.modules.academics.application.directory import (
     Department,
     Faculty,
@@ -163,6 +165,7 @@ def install_academics(application: FastAPI) -> None:
             status, detail = 409, "Academic group changed. Reload the profile and retry."
         else:
             status, detail = 503, "Service unavailable."
+            log_failure(logging.getLogger(__name__), "academics.provider_unavailable", error)
         return JSONResponse(
             {"detail": detail}, status_code=status, headers={"Cache-Control": "no-store"}
         )

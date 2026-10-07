@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 
@@ -5,6 +6,7 @@ from pydantic import TypeAdapter, ValidationError
 from redis import Redis
 from redis.exceptions import RedisError
 
+from app.core.logging import log_failure
 from app.modules.auth.application.ports import SessionCacheUnavailable
 from app.modules.auth.domain.entities import AuthSession
 from app.modules.auth.domain.errors import InvalidSession
@@ -12,6 +14,9 @@ from app.modules.auth.domain.errors import InvalidSession
 
 def _key(token_hash: str) -> str:
     return f"ukladen:auth:session:{token_hash}"
+
+
+logger = logging.getLogger(__name__)
 
 
 class RedisSessionCache:
@@ -29,7 +34,15 @@ class RedisSessionCache:
     def get(self, token_hash: str) -> AuthSession | None:
         try:
             value = self.redis.get(_key(token_hash))
-        except RedisError:
+        except RedisError as error:
+            log_failure(
+                logger,
+                "auth.session_cache_failed",
+                error,
+                dependency="redis",
+                operation="get",
+                level=logging.WARNING,
+            )
             raise SessionCacheUnavailable("Session cache is unavailable.") from None
         if not isinstance(value, str | bytes):
             return None
@@ -38,7 +51,10 @@ class RedisSessionCache:
             if session.token_hash != token_hash:
                 return None
             session.require_active(self.now())
-        except ValidationError, InvalidSession:
+        except ValidationError as error:
+            log_failure(logger, "auth.session_cache_invalid", error, level=logging.WARNING)
+            return None
+        except InvalidSession:
             return None
         return session
 
@@ -54,7 +70,15 @@ class RedisSessionCache:
                 self.adapter.dump_json(session),
                 pxat=int(session.expires_at.timestamp() * 1000),
             )
-        except RedisError:
+        except RedisError as error:
+            log_failure(
+                logger,
+                "auth.session_cache_failed",
+                error,
+                dependency="redis",
+                operation="set",
+                level=logging.WARNING,
+            )
             raise SessionCacheUnavailable("Session cache is unavailable.") from None
 
     def delete(self, *token_hashes: str) -> None:
@@ -62,5 +86,13 @@ class RedisSessionCache:
             return
         try:
             self.redis.delete(*(_key(token_hash) for token_hash in token_hashes))
-        except RedisError:
+        except RedisError as error:
+            log_failure(
+                logger,
+                "auth.session_cache_failed",
+                error,
+                dependency="redis",
+                operation="delete",
+                level=logging.WARNING,
+            )
             raise SessionCacheUnavailable("Session cache is unavailable.") from None

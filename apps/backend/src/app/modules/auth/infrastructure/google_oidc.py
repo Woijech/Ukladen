@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from collections.abc import Callable
 from hmac import compare_digest
@@ -12,6 +13,7 @@ import jwt
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from app.core.config import Settings
+from app.core.logging import log_failure
 from app.modules.auth.application.dto import VerifiedGoogleIdentity
 from app.modules.auth.application.ports import ExternalIdentityUnavailable
 from app.modules.auth.application.registration import normalize_email
@@ -19,6 +21,7 @@ from app.modules.auth.domain.errors import InvalidExternalIdentity, InvalidRegis
 
 DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
 ISSUERS = ("https://accounts.google.com", "accounts.google.com")
+logger = logging.getLogger(__name__)
 
 
 class GoogleOidcProvider:
@@ -50,13 +53,27 @@ class GoogleOidcProvider:
     def _request_json(
         self, method: str, url: str, *, data: dict[str, str] | None = None
     ) -> tuple[dict[str, Any], int]:
+        started = monotonic()
         try:
             with self.client.stream(
                 method, url, data=data, timeout=3, follow_redirects=False
             ) as response:
                 if method == "POST" and response.status_code in (400, 401):
+                    logger.warning(
+                        "google.token_exchange_rejected",
+                        extra={"status_code": response.status_code},
+                    )
                     raise InvalidExternalIdentity("Invalid external identity.")
                 if response.status_code != 200:
+                    logger.error(
+                        "google.provider_failed",
+                        extra={
+                            "status_code": response.status_code,
+                            "operation": "token_exchange"
+                            if method == "POST"
+                            else "discovery_or_keys",
+                        },
+                    )
                     raise ExternalIdentityUnavailable("External identity provider is unavailable.")
                 body = bytearray()
                 for chunk in response.iter_bytes():
@@ -72,8 +89,21 @@ class GoogleOidcProvider:
                 ttl = max(0, min(3600, int(match[1]) - max(0, age))) if match else 0
                 if "no-store" in cache_control or "no-cache" in cache_control:
                     ttl = 0
+                logger.debug(
+                    "google.request_completed",
+                    extra={
+                        "operation": "token_exchange" if method == "POST" else "discovery_or_keys",
+                        "duration_ms": round((monotonic() - started) * 1000, 2),
+                    },
+                )
                 return document, ttl
-        except httpx.HTTPError, ValueError, TypeError, OverflowError:
+        except (httpx.HTTPError, ValueError, TypeError, OverflowError) as error:
+            log_failure(
+                logger,
+                "google.request_failed",
+                error,
+                operation="token_exchange" if method == "POST" else "discovery_or_keys",
+            )
             raise ExternalIdentityUnavailable(
                 "External identity provider is unavailable."
             ) from None
@@ -170,7 +200,8 @@ class GoogleOidcProvider:
                 raise InvalidExternalIdentity("Invalid external identity.")
             try:
                 public = jwt.PyJWK.from_dict(key, algorithm="RS256").key
-            except jwt.PyJWTError, ValueError, TypeError:
+            except (jwt.PyJWTError, ValueError, TypeError) as error:
+                log_failure(logger, "google.signing_key_invalid", error)
                 raise ExternalIdentityUnavailable(
                     "External identity provider is unavailable."
                 ) from None
@@ -252,5 +283,6 @@ class GoogleOidcProvider:
             ):
                 raise InvalidExternalIdentity("Invalid external identity.")
             return VerifiedGoogleIdentity(subject=subject, email=normalize_email(email))
-        except jwt.PyJWTError, InvalidRegistration, ValueError, TypeError, KeyError:
+        except (jwt.PyJWTError, InvalidRegistration, ValueError, TypeError, KeyError) as error:
+            log_failure(logger, "google.identity_rejected", error, level=logging.WARNING)
             raise InvalidExternalIdentity("Invalid external identity.") from None

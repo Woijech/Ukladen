@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.core.logging import log_failure
 from app.modules.auth.application.dto import IssuedSession
 from app.modules.auth.application.google_link import GoogleLinkService
 from app.modules.auth.application.google_login import GoogleLoginService
@@ -220,7 +221,15 @@ def google_callback(
         OAuthStateUnavailable,
         ExternalIdentityUnavailable,
         SQLAlchemyError,
-    ):
+    ) as error:
+        level = (
+            logging.ERROR
+            if isinstance(
+                error, (OAuthStateUnavailable, ExternalIdentityUnavailable, SQLAlchemyError)
+            )
+            else logging.WARNING
+        )
+        log_failure(logger, "auth.google_callback_rejected", error, level=level)
         response = RedirectResponse(
             str(settings.frontend_auth_error_url),
             status_code=303,
@@ -564,6 +573,7 @@ def install_auth(application: FastAPI) -> None:
         return response
 
     def unavailable(request: Request, error: Exception) -> JSONResponse:
+        log_failure(logger, "http.service_unavailable", error)
         return JSONResponse(
             {"detail": "Service unavailable."},
             status_code=503,

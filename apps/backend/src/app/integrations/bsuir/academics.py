@@ -1,12 +1,40 @@
+import logging
 from datetime import datetime
+from time import perf_counter
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
+from app.core.logging import log_failure
 from app.modules.academics.application.ports import AcademicProviderUnavailable
 from app.modules.academics.domain.profile import AcademicPeriod, GroupContext, UniversityGroup
 
 IIS_API = "https://iis.bsuir.by/api/v1"
+logger = logging.getLogger(__name__)
+
+
+def diagnostic_route(path: str) -> str:
+    if path.startswith("/employees/schedule/"):
+        return "/employees/schedule/{url_id}"
+    return (
+        path
+        if path
+        in {
+            "/student-groups",
+            "/schedule",
+            "/employees/all",
+            "/faculties",
+            "/departments",
+            "/specialities",
+            "/auditories",
+            "/announcements/employees",
+            "/announcements/departments",
+            "/last-update-date/student-group",
+            "/last-update-date/employee",
+            "/schedule/current-week",
+        }
+        else "[unknown]"
+    )
 
 
 class IisGroup(BaseModel):
@@ -100,7 +128,8 @@ class IisAcademicProvider:
             ):
                 raise ValueError("Duplicate group identity.")
             return [row.to_domain() for row in rows]
-        except httpx.HTTPError, ValidationError, ValueError:
+        except (httpx.HTTPError, ValidationError, ValueError) as error:
+            log_failure(logger, "iis.invalid_response", error, route="/student-groups")
             raise AcademicProviderUnavailable() from None
 
     def get_context(self, group: UniversityGroup) -> GroupContext:
@@ -111,22 +140,45 @@ class IisAcademicProvider:
             if response.status_code == 404:
                 return GroupContext(group, False)
             return IisSchedule.model_validate_json(response.content).to_context(group)
-        except httpx.HTTPError, ValidationError, ValueError:
+        except (httpx.HTTPError, ValidationError, ValueError) as error:
+            log_failure(logger, "iis.invalid_response", error, route="/schedule")
             raise AcademicProviderUnavailable() from None
 
     def _get(
         self, path: str, *, params: dict[str, str] | None = None, allow_missing: bool = False
     ) -> httpx.Response:
-        request = self.client.build_request(
-            "GET",
-            IIS_API + path,
-            params=params,
-            timeout=httpx.Timeout(5, connect=3),
-            headers={"Accept": "application/json"},
-        )
-        request.headers.pop("cookie", None)
-        request.headers.pop("authorization", None)
-        response = self.client.send(request, auth=None, follow_redirects=False)
-        if not (allow_missing and response.status_code == 404):
-            response.raise_for_status()
-        return response
+        started = perf_counter()
+        try:
+            request = self.client.build_request(
+                "GET",
+                IIS_API + path,
+                params=params,
+                timeout=httpx.Timeout(5, connect=3),
+                headers={"Accept": "application/json"},
+            )
+            request.headers.pop("cookie", None)
+            request.headers.pop("authorization", None)
+            response = self.client.send(request, auth=None, follow_redirects=False)
+            if not (allow_missing and response.status_code == 404):
+                response.raise_for_status()
+            logger.debug(
+                "iis.request_completed",
+                extra={
+                    "route": diagnostic_route(path),
+                    "status_code": response.status_code,
+                    "duration_ms": round((perf_counter() - started) * 1000, 2),
+                },
+            )
+            return response
+        except httpx.HTTPError as error:
+            log_failure(
+                logger,
+                "iis.request_failed",
+                error,
+                route=diagnostic_route(path),
+                status_code=error.response.status_code
+                if isinstance(error, httpx.HTTPStatusError)
+                else None,
+                duration_ms=round((perf_counter() - started) * 1000, 2),
+            )
+            raise AcademicProviderUnavailable() from None

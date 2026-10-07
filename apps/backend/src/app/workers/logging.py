@@ -31,6 +31,20 @@ def propagate_request_id(headers: dict[str, Any] | None = None, **kwargs: Any) -
         headers["ukladen_request_id"] = request_id.get()
 
 
+def published_task(
+    sender: str | None = None, headers: dict[str, Any] | None = None, **kwargs: Any
+) -> None:
+    identifier = (headers or {}).get("id")
+    if (
+        sender in _TASKS
+        and isinstance(identifier, str)
+        and re.fullmatch(r"[0-9a-f-]{36}", identifier)
+    ):
+        logger.info(
+            "task.published", extra={"published_task_id": identifier, "published_task_name": sender}
+        )
+
+
 def start_task(task: Any = None, task_id: str | None = None, **kwargs: Any) -> None:
     if task is None:
         return
@@ -82,6 +96,7 @@ def install_task_logging() -> None:
     for signal, receiver in (
         (signals.setup_logging, configure_worker_logging),
         (signals.before_task_publish, propagate_request_id),
+        (signals.after_task_publish, published_task),
         (signals.task_prerun, start_task),
         (signals.task_postrun, finish_task),
         (signals.task_failure, fail_task),

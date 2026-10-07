@@ -47,6 +47,12 @@ PostgreSQL/Redis or hash passwords.
 
 ## Configuration
 
+Structured API and worker diagnostics use standard-library logging. Every response
+includes `X-Request-ID`; Celery headers propagate it to jobs. Safe logs include route
+templates, statuses, durations, dependency failures and schedule outcomes, without
+request payloads or exception messages. `LOG_LEVEL` controls application verbosity.
+See [logging and debugging](../development/logging.md).
+
 `core/config.py` uses Pydantic Settings. Environment variables override a `.env`
 in the process working directory. Required settings are `DATABASE_URL`, `REDIS_URL`,
 `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` and `S3_BUCKET`. URL types validate

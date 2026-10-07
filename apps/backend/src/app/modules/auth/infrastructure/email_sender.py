@@ -1,3 +1,4 @@
+import logging
 import re
 import smtplib
 import ssl
@@ -11,9 +12,12 @@ from celery import Celery
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from app.core.config import Settings
+from app.core.logging import log_failure
 from app.modules.auth.application.ports import EmailDeliveryUnavailable
 from app.modules.auth.application.registration import normalize_email
 from app.modules.auth.domain.entities import TokenType
+
+logger = logging.getLogger(__name__)
 
 
 class EmailMessage(BaseModel):
@@ -54,7 +58,8 @@ class FakeEmailSender:
             message = EmailMessage.model_validate({"kind": kind, "email": email, "token": token})
             if message not in self.messages:
                 self.messages.append(message)
-        except Exception:
+        except Exception as error:
+            log_failure(logger, "auth.email_payload_invalid", error, operation="validate")
             raise EmailDeliveryUnavailable("Email delivery is unavailable.") from None
 
 
@@ -91,7 +96,9 @@ class CeleryEmailSender:
                 ignore_result=True,
                 retry=False,
             )
-        except Exception:
+            logger.info("auth.email_queued", extra={"operation": kind.value})
+        except Exception as error:
+            log_failure(logger, "auth.email_enqueue_failed", error, operation="enqueue")
             raise EmailDeliveryUnavailable("Email delivery is unavailable.") from None
 
 
@@ -172,5 +179,7 @@ class SmtpEmailSender:
                     message, from_addr=config.smtp_from_email, to_addrs=[data.email]
                 ):
                     raise EmailDeliveryUnavailable("Email delivery is unavailable.")
-        except Exception:
+            logger.info("auth.smtp_delivered", extra={"operation": kind.value})
+        except Exception as error:
+            log_failure(logger, "auth.smtp_delivery_failed", error, operation="send")
             raise EmailDeliveryUnavailable("Email delivery is unavailable.") from None
