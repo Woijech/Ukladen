@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     s3_access_key: SecretStr
     s3_secret_key: SecretStr
     s3_bucket: str = Field(min_length=1)
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     schedule_sync_enabled: bool = True
     schedule_sync_interval_seconds: int = Field(default=3600, ge=60, le=86400)
     auth_session_ttl_seconds: int = Field(default=30 * 24 * 60 * 60, gt=0)

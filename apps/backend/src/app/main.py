@@ -1,11 +1,15 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from celery import Celery
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 
 from app.core.config import Settings, get_settings
 from app.core.health import HealthChecks, HealthResponse
+from app.core.logging import configure_logging
+from app.core.request_logging import RequestLoggingMiddleware
 from app.db.session import create_database_engine, create_session_factory
 from app.integrations.bsuir.public_api import IisPublicProvider
 from app.integrations.storage.s3 import S3AvatarStorage
@@ -20,12 +24,19 @@ from app.modules.calendar.presentation.routes import install_calendar
 from app.modules.schedule.infrastructure.jobs import CeleryScheduleJobs
 from app.modules.schedule.presentation.routes import install_schedule
 from app.modules.users.presentation.routes import install_users
+from app.workers.logging import install_task_logging
+
+logger = logging.getLogger(__name__)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
+    install_task_logging()
+
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         config = settings or get_settings()
+        configure_logging(config.log_level)
+        logger.info("api.starting")
         engine = create_database_engine(config)
         health = HealthChecks(engine, config)
         application.state.health = health
@@ -59,6 +70,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             application.state.dummy_password_hash = application.state.passwords.hash(
                 generate_token()
             )
+            logger.info("api.started")
             yield
         finally:
             if hasattr(application.state, "avatar_storage"):
@@ -66,6 +78,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             celery.close()
             health.close()
             engine.dispose()
+            logger.info("api.stopped")
 
     application = FastAPI(
         title="Ukladen",
@@ -80,6 +93,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_academics(application)
     install_schedule(application)
     install_calendar(application)
+    application.add_middleware(RequestLoggingMiddleware)
+
+    @application.exception_handler(Exception)
+    async def unexpected_error(request: Request, error: Exception) -> JSONResponse:
+        return JSONResponse(
+            {"detail": "Internal server error."},
+            status_code=500,
+            headers={"Cache-Control": "no-store", "X-Request-ID": request.state.request_id},
+        )
 
     @application.get("/api/health/live", response_model=HealthResponse)
     def liveness() -> HealthResponse:

@@ -1,6 +1,9 @@
 from celery import Celery
 
 from app.core.config import get_settings
+from app.workers.logging import install_task_logging
+
+install_task_logging()
 
 settings = get_settings()
 celery_app = Celery(
