@@ -25,8 +25,13 @@ schedule ports. Authenticated endpoints provide teacher lookup by ID, full group
 and teacher schedules, directories, announcements, update dates and the current
 academic week. `/api/v1/schedule/me` uses the saved academic group/subgroup and
 retains whole-group lessons. See [university API contracts](../development/university-api.md).
-Schedule/calendar persistence, recurrence expansion, personal overrides and
+Official schedule persistence, recurrence expansion, personal overrides and
 background synchronization remain unimplemented.
+
+Personal calendar event persistence is implemented: a domain entity, owner-scoped
+SQLAlchemy repository and `0006_personal_calendar_events` migration. Application
+services and calendar HTTP endpoints are not implemented. See
+[calendar persistence contracts](../development/calendar.md).
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -157,6 +162,12 @@ The IIS adapter implements an academics-owned port and reuses the shared HTTP
 client with bounded timeouts and sanitized response validation. Read-only source
 term labels and period dates are returned as live context, not editable semesters.
 No full-catalogue cache, scraping, schedule synchronization or jobs are implemented.
+
+`0006_personal_calendar_events` creates user-owned personal events with timezone-aware
+timestamps, nonblank titles, positive intervals and an owner/start/ID index. Deleting
+a user cascades to their personal events. The calendar repository scopes all reads
+and mutations to an explicit owner and leaves transactions to the caller. Downgrade
+removes only the event table; calendar services and HTTP endpoints are not implemented.
 
 ## Users profiles
 

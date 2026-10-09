@@ -1,7 +1,7 @@
 # Ukladen Architecture Overview
 
 Status: foundation, backend authentication, user profiles, academic profiles and
-public university/schedule reads implemented.
+public university/schedule reads and personal calendar event persistence implemented.
 
 The product name is **Ukladen**. Technical identifiers use lowercase `ukladen`:
 the Compose project, Celery application and default PostgreSQL database. Package
@@ -13,7 +13,7 @@ Celery Beat use the same backend image and codebase. They are processes of a mod
 monolith, not independent services with separate business data.
 
 PostgreSQL 18 is the authoritative data store. The initial Alembic migration enables
-pgvector; subsequent migrations create users, auth and academic-profile tables.
+pgvector; subsequent migrations create users, auth, academic-profile and personal-event tables.
 Redis serves Celery, session caching, OAuth state and request protection. SeaweedFS is local
 S3-compatible storage; startup creates a private `materials` bucket by default.
 Traefik routes `/api` to FastAPI and other paths to Next.js on one local origin.
@@ -21,6 +21,10 @@ Traefik routes `/api` to FastAPI and other paths to Next.js on one local origin.
 The HTTP surface includes health checks, browser authentication, user and academic
 profiles, university directories and schedule queries. See the
 [backend architecture](backend.md) and [university read API](../development/university-api.md).
+
+The calendar module implements personal event persistence with owner-scoped
+repository operations. Calendar application services, HTTP endpoints and UI are
+not implemented; see [calendar persistence](../development/calendar.md).
 
 ## Boundaries
 

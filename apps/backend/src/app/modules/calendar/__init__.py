@@ -1,1 +1,1 @@
-"""Calendar module boundary. Status: not implemented."""
+"""Calendar domain and personal event persistence; HTTP services are not implemented."""

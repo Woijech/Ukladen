@@ -62,6 +62,7 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "users",
         "university_groups",
         "academic_profiles",
+        "personal_calendar_events",
         "auth_credentials",
         "auth_identities",
         "auth_sessions",
