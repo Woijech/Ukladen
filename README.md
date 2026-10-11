@@ -348,5 +348,7 @@ your Cloudflare account; the checked-in configuration does not publish the site.
 
 Local storage uses SeaweedFS; [ADR 0001](docs/adr/0001-use-seaweedfs.md) records
 the provider decision. Production storage remains a separate deployment decision.
-Authentication is partially implemented as described above. Real IIS integration,
-calendar, tasks, notes, materials, search, AI and RAG remain **not implemented**.
+Authentication is partially implemented as described above. Real IIS schedule
+reads and personal calendar event persistence and HTTP endpoints are implemented;
+official schedule persistence/synchronization, calendar resolution, overrides,
+tasks, notes, materials, search, AI and RAG remain **not implemented**.

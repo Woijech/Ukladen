@@ -28,10 +28,12 @@ retains whole-group lessons. See [university API contracts](../development/unive
 Official schedule persistence, recurrence expansion, personal overrides and
 background synchronization remain unimplemented.
 
-Personal calendar event persistence is implemented: a domain entity, owner-scoped
-SQLAlchemy repository and `0006_personal_calendar_events` migration. Application
-services and calendar HTTP endpoints are not implemented. See
-[calendar persistence contracts](../development/calendar.md).
+Personal calendar event persistence and HTTP API are implemented: a domain
+entity, owner-scoped SQLAlchemy repository, application service and
+`/api/v1/calendar/events` endpoints with partial updates. See
+[calendar contracts](../development/calendar.md). Personal calendar resolution,
+schedule persistence/synchronization, overrides, conflicts, free slots and task
+blocks: not implemented.
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -167,7 +169,9 @@ No full-catalogue cache, scraping, schedule synchronization or jobs are implemen
 timestamps, nonblank titles, positive intervals and an owner/start/ID index. Deleting
 a user cascades to their personal events. The calendar repository scopes all reads
 and mutations to an explicit owner and leaves transactions to the caller. Downgrade
-removes only the event table; calendar services and HTTP endpoints are not implemented.
+removes only the event table. The calendar service adds the HTTP-visible rules:
+domain title/description limits, a 366-day maximum period, partial PATCH updates
+and a single 404 outcome for missing and foreign events.
 
 ## Users profiles
 
@@ -695,6 +699,11 @@ redirect, preserving the existing session cookie without exposing private detail
 | `PUT /api/v1/users/me/avatar` | Validates and normalizes an image, stores it privately in S3 and commits its reference. |
 | `GET /api/v1/users/me/avatar` | Returns only the current active user's avatar as PNG. |
 | `DELETE /api/v1/users/me/avatar` | Clears the reference after authentication/CSRF validation and cleans up the previous object. |
+| `GET /api/v1/calendar/events` | Lists the authenticated user's personal events overlapping a timezone-aware period of at most 366 days. |
+| `POST /api/v1/calendar/events` | Creates a personal event; returns 201 with a `Location` header after Origin/CSRF validation. |
+| `GET /api/v1/calendar/events/{event_id}` | Reads one owned personal event, or 404 for missing and foreign events. |
+| `PATCH /api/v1/calendar/events/{event_id}` | Partially updates the supplied editable fields of an owned event; omitted fields are preserved. |
+| `DELETE /api/v1/calendar/events/{event_id}` | Deletes an owned event; returns 204 or 404. |
 | `POST /api/v1/auth/google/link/start` | Re-authenticate a password account and initiate explicit Google linking. |
 | `GET /api/v1/auth/google/start` | Start Google login with browser-bound state. |
 | `GET /api/v1/auth/google/callback` | Verify Google identity and commit an ordinary session, then redirect. |

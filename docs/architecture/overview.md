@@ -1,7 +1,8 @@
 # Ukladen Architecture Overview
 
 Status: foundation, backend authentication, user profiles, academic profiles and
-public university/schedule reads and personal calendar event persistence implemented.
+public university/schedule reads, personal calendar event persistence and API
+implemented.
 
 The product name is **Ukladen**. Technical identifiers use lowercase `ukladen`:
 the Compose project, Celery application and default PostgreSQL database. Package
@@ -23,8 +24,10 @@ profiles, university directories and schedule queries. See the
 [backend architecture](backend.md) and [university read API](../development/university-api.md).
 
 The calendar module implements personal event persistence with owner-scoped
-repository operations. Calendar application services, HTTP endpoints and UI are
-not implemented; see [calendar persistence](../development/calendar.md).
+repository operations, an application service and HTTP endpoints. Calendar
+resolution, schedule persistence/synchronization, overrides, conflicts, free
+slots and UI are not implemented; see
+[calendar contracts](../development/calendar.md).
 
 ## Boundaries
 

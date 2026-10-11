@@ -1,1 +1,1 @@
-"""Calendar domain and personal event persistence; HTTP services are not implemented."""
+"""Calendar domain, application services, persistence and HTTP endpoints."""

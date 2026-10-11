@@ -1,7 +1,9 @@
-# Personal Calendar Event Persistence
+# Personal Calendar Event Persistence and API
 
-Status: domain entity, SQLAlchemy model, Alembic migration and repository implemented.
-Application services, HTTP endpoints and frontend: not implemented.
+Status: domain entity, SQLAlchemy model, Alembic migration, application service and
+owner-scoped HTTP endpoints implemented.
+Personal calendar resolution, schedule persistence/synchronization, schedule
+overrides, conflicts, free slots and task blocks: not implemented.
 
 ## Ownership and fields
 
@@ -78,6 +80,49 @@ constraints and cascading deletion. It uses the existing isolated PostgreSQL
 fixtures and requires `AUTH_TEST_DATABASE_URL`; it skips if that variable is unset.
 `tests/test_calendar_repository.py` checks invalid ranges, including a reversed
 UTC interval at a DST transition, without database access.
+
+## HTTP API
+
+`calendar/presentation/routes.py` exposes `/api/v1/calendar/events` with an
+authenticated session, `Cache-Control: no-store` and the existing Origin/CSRF
+protection on `POST`, `PATCH` and `DELETE`. All routes require an active
+canonical user; a disabled or missing user receives the existing authenticated
+401 response with cookie clearing.
+
+`PersonalEventService` (`calendar/application/service.py`) performs the use-case
+rules inside caller-owned transactions. Only the session owner's UUID is used:
+request bodies, paths and query parameters can never select another user. The
+service enforces the domain rules, treats missing and foreign events as the same
+404 and delegates persistence to the owner-scoped repository. It never commits.
+
+| Method | Path | Behavior |
+| --- | --- | --- |
+| `GET` | `/api/v1/calendar/events` | Lists owned events overlapping `[starts_at, ends_at)` from required `starts_at`/`ends_at` timezone-aware query parameters. Period length is limited to 366 days. |
+| `POST` | `/api/v1/calendar/events` | Creates an event; generates the UUID and timestamps in the service; returns 201 with a `Location` header. |
+| `GET` | `/api/v1/calendar/events/{event_id}` | Returns one owned event, or 404 for missing and foreign events. |
+| `PATCH` | `/api/v1/calendar/events/{event_id}` | Partial update of the supplied editable fields; omitted fields keep their current values, an explicit null description clears it. Empty patches are rejected with 422. |
+| `DELETE` | `/api/v1/calendar/events/{event_id}` | Deletes an owned event; returns 204, or 404 for missing and foreign events. |
+
+Request/response DTOs (`calendar/presentation/schemas.py`) reject extra fields and
+return the stored entity without the internal `user_id`. Validation failures map
+to 422 `Invalid calendar event.`, missing events to 404 `Calendar event not
+found.`, and unexpected repository failures to the sanitized 503.
+
+Domain-level limits: the title is trimmed, non-blank and at most 200 characters;
+the description is trimmed and at most 4000 characters, with a blank description
+stored as null. Timestamps must be timezone-aware and the end must follow the
+start. `is_busy` defaults to true. PATCH is a partial update by design, unlike
+the repository's full-row replacement, so clients cannot unintentionally clear
+omitted fields. Optimistic concurrency control is not implemented; updates read
+and replace within one route transaction.
+
+All-day events and recurrence are not implemented.
+
+Tests: `tests/test_calendar_service.py` covers domain rules, owner scoping and
+the partial-update semantics with mocked ports. `tests/test_calendar_http.py`
+covers authentication, CSRF, ownership 404s, transport/patch validation,
+`no-store`, 201/204 responses, the `Location` header and the OpenAPI contract
+using the existing authenticated HTTP fixtures.
 
 Official schedule persistence/synchronization, calendar resolution, schedule
 overrides, conflicts, free slots and task blocks: not implemented.
