@@ -1,5 +1,4 @@
 import logging
-from datetime import date
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -26,6 +25,7 @@ from app.modules.calendar.presentation.legacy_routes import (
     install_legacy_calendar,
 )
 from app.modules.calendar.presentation.schemas import (
+    CalendarDate,
     CalendarResponse,
     OverrideEntryResponse,
     OverrideListResponse,
@@ -69,8 +69,8 @@ def get_calendar(
     current: CurrentSession,
     database: Database,
     calendar: Calendar,
-    date_from: date,
-    date_to: date,
+    date_from: CalendarDate,
+    date_to: CalendarDate,
     include_hidden: bool = False,
     source: Literal["official", "personal"] | None = None,
 ) -> CalendarResponse:

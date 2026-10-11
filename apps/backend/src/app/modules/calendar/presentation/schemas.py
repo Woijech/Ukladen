@@ -1,8 +1,17 @@
-from datetime import datetime
-from typing import Literal, Self
+import re
+from datetime import date, datetime
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from app.modules.calendar.presentation.legacy_schemas import EventCreate as EventCreate
 from app.modules.calendar.presentation.legacy_schemas import EventPatch as EventPatch
@@ -14,6 +23,15 @@ from app.modules.calendar.domain.events import (
     personal_values,
 )
 from app.modules.schedule.presentation.schemas import ScheduleStateResponse
+
+
+def date_input(value: object) -> object:
+    if not isinstance(value, str) or re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value) is None:
+        raise InvalidCalendarInput()
+    return value
+
+
+CalendarDate = Annotated[date, BeforeValidator(date_input)]
 
 
 class CalendarRequest(BaseModel):

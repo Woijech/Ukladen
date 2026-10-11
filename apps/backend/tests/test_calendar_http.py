@@ -213,6 +213,22 @@ def test_calendar_dates_follow_profile_timezone_and_overlap(calendar_client: Tes
         assert calendar_client.get(f"{BASE}/events?{query}").status_code == 422
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "date_from=0&date_to=0",
+        "date_from=2026-10-07&date_to=1791331200",
+        "date_from=2026-10-07T00:00:00Z&date_to=2026-10-07",
+        "date_from=2026-10-07&date_to=2026-10-07T00:00:00Z",
+    ],
+)
+def test_calendar_rejects_non_date_query_parameters(
+    calendar_client: TestClient, query: str
+) -> None:
+    response = calendar_client.get(f"{BASE}/events?{query}")
+    assert response.status_code == 422
+
+
 def test_overrides_moved_dates_subgroups_and_restore(
     enrolled: TestClient, store: SqlAlchemyScheduleStore
 ) -> None:

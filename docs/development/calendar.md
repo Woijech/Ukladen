@@ -130,7 +130,8 @@ Announcement text is never interpreted as a cancellation instruction.
 
 ## Resolved reads and timezone
 
-Both date parameters are required, inclusive dates in the user's stored timezone.
+Both date parameters are required `YYYY-MM-DD` dates, inclusive in the user's stored
+timezone. Numeric epoch values and datetime strings are rejected with 422.
 At most 366 dates are accepted; unrepresentable boundaries and reversed ranges are rejected.
 The exclusive end is midnight of the following local day, converted independently to UTC.
 DST days therefore have their actual 23/25-hour length. Existing schedule HTTP endpoints
@@ -179,9 +180,9 @@ withdrawal, subgroups, moved occurrences, repeatable snapshots, schema constrain
 migration preservation and owner cascades. PostgreSQL/HTTP tests reuse
 `AUTH_TEST_DATABASE_URL` / `AUTH_TEST_REDIS_URL` and isolated schemas. No test requires IIS.
 
-Verification on 2026-10-07: Ruff, Ruff format, Pyright, `git diff --check` and
+Verification on 2026-10-12: Ruff, Ruff format, Pyright, `git diff --check` and
 `docker compose config --quiet` passed. The full backend suite against disposable
-PostgreSQL 18/pgvector and Redis 7.4 passed: 1052 tests, one skipped storage check.
+PostgreSQL 18/pgvector and Redis 7.4 passed: 1056 tests, one skipped storage check.
 
 Apply the backend version through the normal deployment process:
 
