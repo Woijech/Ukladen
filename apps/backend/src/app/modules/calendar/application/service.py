@@ -22,7 +22,7 @@ from app.modules.calendar.domain.events import (
     override_values,
     personal_values,
 )
-from app.modules.schedule.application.queries import ScheduleQueryService
+from app.modules.schedule.application.queries import ScheduleEventNotFound, ScheduleQueryService
 from app.modules.schedule.application.storage import ScheduleState
 from app.modules.users.application.ports import ProfileRepository
 from app.modules.users.domain.profile import ProfileUnavailable, UserProfile
@@ -40,6 +40,18 @@ class CalendarResult:
 class OverrideEntry:
     override: ScheduleOverride
     source_status: Literal["active", "inactive_source", "outside_profile"]
+
+
+@dataclass(frozen=True)
+class CalendarEventReference:
+    source: Literal["personal", "official"]
+    event_id: UUID
+    title: str
+    starts_at: datetime
+    ends_at: datetime
+    source_status: Literal["active", "inactive_source", "outside_profile"]
+    hidden: bool = False
+    skipped: bool = False
 
 
 class CalendarService:
@@ -257,3 +269,80 @@ class CalendarService:
         self._profile(user_id, write=True)
         if not self.repository.delete_override(user_id, event_id):
             raise CalendarEventNotFound()
+
+    def require_link_target(
+        self,
+        user_id: UUID,
+        source: Literal["personal", "official"],
+        event_id: UUID,
+    ) -> None:
+        """Authorize new links against current ownership or academic group/subgroup."""
+        self._profile(user_id)
+        if source == "personal":
+            self.get_personal_event(user_id, event_id)
+            return
+        if source != "official":
+            raise InvalidCalendarInput()
+        academic = self.academics.get(user_id)
+        if academic is None:
+            raise CalendarEventNotFound()
+        try:
+            event = self.schedule.event(event_id, academic)
+        except ScheduleEventNotFound:
+            raise CalendarEventNotFound() from None
+        if not event.active:
+            raise CalendarConflict()
+
+    def linked_event_references(
+        self,
+        user_id: UUID,
+        references: tuple[tuple[Literal["personal", "official"], UUID], ...],
+    ) -> dict[tuple[Literal["personal", "official"], UUID], CalendarEventReference]:
+        """Resolve only IDs read from this owner's stored links, including historical sources."""
+        self._profile(user_id)
+        result: dict[tuple[Literal["personal", "official"], UUID], CalendarEventReference] = {}
+        for source, event_id in references:
+            if source == "personal":
+                personal = self.get_personal_event(user_id, event_id)
+                result[(source, event_id)] = CalendarEventReference(
+                    source,
+                    event_id,
+                    personal.title,
+                    personal.starts_at,
+                    personal.ends_at,
+                    "active",
+                )
+        official_ids = tuple(event_id for source, event_id in references if source == "official")
+        if not official_ids:
+            return result
+        overrides = {
+            item.official_event_id: item
+            for item in self.repository.overrides_for_events(user_id, official_ids)
+        }
+        academic = self.academics.get(user_id)
+        for event in self.schedule.referenced_events(official_ids):
+            status: Literal["active", "inactive_source", "outside_profile"] = "active"
+            if not event.active:
+                status = "inactive_source"
+            elif (
+                academic is None
+                or event.group_id != academic.group.id
+                or (academic.subgroup is not None and event.subgroup not in (0, academic.subgroup))
+            ):
+                status = "outside_profile"
+            override = overrides.get(event.id)
+            result[("official", event.id)] = CalendarEventReference(
+                "official",
+                event.id,
+                override.title
+                if override and override.title is not None
+                else event.subject or event.subject_full_name or event.note or event.kind,
+                override.starts_at
+                if override and override.starts_at is not None
+                else event.starts_at,
+                override.ends_at if override and override.ends_at is not None else event.ends_at,
+                status,
+                bool(override and override.hidden),
+                bool(override and override.skipped),
+            )
+        return result

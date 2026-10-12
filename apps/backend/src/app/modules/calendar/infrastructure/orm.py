@@ -1,7 +1,17 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, synonym
 
 from app.db.session import Base
@@ -24,6 +34,7 @@ class PersonalCalendarEventModel(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
+        UniqueConstraint("id", "user_id", name="uq_personal_calendar_events_id_user"),
         CheckConstraint("ends_at > starts_at", name="ck_personal_calendar_events_time"),
         CheckConstraint("version > 0", name="ck_personal_calendar_events_version"),
         CheckConstraint(

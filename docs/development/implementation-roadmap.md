@@ -1,7 +1,7 @@
 # Backend Implementation Roadmap
 
 Updated: 2026-10-12.
-Status: future implementation plan. This document does not authorize starting the
+Status: implementation roadmap; completed slices are marked below. This document does not authorize starting the
 next phase; request a concrete slice before implementing it. Pages/blocks/databases,
 mandatory table/calendar views, personal scope and AI execution modes are confirmed.
 Formulas, collaboration and private IIS are deferred. Remaining proposed details in
@@ -32,9 +32,10 @@ existing services just to match target vocabulary. A package marker is not a fea
 | Schedule | Supported expansion, official storage, historical identities, background refresh | [Schedule](schedule.md) |
 | Calendar | Personal events, official overrides, resolved range queries | [Calendar](calendar.md) |
 | Notes | Standalone Markdown pages, nested hierarchy, versions and branch trash | [Notes](notes.md) |
+| Relations | Typed page/calendar links, backlinks, atomic linked page creation | [Relations](relations.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
-Calendar free slots/conflicts, relations, tasks, reminders, general materials,
+Calendar free slots/conflicts, tasks, reminders, general materials,
 search, notifications and AI are not implemented. `workspace` is a planned boundary;
 user databases and views do not exist. Authenticated IIS is unverified/unimplemented.
 Frontend business flows remain unimplemented apart from browser email verification.
@@ -63,10 +64,11 @@ upgrade/downgrade/metadata checks run only against disposable databases.
 
 ## 4. P-02 optional relations
 
-Status: not implemented. Dependencies: P-01 and existing calendar/schedule.
+Status: page/calendar links implemented, backend only; see [relations](relations.md).
+Page-page knowledge links remain not implemented. Dependencies: P-01 and existing calendar/schedule.
 
 Implement link/unlink/list/backlinks for the actually supported object pairs, starting
-with page-page and page-calendar-event. Specify personal versus official occurrence
+with page-calendar-event; page-page links are a later requested slice. Specify personal versus official occurrence
 references; validate both endpoints via their module's application interface.
 
 Define duplicate/idempotent behavior, historical source references, unavailable/trashed

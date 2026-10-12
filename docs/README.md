@@ -40,6 +40,7 @@ Planned contracts do not override the current implemented API silently.
 - [Official schedule](development/schedule.md).
 - [Personal calendar](development/calendar.md).
 - [Notes and page hierarchy](development/notes.md).
+- [Page and calendar links](development/relations.md).
 - [Diagnostics](development/logging.md).
 - [Home-server deployment](deployment/home-server.md).
 

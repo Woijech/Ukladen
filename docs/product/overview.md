@@ -40,7 +40,8 @@ See [workspace requirements](workspace.md) for examples and acceptance cases.
 ## 3. Pages and knowledge
 
 Implemented, backend only: standalone nested Markdown pages, versions and recoverable
-branch trash; see [notes contracts](../development/notes.md). Other capabilities below
+branch trash and optional personal/official calendar links; see
+[notes contracts](../development/notes.md) and [relations](../development/relations.md). Other capabilities below
 are planned and not implemented.
 
 Users can create standalone pages, nest pages, edit content, attach materials and
@@ -59,7 +60,8 @@ view or membership must not silently destroy the underlying page.
 ## 4. Calendar
 
 Implemented, backend only: personal-event CRUD, per-user overrides of official
-occurrences and resolved interval reads with source freshness warnings.
+occurrences, resolved interval reads with source freshness warnings and optional
+page links/backlinks.
 See [current calendar API](../development/calendar.md).
 
 Status: not implemented — calendar UI, user tags/colors/saved views, all-day and
@@ -146,7 +148,8 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 | Public IIS directories and live reads | Implemented backend |
 | Official schedule storage, supported expansion and sync | Implemented backend with source limitations |
 | Personal events, official overrides and resolved calendar | Implemented backend |
-| Pages/blocks, relations, collections, tags, databases, views | Status: not implemented. |
+| Nested Markdown pages, recoverable trash, page/calendar links and backlinks | Implemented backend |
+| Blocks, page-page knowledge links, collections, tags, databases, views | Status: not implemented. |
 | Tasks, availability, reminders and notifications | Status: not implemented. |
 | General materials, search, AI and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
@@ -155,7 +158,8 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 ## 10. Development approach
 
 Implement backend vertical slices with acceptance criteria before UI work is requested.
-The next proposed slice is standalone pages, then optional relations and organization.
+Pages, hierarchy and page/calendar links were delivered together at the owner's request.
+Block content and user organization are possible next slices; each needs an explicit request.
 `subjects` is no longer a prerequisite. The [roadmap](../development/implementation-roadmap.md)
 defines dependencies; [open decisions](open-questions.md) record unknowns.
 

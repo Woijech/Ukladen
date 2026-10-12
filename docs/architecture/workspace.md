@@ -1,8 +1,8 @@
 # Workspace Backend Architecture
 
 Updated: 2026-10-12.
-Status: pages, hierarchy and branch trash are implemented, backend only; see
-[notes contracts](../development/notes.md). Other capabilities remain a target design under
+Status: pages, hierarchy, branch trash and page/calendar links are implemented, backend only;
+see [notes contracts](../development/notes.md) and [relations](../development/relations.md). Other capabilities remain a target design under
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md), with current APIs documented separately. The owner confirmed pages/blocks/databases and mandatory table/calendar views,
 with personal ownership. Formulas and collaboration are deferred; remaining details
 are recorded as open decisions.
@@ -157,7 +157,7 @@ The first page slice should expose services for `create_page`, `list_pages`,
 `get_page`, `update_page`, `trash_page` and `restore_page`. Hierarchy adds `move_page`;
 blocks add validated document operations. No operation requires a subject.
 
-Candidate first-slice HTTP routes, **not implemented**:
+Implemented page HTTP routes (full behavior in [notes](../development/notes.md)):
 
 | Operation | Proposed route |
 | --- | --- |
@@ -166,12 +166,12 @@ Candidate first-slice HTTP routes, **not implemented**:
 | Recoverable deletion | `POST /api/v1/notes/pages/{page_id}/trash` |
 | Restore | `POST /api/v1/notes/pages/{page_id}/restore` |
 
-Before implementation, specify title/content limits, pagination, expected-version
+Current notes contracts specify title/content limits, pagination, expected-version
 semantics, error codes and explicit omitted/null behavior. Transport schemas and
 OpenAPI must describe the implemented slice, not every future feature.
 
 Organization services later add collection/tag membership, schema/record CRUD and
-view queries. Relation services add link/unlink and backlink queries. These must
+view queries. Relation services already provide page/calendar link/unlink and backlink queries. These must
 remain normal application operations reusable by HTTP and AI.
 
 ## 7. Verification requirements

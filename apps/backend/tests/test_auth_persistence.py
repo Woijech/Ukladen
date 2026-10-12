@@ -68,6 +68,7 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "personal_calendar_events",
         "schedule_overrides",
         "note_pages",
+        "page_calendar_links",
         "auth_credentials",
         "auth_identities",
         "auth_sessions",

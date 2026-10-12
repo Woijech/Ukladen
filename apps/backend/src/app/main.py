@@ -22,6 +22,7 @@ from app.modules.auth.infrastructure.token_service import generate_token
 from app.modules.auth.presentation.routes import install_auth
 from app.modules.calendar.presentation.routes import install_calendar
 from app.modules.notes.presentation.routes import install_notes
+from app.modules.relations.presentation.routes import install_relations
 from app.modules.schedule.infrastructure.jobs import CeleryScheduleJobs
 from app.modules.schedule.presentation.routes import install_schedule
 from app.modules.users.presentation.routes import install_users
@@ -95,6 +96,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_schedule(application)
     install_calendar(application)
     install_notes(application)
+    install_relations(application)
     application.add_middleware(RequestLoggingMiddleware)
 
     @application.exception_handler(Exception)

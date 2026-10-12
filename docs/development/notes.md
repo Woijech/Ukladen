@@ -50,6 +50,9 @@ trashed children. There is no public hard-delete operation or automatic purge.
 Migration `0008_note_pages` adds `note_pages`; owner deletion cascades at storage
 level. Upgrade/downgrade and metadata checks use disposable test databases only.
 
+Optional links to personal/official events and creation from an event are implemented
+through [relations](relations.md). Links can target any page, including a group root.
+
 ## Verification
 
 HTTP/database tests cover independent creation, nesting/moves, concurrent cycle

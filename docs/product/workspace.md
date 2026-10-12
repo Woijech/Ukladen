@@ -1,8 +1,9 @@
 # Workspace and Calendar Requirements
 
 Updated: 2026-10-12.
-Status: target requirements, not implemented except the existing calendar behavior
-explicitly identified below. See [open decisions](open-questions.md) before selecting
+Status: target requirements. Calendar, nested Markdown pages and page/calendar
+links are implemented, backend only; see [notes](../development/notes.md) and
+[relations](../development/relations.md). Other capabilities remain planned. See [open decisions](open-questions.md) before selecting
 remaining editor, membership or calendar details; personal scope is confirmed.
 
 ## 1. Vocabulary
@@ -58,8 +59,8 @@ IIS supplies a PBZ lecture and PBZ laboratory on different dates.
 - The user can group labs separately from lectures or manually group them together.
 - Editing a lab event does not modify the lecture, other labs or linked page text.
 
-The existing calendar already keeps occurrences separate. Page relations and
-user-controlled collections are not implemented.
+The calendar keeps occurrences separate, and optional page/calendar links are
+implemented. User-controlled collections remain not implemented.
 
 ### WS-04: Direct event editing
 

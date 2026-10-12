@@ -3,13 +3,16 @@
 Status: implemented, backend only — personal-event CRUD, official-event overrides,
 resolved date-range reads, ownership/CSRF protection and safe structured diagnostics.
 Free slots, conflict checking, task blocks, recurring/all-day personal events,
-subject pages, nested notes, reminders and the calendar frontend are not implemented.
+subject templates, reminders and the calendar frontend are not implemented.
+Standalone nested pages and optional calendar links are implemented; see
+[notes](notes.md) and [relations](relations.md).
 
 ## Future workspace compatibility
 
 Standalone events do not require a subject or page. Official subject labels are
-source metadata; equal labels never merge lecture/lab occurrences. Future page links,
-tags/collections, saved views and date projections are optional and not implemented.
+source metadata; equal labels never merge lecture/lab occurrences. Page links are
+optional and implemented through relations. Tags/collections, saved views and date
+projections remain not implemented.
 Preserve current identities/routes. A visual filter must not determine occupied-time truth.
 See [requirements](../product/workspace.md), [architecture](../architecture/workspace.md)
 and [roadmap](implementation-roadmap.md).

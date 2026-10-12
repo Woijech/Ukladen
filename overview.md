@@ -15,5 +15,5 @@ organization: standalone pages and events work without a subject or collection.
 
 Status: the complete target product is not implemented. Existing backend calendar,
 authentication, profiles and public IIS integration are described in the linked
-implementation guides; pages, user databases, AI and authenticated IIS integration
-are not implemented.
+implementation guides. Nested Markdown pages and page/calendar links are implemented,
+backend only; blocks, user databases, AI and authenticated IIS remain not implemented.

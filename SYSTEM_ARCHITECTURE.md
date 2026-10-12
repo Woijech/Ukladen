@@ -45,8 +45,9 @@ and scoped AI permission rules are in the decision register. Private IIS work re
 an explicit later phase and verified contracts; do not implement it in current slices.
 
 Current backend: authentication, profiles, public IIS reads, official schedule
-storage/sync, personal events, official overrides and resolved calendar reads.
-Status: not implemented — pages/blocks, user organization/databases/views, tasks,
+storage/sync, personal events, official overrides, resolved calendar reads, standalone
+nested Markdown pages, branch trash and optional page/calendar links.
+Status: not implemented — blocks, user organization/databases/views, tasks,
 availability, reminders, general materials, search, AI/RAG and authenticated IIS.
 The business frontend is not implemented except browser email verification.
 
@@ -568,8 +569,10 @@ document indexing
 
 ## 5.11 relations
 
-Status: not implemented. Optional authorized links and backlinks between existing
-pages, events, tasks and materials. Unlinking does not delete either endpoint.
+Status: implemented, backend only: optional page links/backlinks to personal events
+and official occurrences, including retained historical references. See the
+[relations API](docs/development/relations.md). Page-page, task and material links
+are not implemented. Unlinking does not delete either endpoint.
 Validate both endpoint ownership/access through application interfaces; a generic
 type-plus-UUID reference does not by itself provide foreign-key integrity.
 
@@ -803,7 +806,8 @@ TaskCalendarBlock
 
 Reminder
 
-Page / PageDocument / Block (planned, notes-owned)
+Page (implemented with Markdown body, notes-owned)
+PageDocument / Block (future structured content)
 Collection / Tag / Database / PropertyDefinition / DatabaseRecord / SavedView (planned, workspace-owned)
 Material
 MaterialChunk
@@ -1174,8 +1178,9 @@ Calendar business UI is not implemented.
 
 ## Phase 2 — independent workspace
 
-Status: not implemented. Standalone pages -> optional links -> tags/collections and
-saved views -> optional nesting and validated blocks. `subjects` is not a prerequisite.
+Implemented, backend only: standalone pages, optional nesting, recoverable trash and
+page/calendar links. Tags/collections, saved views and blocks remain not implemented.
+`subjects` is not a prerequisite.
 
 ## Phase 3 — user databases and planning
 
