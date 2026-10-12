@@ -2,7 +2,8 @@
 
 Updated: 2026-10-12.
 Status: implemented, backend only. Page-page knowledge links, task/material links,
-collections and database relations are not implemented.
+and database relations are not implemented. Collections/tags and their typed
+membership are implemented separately in [workspace](workspace.md).
 
 ## Behavior and ownership
 

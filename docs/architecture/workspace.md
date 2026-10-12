@@ -1,8 +1,10 @@
 # Workspace Backend Architecture
 
 Updated: 2026-10-12.
-Status: pages, flat typed blocks, hierarchy, branch trash and page/calendar links are implemented, backend only;
-see [notes contracts](../development/notes.md) and [relations](../development/relations.md). Other capabilities remain a target design under
+Status: pages, flat typed blocks, hierarchy, branch trash, page/calendar links and
+collections/tags with typed memberships are implemented, backend only; see
+[notes](../development/notes.md), [relations](../development/relations.md) and
+[workspace](../development/workspace.md). Other capabilities remain a target design under
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md), with current APIs documented separately. The owner confirmed pages/blocks/databases and mandatory table/calendar views,
 with personal ownership. Formulas and collaboration are deferred; remaining details
 are recorded as open decisions.
@@ -22,7 +24,7 @@ their documented semantics while new page/view contracts are introduced.
 | Boundary | Owns | Does not own |
 | --- | --- | --- |
 | `notes` | Pages, content documents/blocks, page hierarchy, content versions and trash | Event times, attendance, database property schemas |
-| `workspace` (planned new boundary) | Collections/membership, tags/assignments, user databases/property values and saved view definitions | Page body, shared official facts, planning rules |
+| `workspace` | Implemented collections/membership and tags/assignments; planned user databases/property values and saved view definitions | Page body, shared official facts, planning rules |
 | `relations` | Optional links between authorized typed objects and backlink queries | Page containment, database property storage, task dependencies |
 | `calendar` | Personal events, official overrides, resolved events, availability/conflicts, calendar composition | Source imports, page content, custom property definitions |
 | `schedule` | Shared official occurrences, normalization, synchronization, provenance | Personal grouping or content |
@@ -32,10 +34,10 @@ their documented semantics while new page/view contracts are introduced.
 | `search` | Permission-filtered indexes and retrieval | Canonical content ownership |
 | `ai` | Conversations, authorized tools, proposals and orchestration | Independent copies of business rules |
 
-`workspace` is a logical boundary until its slice is requested. Do not generate
-empty packages, repositories or DTOs now. Existing packages do not need renaming.
+`workspace` now implements the requested organization slice. Do not generate empty
+repositories or DTOs for databases/views. Existing packages do not need renaming.
 
-## 3. Planned data contracts
+## 3. Data contracts and remaining design
 
 These names describe responsibilities, not final table layouts. Every concrete
 slice must specify SQL constraints, Alembic changes and transport DTOs before coding.
@@ -61,6 +63,13 @@ version checks. Concurrent moves must not produce cycles; serialize the relevant
 owner/tree mutations or use an equivalent demonstrated database guarantee.
 
 ### Organization and databases
+
+Collections/tags and typed associations are implemented; their name/color/version,
+pagination and lifecycle contracts are in [workspace](../development/workspace.md).
+Both definitions share a constrained metadata table; association rows enforce one
+typed foreign-key target and owner equality for pages/personal events. Membership
+is explicit, many-to-many and independent of hierarchy and page/calendar links.
+The following database/record/property/view contracts remain planned.
 
 - `Collection` and `CollectionMembership`: user-owned named sets and typed references.
 - `Tag` and `TagAssignment`: personal labels; an upstream subject string is not a tag ID.
@@ -139,7 +148,9 @@ the session, never an arbitrary `user_id` in JSON. Recheck canonical active-user
 on writes; use consistent lock order and caller-owned transactions.
 
 - Page/content/schema edits carry expected versions; stale writes fail without overwriting.
-- Reads and lists are owner-filtered, bounded and exclude trashed content by default.
+- Reads and lists are owner-filtered and bounded; normal content lists exclude trash.
+  Reference lists (relations and workspace membership) retain trash/history metadata
+  without page bodies. New memberships reject trashed pages.
 - Distinguish unlink, remove membership, trash and permanent purge operations.
 - Deleting a view/collection must not cascade into its referenced pages/events.
 - Exact nested trash/restore semantics must be defined before hierarchical deletion.
@@ -171,8 +182,9 @@ Current notes contracts specify title/content limits, pagination, expected-versi
 semantics, error codes and explicit omitted/null behavior. Transport schemas and
 OpenAPI must describe the implemented slice, not every future feature.
 
-Organization services later add collection/tag membership, schema/record CRUD and
-view queries. Relation services already provide page/calendar link/unlink and backlink queries. These must
+Organization services provide collection/tag CRUD, explicit typed membership and
+forward/reverse lists. Schema/record CRUD and saved views remain planned. Relation
+services provide page/calendar link/unlink and backlink queries. These must
 remain normal application operations reusable by HTTP and AI.
 
 ## 7. Verification requirements

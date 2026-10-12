@@ -98,14 +98,15 @@ Main backend modules:
 - `notes`
 - `materials`
 - `relations`
+- `workspace`
 - `search`
 - `ai`
 - `notifications`
 - `integrations`
 
-`workspace` is an additional planned boundary for user organization, database
-properties and saved views under ADR 0004. It is not implemented; create its package
-only with a requested vertical slice. A package marker does not count as a feature.
+`workspace` implements collections, tags and typed membership under ADR 0004;
+see `docs/development/workspace.md`. Database properties and saved views remain
+not implemented. A package marker does not count as a feature.
 
 ### Workspace product invariants
 

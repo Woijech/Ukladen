@@ -45,8 +45,8 @@ Official schedule data and personal calendar state are logically separated.
 
 Matching lesson subject labels never merge lecture/lab occurrences or automatically
 create shared notes. User-selected links, collections, tags and saved views organize
-independent objects. Optional page/calendar links are implemented; collections,
-tags and saved views remain planned.
+independent objects. Optional page/calendar links, collections, tags and typed
+memberships are implemented, backend only. Saved views remain planned.
 
 ## Development Documentation
 
@@ -180,8 +180,9 @@ notifications
 integrations
 ```
 
-The additional `workspace` boundary is planned for collections, database properties
-and saved views; its package has not been created. See
+The additional `workspace` boundary implements collections, tags and typed
+memberships; database properties and saved views remain planned. See
+[workspace contracts](docs/development/workspace.md) and
 [ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md).
 
 ## Development Rules

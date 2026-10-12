@@ -14,6 +14,9 @@ before implementing incompatible schemas, integrations or behavior.
 - Technical documentation/code is English; initial product text may be Russian.
 - The owner requested the backend pages/hierarchy/calendar-link slice with incremental local commits.
 - The owner subsequently requested the backend block-document slice with local commits.
+- The owner then requested the backend organization slice with local commits.
+  Collections/tags and explicit page/personal/official membership are implemented;
+  saved views and databases remain separate requested slices.
 
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md) records organization.
 [ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md) records AI authorization.

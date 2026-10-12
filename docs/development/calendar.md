@@ -7,11 +7,12 @@ subject templates, reminders and the calendar frontend are not implemented.
 Standalone nested pages and optional calendar links are implemented; see
 [notes](notes.md) and [relations](relations.md).
 
-## Future workspace compatibility
+## Workspace compatibility
 
 Standalone events do not require a subject or page. Official subject labels are
 source metadata; equal labels never merge lecture/lab occurrences. Page links are
-optional and implemented through relations. Tags/collections, saved views and date
+optional and implemented through relations. Collections/tags and their page/event
+memberships are implemented in [workspace](workspace.md). Saved views and date
 projections remain not implemented.
 Preserve current identities/routes. A visual filter must not determine occupied-time truth.
 See [requirements](../product/workspace.md), [architecture](../architecture/workspace.md)

@@ -3,6 +3,9 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
+from app.modules.notes.presentation.schemas import PageSummary
+from app.modules.relations.presentation.schemas import EventReferenceResponse
+from app.modules.workspace.domain.membership import TargetType
 from app.modules.workspace.domain.organization import (
     InvalidWorkspaceInput,
     OrganizationKind,
@@ -50,5 +53,26 @@ class OrganizationResponse(BaseModel):
 
 class OrganizationListResponse(BaseModel):
     items: list[OrganizationResponse]
+    limit: int
+    offset: int
+
+
+class MembershipResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    organization_id: UUID
+    target_type: TargetType
+    target_id: UUID
+    created_at: AwareDatetime
+
+
+class MemberResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    membership: MembershipResponse
+    target: PageSummary | EventReferenceResponse
+
+
+class MemberListResponse(BaseModel):
+    items: list[MemberResponse]
     limit: int
     offset: int

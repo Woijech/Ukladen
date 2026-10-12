@@ -2,7 +2,7 @@
 
 Status: foundation, backend authentication, user profiles, academic profiles and
 public university reads, persisted official schedule synchronization and the backend
-personal calendar implemented.
+personal calendar, pages/block documents, relations and collection/tag organization implemented.
 
 The product name is **Ukladen**. Technical identifiers use lowercase `ukladen`:
 the Compose project, Celery application and default PostgreSQL database. Package
@@ -16,7 +16,7 @@ monolith, not independent services with separate business data.
 The target combines independent pages and a user-organized calendar with AI and deep
 IIS integration. Subjects are optional; source labels do not merge lecture/lab occurrences.
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md) and
-[workspace architecture](workspace.md) describe this target without changing the backend.
+[workspace architecture](workspace.md) describe implemented slices and the remaining target.
 See [requirements](../product/workspace.md), [decisions](../product/open-questions.md)
 and [roadmap](../development/implementation-roadmap.md).
 
@@ -43,14 +43,14 @@ Conflicts, free slots and UI are not implemented; see
 
 ## Boundaries
 
-Fourteen business packages exist under `app/modules`: auth, users, academics,
+Fifteen business packages exist under `app/modules`: auth, users, academics,
 subjects, schedule, calendar, tasks, reminders, notes, materials, relations,
-search, ai and notifications. The fifteenth boundary, integrations, lives at
+search, ai, notifications and workspace. The integrations boundary lives at
 `app/integrations`, following the architecture document's repository tree.
 Its adapter packages are bsuir, llm, embeddings and storage.
 
-An additional `workspace` boundary is planned for organization, properties and views.
-Its package does not exist yet; add it with a concrete requested slice.
+The `workspace` boundary implements collections, tags and typed membership;
+properties and saved views remain planned.
 
 Unused boundaries contain only package markers. No speculative entities, DTOs or
 repositories are generated. When a vertical slice is implemented, its dependencies
@@ -67,9 +67,9 @@ container log rotation are implemented; see [logging](../development/logging.md)
 Remote observability services, metrics, tracing, production
 TLS, production credentials and deployment automation are not implemented.
 
-Standalone nested pages, flat typed block documents and page/calendar links are implemented; see
-[notes](../development/notes.md) and [relations](../development/relations.md).
-Rich/nested blocks, collections/tags, custom databases/properties, saved views
+Standalone nested pages, flat typed blocks, page/calendar links and collections/tags
+are implemented; see [notes](../development/notes.md), [relations](../development/relations.md)
+and [workspace](../development/workspace.md). Rich/nested blocks, custom databases/properties, saved views
 and date projections are not implemented. Authenticated IIS capabilities remain
 unverified/unimplemented; see the [IIS roadmap](../integrations/bsuir-iis-roadmap.md).
 

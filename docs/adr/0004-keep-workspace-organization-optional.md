@@ -2,8 +2,8 @@
 
 Date: 2026-10-12.
 Status: accepted product direction from the repository owner. Independent pages,
-hierarchy, trash, calendar links and flat typed blocks are implemented; user
-organization/databases/views remain planned.
+hierarchy, trash, calendar links, flat typed blocks and collections/tags are implemented;
+user databases and saved views remain planned.
 
 ## Context
 
@@ -24,7 +24,7 @@ separation is compatible with this direction and must be retained.
 - Calendar presentation is separate from ownership and time-blocking semantics.
 - Keep `notes` for page/content ownership. Add a `workspace` boundary for user
   organization and database/view schemas when that slice is implemented. It is
-  planned; this ADR creates no empty package or database schema.
+  planned at decision time; the original ADR task created no package or database schema.
 - Put standalone pages and optional organization before subject-specific features.
   Preserve the modular monolith and existing APIs.
 - Pages, blocks and databases with table/calendar views are confirmed targets;
@@ -41,8 +41,9 @@ an unvalidated universal JSON object table.
 
 No runtime behavior, schema, frontend, credentials or calendar data changes in the
 original documentation task. Subsequent implementation delivers standalone pages,
-hierarchy, trash, page/calendar links and flat typed blocks; see
+hierarchy, trash, page/calendar links, flat typed blocks and collections/tags; see
 [notes](../development/notes.md), [relations](../development/relations.md) and
+[workspace](../development/workspace.md) and
 [ADR 0006](0006-use-versioned-page-block-documents.md) for current contracts.
 
 ## Owner scope clarification (2026-10-12)

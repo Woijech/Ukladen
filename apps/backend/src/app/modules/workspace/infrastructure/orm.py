@@ -5,6 +5,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -40,4 +41,60 @@ class OrganizationModel(Base):
         ),
         CheckConstraint("version > 0", name="ck_workspace_organizations_version"),
         Index("ix_workspace_organizations_user_kind", "user_id", "kind", "created_at", "id"),
+    )
+
+
+class MembershipModel(Base):
+    __tablename__ = "workspace_memberships"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column()
+    organization_id: Mapped[UUID] = mapped_column()
+    page_id: Mapped[UUID | None] = mapped_column()
+    personal_event_id: Mapped[UUID | None] = mapped_column()
+    official_event_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("official_schedule_events.id")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "user_id"],
+            ["workspace_organizations.id", "workspace_organizations.user_id"],
+            ondelete="CASCADE",
+            name="fk_workspace_memberships_organization_owner",
+        ),
+        ForeignKeyConstraint(
+            ["page_id", "user_id"],
+            ["note_pages.id", "note_pages.user_id"],
+            ondelete="CASCADE",
+            name="fk_workspace_memberships_page_owner",
+        ),
+        ForeignKeyConstraint(
+            ["personal_event_id", "user_id"],
+            ["personal_calendar_events.id", "personal_calendar_events.user_id"],
+            ondelete="CASCADE",
+            name="fk_workspace_memberships_personal_owner",
+        ),
+        CheckConstraint(
+            "(CASE WHEN page_id IS NULL THEN 0 ELSE 1 END) + "
+            "(CASE WHEN personal_event_id IS NULL THEN 0 ELSE 1 END) + "
+            "(CASE WHEN official_event_id IS NULL THEN 0 ELSE 1 END) = 1",
+            name="ck_workspace_memberships_one_target",
+        ),
+        UniqueConstraint("organization_id", "page_id", name="uq_workspace_memberships_page"),
+        UniqueConstraint(
+            "organization_id", "personal_event_id", name="uq_workspace_memberships_personal"
+        ),
+        UniqueConstraint(
+            "organization_id", "official_event_id", name="uq_workspace_memberships_official"
+        ),
+        Index("ix_workspace_memberships_organization", "organization_id", "created_at", "id"),
+        Index("ix_workspace_memberships_page", "user_id", "page_id", "organization_id"),
+        Index(
+            "ix_workspace_memberships_personal", "user_id", "personal_event_id", "organization_id"
+        ),
+        Index(
+            "ix_workspace_memberships_official", "user_id", "official_event_id", "organization_id"
+        ),
     )

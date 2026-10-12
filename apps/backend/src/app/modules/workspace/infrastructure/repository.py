@@ -3,14 +3,16 @@ from typing import cast
 from uuid import UUID
 
 from sqlalchemy import delete, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import InstrumentedAttribute, Session
 
+from app.modules.workspace.domain.membership import Membership, TargetFilter, TargetType
 from app.modules.workspace.domain.organization import (
     Organization,
     OrganizationKind,
     WorkspaceConflict,
 )
-from app.modules.workspace.infrastructure.orm import OrganizationModel
+from app.modules.workspace.infrastructure.orm import MembershipModel, OrganizationModel
 
 
 def organization_entity(row: OrganizationModel) -> Organization:
@@ -94,3 +96,128 @@ class SqlAlchemyOrganizations:
         )
         if identifier is None:
             raise WorkspaceConflict()
+
+
+def target_column(target_type: TargetType) -> InstrumentedAttribute[UUID | None]:
+    return {
+        "page": MembershipModel.page_id,
+        "personal": MembershipModel.personal_event_id,
+        "official": MembershipModel.official_event_id,
+    }[target_type]
+
+
+def membership_entity(row: MembershipModel) -> Membership:
+    if row.page_id is not None:
+        target_type, target_id = "page", row.page_id
+    elif row.personal_event_id is not None:
+        target_type, target_id = "personal", row.personal_event_id
+    else:
+        target_type, target_id = "official", row.official_event_id
+    assert target_id is not None
+    return Membership(
+        row.id,
+        row.user_id,
+        row.organization_id,
+        cast(TargetType, target_type),
+        target_id,
+        row.created_at,
+    )
+
+
+class SqlAlchemyMemberships:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def put(self, membership: Membership) -> Membership:
+        column = target_column(membership.target_type)
+        self.session.execute(
+            insert(MembershipModel)
+            .values(
+                id=membership.id,
+                user_id=membership.user_id,
+                organization_id=membership.organization_id,
+                created_at=membership.created_at,
+                **{column.key: membership.target_id},
+            )
+            .on_conflict_do_nothing(index_elements=[MembershipModel.organization_id, column])
+        )
+        row = self.session.scalar(
+            select(MembershipModel).where(
+                MembershipModel.user_id == membership.user_id,
+                MembershipModel.organization_id == membership.organization_id,
+                column == membership.target_id,
+            )
+        )
+        assert row is not None
+        return membership_entity(row)
+
+    def delete(
+        self, user_id: UUID, organization_id: UUID, target_type: TargetType, target_id: UUID
+    ) -> None:
+        self.session.execute(
+            delete(MembershipModel).where(
+                MembershipModel.user_id == user_id,
+                MembershipModel.organization_id == organization_id,
+                target_column(target_type) == target_id,
+            )
+        )
+
+    def list(
+        self,
+        user_id: UUID,
+        organization_id: UUID,
+        target_type: TargetFilter | None,
+        limit: int,
+        offset: int,
+    ) -> list[Membership]:
+        query = select(MembershipModel).where(
+            MembershipModel.user_id == user_id, MembershipModel.organization_id == organization_id
+        )
+        if target_type == "event":
+            query = query.where(MembershipModel.page_id.is_(None))
+        elif target_type is not None:
+            query = query.where(target_column(target_type).is_not(None))
+        return [
+            membership_entity(row)
+            for row in self.session.scalars(
+                query.order_by(MembershipModel.created_at, MembershipModel.id)
+                .limit(limit)
+                .offset(offset)
+            )
+        ]
+
+    def has_target(self, user_id: UUID, target_type: TargetType, target_id: UUID) -> bool:
+        return (
+            self.session.scalar(
+                select(MembershipModel.id)
+                .where(MembershipModel.user_id == user_id, target_column(target_type) == target_id)
+                .limit(1)
+            )
+            is not None
+        )
+
+    def for_target(
+        self,
+        user_id: UUID,
+        kind: OrganizationKind,
+        target_type: TargetType,
+        target_id: UUID,
+        limit: int,
+        offset: int,
+    ) -> list[Organization]:
+        return [
+            organization_entity(row)
+            for row in self.session.scalars(
+                select(OrganizationModel)
+                .join(MembershipModel, MembershipModel.organization_id == OrganizationModel.id)
+                .where(
+                    MembershipModel.user_id == user_id,
+                    OrganizationModel.user_id == user_id,
+                    OrganizationModel.kind == kind,
+                    target_column(target_type) == target_id,
+                )
+                .order_by(OrganizationModel.created_at, OrganizationModel.id)
+                .limit(limit)
+                .offset(offset)
+            )
+        ]

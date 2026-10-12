@@ -3,7 +3,7 @@
 Status: deployment configuration implemented. Public activation requires a Cloudflare
 account, an active `ukladen.app` DNS zone and a remotely managed tunnel token.
 This publishes the existing Next.js shell, API and email-verification page;
-registration/login/reset screens and the student workspace are not implemented.
+registration/login/reset screens and the workspace UI are not implemented.
 
 The PC runs the existing modular monolith and its data services. The only new
 component is the official `cloudflared` connector. Browser TLS terminates at

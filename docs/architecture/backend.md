@@ -34,13 +34,14 @@ blocks remain unimplemented.
 The original personal-event API remains compatible alongside the versioned
 `/personal-events` API; see [calendar contracts](../development/calendar.md).
 
-## Planned workspace and AI boundaries
+## Workspace and planned AI boundaries
 
-Standalone nested pages, flat typed block documents and page/calendar links are implemented; see
-[notes](../development/notes.md) and [relations](../development/relations.md).
+Standalone nested pages, flat typed block documents, page/calendar links and
+collections/tags with membership are implemented; see [notes](../development/notes.md),
+[relations](../development/relations.md) and [workspace](../development/workspace.md).
 Other workspace/AI capabilities are not implemented. The [workspace design](workspace.md) extends typed events
 with independent pages, optional links, user organization, properties and saved views.
-`notes` owns page bodies; the planned `workspace` boundary owns organization/property/view
+`notes` owns page bodies; the `workspace` boundary owns organization/property/view
 definitions; calendar retains scheduling truth. Subjects are optional; lecture/lab
 labels never trigger automatic grouping.
 

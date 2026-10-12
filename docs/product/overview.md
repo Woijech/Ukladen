@@ -41,8 +41,9 @@ See [workspace requirements](workspace.md) for examples and acceptance cases.
 ## 3. Pages and knowledge
 
 Implemented, backend only: standalone nested pages, flat typed blocks, versions and recoverable
-branch trash and optional personal/official calendar links; see
-[notes contracts](../development/notes.md) and [relations](../development/relations.md).
+branch trash, optional personal/official calendar links and user collections/tags; see
+[notes](../development/notes.md), [relations](../development/relations.md) and
+[workspace](../development/workspace.md).
 
 Users can create standalone pages, nest pages, edit text/headings/lists/checkboxes/links
 and optionally link pages to events. Block IDs remain stable through edits and order
@@ -64,7 +65,8 @@ occurrences, resolved interval reads with source freshness warnings and optional
 page links/backlinks.
 See [current calendar API](../development/calendar.md).
 
-Status: not implemented — calendar UI, user tags/colors/saved views, all-day and
+Collection/tag names, colors and explicit memberships are implemented in workspace.
+Status: not implemented — calendar UI, saved views, per-event colors, all-day and
 recurring personal events, database-record projections, occupied/free intervals,
 conflict checks and task scheduling blocks.
 
@@ -149,7 +151,8 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 | Official schedule storage, supported expansion and sync | Implemented backend with source limitations |
 | Personal events, official overrides and resolved calendar | Implemented backend |
 | Nested pages, flat typed blocks, Markdown compatibility, recoverable trash, page/calendar links and backlinks | Implemented backend |
-| Rich/nested blocks, page-page knowledge links, collections, tags, databases, views | Status: not implemented. |
+| Collections, tags, typed membership and forward/reverse lists | Implemented backend |
+| Rich/nested blocks, page-page knowledge links, databases, saved views | Status: not implemented. |
 | Tasks, availability, reminders and notifications | Status: not implemented. |
 | General materials, search, AI and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
@@ -159,7 +162,8 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 
 Implement backend vertical slices with acceptance criteria before UI work is requested.
 Pages, hierarchy and page/calendar links were delivered together at the owner's request.
-Block content and user organization are possible next slices; each needs an explicit request.
+Block content and user organization are also implemented. Saved views and user
+databases are possible next slices; each needs an explicit request.
 `subjects` is no longer a prerequisite. The [roadmap](../development/implementation-roadmap.md)
 defines dependencies; [open decisions](open-questions.md) record unknowns.
 

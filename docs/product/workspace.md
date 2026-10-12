@@ -2,8 +2,9 @@
 
 Updated: 2026-10-12.
 Status: target requirements. Calendar, nested pages with flat typed blocks and page/calendar
-links are implemented, backend only; see [notes](../development/notes.md) and
-[relations](../development/relations.md). Other capabilities remain planned. See [open decisions](open-questions.md) before selecting
+links and collections/tags are implemented, backend only; see [notes](../development/notes.md),
+[relations](../development/relations.md) and [workspace](../development/workspace.md).
+Other capabilities remain planned. See [open decisions](open-questions.md) before selecting
 remaining editor, membership or calendar details; personal scope is confirmed.
 
 ## 1. Vocabulary
@@ -17,6 +18,7 @@ remaining editor, membership or calendar details; personal scope is confirmed.
 | Material | An uploaded file or saved external resource | Owner only |
 | Relation | An explicit link between independently existing objects | Authorized endpoints |
 | Collection | A user-curated set of references, optionally mixing object types | Owner only |
+| Tag | A personal label assigned explicitly to pages or events | Owner only |
 | Database | A user-defined schema organizing page-backed records | Owner only |
 | Property | A typed field defined for a database, such as status or date | Owning database |
 | View | Saved source selection, filters, sorting and presentation | Owner and a valid source |
@@ -60,7 +62,7 @@ IIS supplies a PBZ lecture and PBZ laboratory on different dates.
 - Editing a lab event does not modify the lecture, other labs or linked page text.
 
 The calendar keeps occurrences separate, and optional page/calendar links are
-implemented. User-controlled collections remain not implemented.
+implemented. User-controlled collections and tags with explicit typed membership are implemented.
 
 ### WS-04: Direct event editing
 
@@ -84,6 +86,10 @@ An event appears in "Study" and "This week", with a linked standalone page.
 - Renaming a collection or tag does not rename its members.
 - Duplicate relation/membership requests have a defined idempotent result.
 - Tags and collections are personal; they do not alter official schedule labels.
+
+Collections/tags and membership/reverse APIs are implemented, including safe
+deletion and duplicate handling. Saved views remain not implemented. Membership
+does not implicitly include nested pages, linked events or other organization.
 
 ### WS-06: User-defined databases
 

@@ -70,6 +70,7 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "note_pages",
         "page_calendar_links",
         "workspace_organizations",
+        "workspace_memberships",
         "auth_credentials",
         "auth_identities",
         "auth_sessions",

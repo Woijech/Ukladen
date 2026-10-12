@@ -33,11 +33,12 @@ existing services just to match target vocabulary. A package marker is not a fea
 | Calendar | Personal events, official overrides, resolved range queries | [Calendar](calendar.md) |
 | Notes | Standalone pages, typed block documents, Markdown compatibility, nested hierarchy, versions and branch trash | [Notes](notes.md) |
 | Relations | Typed page/calendar links, backlinks, atomic linked page creation | [Relations](relations.md) |
+| Workspace | Collections, tags, typed membership and forward/reverse lists | [Workspace](workspace.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
 Calendar free slots/conflicts, tasks, reminders, general materials,
-search, notifications and AI are not implemented. `workspace` is a planned boundary;
-user databases and views do not exist. Authenticated IIS is unverified/unimplemented.
+search, notifications and AI are not implemented. Workspace organization exists;
+user databases and saved views do not exist. Authenticated IIS is unverified/unimplemented.
 Frontend business flows remain unimplemented apart from browser email verification.
 
 ## 3. P-01 standalone pages
@@ -80,9 +81,11 @@ Do not implement task/material relations before those endpoint services exist.
 
 ## 5. P-03 user organization and saved calendar views
 
-Status: not implemented. Dependencies: P-01/02 and current calendar.
+Status: collections, tags and typed memberships implemented, backend only; see
+[workspace](workspace.md). Saved views remain not implemented. Dependencies: P-01/02 and current calendar.
 
-Introduce the `workspace` module for real user-owned tags, collections/membership and
+The `workspace` module provides real user-owned tags, collections/membership,
+metadata versions, bounded member-type filters and reverse queries. Next implement
 saved view definitions. Define bounded sources/filters, sorting, names/colors and
 supported layout settings. Initial views can operate on existing events/pages;
 database property filters arrive with P-05.

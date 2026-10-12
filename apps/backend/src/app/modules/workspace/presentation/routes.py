@@ -13,16 +13,26 @@ from app.modules.auth.presentation.dependencies import (
     get_current_session,
     require_csrf,
 )
+from app.modules.calendar.presentation.routes import Calendar
+from app.modules.notes.presentation.routes import Notes
 from app.modules.users.infrastructure.repository import SqlAlchemyUserAuthentication
+from app.modules.workspace.application.memberships import MembershipService
 from app.modules.workspace.application.service import WorkspaceService
+from app.modules.workspace.domain.membership import TargetFilter, TargetType
 from app.modules.workspace.domain.organization import (
     InvalidWorkspaceInput,
     OrganizationKind,
     WorkspaceConflict,
     WorkspaceNotFound,
 )
-from app.modules.workspace.infrastructure.repository import SqlAlchemyOrganizations
+from app.modules.workspace.infrastructure.repository import (
+    SqlAlchemyMemberships,
+    SqlAlchemyOrganizations,
+)
 from app.modules.workspace.presentation.schemas import (
+    MemberListResponse,
+    MemberResponse,
+    MembershipResponse,
     OrganizationCreate,
     OrganizationListResponse,
     OrganizationPatch,
@@ -51,6 +61,15 @@ def get_workspace(database: Database) -> WorkspaceService:
 
 
 Workspace = Annotated[WorkspaceService, Depends(get_workspace)]
+
+
+def get_memberships(
+    database: Database, workspace: Workspace, notes: Notes, calendar: Calendar
+) -> MembershipService:
+    return MembershipService(SqlAlchemyMemberships(database), workspace, notes, calendar)
+
+
+Memberships = Annotated[MembershipService, Depends(get_memberships)]
 
 
 @router.post(
@@ -141,6 +160,121 @@ def delete_organization(
     with database.begin():
         workspace.delete(current.user_id, kind, identifier, expected_version)
     logger.info("workspace.organization_deleted", extra={"user_id": str(current.user_id)})
+
+
+@router.put(
+    "/{kind}/{identifier}/members/{target_type}/{target_id}",
+    response_model=MembershipResponse,
+    dependencies=[Depends(require_csrf)],
+)
+def add_member(
+    kind: Kind,
+    identifier: UUID,
+    target_type: TargetType,
+    target_id: UUID,
+    current: CurrentSession,
+    database: Database,
+    memberships: Memberships,
+) -> MembershipResponse:
+    with database.begin():
+        result = MembershipResponse.model_validate(
+            memberships.put(current.user_id, kind, identifier, target_type, target_id)
+        )
+    logger.info("workspace.member_added", extra={"user_id": str(current.user_id)})
+    return result
+
+
+@router.delete(
+    "/{kind}/{identifier}/members/{target_type}/{target_id}",
+    status_code=204,
+    dependencies=[Depends(require_csrf)],
+)
+def remove_member(
+    kind: Kind,
+    identifier: UUID,
+    target_type: TargetType,
+    target_id: UUID,
+    current: CurrentSession,
+    database: Database,
+    memberships: Memberships,
+) -> None:
+    with database.begin():
+        memberships.remove(current.user_id, kind, identifier, target_type, target_id)
+    logger.info("workspace.member_removed", extra={"user_id": str(current.user_id)})
+
+
+@router.get("/{kind}/{identifier}/members", response_model=MemberListResponse)
+def list_members(
+    kind: Kind,
+    identifier: UUID,
+    current: CurrentSession,
+    database: Database,
+    memberships: Memberships,
+    target_type: TargetFilter | None = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    offset: Annotated[int, Query(ge=0, le=2**31 - 1)] = 0,
+) -> MemberListResponse:
+    with database.begin():
+        database.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+        return MemberListResponse(
+            items=[
+                MemberResponse.model_validate(item)
+                for item in memberships.list(
+                    current.user_id, kind, identifier, target_type, limit, offset
+                )
+            ],
+            limit=limit,
+            offset=offset,
+        )
+
+
+@router.get("/pages/{page_id}/{kind}", response_model=OrganizationListResponse)
+def page_organizations(
+    kind: Kind,
+    page_id: UUID,
+    current: CurrentSession,
+    database: Database,
+    memberships: Memberships,
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    offset: Annotated[int, Query(ge=0, le=2**31 - 1)] = 0,
+) -> OrganizationListResponse:
+    with database.begin():
+        database.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+        return OrganizationListResponse(
+            items=[
+                OrganizationResponse.model_validate(item)
+                for item in memberships.for_target(
+                    current.user_id, kind, "page", page_id, limit, offset
+                )
+            ],
+            limit=limit,
+            offset=offset,
+        )
+
+
+@router.get("/calendar-events/{source}/{event_id}/{kind}", response_model=OrganizationListResponse)
+def event_organizations(
+    kind: Kind,
+    source: Literal["personal", "official"],
+    event_id: UUID,
+    current: CurrentSession,
+    database: Database,
+    memberships: Memberships,
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    offset: Annotated[int, Query(ge=0, le=2**31 - 1)] = 0,
+) -> OrganizationListResponse:
+    with database.begin():
+        database.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+        return OrganizationListResponse(
+            items=[
+                OrganizationResponse.model_validate(item)
+                for item in memberships.for_target(
+                    current.user_id, kind, source, event_id, limit, offset
+                )
+            ],
+            limit=limit,
+            offset=offset,
+        )
 
 
 def install_workspace(application: FastAPI) -> None:

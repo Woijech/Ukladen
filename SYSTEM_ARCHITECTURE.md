@@ -233,7 +233,8 @@ users
 academic profiles
 groups
 optional subjects
-planned pages, documents, collections, databases, property values and saved views
+pages, versioned documents, collections, tags and typed memberships
+planned databases, property values and saved views
 official schedule
 personal schedule overrides
 personal calendar events
@@ -418,7 +419,7 @@ relations
 search
 ai
 notifications
-workspace (planned user organization/database/view boundary)
+workspace (user organization; database/view schemas planned)
 integrations
 ```
 
@@ -505,9 +506,9 @@ resolved personal calendar
 
 Status: backend personal events, per-user overrides and resolved calendar reads are
 implemented; see [calendar contracts](docs/development/calendar.md). Free-slot/conflict
-queries, task blocks and the calendar frontend are not implemented. User tags,
-collections/views, all-day/recurring personal events and database-date projections
-are also not implemented.
+queries, task blocks and the calendar frontend are not implemented. User tags and
+collections are implemented in workspace. Saved views, all-day/recurring personal
+events and database-date projections are not implemented.
 
 Calendar composition is presentation over independently owned typed data. Page dates
 and task deadlines do not automatically block time. Availability must use the complete
@@ -555,8 +556,8 @@ projection is derived from blocks. See the [notes API](docs/development/notes.md
 and [ADR 0006](docs/adr/0006-use-versioned-page-block-documents.md).
 Editor UI is not implemented; search indexes are derived and owned by search.
 
-Page links are optional. Collections/property schemas/views belong to the planned
-workspace boundary; event time belongs to calendar. See
+Page links are optional. Collections/property schemas/views belong to the
+workspace boundary; property schemas/views remain planned. Event time belongs to calendar. See
 [workspace architecture](docs/architecture/workspace.md).
 
 ## 5.10 materials
@@ -639,13 +640,14 @@ is a future plan only: no account connection, credential handling, grade imports
 write-back in current slices. Future private work requires a new phase request and
 verified contracts. See [IIS roadmap](docs/integrations/bsuir-iis-roadmap.md).
 
-## 5.16 workspace (planned)
+## 5.16 workspace
 
-Status: not implemented; package not created. Own user-controlled collections,
-memberships, tags, user database/property schemas and values, and saved view
-configuration. It does not own page bodies, event time or official facts.
+Status: collections, tags, typed memberships and forward/reverse lists implemented,
+backend only; see [workspace API](docs/development/workspace.md). Own user-controlled
+organization and its references. Database/property schemas and values and saved view
+configuration remain not implemented. It does not own page bodies, event time or official facts.
 
-Add this boundary with a concrete organization slice, not empty scaffolding.
+The organization slice adds real owner-scoped services and foreign-key associations.
 [ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md) explains the addition.
 
 ---
@@ -713,7 +715,7 @@ domain -> LLM SDK
 # 7. Repository Structure
 
 This is a logical target map. Existing business package markers are not implemented
-features. `workspace/` is planned and will be added under modules only for its slice;
+features. `workspace/` now implements collections, tags and membership under modules;
 frontend feature directories are introduced with actual UI work.
 
 ```text
@@ -738,6 +740,7 @@ ukladen/
 |   |   |   |   |-- notes/
 |   |   |   |   |-- materials/
 |   |   |   |   |-- relations/
+|   |   |   |   |-- workspace/
 |   |   |   |   |-- search/
 |   |   |   |   |-- ai/
 |   |   |   |   `-- notifications/
@@ -811,7 +814,8 @@ Reminder
 
 Page (implemented, notes-owned)
 PageDocument / Block (implemented flat typed content, notes-owned)
-Collection / Tag / Database / PropertyDefinition / DatabaseRecord / SavedView (planned, workspace-owned)
+Collection / Tag / TypedMembership (implemented, workspace-owned)
+Database / PropertyDefinition / DatabaseRecord / SavedView (planned, workspace-owned)
 Material
 MaterialChunk
 
@@ -1140,7 +1144,7 @@ reminders
 
 ```text
 notes
-workspace (planned)
+workspace
 materials
 relations
 search
@@ -1182,8 +1186,8 @@ Calendar business UI is not implemented.
 ## Phase 2 — independent workspace
 
 Implemented, backend only: standalone pages, optional nesting, recoverable trash,
-typed block documents and page/calendar links. Tags/collections and saved views
-remain not implemented.
+typed block documents, page/calendar links, collections/tags and typed memberships.
+Saved views remain not implemented.
 `subjects` is not a prerequisite.
 
 ## Phase 3 — user databases and planning
@@ -1252,7 +1256,7 @@ Use existing documents rather than referring agents to nonexistent specification
 - [Product overview](docs/product/overview.md): goals and current status.
 - [Workspace requirements](docs/product/workspace.md): observable acceptance cases.
 - [Open decisions](docs/product/open-questions.md): owner choices versus unverified contracts.
-- [Workspace architecture](docs/architecture/workspace.md): planned ownership/data flows.
+- [Workspace architecture](docs/architecture/workspace.md): implemented organization and planned database/view flows.
 - [AI architecture](docs/architecture/ai.md): tools, action lifecycle and retrieval.
 - [IIS roadmap](docs/integrations/bsuir-iis-roadmap.md): evidence gates and capability status.
 - [Implementation roadmap](docs/development/implementation-roadmap.md): slices and checks.

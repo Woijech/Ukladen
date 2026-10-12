@@ -20,7 +20,7 @@ Planned contracts do not override the current implemented API silently.
 
 - [Architecture overview](architecture/overview.md): actual module/runtime baseline.
 - [Backend](architecture/backend.md): current backend contracts and verification.
-- [Workspace](architecture/workspace.md): planned pages, organization, databases and views.
+- [Workspace](architecture/workspace.md): implemented pages/organization and planned databases/views.
 - [AI](architecture/ai.md): planned tools, confirmed actions, retrieval and provider boundaries.
 - [Frontend](architecture/frontend.md): existing shell and target responsibilities.
 - [Infrastructure](architecture/infrastructure.md): actual processes/storage/exposure.
