@@ -29,6 +29,7 @@ Planned contracts do not override the current implemented API silently.
 - [ADR 0003](adr/0003-use-cloudflare-tunnel-for-home-hosting.md): home hosting.
 - [ADR 0004](adr/0004-keep-workspace-organization-optional.md): optional user organization.
 - [ADR 0005](adr/0005-support-scoped-ai-action-permissions.md): confirmed/scoped automatic AI actions.
+- [ADR 0006](adr/0006-use-versioned-page-block-documents.md): notes block document schema and preserving migration.
 
 ## Current implementation guides
 
