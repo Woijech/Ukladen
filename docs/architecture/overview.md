@@ -61,13 +61,14 @@ external clients. Inter-module access must use application services or interface
 ## Scope
 
 Status: not implemented — free slots, conflict checks, task blocks, calendar UI,
-tasks, reminders, notes, materials, relations, search,
+tasks, reminders, materials, relations, search,
 notifications, AI and RAG. Structured diagnostics, request/task correlation and
 container log rotation are implemented; see [logging](../development/logging.md).
 Remote observability services, metrics, tracing, production
 TLS, production credentials and deployment automation are not implemented.
 
-Standalone pages/blocks, collections/tags, custom databases/properties, saved views
+Standalone nested Markdown pages are implemented; see [notes](../development/notes.md).
+Blocks, collections/tags, custom databases/properties, saved views
 and date projections are not implemented. Authenticated IIS capabilities remain
 unverified/unimplemented; see the [IIS roadmap](../integrations/bsuir-iis-roadmap.md).
 

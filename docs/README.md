@@ -39,6 +39,7 @@ Planned contracts do not override the current implemented API silently.
 - [Public university reads](development/university-api.md).
 - [Official schedule](development/schedule.md).
 - [Personal calendar](development/calendar.md).
+- [Notes and page hierarchy](development/notes.md).
 - [Diagnostics](development/logging.md).
 - [Home-server deployment](deployment/home-server.md).
 

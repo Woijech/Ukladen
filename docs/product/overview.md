@@ -18,8 +18,8 @@ and a workspace for standalone pages, nested content and user-defined organizati
 The target includes blocks, user-defined databases/properties and saved views.
 The owner confirmed pages, blocks and user-defined databases, with mandatory table
 and calendar views. Formulas are deferred. Remaining schema/editor details are in
-[open decisions](open-questions.md). These features are not implemented and are
-delivered incrementally rather than all in the first backend slice.
+[open decisions](open-questions.md). Standalone nested Markdown pages are implemented, backend only. Blocks and databases
+remain not implemented and are delivered incrementally rather than all in the first backend slice.
 
 ## 2. Non-negotiable organization rules
 
@@ -39,7 +39,9 @@ See [workspace requirements](workspace.md) for examples and acceptance cases.
 
 ## 3. Pages and knowledge
 
-Status: not implemented.
+Implemented, backend only: standalone nested Markdown pages, versions and recoverable
+branch trash; see [notes contracts](../development/notes.md). Other capabilities below
+are planned and not implemented.
 
 Users can create standalone pages, nest pages, edit content, attach materials and
 optionally link pages to events, tasks or other pages. The target block document

@@ -1,9 +1,9 @@
 # Workspace Backend Architecture
 
 Updated: 2026-10-12.
-Status: not implemented. This is the target design under
-[ADR 0004](../adr/0004-keep-workspace-organization-optional.md), not an API or migration
-already present in the repository. The owner confirmed pages/blocks/databases and mandatory table/calendar views,
+Status: pages, hierarchy and branch trash are implemented, backend only; see
+[notes contracts](../development/notes.md). Other capabilities remain a target design under
+[ADR 0004](../adr/0004-keep-workspace-organization-optional.md), with current APIs documented separately. The owner confirmed pages/blocks/databases and mandatory table/calendar views,
 with personal ownership. Formulas and collaboration are deferred; remaining details
 are recorded as open decisions.
 

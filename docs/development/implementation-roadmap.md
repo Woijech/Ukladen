@@ -31,16 +31,18 @@ existing services just to match target vocabulary. A package marker is not a fea
 | University reads | Verified public directory/schedule/announcement reads | [University API](university-api.md) |
 | Schedule | Supported expansion, official storage, historical identities, background refresh | [Schedule](schedule.md) |
 | Calendar | Personal events, official overrides, resolved range queries | [Calendar](calendar.md) |
+| Notes | Standalone Markdown pages, nested hierarchy, versions and branch trash | [Notes](notes.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
-Calendar free slots/conflicts, notes, relations, tasks, reminders, general materials,
+Calendar free slots/conflicts, relations, tasks, reminders, general materials,
 search, notifications and AI are not implemented. `workspace` is a planned boundary;
 user databases and views do not exist. Authenticated IIS is unverified/unimplemented.
 Frontend business flows remain unimplemented apart from browser email verification.
 
-## 3. Recommended next slice: P-01 standalone pages
+## 3. P-01 standalone pages
 
-Status: not implemented. Dependencies: existing auth/users/persistence only.
+Status: implemented, backend only. See [current notes contracts](notes.md).
+Dependencies: existing auth/users/persistence only.
 
 Implement in `notes`:
 
@@ -53,7 +55,7 @@ Implement in `notes`:
 
 The [workspace architecture](../architecture/workspace.md) lists candidate routes.
 Resolve the first-slice content limits and trash policy; do not silently claim full
-blocks, nested pages, permanent history, sharing or an editor UI.
+blocks, permanent history, sharing or an editor UI. Nested pages were delivered with this slice.
 
 Done when WS-01 and relevant lifecycle rules pass at service/HTTP/database boundaries,
 stale updates and foreign access are rejected, failures roll back, and migration
@@ -93,7 +95,8 @@ user-executable SQL for the first view slice.
 
 ## 6. P-04 page hierarchy and block content
 
-Status: not implemented. Dependencies: P-01; decisions Q-06/08. Personal ownership is confirmed.
+Status: hierarchy implemented with P-01 at the owner's request; block content not implemented.
+See [branch trash and hierarchy policy](notes.md). Block schema decision Q-08 remains open.
 
 Add optional parent/move operations, cycle-safe concurrent mutation behavior and
 explicit subtree trash/restore policy. Add a selected versioned block document

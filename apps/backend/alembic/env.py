@@ -7,6 +7,7 @@ from app.db.session import Base, create_database_engine
 from app.modules.academics.infrastructure import orm as academics_orm  # noqa: F401
 from app.modules.auth.infrastructure import orm as auth_orm  # noqa: F401
 from app.modules.calendar.infrastructure import orm as calendar_orm  # noqa: F401
+from app.modules.notes.infrastructure import orm as notes_orm  # noqa: F401
 from app.modules.schedule.infrastructure import orm as schedule_orm  # noqa: F401
 from app.modules.users.infrastructure import orm as users_orm  # noqa: F401
 

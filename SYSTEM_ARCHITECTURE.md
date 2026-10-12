@@ -546,10 +546,10 @@ Subject templates/catalogues are later slices, not a prerequisite for workspace 
 
 ## 5.9 notes
 
-Status: not implemented. Own standalone pages, optional page hierarchy, validated
-content documents/blocks, versions and trash/restore. The first proposed slice is
-an explicitly limited text/Markdown document, followed by blocks when its schema is
-specified. Search indexes are derived and owned by search.
+Status: implemented, backend only: standalone Markdown pages, optional hierarchy,
+optimistic versions and recoverable branch trash/restore. See the
+[notes API](docs/development/notes.md). Blocks and editor UI are not implemented;
+search indexes are derived and owned by search.
 
 Page links are optional. Collections/property schemas/views belong to the planned
 workspace boundary; event time belongs to calendar. See

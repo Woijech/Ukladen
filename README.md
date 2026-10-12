@@ -382,5 +382,6 @@ your Cloudflare account; the checked-in configuration does not publish the site.
 Local storage uses SeaweedFS; [ADR 0001](docs/adr/0001-use-seaweedfs.md) records
 the provider decision. Production storage remains a separate deployment decision.
 Backend authentication, profiles, IIS schedule integration and the personal calendar
-are implemented as described above. Calendar UI, free slots, tasks, notes, materials,
+and [standalone nested Markdown pages](docs/development/notes.md)
+are implemented, backend only. Calendar UI, free slots, tasks, blocks, materials,
 search, AI and RAG remain **not implemented**.

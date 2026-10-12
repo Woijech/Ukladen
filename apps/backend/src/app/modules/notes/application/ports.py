@@ -1,0 +1,24 @@
+from datetime import datetime
+from typing import Protocol
+from uuid import UUID
+
+from app.modules.notes.domain.pages import Page
+
+
+class PageRepository(Protocol):
+    """Owner-scoped persistence in the caller's transaction."""
+
+    def get(self, user_id: UUID, page_id: UUID) -> Page | None: ...
+    def list_pages(
+        self,
+        user_id: UUID,
+        parent_id: UUID | None,
+        roots_only: bool,
+        trashed: bool,
+        limit: int,
+        offset: int,
+    ) -> list[Page]: ...
+    def create(self, page: Page) -> None: ...
+    def save(self, page: Page, expected_version: int) -> None: ...
+    def trash_branch(self, user_id: UUID, page_id: UUID, now: datetime) -> None: ...
+    def restore_batch(self, user_id: UUID, batch_id: UUID, now: datetime) -> None: ...

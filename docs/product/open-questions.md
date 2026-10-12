@@ -12,7 +12,7 @@ before implementing incompatible schemas, integrations or behavior.
 - Lecture/lab grouping is user-controlled, never inferred from equal source labels.
 - Preserve official facts, personal overrides and existing backend contracts.
 - Technical documentation/code is English; initial product text may be Russian.
-- This task updates documentation; implementation of a new phase is not requested.
+- The owner requested the backend pages/hierarchy/calendar-link slice with incremental local commits.
 
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md) records organization.
 [ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md) records AI authorization.
@@ -27,7 +27,7 @@ before implementing incompatible schemas, integrations or behavior.
 | Q-04 | AI must provide reading/help, recommendations, execution after confirmation and explicitly permitted automatic actions. | Implement reads/recommendations, confirmed writes, then scoped automatic execution. Automatic actions require a real owner permission; this feature decision does not grant unrestricted execution. |
 
 These answers replace the previous provisional defaults for Q-01 through Q-04.
-Capabilities remain not implemented; confirming scope does not change runtime status.
+Runtime status is recorded in implementation guides; confirming scope alone does not implement it.
 Exact AI permissions/provider policy remain open below, rather than reopening the
 confirmed requirement for automatic actions.
 
@@ -37,7 +37,7 @@ confirmed requirement for automatic actions.
 | --- | --- | --- | --- |
 | Q-04a | Which actions may run automatically, on which objects, for how long and with what limits? Which AI provider, budget and content-sharing policy apply? | No automatic writes without an explicit scoped grant. Without a matching grant, preview and confirm. Provider-neutral adapters; no provider chosen. | Grant policy, revocation, execution records, costs and external content transfer |
 | Q-05 | Beyond mandatory database calendar views, which calendar features are required first: all-day events, recurrence, multiple calendars or external providers? | Existing timed events plus date projections; dates/deadlines are nonblocking. Recurrence/all-day contracts are separate; no Google/Microsoft sync assumed. | Date DTOs, recurrence/exception model and availability |
-| Q-06 | How should trash, nested-page deletion, history, purge and export behave? | Recoverable trash; no silent child/content destruction. Define subtree/restore policy before hierarchy implementation. | Foreign keys, cleanup, relation visibility and restore |
+| Q-06 | Which history, purge and export features should follow recoverable trash? | Implemented branch trash restores its batch root and preserves previously trashed children; see [notes](../development/notes.md). No purge/history/export yet. | Future cleanup, history and export |
 | Q-07 | Are tasks typed planning objects, database records, or both with an explicit binding? | Typed tasks retain planning rules; ordinary records do not become tasks automatically. | Task API, date bindings and AI tools |
 | Q-08 | Which initial block types and editor document format are required? | Text, headings, lists/checklists and links first; attachments after materials. Select/version the schema before block persistence. | Validation, migration, rendering and export |
 | Q-09 | Should optional subjects use templates or a separately imported catalogue? | Defer; never merge by label or require subject IDs. | Subject module and explicit academic relations |
