@@ -15,13 +15,17 @@ Ukladen is a personal student productivity platform that combines:
 - an AI assistant;
 - RAG over user materials.
 
-The product concept combines ideas from **Google Calendar**, **Notion**, and task management systems while being specialized for the workflow of a BSUIR student.
+The target combines a **Notion-like workspace and Notion Calendar-like calendar**
+with AI and deep BSUIR IIS integration. Academic organization is optional: pages,
+personal events and tasks do not require a subject or group selection.
 
-Status: the product flows below are planned and not implemented.
+Status: parts of the backend are implemented; the complete target product is not.
+See Current Status below and the [product overview](docs/product/overview.md).
 
 ## Core Idea
 
-After registration, the user selects a university group and optionally a subgroup.
+After registration, the user can use standalone personal events and, once implemented,
+pages without academic selection. Selecting a university group/subgroup is optional.
 
 The system retrieves schedule data through the BSUIR IIS integration and creates a personal calendar view.
 
@@ -38,6 +42,21 @@ For example, a student can:
 - create reminders.
 
 Official schedule data and personal calendar state are logically separated.
+
+Matching lesson subject labels never merge lecture/lab occurrences or automatically
+create shared notes. User-selected links, collections, tags and saved views organize
+independent objects. These workspace features are not implemented yet.
+
+## Development Documentation
+
+Start with the [documentation index](docs/README.md), then read the primary architecture,
+[workspace requirements](docs/product/workspace.md),
+[open decisions](docs/product/open-questions.md) and
+[backend implementation roadmap](docs/development/implementation-roadmap.md).
+
+The next proposed slice is standalone pages, followed by optional links and user
+organization. Subjects are optional. Full editor/database scope, collaboration and
+private IIS capabilities remain explicit decisions, not existing functionality.
 
 ## Architecture
 
@@ -155,6 +174,10 @@ ai
 notifications
 integrations
 ```
+
+The additional `workspace` boundary is planned for collections, database properties
+and saved views; its package has not been created. See
+[ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md).
 
 ## Development Rules
 

@@ -11,6 +11,11 @@ added verified dated expansion, storage and synchronization; see
 [schedule contracts](../development/schedule.md) for current support and remaining
 exception limitations. The investigation below records the original scope.
 
+Historical future-scope statements describe that investigation date, not current
+implementation. Private account contracts remain unverified; the
+[deep IIS roadmap](bsuir-iis-roadmap.md) records candidates and evidence gates.
+Subject labels never require automatic user workspace grouping.
+
 ## Method and evidence
 
 Inspected [IIS](https://iis.bsuir.by/) and its official

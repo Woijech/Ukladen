@@ -1,0 +1,181 @@
+# Workspace and Calendar Requirements
+
+Updated: 2026-10-12.
+Status: target requirements, not implemented except the existing calendar behavior
+explicitly identified below. See [open decisions](open-questions.md) before selecting
+editor, database or collaboration scope.
+
+## 1. Vocabulary
+
+| Concept | Meaning | Required context |
+| --- | --- | --- |
+| Page | Independent content document; "note" is a user-facing use of a page | Owner only |
+| Block | A structured part of a page document | Owning page |
+| Event | A dated occurrence with explicit scheduling semantics | Owner for personal events; upstream source for official facts |
+| Task | Work to complete; a deadline does not imply an appointment | Owner only |
+| Material | An uploaded file or saved external resource | Owner only |
+| Relation | An explicit link between independently existing objects | Authorized endpoints |
+| Collection | A user-curated set of references, optionally mixing object types | Owner only |
+| Database | A user-defined schema organizing page-backed records | Owner only |
+| Property | A typed field defined for a database, such as status or date | Owning database |
+| View | Saved source selection, filters, sorting and presentation | Owner and a valid source |
+| Subject | Optional academic organization | Explicit user choice |
+
+Collections and databases are user data, not Python modules. A user does not create
+a new backend module for "Training". Parent-child page structure is distinct from
+ordinary links and collection membership.
+
+## 2. User scenarios and acceptance criteria
+
+### WS-01: A standalone note
+
+The user creates "Ideas" with text and no date, group, subject or collection.
+
+- Create, read and edit work without an academic profile.
+- The page is discoverable in the user's page list and later search.
+- Linking it to an event later does not move ownership or change its content.
+- A new page does not silently create a calendar event or busy interval.
+- Another user cannot list, fetch, modify or link this private page.
+
+### WS-02: A page hierarchy
+
+The user creates "Training" with child pages "Chest" and "Back".
+
+- Root pages are valid; a parent is optional.
+- Moving a page preserves its identity, content and external relations.
+- A page cannot parent itself or any ancestor; cross-owner nesting is rejected.
+- Removing a relation or collection does not reparent the page.
+- Parent deletion/trash behavior must follow a documented policy, not cascade
+  silently into data loss. See decision Q-06.
+
+### WS-03: Independent lecture and lab
+
+IIS supplies a PBZ lecture and PBZ laboratory on different dates.
+
+- Each occurrence keeps its own identity and local overrides.
+- Equal `subject` labels do not create a common page or collection.
+- The user can link separate pages, link the same page to both, or link nothing.
+- The user can group labs separately from lectures or manually group them together.
+- Editing a lab event does not modify the lecture, other labs or linked page text.
+
+The existing calendar already keeps occurrences separate. Page relations and
+user-controlled collections are not implemented.
+
+### WS-04: Direct event editing
+
+The user edits an event's title/time and optionally opens linked content.
+
+- Event edits are addressed by event identity; no subject page is required.
+- Personal edits use the personal-event service; imported event edits use the
+  per-user override service and never modify shared upstream facts.
+- A page link is optional and removable without deleting either endpoint.
+- Content changes require a page edit, not a calendar interval update.
+- A shared page's content is shared only because the user explicitly linked it;
+  it does not propagate event titles, dates or attendance.
+
+### WS-05: Multiple ways to organize the same data
+
+An event appears in "Study" and "This week", with a linked standalone page.
+
+- Membership stores references rather than copied events/pages.
+- Removing a membership removes that membership only.
+- Deleting a view removes only its settings.
+- Renaming a collection or tag does not rename its members.
+- Duplicate relation/membership requests have a defined idempotent result.
+- Tags and collections are personal; they do not alter official schedule labels.
+
+### WS-06: User-defined databases
+
+The user creates "Workouts" with properties for muscle group, status and date.
+
+- The user chooses property definitions and available select options.
+- A row has its own record identity and references a content page.
+- Properties are validated by type; arbitrary JSON is not an alternative to validation.
+- Changing a property's type never silently discards existing values.
+- Table, list and calendar views reference the same records.
+- Removing a view or record membership does not automatically delete page content.
+- No predefined academic fields are mandatory.
+
+This full target is provisional until Q-01 is confirmed. Formulas, rollups, arbitrary
+automations and unrestricted nesting of database schemas are not first-slice features.
+
+### WS-07: Calendar presentation of a dated record
+
+The user shows the database's "Planned date" property in a calendar view.
+
+- The date property binding is explicit, not inferred from a property title.
+- An undated record remains in its database and is omitted from that calendar view.
+- A date-only value retains its calendar date; it is not guessed as midnight UTC.
+- A record date or task deadline is nonblocking by default.
+- Moving the displayed record updates that bound property, using its own service.
+- Scheduling actual work creates/updates an explicit time block; it does not change
+  all dated records into busy events.
+- Display identities distinguish personal events, official occurrences, record-date
+  projections and deadlines. No copied event is manufactured just for rendering.
+
+Personal all-day events and this projection are not implemented. Date/time and
+recurrence scope must be finalized under Q-05 before their API slice.
+
+### WS-08: Independent visibility and availability
+
+The user hides a lesson while planning around a busy appointment.
+
+- View filtering does not remove busy intervals from availability calculations.
+- Existing `hidden` official occurrences still block time unless also skipped.
+- Existing `skipped` occurrences do not block time, even if visible.
+- Merely linking a page or adding a tag never changes availability.
+- Source failures, staleness and missing coverage accompany planning results.
+- Conflicts can be reported without forbidding intentional overlap.
+
+Hidden/skipped resolution is implemented; availability queries are not implemented.
+
+### WS-09: Synchronization without losing personal work
+
+IIS changes a room/time, withdraws an occurrence or publishes a replacement.
+
+- Refresh does not delete linked user pages, materials, tasks or organization.
+- Stable existing event IDs retain their references and overrides.
+- Withdrawn/ambiguous references are represented as historical/unavailable links.
+- Changed date/subject identity is not matched by guessing. A new occurrence does
+  not automatically inherit another occurrence's notes or attendance decision.
+- The user can review and explicitly relink a reference if needed.
+- Missing external data is distinct from user deletion and from an empty schedule.
+
+Current identity limitations are documented in [schedule storage](../development/schedule.md).
+The target improves reconciliation only when a verified contract or explicit user
+choice justifies it; it does not claim perfect upstream identity today.
+
+### WS-10: AI understands and acts on the workspace
+
+The user asks about tomorrow, searches a lab note or requests a planning change.
+
+- Read tools use the caller's normal permissions and return source references.
+- A question does not mutate data.
+- A proposed change names the target object and exact parameters.
+- Confirmed execution uses version checks and the normal application service.
+- Tool retries do not duplicate events/tasks or send repeated notifications.
+- Retrieved page/material text cannot grant tool permissions or override instructions.
+- AI reports unimplemented tools, stale sources and unsupported IIS capabilities.
+
+AI is not implemented. See [AI architecture](../architecture/ai.md) and Q-04.
+
+## 3. Data lifecycle and editing
+
+User-authored content must have optimistic concurrency protection; stale edits
+must not silently replace newer content. Content listing needs bounded pagination.
+Transport DTOs expose only authorized fields and document omitted/null semantics.
+
+The proposed first page slice includes recoverable trash/restore. Durable revision
+history, permanent purge, exports and concurrent block editing are separate decisions.
+Collection deletion, page trash and permanent deletion must never be conflated.
+References to unavailable content must not reveal another user's title or body.
+
+## 4. UI intent without prescribing an implementation
+
+Users should be able to open a standalone page, directly edit an event, choose a
+view and navigate optional links. "Lecture", "Lab", "Chest" or "Back" are user
+organization choices, not required tabs or hard-coded hierarchies.
+
+No UI is implemented by this specification. The backend must support the data and
+permissions needed for these choices; widget layouts and editor libraries belong
+to a later explicitly requested frontend slice.

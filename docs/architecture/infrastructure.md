@@ -87,3 +87,10 @@ GitHub Actions runs backend lint/format/type/tests, frontend lint/type/build/bro
 tests, and a Compose build/start/health smoke check. uv and npm lockfiles are used
 for reproducible application installs. Infrastructure/base image tags are explicit
 but not digest-pinned. CI is a verification baseline; it does not publish or deploy.
+
+## Planned capability use
+
+PostgreSQL/pgvector, Celery and S3 availability does not implement workspace databases,
+document processing, reminders, embeddings or AI. Add jobs/storage contracts only
+with their [requested slices](../development/implementation-roadmap.md). Private IIS
+requires verified contracts and a connection design; public jobs have no student credentials.

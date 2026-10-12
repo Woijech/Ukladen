@@ -33,6 +33,19 @@ are installed and locked. No Zustand store or calendar view is implemented.
 Permissions, schedule resolution and planning rules are not implemented in the
 frontend.
 
+## Target product responsibilities
+
+Status: not implemented. Future business UI presents independent pages, direct event
+editing, optional organization, block documents and database/calendar views. Subjects
+are optional navigation. Date labels and time reservations must be distinguishable.
+AI UI exposes supporting sources and exact proposals/confirmation.
+
+Follow [workspace requirements](../product/workspace.md) and resolve editor/collaboration
+scope in [open decisions](../product/open-questions.md) before choosing UI contracts.
+This documentation task introduces no editor library, layout or business UI.
+
+## Current verification and runtime
+
 ESLint uses Next.js's accessibility, React and TypeScript rules. `tsc --noEmit`
 provides type checking. Playwright runs Chromium tests against the built frontend:
 shell/connectivity success/failure and verification link handling. Verification

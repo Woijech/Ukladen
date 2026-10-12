@@ -31,12 +31,26 @@ resolution, personal-event CRUD and personal overrides are implemented, backend 
 see [calendar contracts](../development/calendar.md). Free slots, conflicts and task
 blocks remain unimplemented.
 
-Personal calendar event persistence and HTTP API are implemented: a domain
-entity, owner-scoped SQLAlchemy repository, application service and
-`/api/v1/calendar/events` endpoints with partial updates. See
-[calendar contracts](../development/calendar.md). Personal calendar resolution,
-overrides, conflicts, free slots and task
-blocks: not implemented.
+The original personal-event API remains compatible alongside the versioned
+`/personal-events` API; see [calendar contracts](../development/calendar.md).
+
+## Planned workspace and AI boundaries
+
+Status: not implemented. The [workspace design](workspace.md) extends typed events
+with independent pages, optional links, user organization, properties and saved views.
+`notes` owns page bodies; the planned `workspace` boundary owns organization/property/view
+definitions; calendar retains scheduling truth. Subjects are optional; lecture/lab
+labels never trigger automatic grouping.
+
+[AI](ai.md) calls authorized application tools: read-only before confirmed writes/RAG.
+[Deep IIS integration](../integrations/bsuir-iis-roadmap.md) separates verified public
+reads from unverified private capabilities. Infrastructure and markers are not features.
+
+Read the [roadmap](../development/implementation-roadmap.md) and
+[open decisions](../product/open-questions.md) before starting a slice. The sections
+below describe current backend behavior, not the full target feature set.
+
+## Current runtime
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.

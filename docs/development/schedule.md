@@ -9,6 +9,12 @@ and resolved calendar reads are implemented; see [calendar contracts](calendar.m
 Occupied-interval/free-slot queries remain unimplemented.
 Existing public IIS read endpoints retain their response contracts.
 
+Workspace organization is optional and separate from source normalization. Do not
+create/merge subject pages, lecture/lab notes or personal collections during imports.
+Future links preserve user content when occurrences change/retire. See
+[workspace architecture](../architecture/workspace.md) and
+[deep IIS roadmap](../integrations/bsuir-iis-roadmap.md).
+
 ## Persistence and identity
 
 Alembic `0006_schedule_storage` adds `schedule_sources` and `official_schedule_events`.

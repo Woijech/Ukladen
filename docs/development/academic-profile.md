@@ -8,8 +8,14 @@ records the verified public JSON contract. No HTML parser, new dependency,
 frontend, schedule import or background job was added.
 
 The subsequent [university read API](university-api.md) adds full schedule queries
-and `GET /api/v1/schedule/me` using this saved group/subgroup. Calendar persistence
-and background synchronization remain unimplemented.
+and `GET /api/v1/schedule/me` using this saved group/subgroup. Official
+[schedule persistence/synchronization](schedule.md) and the personal
+[calendar API](calendar.md) are implemented separately.
+
+Academic selection enriches university views; it is not required for standalone
+pages, personal events or tasks. Source labels do not impose workspace grouping.
+Private IIS enrollment/account data is unverified/unimplemented; see
+[deep integration](../integrations/bsuir-iis-roadmap.md).
 
 ## Endpoints
 
@@ -100,9 +106,10 @@ Source labels are preserved, e.g. `Осенний`; they are not semester IDs or
 semesters. Null source values remain null. Next-term schedules are outside this
 slice. No semester field is accepted or frozen in the profile.
 
-Actual schedule filtering/import, recurrence expansion, subject/teacher/room
-persistence, next-term handling, synchronization and exception interpretation:
-Status: not implemented.
+This profile slice does not own schedule filtering/import, recurrence or synchronization.
+Supported expansion, next-term filtering and synchronization are now implemented in
+the [schedule module](schedule.md). Subject/teacher/room catalogues are not separately
+persisted by academics; authoritative exception/split precedence remains unimplemented.
 
 ## Storage, transactions and failure behavior
 

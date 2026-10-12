@@ -13,6 +13,13 @@ contains one Python backend and one Next.js frontend. The API, Celery worker and
 Celery Beat use the same backend image and codebase. They are processes of a modular
 monolith, not independent services with separate business data.
 
+The target combines independent pages and a user-organized calendar with AI and deep
+IIS integration. Subjects are optional; source labels do not merge lecture/lab occurrences.
+[ADR 0004](../adr/0004-keep-workspace-organization-optional.md) and
+[workspace architecture](workspace.md) describe this target without changing the backend.
+See [requirements](../product/workspace.md), [decisions](../product/open-questions.md)
+and [roadmap](../development/implementation-roadmap.md).
+
 PostgreSQL 18 is the authoritative data store. The initial Alembic migration enables
 pgvector; subsequent migrations create users, auth, academic-profile, personal-event
 and official schedule tables.
@@ -37,6 +44,9 @@ search, ai and notifications. The fifteenth boundary, integrations, lives at
 `app/integrations`, following the architecture document's repository tree.
 Its adapter packages are bsuir, llm, embeddings and storage.
 
+An additional `workspace` boundary is planned for organization, properties and views.
+Its package does not exist yet; add it with a concrete requested slice.
+
 Unused boundaries contain only package markers. No speculative entities, DTOs or
 repositories are generated. When a vertical slice is implemented, its dependencies
 must follow `presentation -> application -> domain`, with infrastructure implementing
@@ -51,6 +61,10 @@ notifications, AI and RAG. Structured diagnostics, request/task correlation and
 container log rotation are implemented; see [logging](../development/logging.md).
 Remote observability services, metrics, tracing, production
 TLS, production credentials and deployment automation are not implemented.
+
+Standalone pages/blocks, collections/tags, custom databases/properties, saved views
+and date projections are not implemented. Authenticated IIS capabilities remain
+unverified/unimplemented; see the [IIS roadmap](../integrations/bsuir-iis-roadmap.md).
 
 The storage provider replacement is recorded in [ADR 0001](../adr/0001-use-seaweedfs.md).
 Production storage remains a separate deployment decision. The modular monolith

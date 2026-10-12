@@ -1,297 +1,158 @@
 # Ukladen Product Overview
 
-Status: product vision. The business functionality described below is not implemented.
-Only the project foundation currently exists.
+Updated: 2026-10-12.
+Status: target product specification; only capabilities listed as implemented
+below exist. Product references describe intent, not feature parity with another app.
 
-## 1. Purpose
+## 1. Product direction
 
-The system is designed to organize the academic and personal workflow of a BSUIR student inside a single workspace.
+Ukladen combines **a Notion-like workspace, a Notion Calendar-like personal calendar,
+an AI assistant and deep BSUIR IIS integration** in one product.
 
-The primary user interface is a flexible calendar connected to:
+The workspace supports academic and personal life equally. Users decide how they
+organize pages, events, tasks and materials. Selecting a university group enriches
+the calendar; it is not a prerequisite for using the workspace.
 
-- university schedule;
-- tasks;
-- deadlines;
-- subjects;
-- notes;
-- study materials;
-- reminders;
-- AI assistant.
+There are two complementary entry points: a calendar for time and planned work,
+and a workspace for standalone pages, nested content and user-defined organization.
+The target includes blocks, user-defined databases/properties and saved views.
+Their exact initial scope is provisional; see [open decisions](open-questions.md).
+These features are not implemented and do not all belong in the first slice.
 
----
+## 2. Non-negotiable organization rules
 
-## 2. Primary User Flow
+1. A page can exist without an event, subject, collection, database or parent page.
+2. A personal event can exist without an academic profile or workspace link.
+3. Relations, grouping and academic organization are optional user choices.
+4. Imported lectures and laboratories remain separate dated occurrences. Matching
+   subject labels never merge them or create shared page content automatically.
+5. Editing an event edits that event. Collection membership does not propagate edits.
+   Explicit shared-page edits affect that page's content only.
+6. A view selects and presents records; it does not own, duplicate or delete them.
+7. Visibility and availability are independent: hiding does not free occupied time.
+8. Source refreshes preserve user content and organization. Uncertain upstream
+   identity is surfaced rather than resolved by guessed subject-name matches.
 
-The user:
+See [workspace requirements](workspace.md) for examples and acceptance cases.
 
-1. registers;
-2. selects a university group;
-3. optionally selects a subgroup;
-4. the system retrieves schedule data;
-5. the schedule appears in the personal calendar;
-6. the user adapts the calendar to personal needs;
-7. the user creates personal events;
-8. the user creates tasks and deadlines;
-9. the user adds notes and materials;
-10. the user uses AI for search, analysis and workspace actions.
+## 3. Pages and knowledge
 
----
+Status: not implemented.
 
-## 3. Personal Calendar
+Users can create standalone pages, nest pages, edit content, attach materials and
+optionally link pages to events, tasks or other pages. The target block document
+supports text, headings, lists, checklists, links and attachments incrementally.
+A first text-only backend slice must be labelled as such; it is not the full editor.
 
-The calendar is the central product module.
+User-defined databases organize page-backed records with typed properties. Table,
+list and calendar views are targets; advanced formulas, rollups and real-time
+collaborative editing require separate scope decisions.
 
-The user should be able to:
+Pages, collections and databases have different roles. A collection is a selected
+set of references. A database adds a property schema to its records. Removing a
+view or membership must not silently destroy the underlying page.
 
-- view day;
-- view week;
-- view month;
-- create personal events;
-- edit personal events;
-- delete personal events;
-- drag and drop events;
-- resize events;
-- filter the calendar;
-- interact with imported university lessons.
+## 4. Calendar
 
----
+Implemented, backend only: personal-event CRUD, per-user overrides of official
+occurrences and resolved interval reads with source freshness warnings.
+See [current calendar API](../development/calendar.md).
 
-## 4. BSUIR Schedule Integration
+Status: not implemented — calendar UI, user tags/colors/saved views, all-day and
+recurring personal events, database-record projections, occupied/free intervals,
+conflict checks and task scheduling blocks.
 
-The BSUIR schedule is an external source of academic events.
+The target supports day/week/month views, direct editing, moving/resizing, optional
+page links and user-selected filters. Imported lessons are initial entries with
+source metadata; they do not impose a subject-page hierarchy.
 
-An imported lesson must not become an immutable personal constraint.
+A page's date can make it appear in a calendar view when the user selects that date
+property. A deadline/date label is not automatically a meeting or busy interval.
+Time blocking requires an explicit event or scheduling decision.
 
-The user may:
+## 5. BSUIR IIS integration
 
-- attend the lesson;
-- mark it as skipped;
-- hide it;
-- add a personal description;
-- link a task;
-- link a note;
-- link materials;
-- free the time interval for personal planning.
+Implemented: public directories and schedule reads, group/subgroup selection,
+verified dated expansion, official event persistence and background synchronization.
+Official facts and personal overrides remain separate.
 
-Original external schedule data and user-specific changes must remain logically separated.
+Deep integration means rich public context plus, if available and authorized,
+student-specific capabilities. Grades, curriculum, attendance, assignments or
+materials are candidates, not verified upstream API contracts. Authenticated account
+connection, those imports and IIS write operations are not implemented. See the
+[IIS integration roadmap](../integrations/bsuir-iis-roadmap.md).
 
----
+Retain last valid data during upstream failures, expose sync state and explain
+identity/coverage limits. Never claim stale data is complete or infer cancellations,
+grades or deadlines from ambiguous text.
 
-## 5. Subject Workspace
+## 6. Optional academic organization
 
-Each subject acts as a separate workspace context.
+Status: not implemented.
 
-Example:
+`subjects` is an optional academic aid, not the universal parent of workspace data.
+Users may organize lectures and labs separately, combine them manually, or ignore
+subjects. An explicit import/template can suggest organization only with user choice
+and without merging existing records.
 
-```text
-Knowledge Base Design
-|
-|-- upcoming classes
-|-- tasks
-|-- deadlines
-|-- notes
-|-- materials
-`-- related events
-```
+No stable subject identifier is established by the current public lesson payload.
+External labels remain metadata, not authoritative grouping identities.
 
----
+## 7. Tasks, planning and reminders
 
-## 6. Tasks
-
-A task may contain:
-
-- title;
-- description;
-- subject;
-- status;
-- priority;
-- deadline;
-- estimated duration;
-- dependencies;
-- related materials;
-- related notes;
-- related calendar blocks.
-
-A task may be split into multiple time blocks.
-
----
-
-## 7. Free Time Calculation
-
-The system should be able to calculate the user's free time.
-
-The calculation should consider:
-
-- attended university classes;
-- personal calendar events;
-- scheduled task blocks;
-- user schedule overrides.
-
-If a lesson is marked as skipped, it should not automatically occupy time in the personal plan.
-
----
-
-## 8. Notes
-
-A user can create notes and link them to:
-
-- subject;
-- task;
-- university lesson;
-- calendar event;
-- material;
-- another note.
-
----
-
-## 9. Materials
-
-Supported material sources may include:
-
-- documents;
-- PDF files;
-- links;
-- text materials;
-- other supported educational files.
-
-Files must be stored in object storage.
-
-The system should be able to extract text from supported materials for search and RAG.
-
----
-
-## 10. Relations Between Objects
-
-The workspace should support flexible Notion-like relations.
-
-Examples:
-
-```text
-Task -> Material
-Task -> Note
-Subject -> Material
-Subject -> Note
-ScheduleEvent -> Task
-CalendarEvent -> Note
-Note -> Note
-```
-
----
-
-## 11. Search
-
-The system should provide two search layers.
-
-### Structured Search
-
-Search by:
-
-- title;
-- subject;
-- type;
-- date;
-- status;
-- explicit fields.
-
-### Semantic Search
-
-Search over notes and materials using embeddings + pgvector.
-
----
-
-## 12. AI Assistant
-
-The AI assistant is an interface to workspace data and actions.
-
-Example user requests:
-
-```text
-What do I have tomorrow?
-```
-
-```text
-When do I have two free hours?
-```
-
-```text
-Find materials for my second Knowledge Base Design lab.
-```
-
-```text
-When should I work on this lab?
-```
-
-```text
-Schedule gym tomorrow at 18:00.
-```
-
-The AI assistant must not execute SQL directly.
-
-It must work through approved application tools.
-
----
-
-## 13. AI Tool Calling
-
-Example:
-
-```text
-User
- |
- v
-AI
- |
- +--> get_calendar
- +--> get_tasks
- +--> get_free_slots
- +--> search_materials
- +--> create_task
- `--> propose_calendar_event
-```
-
-Business logic remains inside normal application services.
-
----
-
-## 14. Reminders
-
-The system should support:
-
-- task reminders;
-- deadline reminders;
-- calendar event reminders.
-
-Initial channel:
-
-```text
-in-app
-```
-
-Possible future channels:
-
-```text
-email
-Telegram
-push notifications
-```
-
----
-
-## 15. Future Development
-
-The project should be suitable for future growth.
-
-Possible directions:
-
-- Google Calendar integration;
-- additional universities;
-- Telegram integration;
-- mobile application;
-- shared workspaces;
-- collaborative notes;
-- intelligent planning;
-- additional AI providers;
-- separate AI Service when justified;
-- separate Notification Service when justified.
-
-The initial implementation remains a modular monolith.
+Status: not implemented.
+
+Tasks exist independently of subjects and pages. Targets include status, priority,
+optional deadline, effort, dependencies, optional links and explicit calendar blocks.
+A deadline and a work block are separate concepts.
+
+Availability considers resolved official occurrences, personal busy events and task
+blocks. Skipped lessons and nonblocking entries do not occupy time; hidden busy
+entries still do. Missing source coverage remains visible in planning results.
+
+Reminders first produce durable in-app notifications. Additional email, Telegram
+and push channels require their own contracts and delivery decisions.
+
+## 8. Materials, search and AI
+
+Status: not implemented, except private avatars using the existing S3 adapter.
+
+Material files belong in S3-compatible storage, with ownership and processing
+metadata in PostgreSQL. Processing extracts text, chunks and indexes supported
+formats asynchronously. Structured/full-text search precedes semantic search/RAG.
+
+AI answers questions about the user's calendar and workspace, searches content,
+explains imported information and proposes edits/plans. It accesses data only
+through authorized application tools. Answers based on workspace data identify
+supporting records and relevant source freshness.
+
+The initial action policy is proposal, explicit user confirmation, then execution
+through normal services. More autonomous actions are an open decision, not implicit
+permission. See [AI architecture](../architecture/ai.md).
+
+## 9. Implementation status
+
+| Capability | Current status |
+| --- | --- |
+| Monolith, Compose, migrations, workers, CI, safe diagnostics | Implemented foundation |
+| Browser auth, Google login/linking, email delivery | Implemented backend; email verification UI only |
+| User profile/avatar and academic profile | Implemented backend |
+| Public IIS directories and live reads | Implemented backend |
+| Official schedule storage, supported expansion and sync | Implemented backend with source limitations |
+| Personal events, official overrides and resolved calendar | Implemented backend |
+| Pages/blocks, relations, collections, tags, databases, views | Status: not implemented. |
+| Tasks, availability, reminders and notifications | Status: not implemented. |
+| General materials, search, AI and RAG | Status: not implemented. |
+| Authenticated IIS capabilities | Status: not implemented; contract unverified. |
+| Workspace/calendar business UI | Status: not implemented. |
+
+## 10. Development approach
+
+Implement backend vertical slices with acceptance criteria before UI work is requested.
+The next proposed slice is standalone pages, then optional relations and organization.
+`subjects` is no longer a prerequisite. The [roadmap](../development/implementation-roadmap.md)
+defines dependencies; [open decisions](open-questions.md) record unknowns.
+
+The initial release is provisionally personal. Shared spaces and simultaneous editing
+are separate scope decisions. Additional calendar providers, mobile apps, export/import
+and advanced database features are later work, not promises of the first release.

@@ -1,40 +1,55 @@
 # SYSTEM_ARCHITECTURE.md
 
-> **Project:** Ukladen  
-> **Document type:** High-Level Architecture Blueprint  
-> **Goal:** Define the overall architecture, boundaries, runtime components, technology stack, module ownership and scaling path.  
+> **Project:** Ukladen
+>
+> **Document type:** Primary architecture contract (current baseline and target design)
+>
+> **Goal:** Define the overall architecture, boundaries, runtime components, technology stack, module ownership and scaling path.
+>
 > **Important:** This document intentionally does **not** define concrete BSUIR IIS response fields, exact external API payloads, full SQL schema, or detailed endpoint DTOs. Those contracts are separate documents.
+
+Updated: 2026-10-12. Target features are not implemented unless explicitly marked.
+Read the [documentation index](docs/README.md), [open decisions](docs/product/open-questions.md)
+and [implementation roadmap](docs/development/implementation-roadmap.md) for a concrete slice.
+[ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md) records optional organization.
 
 ---
 
 # 1. Product Vision
 
-The system is a flexible student workspace inspired by **Notion + Google Calendar + task manager**, specialized for BSUIR students.
+Ukladen combines a **Notion-like workspace + Notion Calendar-like calendar + AI
+assistant + deep BSUIR IIS integration**. These references describe product intent,
+not an obligation to reproduce every feature of another product.
 
-The central object for the user is a **personal calendar/workspace**.
+The user has independent pages and a personal calendar. Academic and personal
+content are equally valid. A group/subgroup selection enriches the calendar; it
+is not required to create a page, personal event or task.
 
-The system combines:
+User-controlled organization is the architecture contract:
 
-- university schedule imported from BSUIR IIS;
-- flexible personal calendar;
-- tasks and deadlines;
-- reminders;
-- subjects;
-- notes;
-- educational materials;
-- links between entities;
-- AI assistant;
-- semantic search and RAG.
+- pages/notes exist without subjects, events, parents or collections;
+- events are edited directly and retain their individual identities;
+- page nesting, links, tags, collections and views are optional choices;
+- matching subject labels never merge lectures/labs or create shared content;
+- views select/present data without owning, copying or deleting it;
+- grouping never propagates member edits;
+- dates/deadlines are not busy time unless explicitly scheduled;
+- official facts remain separate from personal interpretation and organization.
 
-The user must be able to freely adapt the imported university schedule for personal planning:
+The full target includes blocks, user-defined databases/properties, saved views,
+tasks, reminders, materials, search/RAG and application-tool-based AI. Exact editor,
+database and collaboration scope remains provisional in the decision register.
+Authenticated student-specific IIS data requires separately verified contracts;
+"deep integration" does not authorize guessed endpoints or private account access.
 
-- mark a class as skipped;
-- hide it from the personal view;
-- replace the occupied time with a personal activity;
-- attach notes/tasks/materials;
-- customize the local representation.
+Current backend: authentication, profiles, public IIS reads, official schedule
+storage/sync, personal events, official overrides and resolved calendar reads.
+Status: not implemented — pages/blocks, user organization/databases/views, tasks,
+availability, reminders, general materials, search, AI/RAG and authenticated IIS.
+The business frontend is not implemented except browser email verification.
 
-Official schedule data and the user's personal interpretation are logically separated.
+Detailed behavior: [product overview](docs/product/overview.md) and
+[workspace requirements](docs/product/workspace.md).
 
 ---
 
@@ -130,7 +145,8 @@ Responsibilities:
 - personal event creation/editing;
 - imported schedule event overrides;
 - tasks and deadlines UI;
-- subject workspace;
+- standalone/nested pages and optional academic organization;
+- block editing and user-defined database views (planned);
 - notes;
 - materials;
 - AI assistant UI;
@@ -180,7 +196,8 @@ Responsibilities:
 - authentication;
 - users;
 - academic profile;
-- subjects;
+- user organization and saved views (planned);
+- optional subjects;
 - schedule;
 - personal calendar;
 - schedule overrides;
@@ -211,16 +228,17 @@ Store:
 users
 academic profiles
 groups
-subjects
+optional subjects
+planned pages, documents, collections, databases, property values and saved views
 official schedule
 personal schedule overrides
 personal calendar events
 tasks
 task relations
 reminders
-notes
+page content (notes)
 materials metadata
-knowledge relations
+optional knowledge relations
 AI sessions
 processing state
 ```
@@ -344,9 +362,14 @@ RAG
 semantic search
 answer generation
 action proposals
+owner-scoped source citations and versioned confirmed execution
 ```
 
-AI must not access the DB directly.
+AI must not access the DB directly. It uses the caller's normal permissions through
+application tools. Read-only tools precede writes; writes require exact proposals,
+explicit confirmation, version checks and durable idempotency. Retrieved content is
+not authorization. Provider choice/data policy remain open; see
+[AI architecture](docs/architecture/ai.md). Status: AI and RAG are not implemented.
 
 Architecture:
 
@@ -356,7 +379,7 @@ Architecture:
               v
         +-------------+
         | Tool Layer  |
-        +------+------+ 
+        +------+------+
                |
      +---------+---------+
      |         |         |
@@ -389,6 +412,7 @@ relations
 search
 ai
 notifications
+workspace (planned user organization/database/view boundary)
 integrations
 ```
 
@@ -425,13 +449,12 @@ account state
 
 ## 5.3 academics
 
-```text
-group
-subgroup
-semester
-subjects
-academic profile
-```
+Own academic group/subgroup selection, verified public context and directories.
+Term/subject labels are source metadata, not mandatory user organization or invented
+stable subject identities. Private student-specific academic records are a conditional
+future capability requiring a verified account/API contract.
+
+Status: public reads and academic profiles implemented; private account data not implemented.
 
 ## 5.4 schedule
 
@@ -476,7 +499,14 @@ resolved personal calendar
 
 Status: backend personal events, per-user overrides and resolved calendar reads are
 implemented; see [calendar contracts](docs/development/calendar.md). Free-slot/conflict
-queries, task blocks and the calendar frontend are not implemented.
+queries, task blocks and the calendar frontend are not implemented. User tags,
+collections/views, all-day/recurring personal events and database-date projections
+are also not implemented.
+
+Calendar composition is presentation over independently owned typed data. Page dates
+and task deadlines do not automatically block time. Availability must use the complete
+resolved busy set, not a visual filter, and retain source freshness/coverage warnings.
+See [workspace architecture](docs/architecture/workspace.md).
 
 ## 5.6 tasks
 
@@ -502,27 +532,24 @@ notification scheduling
 
 ## 5.8 subjects
 
-A subject is a workspace context:
+Status: not implemented. Optional academic organization only.
 
-```text
-ПБЗ
-|
-|-- schedule
-|-- tasks
-|-- notes
-|-- materials
-|-- deadlines
-`-- related events
-```
+A user may create separate lecture/lab pages or manually group them, use a template,
+or ignore subjects. `subject_id` must not become a requirement of notes, tasks or
+personal events. Never infer user grouping from equal external subject strings.
+
+Subject templates/catalogues are later slices, not a prerequisite for workspace pages.
 
 ## 5.9 notes
 
-```text
-student notes
-markdown/text content
-search
-links to subjects/tasks/events/materials
-```
+Status: not implemented. Own standalone pages, optional page hierarchy, validated
+content documents/blocks, versions and trash/restore. The first proposed slice is
+an explicitly limited text/Markdown document, followed by blocks when its schema is
+specified. Search indexes are derived and owned by search.
+
+Page links are optional. Collections/property schemas/views belong to the planned
+workspace boundary; event time belongs to calendar. See
+[workspace architecture](docs/architecture/workspace.md).
 
 ## 5.10 materials
 
@@ -537,16 +564,13 @@ document indexing
 
 ## 5.11 relations
 
-Notion-like links:
+Status: not implemented. Optional authorized links and backlinks between existing
+pages, events, tasks and materials. Unlinking does not delete either endpoint.
+Validate both endpoint ownership/access through application interfaces; a generic
+type-plus-UUID reference does not by itself provide foreign-key integrity.
 
-```text
-task -> material
-task -> note
-subject -> material
-calendar event -> note
-schedule event -> task
-note -> note
-```
+Page containment is owned by notes; collection membership/property values by
+workspace; dependency graphs by tasks. Do not infer these rules from arbitrary links.
 
 ## 5.12 search
 
@@ -598,6 +622,19 @@ Telegram
 email
 other university systems
 ```
+
+Deep IIS integration extends verified public context and conditionally supports
+private student data through an explicitly connected account. No private contract
+or write-back is established. See [IIS roadmap](docs/integrations/bsuir-iis-roadmap.md).
+
+## 5.16 workspace (planned)
+
+Status: not implemented; package not created. Own user-controlled collections,
+memberships, tags, user database/property schemas and values, and saved view
+configuration. It does not own page bodies, event time or official facts.
+
+Add this boundary with a concrete organization slice, not empty scaffolding.
+[ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md) explains the addition.
 
 ---
 
@@ -662,6 +699,10 @@ domain -> LLM SDK
 ---
 
 # 7. Repository Structure
+
+This is a logical target map. Existing business package markers are not implemented
+features. `workspace/` is planned and will be added under modules only for its slice;
+frontend feature directories are introduced with actual UI work.
 
 ```text
 ukladen/
@@ -733,7 +774,8 @@ ukladen/
 
 # 8. Main Data Domains
 
-Exact DB schema is a separate specification.
+Exact DB schema is defined per implementation slice. The list includes target
+entities, not only current tables; see the roadmap for implemented status.
 
 At architecture level:
 
@@ -755,7 +797,8 @@ TaskCalendarBlock
 
 Reminder
 
-Note
+Page / PageDocument / Block (planned, notes-owned)
+Collection / Tag / Database / PropertyDefinition / DatabaseRecord / SavedView (planned, workspace-owned)
 Material
 MaterialChunk
 
@@ -770,6 +813,10 @@ AIMessage
 # 9. Main Data Flows
 
 ## 9.1 Onboarding
+
+Workspace onboarding can start with a standalone page or personal event without
+academic selection. The following optional academic flow enriches the calendar;
+it does not create a mandatory subject hierarchy.
 
 ```text
 User
@@ -822,7 +869,7 @@ Task
  |
  +--> deadline
  +--> estimated duration
- +--> subject
+ +--> optional user-selected links
  |
  v
 Calendar Service
@@ -964,11 +1011,8 @@ Playwright
 ## Observability
 
 ```text
-structured logging
-Sentry
-Prometheus
-Grafana
-OpenTelemetry
+structured logging (implemented)
+Sentry / Prometheus / Grafana / OpenTelemetry (not implemented; separate future scope)
 ```
 
 ---
@@ -1061,7 +1105,7 @@ Primary ownership:
 apps/web
 calendar UI
 tasks UI
-subject workspace
+standalone pages, user organization and database views
 notes/materials UI
 AI assistant UI
 ```
@@ -1083,6 +1127,7 @@ reminders
 
 ```text
 notes
+workspace (planned)
 materials
 relations
 search
@@ -1106,89 +1151,54 @@ architecture decisions
 
 # 14. Development Order
 
-## Phase 0
+Detailed slices, dependencies and acceptance checks live in
+[implementation roadmap](docs/development/implementation-roadmap.md). This order is
+planning, not authorization to implement the next phase.
 
-```text
-repository
-Docker Compose
-FastAPI
-Next.js
-PostgreSQL
-Redis
-Celery
-SeaweedFS
-CI
-```
+## Phase 0 — foundation
 
-## Phase 1
+Implemented: repository, Compose, FastAPI/Next.js shell, PostgreSQL/pgvector,
+Redis, Celery, SeaweedFS and CI. Infrastructure availability is not AI/RAG support.
 
-```text
-auth
-user
-academic profile
-schedule provider abstraction
-schedule storage
-calendar
-personal events
-schedule overrides
-```
+## Phase 1 — existing calendar and public university backend
 
-Goal:
+Implemented backend: auth, user/academic profiles, verified public IIS reads,
+official schedule storage/sync, personal events and official overrides/resolved reads.
+Calendar business UI is not implemented.
 
-```text
-group
--> schedule
--> personal calendar
--> skip class
--> create own event
-```
+## Phase 2 — independent workspace
 
-## Phase 2
+Status: not implemented. Standalone pages -> optional links -> tags/collections and
+saved views -> optional nesting and validated blocks. `subjects` is not a prerequisite.
 
-```text
-subjects
-tasks
-deadlines
-free slots
-task blocks
-reminders
-```
+## Phase 3 — user databases and planning
 
-## Phase 3
+Status: not implemented. Typed properties/records and date-bound views; typed tasks,
+availability/conflicts and explicit work blocks; reminders/in-app notifications.
+Planning can be requested independently of database features.
 
-```text
-notes
-materials
-relations
-object storage
-document processing
-```
+## Phase 4 — knowledge and retrieval
 
-## Phase 4
+Status: not implemented. General materials, extraction, structured/full-text search,
+then embeddings/semantic retrieval. Preserve permissions and content versions.
 
-```text
-search
-embeddings
-pgvector
-RAG
-```
+## Phase 5 — AI tools and grounded actions
 
-## Phase 5
+Status: not implemented. Read-only application tools, exact confirmed actions and
+idempotent execution, then RAG once indexing exists. A calendar-only AI read slice
+can be requested earlier; do not force unrelated feature dependencies.
 
-```text
-AI assistant
-tool calling
-action confirmation
-```
+## Parallel evidence track — deep IIS
 
-## Phase 6
+Private APIs remain unverified and not implemented. Investigate source exception
+rules and requested private capabilities, then one verified read-only account slice
+at a time. No guessed endpoints, automatic subject grouping or implicit write-back.
 
-```text
-performance
-monitoring
-deployment
-external integrations
-```
+## Later scope
+
+Optional academic templates, sharing, real-time editing, advanced properties,
+recurrence/external calendars, exports/mobile apps and production hardening require
+separate decisions and requests. See [open decisions](docs/product/open-questions.md).
 
 ---
 
@@ -1210,27 +1220,31 @@ external integrations
 13. Do not invent external API contracts.
 14. Do not add infrastructure technology without an architectural reason.
 15. Build vertical slices instead of generating the whole system at once.
+16. Standalone pages/events must not require academic grouping.
+17. Views/relations must not duplicate objects, propagate edits or change availability.
+18. Read relevant open decisions; do not treat proposed defaults as owner confirmation.
 ```
 
 ---
 
 # 16. Architecture Documents Split
 
-This document defines only system architecture.
+Use existing documents rather than referring agents to nonexistent specifications:
 
-Separate documents should later define implementation details:
+- [Documentation index](docs/README.md): navigation and update rules.
+- [Product overview](docs/product/overview.md): goals and current status.
+- [Workspace requirements](docs/product/workspace.md): observable acceptance cases.
+- [Open decisions](docs/product/open-questions.md): owner choices versus unverified contracts.
+- [Workspace architecture](docs/architecture/workspace.md): planned ownership/data flows.
+- [AI architecture](docs/architecture/ai.md): tools, action lifecycle and retrieval.
+- [IIS roadmap](docs/integrations/bsuir-iis-roadmap.md): evidence gates and capability status.
+- [Implementation roadmap](docs/development/implementation-roadmap.md): slices and checks.
+- [Backend architecture](docs/architecture/backend.md) and development guides: current behavior.
+- ADRs: accepted boundary decisions; deployment/frontend docs: their actual baseline.
 
-```text
-SYSTEM_ARCHITECTURE.md   <- overall system
-DATABASE_SPEC.md         <- exact schema
-API_SPEC.md              <- exact REST contracts
-IIS_INTEGRATION_SPEC.md  <- IIS integration
-AI_RAG_SPEC.md           <- AI/RAG/tool contracts
-FRONTEND_SPEC.md         <- UI/frontend architecture
-DEPLOYMENT_SPEC.md       <- production infrastructure
-```
-
-This separation prevents the high-level architecture from becoming coupled to currently unknown integration details.
+Exact SQL/HTTP schemas are specified for the requested slice alongside migration,
+Pydantic/OpenAPI and current-contract documentation. Planned routes/types must be
+marked not implemented. Do not duplicate the same product specification in root files.
 
 ---
 

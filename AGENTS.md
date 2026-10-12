@@ -11,6 +11,14 @@ Before making any architecture-affecting changes, read:
 - relevant documents under `docs/architecture/`
 - relevant ADRs under `docs/adr/`
 
+For workspace/calendar/product work also read:
+
+- `docs/README.md` (documentation map);
+- `docs/product/overview.md` and `docs/product/workspace.md`;
+- `docs/product/open-questions.md`;
+- `docs/development/implementation-roadmap.md`;
+- the relevant workspace, AI or IIS architecture/integration document.
+
 `SYSTEM_ARCHITECTURE.md` is the primary architecture contract for the project.
 
 If the current implementation conflicts with the architecture, do not silently change the architecture.
@@ -94,6 +102,23 @@ Main backend modules:
 - `ai`
 - `notifications`
 - `integrations`
+
+`workspace` is an additional planned boundary for user organization, database
+properties and saved views under ADR 0004. It is not implemented; create its package
+only with a requested vertical slice. A package marker does not count as a feature.
+
+### Workspace product invariants
+
+- Standalone pages/notes and personal events must work without subjects or academic profiles.
+- Subject labels are source metadata, not instructions to merge lectures/labs.
+- Nesting, relations, tags, collections and views are explicit user choices.
+- A view or collection references data; deleting it must not delete its members.
+- Membership does not propagate edits between events or page bodies.
+- Dates/deadlines are nonblocking unless explicitly scheduled; display filters do
+  not remove busy intervals from availability calculations.
+- Preserve official facts/personal overrides and existing API contracts.
+- Proposed defaults in the decision register are not owner confirmation. Resolve
+  relevant choices before implementing incompatible schemas or behavior.
 
 Inside modules, preserve the dependency direction:
 
@@ -314,6 +339,12 @@ chore: bootstrap monorepo
 All technical documentation must be written in English.
 
 Documentation must describe the implementation that actually exists.
+
+Product requirements and target architecture may describe future behavior only
+with explicit planned/not-implemented status. Keep one product specification and
+link to it instead of duplicating it in root files. Update capability status and
+affected roadmap/decision sections after implementing a slice. Preserve dated
+verification history; do not imply its checks were rerun during documentation edits.
 
 If functionality is planned but not implemented, mark it explicitly:
 

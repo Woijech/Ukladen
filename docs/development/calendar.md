@@ -5,6 +5,15 @@ resolved date-range reads, ownership/CSRF protection and safe structured diagnos
 Free slots, conflict checking, task blocks, recurring/all-day personal events,
 subject pages, nested notes, reminders and the calendar frontend are not implemented.
 
+## Future workspace compatibility
+
+Standalone events do not require a subject or page. Official subject labels are
+source metadata; equal labels never merge lecture/lab occurrences. Future page links,
+tags/collections, saved views and date projections are optional and not implemented.
+Preserve current identities/routes. A visual filter must not determine occupied-time truth.
+See [requirements](../product/workspace.md), [architecture](../architecture/workspace.md)
+and [roadmap](implementation-roadmap.md).
+
 ## Ownership and storage
 
 `calendar` owns `personal_calendar_events` and `schedule_overrides`, introduced by

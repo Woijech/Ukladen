@@ -42,8 +42,10 @@ lesson and root schedule dates use `DD.MM.YYYY`.
 
 This contract does not establish cancellation/split precedence, recurrence for
 arbitrary dates, synchronization guarantees or authenticated IIS account APIs.
-Calendar persistence, personal overrides and background synchronization remain
-separate project phases. XML is documented upstream but has not been verified;
+Calendar persistence, personal overrides and background synchronization are implemented
+separately; see [schedule](../development/schedule.md) and [calendar](../development/calendar.md).
+Private account capabilities remain unverified/unimplemented; see
+[deep integration](bsuir-iis-roadmap.md). XML is documented upstream but unverified;
 Ukladen requests and validates JSON.
 
 ## Schedule expansion verification (2026-10-07)

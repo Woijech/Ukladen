@@ -33,4 +33,4 @@ Backend replicas share PostgreSQL and Redis rather than process-local session st
 
 The original decision recorded the design only. Subsequent implementation added
 endpoints, persistence, configuration and tests following
-[AUTH_SPEC.md](../modules/auth/AUTH_SPEC.md).
+[current authentication contracts](../architecture/backend.md).
