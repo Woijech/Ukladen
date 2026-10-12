@@ -8,7 +8,7 @@ Updated: 2026-10-12.
 2. [System architecture](../SYSTEM_ARCHITECTURE.md): primary architecture contract.
 3. [Product overview](product/overview.md): direction and implementation status.
 4. [Workspace requirements](product/workspace.md): behaviors and acceptance cases.
-5. [Open decisions](product/open-questions.md): unresolved choices and proposed defaults.
+5. [Decision register](product/open-questions.md): confirmed answers and remaining choices.
 6. [Implementation roadmap](development/implementation-roadmap.md): backend slices/dependencies.
 7. Relevant design, current implementation guide and code for the requested slice.
 
@@ -28,6 +28,7 @@ Planned contracts do not override the current implemented API silently.
 - [ADR 0002](adr/0002-use-opaque-browser-sessions.md): browser authentication.
 - [ADR 0003](adr/0003-use-cloudflare-tunnel-for-home-hosting.md): home hosting.
 - [ADR 0004](adr/0004-keep-workspace-organization-optional.md): optional user organization.
+- [ADR 0005](adr/0005-support-scoped-ai-action-permissions.md): confirmed/scoped automatic AI actions.
 
 ## Current implementation guides
 

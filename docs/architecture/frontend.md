@@ -38,7 +38,8 @@ frontend.
 Status: not implemented. Future business UI presents independent pages, direct event
 editing, optional organization, block documents and database/calendar views. Subjects
 are optional navigation. Date labels and time reservations must be distinguishable.
-AI UI exposes supporting sources and exact proposals/confirmation.
+AI UI exposes supporting sources, recommendations, exact proposals/confirmation and
+explicit automatic-action permission management. Shared editing and formulas are deferred.
 
 Follow [workspace requirements](../product/workspace.md) and resolve editor/collaboration
 scope in [open decisions](../product/open-questions.md) before choosing UI contracts.

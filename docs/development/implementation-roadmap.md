@@ -2,7 +2,9 @@
 
 Updated: 2026-10-12.
 Status: future implementation plan. This document does not authorize starting the
-next phase; request a concrete slice before implementing it. Proposed defaults in
+next phase; request a concrete slice before implementing it. Pages/blocks/databases,
+mandatory table/calendar views, personal scope and AI execution modes are confirmed.
+Formulas, collaboration and private IIS are deferred. Remaining proposed details in
 [open decisions](../product/open-questions.md) remain provisional.
 
 ## 1. Read order for a development agent
@@ -91,7 +93,7 @@ user-executable SQL for the first view slice.
 
 ## 6. P-04 page hierarchy and block content
 
-Status: not implemented. Dependencies: P-01; decisions Q-03/06/08.
+Status: not implemented. Dependencies: P-01; decisions Q-06/08. Personal ownership is confirmed.
 
 Add optional parent/move operations, cycle-safe concurrent mutation behavior and
 explicit subtree trash/restore policy. Add a selected versioned block document
@@ -107,10 +109,12 @@ content migration checks pass. Nesting and collection membership stay distinct.
 
 ## 7. P-05 user databases, properties and calendar projection
 
-Status: not implemented. Dependencies: P-01/03/04; decisions Q-01/05/07/08.
+Status: not implemented. Dependencies: P-01/03/04; remaining decisions Q-05/07/08/12.
+Pages/blocks/databases and table/calendar views are confirmed under Q-01.
 
 Implement database/property/record CRUD, page-backed rows, stable property identities
-and type-validated values. Start with a bounded set of property types and view filters.
+and type-validated values. Table and calendar views over the same records are required;
+list/board views are optional and formulas are deferred. Start with a bounded set of property types and view filters.
 Finalize whether a page may participate in several databases and document deletion
 and schema-conversion behavior before designing tables.
 
@@ -175,35 +179,38 @@ visible without deleting the source file. Do not claim arbitrary PDF/OCR support
 Done when native storage and rollback/cleanup/ownership checks plus bounded search
 checks pass. Existing avatar APIs must keep working.
 
-## 11. P-09 AI reads, confirmed actions and RAG
+## 11. P-09 AI help, recommendations, confirmed/automatic actions and RAG
 
 Status: not implemented. Dependencies: only the application tools actually used.
 AI calendar reads may be requested before P-08; RAG requires extraction/search.
-Decision: Q-04.
+Execution modes are confirmed under Q-04; remaining permission/provider policy is Q-04a.
 
-Follow [AI architecture](../architecture/ai.md): provider-neutral adapters, typed
-owner-scoped tools, read-only first. Add exact persisted action proposals, confirmation,
-expected versions and durable idempotent execution before enabling writes.
+Follow [AI architecture](../architecture/ai.md): provider-neutral adapters and typed
+owner-scoped tools. Deliver read/help/recommendations first, exact confirmed writes
+second, and explicitly permitted automatic writes third. Both write paths require
+expected versions and durable idempotent execution. Automatic mode additionally needs
+persisted owner-issued grants, target/operation limits, expiry/revocation and execution
+checks; an unconfigured grant must not enable unrestricted writes.
 
 Add cited retrieval, versioned embeddings and RAG after source processing exists.
 Use fakes for ordinary tests; enable real provider traffic only after configuration,
 cost and content-sharing policy are defined. No direct database or raw IIS tool.
 
-Done when WS-10, confirmation/replay/stale-target checks, citation ownership, prompt
-injection boundaries and provider failure/cancellation handling pass.
+Done when WS-10, confirmation/grant/revocation/replay/stale-target checks, citation
+ownership, prompt injection boundaries and provider failure/cancellation handling pass.
 
-## 12. I-01/I-02 deeper IIS integration
+## 12. I-01 public IIS scope; I-02 deferred private integration
 
-Status: private capabilities not implemented; contract unverified. Decision: Q-02.
-This evidence track can proceed independently of page/database implementation.
+Q-02 is confirmed: current IIS work is schedule and related public data only.
 
-- I-01: document missing public exception rules and private connection/capability evidence.
-- I-02: implement one verified read-only account capability, owner-scoped storage,
-  status/refresh/disconnect and explicit workspace mapping where needed.
+- I-01: preserve public reads/sync and improve unsupported public exception/identity
+  cases only after authoritative evidence. Keep user organization and content separate.
+- I-02: future plan, not current work. No private account investigation/connection,
+  grade imports, credential storage or private jobs until a new phase is requested.
 
-Follow the [IIS roadmap](../integrations/bsuir-iis-roadmap.md). Do not invent APIs or
-use live credentials in tests. Keep official group facts distinct from private
-student records and local attendance choices. Write-back is a separate decision.
+The [IIS roadmap](../integrations/bsuir-iis-roadmap.md) retains future capability ideas,
+all unverified and unimplemented. No guessed APIs or live credentials in tests.
+Private write-back remains outside current scope.
 
 ## 13. Optional and later work
 

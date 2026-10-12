@@ -42,9 +42,10 @@ with independent pages, optional links, user organization, properties and saved 
 definitions; calendar retains scheduling truth. Subjects are optional; lecture/lab
 labels never trigger automatic grouping.
 
-[AI](ai.md) calls authorized application tools: read-only before confirmed writes/RAG.
-[Deep IIS integration](../integrations/bsuir-iis-roadmap.md) separates verified public
-reads from unverified private capabilities. Infrastructure and markers are not features.
+[AI](ai.md) calls authorized application tools: read/help and recommendations, then
+confirmed writes and explicitly permitted automatic actions; RAG follows indexing.
+[IIS scope](../integrations/bsuir-iis-roadmap.md) is public schedule/context now;
+student-account capabilities are deferred. Infrastructure and markers are not features.
 
 Read the [roadmap](../development/implementation-roadmap.md) and
 [open decisions](../product/open-questions.md) before starting a slice. The sections

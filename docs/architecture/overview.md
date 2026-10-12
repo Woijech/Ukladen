@@ -20,6 +20,11 @@ IIS integration. Subjects are optional; source labels do not merge lecture/lab o
 See [requirements](../product/workspace.md), [decisions](../product/open-questions.md)
 and [roadmap](../development/implementation-roadmap.md).
 
+Confirmed current target: personal pages/blocks/databases with table/calendar views.
+Formulas, sharing and student-account IIS are deferred. AI includes recommendations,
+confirmed execution and scoped automatic actions under
+[ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md); runtime remains unimplemented.
+
 PostgreSQL 18 is the authoritative data store. The initial Alembic migration enables
 pgvector; subsequent migrations create users, auth, academic-profile, personal-event
 and official schedule tables.

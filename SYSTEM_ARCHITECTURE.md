@@ -37,10 +37,12 @@ User-controlled organization is the architecture contract:
 - official facts remain separate from personal interpretation and organization.
 
 The full target includes blocks, user-defined databases/properties, saved views,
-tasks, reminders, materials, search/RAG and application-tool-based AI. Exact editor,
-database and collaboration scope remains provisional in the decision register.
-Authenticated student-specific IIS data requires separately verified contracts;
-"deep integration" does not authorize guessed endpoints or private account access.
+tasks, reminders, materials, search/RAG and application-tool-based AI. The owner
+confirmed pages, blocks and user databases, with mandatory table/calendar views.
+Formulas and collaboration are deferred. Current IIS scope is schedule and related
+public data; grades/private accounts remain future-only. Exact content/schema details
+and scoped AI permission rules are in the decision register. Private IIS work requires
+an explicit later phase and verified contracts; do not implement it in current slices.
 
 Current backend: authentication, profiles, public IIS reads, official schedule
 storage/sync, personal events, official overrides and resolved calendar reads.
@@ -362,13 +364,15 @@ RAG
 semantic search
 answer generation
 action proposals
-owner-scoped source citations and versioned confirmed execution
+owner-scoped source citations and versioned confirmed/scoped automatic execution
 ```
 
 AI must not access the DB directly. It uses the caller's normal permissions through
-application tools. Read-only tools precede writes; writes require exact proposals,
-explicit confirmation, version checks and durable idempotency. Retrieved content is
-not authorization. Provider choice/data policy remain open; see
+application tools. Read-only help/recommendations precede writes. Writes require
+exact confirmation or an explicit matching owner-issued automatic-action grant,
+version checks and durable idempotency. Retrieved content cannot grant authorization.
+[ADR 0005](docs/adr/0005-support-scoped-ai-action-permissions.md) records these paths.
+Provider choice/data policy and concrete grant scopes remain open; see
 [AI architecture](docs/architecture/ai.md). Status: AI and RAG are not implemented.
 
 Architecture:
@@ -591,6 +595,7 @@ RAG orchestration
 context building
 AI sessions
 action confirmation
+scoped owner-issued automatic-action permissions
 ```
 
 ## 5.14 notifications
@@ -623,9 +628,10 @@ email
 other university systems
 ```
 
-Deep IIS integration extends verified public context and conditionally supports
-private student data through an explicitly connected account. No private contract
-or write-back is established. See [IIS roadmap](docs/integrations/bsuir-iis-roadmap.md).
+Current IIS scope is public schedule and related context. Deep private integration
+is a future plan only: no account connection, credential handling, grade imports or
+write-back in current slices. Future private work requires a new phase request and
+verified contracts. See [IIS roadmap](docs/integrations/bsuir-iis-roadmap.md).
 
 ## 5.16 workspace (planned)
 
@@ -1184,15 +1190,17 @@ then embeddings/semantic retrieval. Preserve permissions and content versions.
 
 ## Phase 5 — AI tools and grounded actions
 
-Status: not implemented. Read-only application tools, exact confirmed actions and
-idempotent execution, then RAG once indexing exists. A calendar-only AI read slice
+Status: not implemented. Read/help and recommendations, exact confirmed actions,
+then explicitly permitted automatic actions with revocable scopes and idempotent
+execution. RAG follows indexing. A calendar-only AI read slice
 can be requested earlier; do not force unrelated feature dependencies.
 
-## Parallel evidence track — deep IIS
+## IIS scope — public now, private later
 
-Private APIs remain unverified and not implemented. Investigate source exception
-rules and requested private capabilities, then one verified read-only account slice
-at a time. No guessed endpoints, automatic subject grouping or implicit write-back.
+Current work is verified public schedule/context and evidence-backed public exception
+improvements. Private APIs remain unverified, unimplemented and explicitly deferred.
+Do not investigate/implement student-account connections or grades during current
+slices. A future requested phase can establish those contracts before implementation.
 
 ## Later scope
 

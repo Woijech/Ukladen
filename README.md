@@ -55,8 +55,11 @@ Start with the [documentation index](docs/README.md), then read the primary arch
 [backend implementation roadmap](docs/development/implementation-roadmap.md).
 
 The next proposed slice is standalone pages, followed by optional links and user
-organization. Subjects are optional. Full editor/database scope, collaboration and
-private IIS capabilities remain explicit decisions, not existing functionality.
+organization. Pages, blocks and user databases with table/calendar views are confirmed
+targets; formulas and collaboration are deferred. Current IIS scope is public schedule
+and related data; student-account integration is future-only. AI targets read/help,
+recommendations, confirmed writes and explicitly permitted automatic actions.
+These targets remain unimplemented; see the decision register for remaining details.
 
 ## Architecture
 

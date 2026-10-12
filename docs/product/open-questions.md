@@ -1,55 +1,72 @@
 # Product Decisions and Open Questions
 
 Updated: 2026-10-12.
-Status: decision register. Proposed defaults are not owner-confirmed requirements.
-An agent may implement independent confirmed scope, but must resolve a relevant
-open decision before committing an incompatible schema, integration or behavior.
+Status: decision register. Owner-confirmed scope is distinguished from open design
+choices. Proposed defaults are not owner confirmation; resolve relevant unknowns
+before implementing incompatible schemas, integrations or behavior.
 
 ## Confirmed direction
 
-- Combine a freely organized workspace and calendar with AI and deep IIS integration.
-- Standalone notes/pages must work without an event or academic context.
-- Organization and links are user-controlled; lecture/lab grouping is never automatic.
-- Keep official facts separate from personal interpretation; preserve the existing backend.
-- This task edits documentation only; it does not authorize implementation of a new phase.
+- Combine a freely organized workspace/calendar with AI and public IIS schedule integration.
+- Standalone pages and events work without academic context; organization is optional.
+- Lecture/lab grouping is user-controlled, never inferred from equal source labels.
+- Preserve official facts, personal overrides and existing backend contracts.
 - Technical documentation/code is English; initial product text may be Russian.
+- This task updates documentation; implementation of a new phase is not requested.
 
-The [ADR](../adr/0004-keep-workspace-organization-optional.md) records this direction.
+[ADR 0004](../adr/0004-keep-workspace-organization-optional.md) records organization.
+[ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md) records AI authorization.
 
-## Decisions to clarify
+## Owner-confirmed answers (2026-10-12)
+
+| ID | Confirmed decision | Delivery consequence |
+| --- | --- | --- |
+| Q-01 | Pages, blocks and user-defined databases are required. Table and calendar views are mandatory. Formulas are not needed now. | Deliver incrementally; a text-only slice is an intermediate step, not the complete workspace. List/board views and rollups are not first-release requirements. |
+| Q-02 | Current IIS scope is schedule and related public data. Grades and other deep student-account integration remain future plans and are not being implemented now. | Preserve verified public adapters/sync; do not add private account connection, credentials, grade imports or private API investigation to current slices. |
+| Q-03 | Shared spaces and collaboration are not needed now; they are later work. | Use personal owner-scoped data. No collaborator-membership, access-role, sharing or simultaneous-editing subsystem in current scope. |
+| Q-04 | AI must provide reading/help, recommendations, execution after confirmation and explicitly permitted automatic actions. | Implement reads/recommendations, confirmed writes, then scoped automatic execution. Automatic actions require a real owner permission; this feature decision does not grant unrestricted execution. |
+
+These answers replace the previous provisional defaults for Q-01 through Q-04.
+Capabilities remain not implemented; confirming scope does not change runtime status.
+Exact AI permissions/provider policy remain open below, rather than reopening the
+confirmed requirement for automatic actions.
+
+## Remaining decisions
 
 | ID | Question | Proposed default | What depends on it |
 | --- | --- | --- | --- |
-| Q-01 | Does the target require blocks, nested pages and user-defined databases, or only notes/calendar links? Which database features belong in the first release? | Full workspace is the target; deliver standalone text pages first, then blocks and basic typed databases. Formulas/rollups later. | Content contract, database ownership, editor integration and release scope |
-| Q-02 | Which private IIS capabilities are required and actually available: grades, curriculum, attendance, assignments, materials? Is write-back ever wanted? | Rich public integration plus a separately connected private account, read-only first. Every private capability remains unverified until investigated. | Adapter interfaces, private storage, authorization and sync jobs |
-| Q-03 | Personal spaces first, or shared spaces and concurrent editing immediately? | Personal ownership first; sharing and real-time collaboration later. | Ownership model, access control, transactions and document operations |
-| Q-04 | Must AI confirm every mutation, or may users authorize bounded automatic actions? Which provider, budget and data sharing policy apply? | Read-only tools first; exact action preview and explicit confirmation for every write. Provider-neutral adapters; no provider selected. | Tool authorization, action state, costs and external content transfer |
-| Q-05 | Which calendar features are essential first: all-day entries, recurring personal events, multiple calendars, database dates, external providers? What should be busy? | Existing timed events first; date labels/deadlines are nonblocking. All-day/recurrence are separate contracts; no Google/Microsoft sync assumed. | Date DTOs, recurrence/exception model, view bindings and availability |
-| Q-06 | How should trash, nested-page deletion, history, permanent purge and export behave? | Recoverable trash; no silent child/content destruction. Exact subtree/restore policy decided before hierarchy implementation. | Foreign keys, cleanup jobs, relation visibility and restore semantics |
-| Q-07 | Are tasks typed planning objects, customizable database records, or both with an explicit binding? | Keep typed tasks for planning; ordinary database records do not acquire task semantics automatically. | Task API, property bindings, deadlines and AI tools |
-| Q-08 | Which block types and editor document format are required? Must external editor JSON be portable? | Text, headings, lists/checklists and links first; attachments after materials. Select and version the transport schema before block persistence. | Validation, migrations, rendering, history and exports |
-| Q-09 | Should subjects be a user-created aid, an optional template or a separately imported catalogue? | Defer subjects; offer optional academic templates later. Never merge by label or require `subject_id`. | Subject module and academic-to-workspace relations |
-| Q-10 | How should upstream replacements be reconciled when stable IDs are missing? | Preserve historical references and surface uncertain replacements; explicit user relinking. | Import matching, local overrides, references and notifications |
-| Q-11 | What are first-release limits and operational requirements? | Set explicit content/file/query limits per slice. No promise of unlimited storage or provider usage; deployment secrets and backup policy remain separate. | Uploads, indexing, quotas, observability and production readiness |
+| Q-04a | Which actions may run automatically, on which objects, for how long and with what limits? Which AI provider, budget and content-sharing policy apply? | No automatic writes without an explicit scoped grant. Without a matching grant, preview and confirm. Provider-neutral adapters; no provider chosen. | Grant policy, revocation, execution records, costs and external content transfer |
+| Q-05 | Beyond mandatory database calendar views, which calendar features are required first: all-day events, recurrence, multiple calendars or external providers? | Existing timed events plus date projections; dates/deadlines are nonblocking. Recurrence/all-day contracts are separate; no Google/Microsoft sync assumed. | Date DTOs, recurrence/exception model and availability |
+| Q-06 | How should trash, nested-page deletion, history, purge and export behave? | Recoverable trash; no silent child/content destruction. Define subtree/restore policy before hierarchy implementation. | Foreign keys, cleanup, relation visibility and restore |
+| Q-07 | Are tasks typed planning objects, database records, or both with an explicit binding? | Typed tasks retain planning rules; ordinary records do not become tasks automatically. | Task API, date bindings and AI tools |
+| Q-08 | Which initial block types and editor document format are required? | Text, headings, lists/checklists and links first; attachments after materials. Select/version the schema before block persistence. | Validation, migration, rendering and export |
+| Q-09 | Should optional subjects use templates or a separately imported catalogue? | Defer; never merge by label or require subject IDs. | Subject module and explicit academic relations |
+| Q-10 | How should upstream replacements be reconciled without stable IDs? | Preserve historical references and expose uncertain replacements; explicit relinking. | Import matching, overrides and notifications |
+| Q-11 | What content/file/query and operational limits are required? | Define limits per slice; no unlimited storage/provider usage promise. | Uploads, indexing, quotas and production readiness |
+| Q-12 | May one page be a record in several user databases? How should membership removal and property values behave? | Reference the same body; values belong to each database record; removing membership preserves the page. | Database membership constraints and lifecycle |
 
-Q-01, Q-02 and Q-03 were presented to the owner during the documentation task.
-Until answered, their proposed defaults remain provisional. Silence is not acceptance.
+These details do not block the confirmed documentation direction. Clarify only those
+needed by the requested implementation slice; do not repeatedly ask whether pages,
+databases, personal ownership or automatic AI actions are wanted.
 
-## How agents record answers
+## Future-only IIS questions
 
-Record the owner's actual answer, its date and the affected requirements here.
-Update the primary architecture/ADR if boundaries change, then affected requirement
-and roadmap sections. Do not add a second conflicting product plan elsewhere.
+Private capability priority, authentication/consent, grade/curriculum/assignment
+contracts, credential retention and write-back are deferred. Investigate them only
+when the owner explicitly requests that phase. No private API contract is established.
+Owner intent cannot establish an endpoint or payload; future implementation still
+requires evidence, sanitized fixtures and adapter contract tests.
 
-An unverified external API is a different kind of unknown from a product preference:
-owner intent cannot establish an endpoint or payload. Keep those capability rows
-unverified until evidence, sanitized fixtures and adapter contract tests exist.
+## Recording later decisions
 
-## Next decisions by implementation slice
+Record the answer, date and affected requirements here. Update architecture/ADR when
+boundaries or authorization change, then affected roadmap/product sections. Keep
+current implementation status separate from confirmed future scope.
 
-- Standalone text pages: confirm the deliberately limited first slice, content limits
-  and trash policy; no IIS account or collaboration dependency is required.
-- Nested/block pages: Q-03, Q-06 and Q-08.
-- Databases/calendar projection: Q-01, Q-05 and Q-07.
-- AI writes: Q-04, including confirmation, idempotency and provider data policy.
-- Authenticated IIS: Q-02 plus verified upstream authentication/capability contracts.
+## Next decisions by slice
+
+- Standalone pages: document first-slice content limits and recoverable trash behavior.
+- Nested/block pages: Q-06 and Q-08; personal ownership is already confirmed.
+- Databases/calendar projection: Q-05, Q-07 and Q-12; table/calendar views are required.
+- AI execution: Q-04a, idempotency, versions and provider data policy.
+- Private IIS: deferred; requires a new phase request and verified upstream contracts.

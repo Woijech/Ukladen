@@ -25,8 +25,10 @@ separation is compatible with this direction and must be retained.
   planned; this ADR creates no empty package or database schema.
 - Put standalone pages and optional organization before subject-specific features.
   Preserve the modular monolith and existing APIs.
-- Authenticated IIS capabilities and full editor/database scope remain unresolved
-  contracts where owner choices or upstream evidence are missing.
+- Pages, blocks and databases with table/calendar views are confirmed targets;
+  exact schema/editor details remain open. Formulas and collaboration are deferred.
+- Current IIS scope is public schedule/context; private student capabilities are
+  deferred plans whose upstream contracts remain unverified.
 
 ## Consequences
 
@@ -36,6 +38,13 @@ to implementation slices; the architecture does not replace typed entities with
 an unvalidated universal JSON object table.
 
 No runtime behavior, schema, frontend, credentials or calendar data changes in this task.
+
+## Owner scope clarification (2026-10-12)
+
+The owner confirmed pages/blocks/user databases and mandatory table/calendar views,
+deferred formulas, private IIS and collaboration, and requested AI help/recommendations,
+confirmed execution and explicitly permitted automatic actions.
+[ADR 0005](0005-support-scoped-ai-action-permissions.md) records the AI authorization change.
 
 References: [workspace requirements](../product/workspace.md),
 [workspace architecture](../architecture/workspace.md),

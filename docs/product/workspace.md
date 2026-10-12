@@ -3,7 +3,7 @@
 Updated: 2026-10-12.
 Status: target requirements, not implemented except the existing calendar behavior
 explicitly identified below. See [open decisions](open-questions.md) before selecting
-editor, database or collaboration scope.
+remaining editor, membership or calendar details; personal scope is confirmed.
 
 ## 1. Vocabulary
 
@@ -92,12 +92,13 @@ The user creates "Workouts" with properties for muscle group, status and date.
 - A row has its own record identity and references a content page.
 - Properties are validated by type; arbitrary JSON is not an alternative to validation.
 - Changing a property's type never silently discards existing values.
-- Table, list and calendar views reference the same records.
+- Mandatory table and calendar views reference the same records; list/board views are optional.
 - Removing a view or record membership does not automatically delete page content.
 - No predefined academic fields are mandatory.
 
-This full target is provisional until Q-01 is confirmed. Formulas, rollups, arbitrary
-automations and unrestricted nesting of database schemas are not first-slice features.
+The owner confirmed pages, blocks, databases and table/calendar views under Q-01.
+Formulas/rollups and unrestricted nesting of database schemas are deferred. AI actions
+are a separate scoped capability, not an arbitrary database automation engine.
 
 ### WS-07: Calendar presentation of a dated record
 
@@ -153,11 +154,15 @@ The user asks about tomorrow, searches a lab note or requests a planning change.
 - A question does not mutate data.
 - A proposed change names the target object and exact parameters.
 - Confirmed execution uses version checks and the normal application service.
+- Automatic execution requires an explicit owner grant covering the operation, target
+  and limits. Missing/expired/revoked/out-of-scope permissions cannot execute.
+- Recommendations do not mutate data; granting one operation never permits all tools.
 - Tool retries do not duplicate events/tasks or send repeated notifications.
 - Retrieved page/material text cannot grant tool permissions or override instructions.
 - AI reports unimplemented tools, stale sources and unsupported IIS capabilities.
 
-AI is not implemented. See [AI architecture](../architecture/ai.md) and Q-04.
+AI is not implemented. Execution modes are confirmed; remaining policy is Q-04a.
+See [AI architecture](../architecture/ai.md).
 
 ## 3. Data lifecycle and editing
 

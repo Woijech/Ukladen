@@ -3,7 +3,10 @@
 Updated: 2026-10-12.
 Status: public read/schedule integration implemented within the verified contracts;
 authenticated account integration and capabilities below are not implemented.
-This roadmap is not evidence that a private endpoint exists.
+The owner confirmed schedule and related public data as current scope. Grades and
+other student-account capabilities are future plans only; neither private investigation
+nor implementation belongs in current slices. This roadmap is not evidence that a
+private endpoint exists.
 
 ## 1. Evidence and current coverage
 
@@ -30,15 +33,15 @@ guaranteed. Last-update dates are not reliable monotonic change tokens.
 | Personal attendance/visibility/time overrides | Implemented in calendar | Keep user interpretation out of the source adapter |
 | Exception/split/cancellation precedence | Contract incomplete; unsupported cases preserve last valid import | Obtain authoritative rules and sanitized examples before expansion changes |
 | Rich teacher/room/announcement context in workspace | Public reads exist; workspace enrichment not implemented | Add explicit links/context without duplicate calendar occurrences |
-| Authenticated student identity and enrollment | Contract unverified; not implemented | Verify login/consent/session lifecycle and account identity |
-| Grades and academic progress | Candidate requirement; endpoint/payload unverified | Confirm owner need, then investigate read contract |
-| Curriculum and student-specific course context | Candidate requirement; endpoint/payload unverified | Verify terminology, identifiers and periods |
-| Attendance or student-specific lesson state | Candidate requirement; endpoint/payload unverified | Verify availability; do not confuse with local skipped state |
-| Assignments, deadlines and course materials | Candidate requirement; endpoint/payload unverified | Verify existence, dates, resource access and permissions |
-| Private announcements/messages | Candidate requirement; unverified | Confirm scope before handling additional private content |
-| Write-back to IIS | Not requested as a defined capability; unverified and not implemented | Requires separate owner authorization and documented upstream mutation contract |
+| Authenticated student identity and enrollment | Contract unverified; not implemented | Deferred; new phase request and verified upstream contract required |
+| Grades and academic progress | Candidate requirement; endpoint/payload unverified | Deferred; new phase request and verified upstream contract required |
+| Curriculum and student-specific course context | Candidate requirement; endpoint/payload unverified | Deferred; new phase request and verified upstream contract required |
+| Attendance or student-specific lesson state | Candidate requirement; endpoint/payload unverified | Deferred; new phase request and verified upstream contract required |
+| Assignments, deadlines and course materials | Candidate requirement; endpoint/payload unverified | Deferred; new phase request and verified upstream contract required |
+| Private announcements/messages | Candidate requirement; unverified | Deferred; new phase request and verified upstream contract required |
+| Write-back to IIS | Not requested as a defined capability; unverified and not implemented | Deferred; new phase request and verified upstream contract required |
 
-Private candidates are conditional targets under Q-02. Do not invent endpoint
+Private candidates are deferred under confirmed Q-02. Do not invent endpoint
 names, authentication forms, permission scopes, fields or a successful student-data
 import in documentation or code.
 
@@ -64,9 +67,10 @@ be retained. Do not create one table per guessed API response in advance.
 If a required upstream contract is missing, define a narrow application port and
 fake, add a clear TODO and report the missing evidence. A fake is not live integration.
 
-## 4. Investigation gate for private capabilities
+## 4. Future investigation gate for private capabilities
 
-Before implementation, record:
+Status: deferred. Start only after the owner requests a private integration phase.
+Before its implementation, record:
 
 1. The requested capability and authorized account/test context.
 2. Official documentation or directly observed requests, method and parameters.
@@ -81,8 +85,9 @@ tokens, cookies, grades or identifiable private fixtures. A new endpoint is not
 verified just because its name appears in a frontend bundle. No authenticated
 investigation was performed by this documentation task.
 
-## 5. Connection and synchronization targets
+## 5. Future connection and synchronization targets
 
+Status: deferred; no current account/credential implementation.
 After a verified authentication contract exists, support explicit connect,
 connection status, re-authentication and disconnect. Decide credential/token storage
 and unlink retention before adding persistent secrets; use encrypted credential
@@ -113,13 +118,17 @@ Source withdrawals leave understandable historical references. Ambiguous replace
 must be surfaced for review until stable IDs or verified reconciliation rules exist.
 Calendar views, planning and AI carry freshness/unsupported warnings forward.
 
-## 7. Delivery order and acceptance
+## 7. Current and future delivery order
 
-1. Improve known public exception/identity rules only after evidence is available.
-2. Investigate private account authentication and the owner's highest-priority capability.
-3. Implement one read-only, owner-scoped private slice with a fake and adapter tests.
-4. Add bounded background refresh/status/disconnect for that verified slice.
-5. Add explicit workspace import/linking, then further capabilities individually.
+Current: preserve public schedule/context and improve public exception/identity rules
+only after evidence. No private account or grade functionality is part of this phase.
+
+Deferred until a new explicit phase request:
+
+1. Investigate private authentication and the highest-priority requested capability.
+2. Implement one verified read-only owner-scoped slice with a fake and adapter tests.
+3. Add bounded refresh/status/disconnect for that verified slice.
+4. Add explicit workspace mapping and further private capabilities individually.
 
 Tests verify owner isolation, expired/revoked connection handling, sync retry/rollback,
 no secret logging, preserved user content and unsupported capability reporting.

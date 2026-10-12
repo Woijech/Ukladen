@@ -3,7 +3,9 @@
 Updated: 2026-10-12.
 Status: not implemented. This is the target design under
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md), not an API or migration
-already present in the repository. Open decisions may narrow later slices.
+already present in the repository. The owner confirmed pages/blocks/databases and mandatory table/calendar views,
+with personal ownership. Formulas and collaboration are deferred; remaining details
+are recorded as open decisions.
 
 ## 1. Preserve the existing system
 
@@ -71,7 +73,10 @@ owner/tree mutations or use an equivalent demonstrated database guarantee.
 One content page can be referenced without copying its body. If a page participates
 in multiple databases, values are scoped to each database record; names do not make
 different property definitions equivalent. This is a proposed behavior to confirm
-with Q-01 before implementing database membership.
+under Q-12 before implementing database membership.
+
+Implement table and calendar view query contracts for the same records; other layouts
+are optional. Formulas are explicitly deferred by the owner.
 
 Start with a bounded type set: text, number, checkbox, select/multi-select, URL and
 date/date-range. Relations require endpoint validation and may be a later property

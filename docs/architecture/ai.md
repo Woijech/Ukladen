@@ -11,8 +11,10 @@ pages/materials, explanations of imported academic information and proposed chan
 AI must recognize that subjects/collections are optional and must never create an
 academic hierarchy just because two events share a source subject label.
 
-Implement read-only tools first, confirmed writes second and material-grounded RAG
-after extraction/indexing. Search or a calendar question must not mutate user data.
+The owner confirmed reading/help, recommendations, confirmed execution and explicitly
+permitted automatic actions. Deliver read-only tools/recommendations first, confirmed
+writes next, then scoped automatic execution. RAG follows extraction/indexing.
+Search or a calendar question must not mutate user data.
 
 ## 2. Boundaries
 
@@ -45,10 +47,11 @@ Names are illustrative application capabilities, not implemented APIs.
 | Query records/views/properties | Workspace | None |
 | Read tasks and deadlines | Tasks | None |
 | Query free slots/conflicts | Calendar availability | None |
-| Read permitted IIS context/sync state | Public integration; private adapter only after verification | None |
+| Read permitted IIS context/sync state | Verified public integration; private account tools deferred | None |
 | Retrieve cited material chunks | Materials/search | None |
 | Propose page/task/event/property changes | Implemented target service and action policy | Proposal only |
 | Apply confirmed change | Same service as manual editing | Explicit, version-checked mutation |
+| Apply an explicitly permitted automatic change | Implemented target service and scoped owner grant | Bounded, version-checked and recorded mutation |
 
 Register only capabilities whose application services exist. Every tool has a
 typed input/output schema, ownership context, result limits, timeout and declared
@@ -57,8 +60,12 @@ another user. Business errors are structured, sanitized outcomes.
 
 ## 4. Write proposal and execution
 
-The current architecture's action-confirmation requirement is retained. Q-04 tracks
-whether the owner later wants bounded automatic actions.
+[ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md) records two write
+paths: exact confirmation or an explicit matching automatic-action permission.
+Automatic capability is confirmed; the allowed operation list/limits remain Q-04a.
+The model cannot select unrestricted execution as a mode on its own.
+
+### Confirmed execution
 
 1. Build a proposal with operation, exact targets/parameters and expected versions.
 2. Present its effects, including calendar time/availability and destructive changes.
@@ -67,7 +74,28 @@ whether the owner later wants bounded automatic actions.
 5. Execute through normal services and persist the outcome after commit.
 
 Changing proposal parameters invalidates its confirmation. A stale target does not
-silently receive a rewritten action. Use a persisted owner-scoped idempotency key
+silently receive a rewritten action.
+
+### Scoped automatic execution
+
+A planned owner-issued `AIActionGrant` identifies allowed operations, target scope,
+validity, revocation state and applicable limits. Grant creation/change/revocation
+requires normal user authentication and CSRF; a model/tool/content cannot grant it.
+Store authoritative grants and execution records in PostgreSQL, not only Redis.
+
+An example policy could allow creating pages in a selected collection while event
+moves still require confirmation. This is an illustration, not an owner-approved
+allowlist. Define the concrete tools, parameter constraints and limits before coding.
+A grant alone does not create a recurring job or authorize an unspecified trigger.
+
+Before each automatic execution, validate the active owner, matching nonexpired grant,
+operation/target/parameter limits and expected versions. Out-of-scope writes require
+confirmation rather than silently broadening the grant. Serialize authorization and
+revocation with the mutation so a queued job cannot reuse a revoked permission.
+
+### Shared execution guarantees
+
+Use a persisted owner-scoped idempotency key
 so retries do not create duplicate events/tasks. Redis alone cannot retain the
 canonical execution record. Multi-action plans must declare transactional scope
 and partial-failure behavior; do not pretend unrelated services form one atomic
@@ -104,7 +132,7 @@ change owner identity or bypass confirmation. Validate every tool invocation.
 
 Do not send auth/IIS credentials, cookies or unrelated private records to providers.
 Resolve provider data sharing, content retention, supported limits and costs before
-enabling real model traffic under Q-04. Logs contain safe tool names/outcomes and
+enabling real model traffic under Q-04a. Logs contain safe tool names/outcomes and
 correlation metadata, not full prompts, content or credentials by default.
 
 Persist AI session/message ownership and cancellation/action state where required.
@@ -115,7 +143,10 @@ Ordinary request/worker correlation reuses existing structured diagnostics.
 - A user's query cannot retrieve another user's page, record or material chunk.
 - Prompt injection in a note cannot trigger an unauthorized write.
 - Read-only requests perform no mutation.
-- Execution requires matching confirmation, owner, versions and idempotency state.
+- Execution requires matching confirmation or a valid scoped grant, plus owner,
+  expected versions and durable idempotency.
+- Expired/revoked/out-of-scope grants reject automatic writes; a queued retry cannot
+  broaden permissions, ignore changed versions or duplicate completed work.
 - Provider/tool failures preserve data and return actionable sanitized status.
 - Answers cite supporting records and retain calendar freshness warnings.
 - Fakes exercise orchestration and schemas without real provider/network calls.

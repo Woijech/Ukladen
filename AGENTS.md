@@ -120,6 +120,10 @@ only with a requested vertical slice. A package marker does not count as a featu
 - Proposed defaults in the decision register are not owner confirmation. Resolve
   relevant choices before implementing incompatible schemas or behavior.
 
+Confirmed current scope: personal pages/blocks/user databases, mandatory table/calendar
+views, no formulas or collaboration yet, and public IIS schedule/context only. Private
+IIS accounts, grades and related private data are future plans, not current slices.
+
 Inside modules, preserve the dependency direction:
 
 ```text
@@ -210,6 +214,12 @@ Tool Registry
 ```
 
 Do not hard-code the business layer to one specific LLM provider.
+
+The product AI target includes read/help, recommendations, confirmed execution and
+explicitly permitted automatic actions. Automatic writes require an owner-issued,
+scoped, revocable grant checked during execution; they are not globally authorized.
+See `docs/adr/0005-support-scoped-ai-action-permissions.md` and `docs/architecture/ai.md`.
+This product capability does not grant the coding agent unrelated external actions.
 
 ---
 

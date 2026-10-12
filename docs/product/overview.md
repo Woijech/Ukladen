@@ -16,8 +16,10 @@ the calendar; it is not a prerequisite for using the workspace.
 There are two complementary entry points: a calendar for time and planned work,
 and a workspace for standalone pages, nested content and user-defined organization.
 The target includes blocks, user-defined databases/properties and saved views.
-Their exact initial scope is provisional; see [open decisions](open-questions.md).
-These features are not implemented and do not all belong in the first slice.
+The owner confirmed pages, blocks and user-defined databases, with mandatory table
+and calendar views. Formulas are deferred. Remaining schema/editor details are in
+[open decisions](open-questions.md). These features are not implemented and are
+delivered incrementally rather than all in the first backend slice.
 
 ## 2. Non-negotiable organization rules
 
@@ -44,9 +46,9 @@ optionally link pages to events, tasks or other pages. The target block document
 supports text, headings, lists, checklists, links and attachments incrementally.
 A first text-only backend slice must be labelled as such; it is not the full editor.
 
-User-defined databases organize page-backed records with typed properties. Table,
-list and calendar views are targets; advanced formulas, rollups and real-time
-collaborative editing require separate scope decisions.
+User-defined databases organize page-backed records with typed properties. Table
+and calendar views are mandatory. List/board views are optional later work; formulas
+and rollups are deferred. Shared spaces and collaborative editing are not in current scope.
 
 Pages, collections and databases have different roles. A collection is a selected
 set of references. A database adds a property schema to its records. Removing a
@@ -76,10 +78,10 @@ Implemented: public directories and schedule reads, group/subgroup selection,
 verified dated expansion, official event persistence and background synchronization.
 Official facts and personal overrides remain separate.
 
-Deep integration means rich public context plus, if available and authorized,
-student-specific capabilities. Grades, curriculum, attendance, assignments or
-materials are candidates, not verified upstream API contracts. Authenticated account
-connection, those imports and IIS write operations are not implemented. See the
+The owner confirmed schedule and related public data as current IIS scope. Grades,
+curriculum, attendance and other authenticated student-account data are future plans
+only. Do not implement or investigate private connections, credentials or write-back
+in current slices. Their API contracts remain unverified. See the
 [IIS integration roadmap](../integrations/bsuir-iis-roadmap.md).
 
 Retain last valid data during upstream failures, expose sync state and explain
@@ -126,9 +128,11 @@ explains imported information and proposes edits/plans. It accesses data only
 through authorized application tools. Answers based on workspace data identify
 supporting records and relevant source freshness.
 
-The initial action policy is proposal, explicit user confirmation, then execution
-through normal services. More autonomous actions are an open decision, not implicit
-permission. See [AI architecture](../architecture/ai.md).
+AI supports reading/help, recommendations, execution after exact confirmation and
+explicitly permitted automatic actions. Automatic writes require an owner-issued
+scoped permission; otherwise preview and confirmation apply. The specific allowlist,
+limits and provider policy remain open. Both paths use normal services, version checks
+and durable idempotency. See [AI architecture](../architecture/ai.md).
 
 ## 9. Implementation status
 
@@ -153,6 +157,6 @@ The next proposed slice is standalone pages, then optional relations and organiz
 `subjects` is no longer a prerequisite. The [roadmap](../development/implementation-roadmap.md)
 defines dependencies; [open decisions](open-questions.md) record unknowns.
 
-The initial release is provisionally personal. Shared spaces and simultaneous editing
-are separate scope decisions. Additional calendar providers, mobile apps, export/import
-and advanced database features are later work, not promises of the first release.
+The current scope is personal; shared spaces and simultaneous editing are deferred
+by the owner. Additional calendar providers, mobile apps, export/import, formulas
+and advanced database features are later work, not first-release requirements.
