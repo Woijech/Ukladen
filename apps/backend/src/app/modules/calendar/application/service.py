@@ -4,9 +4,11 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Literal
 from uuid import UUID, uuid4
 
-from app.modules.calendar.application.legacy_service import MAX_PERIOD as MAX_PERIOD
-from app.modules.calendar.application.legacy_service import PersonalEventService as PersonalEventService
 from app.modules.academics.application.profile import AcademicService
+from app.modules.calendar.application.legacy_service import MAX_PERIOD as MAX_PERIOD
+from app.modules.calendar.application.legacy_service import (
+    PersonalEventService as PersonalEventService,
+)
 from app.modules.calendar.application.ports import CalendarRepository
 from app.modules.calendar.domain.events import (
     PERSONAL_FIELDS,

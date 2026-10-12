@@ -59,6 +59,66 @@ def create_event(client: TestClient) -> dict:
     return response.json()
 
 
+def test_legacy_and_current_api_share_events_and_versions(calendar_client: TestClient) -> None:
+    headers = csrf_headers(calendar_client)
+    created = calendar_client.post(
+        f"{BASE}/events",
+        headers=headers,
+        json={
+            key: value for key, value in PAYLOAD.items() if key not in {"location", "blocks_time"}
+        }
+        | {"is_busy": False},
+    )
+    assert created.status_code == 201, created.text
+    identifier = created.json()["id"]
+    modern = calendar_client.get(f"{BASE}/personal-events/{identifier}").json()
+    assert modern["version"] == 1 and not modern["blocks_time"]
+    changed = calendar_client.patch(
+        f"{BASE}/personal-events/{identifier}",
+        headers=headers,
+        json={"expected_version": 1, "description": "x" * 5000, "location": "Room"},
+    )
+    assert changed.status_code == 200
+    legacy = calendar_client.get(f"{BASE}/events/{identifier}")
+    assert legacy.status_code == 200 and legacy.json()["description"] == "x" * 5000
+    params = {"starts_at": "2026-10-07T00:00:00Z", "ends_at": "2026-10-08T00:00:00Z"}
+    listed = calendar_client.get(f"{BASE}/events", params=params)
+    assert listed.status_code == 200 and listed.json() == [legacy.json()]
+    assert (
+        calendar_client.get(
+            f"{BASE}/events", params=params | {"date_from": "2026-10-07", "date_to": "2026-10-07"}
+        ).status_code
+        == 422
+    )
+    assert (
+        calendar_client.patch(
+            f"{BASE}/events/{identifier}", headers=headers, json={"description": "x" * 4001}
+        ).status_code
+        == 422
+    )
+    assert (
+        calendar_client.patch(
+            f"{BASE}/events/{identifier}",
+            headers=headers,
+            json={"title": "Legacy edit", "is_busy": True},
+        ).status_code
+        == 200
+    )
+    saved = calendar_client.get(f"{BASE}/personal-events/{identifier}").json()
+    assert saved["version"] == 3 and saved["blocks_time"]
+    assert saved["description"] == "x" * 5000 and saved["location"] == "Room"
+    assert (
+        calendar_client.patch(
+            f"{BASE}/personal-events/{identifier}",
+            headers=headers,
+            json={"expected_version": 2, "title": "Stale edit"},
+        ).status_code
+        == 409
+    )
+    assert calendar_client.delete(f"{BASE}/events/{identifier}", headers=headers).status_code == 204
+    assert calendar_client.get(f"{BASE}/personal-events/{identifier}").status_code == 404
+
+
 def test_personal_crud_without_academic_profile_and_private_logs(
     calendar_client: TestClient,
 ) -> None:

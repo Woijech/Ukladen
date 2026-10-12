@@ -6,10 +6,10 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
+from app.modules.calendar.domain.events import CalendarConflict, PersonalEvent, ScheduleOverride
 from app.modules.calendar.infrastructure.legacy_repository import (
     SqlAlchemyPersonalCalendarEventRepository as SqlAlchemyPersonalCalendarEventRepository,
 )
-from app.modules.calendar.domain.events import CalendarConflict, PersonalEvent, ScheduleOverride
 from app.modules.calendar.infrastructure.orm import (
     PersonalCalendarEventModel,
     ScheduleOverrideModel,

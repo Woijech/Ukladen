@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, FastAPI, Query, Request
 from fastapi.responses import JSONResponse
+from pydantic import AwareDatetime
 
 from app.core.logging import log_failure
 from app.modules.academics.presentation.routes import Academics, no_store
@@ -21,12 +22,19 @@ from app.modules.calendar.domain.events import (
 )
 from app.modules.calendar.infrastructure.repository import SqlAlchemyCalendarRepository
 from app.modules.calendar.presentation.legacy_routes import (
+    Events as LegacyEvents,
+)
+from app.modules.calendar.presentation.legacy_routes import (
     get_events as get_events,
+)
+from app.modules.calendar.presentation.legacy_routes import (
     install_legacy_calendar,
+    list_events,
 )
 from app.modules.calendar.presentation.schemas import (
     CalendarDate,
     CalendarResponse,
+    EventResponse,
     OverrideEntryResponse,
     OverrideListResponse,
     OverridePut,
@@ -64,16 +72,25 @@ def get_calendar_service(
 Calendar = Annotated[CalendarService, Depends(get_calendar_service)]
 
 
-@router.get("/events", response_model=CalendarResponse)
+@router.get("/events", response_model=CalendarResponse | list[EventResponse])
 def get_calendar(
     current: CurrentSession,
     database: Database,
     calendar: Calendar,
-    date_from: CalendarDate,
-    date_to: CalendarDate,
+    legacy_events: LegacyEvents,
+    date_from: CalendarDate | None = None,
+    date_to: CalendarDate | None = None,
+    starts_at: Annotated[AwareDatetime | None, Query()] = None,
+    ends_at: Annotated[AwareDatetime | None, Query()] = None,
     include_hidden: bool = False,
     source: Literal["official", "personal"] | None = None,
-) -> CalendarResponse:
+) -> CalendarResponse | list[EventResponse]:
+    if starts_at is not None or ends_at is not None:
+        if starts_at is None or ends_at is None or date_from is not None or date_to is not None:
+            raise InvalidCalendarInput()
+        return list_events(current, database, legacy_events, starts_at, ends_at)
+    if date_from is None or date_to is None:
+        raise InvalidCalendarInput()
     with database.begin():
         database.connection(execution_options={"isolation_level": "REPEATABLE READ"})
         result = calendar.get_calendar(

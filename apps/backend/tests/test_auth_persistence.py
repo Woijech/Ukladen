@@ -65,7 +65,6 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "personal_calendar_events",
         "schedule_sources",
         "official_schedule_events",
-        "personal_calendar_events",
         "schedule_overrides",
         "note_pages",
         "page_calendar_links",

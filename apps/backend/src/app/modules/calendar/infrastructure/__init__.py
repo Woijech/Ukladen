@@ -1,2 +1,1 @@
 """Calendar persistence adapters."""
-

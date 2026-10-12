@@ -13,15 +13,14 @@ from pydantic import (
     model_validator,
 )
 
-from app.modules.calendar.presentation.legacy_schemas import EventCreate as EventCreate
-from app.modules.calendar.presentation.legacy_schemas import EventPatch as EventPatch
-from app.modules.calendar.presentation.legacy_schemas import EventResponse as EventResponse
-
 from app.modules.calendar.domain.events import (
     InvalidCalendarInput,
     override_values,
     personal_values,
 )
+from app.modules.calendar.presentation.legacy_schemas import EventCreate as EventCreate
+from app.modules.calendar.presentation.legacy_schemas import EventPatch as EventPatch
+from app.modules.calendar.presentation.legacy_schemas import EventResponse as EventResponse
 from app.modules.schedule.presentation.schemas import ScheduleStateResponse
 
 

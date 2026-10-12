@@ -29,7 +29,8 @@ class PersonalCalendarEvent:
             raise InvalidEventInput("Event title must not be empty.")
         if len(self.title) > TITLE_MAX_LENGTH:
             raise InvalidEventInput("Event title is too long.")
-        if self.description is not None and len(self.description) > DESCRIPTION_MAX_LENGTH:
+        # Reads include expanded-calendar descriptions; legacy input still has a 4,000 limit.
+        if self.description is not None and len(self.description) > 10000:
             raise InvalidEventInput("Event description is too long.")
 
         for value in (

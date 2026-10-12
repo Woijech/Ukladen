@@ -32,6 +32,7 @@ class PersonalEventService:
         self, user_id: UUID, starts_at: datetime, ends_at: datetime
     ) -> list[PersonalCalendarEvent]:
         self._require_period(starts_at, ends_at)
+        self._require_active(user_id)
         return self.repository.list_for_period(user_id, starts_at, ends_at)
 
     def get(self, user_id: UUID, event_id: UUID) -> PersonalCalendarEvent:

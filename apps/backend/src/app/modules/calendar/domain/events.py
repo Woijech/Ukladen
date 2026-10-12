@@ -7,13 +7,26 @@ from zoneinfo import ZoneInfo
 
 from app.modules.calendar.domain.legacy import (
     DESCRIPTION_MAX_LENGTH as DESCRIPTION_MAX_LENGTH,
+)
+from app.modules.calendar.domain.legacy import (
     TITLE_MAX_LENGTH as TITLE_MAX_LENGTH,
+)
+from app.modules.calendar.domain.legacy import (
     PersonalCalendarEvent as PersonalCalendarEvent,
+)
+from app.modules.calendar.domain.legacy import (
     apply_event_changes as apply_event_changes,
+)
+from app.modules.calendar.domain.legacy import (
     new_personal_event as new_personal_event,
+)
+from app.modules.calendar.domain.legacy import (
     normalize_event_changes as normalize_event_changes,
+)
+from app.modules.calendar.domain.legacy import (
     normalize_event_data as normalize_event_data,
 )
+
 
 class InvalidCalendarInput(ValueError):
     pass

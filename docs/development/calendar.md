@@ -20,8 +20,11 @@ and [roadmap](implementation-roadmap.md).
 
 ## Ownership and storage
 
-`calendar` owns `personal_calendar_events` and `schedule_overrides`, introduced by
-Alembic `0007_calendar`. Official occurrences remain shared facts owned by `schedule`.
+`calendar` owns `personal_calendar_events` and `schedule_overrides`. Alembic
+`0006_personal_calendar_events` creates the original personal-event table;
+`0006_schedule_storage` follows it, and `0007_calendar` extends that table and creates
+overrides. Existing event IDs, owners, content, times and busy flags are preserved.
+Official occurrences remain shared facts owned by `schedule`.
 Calendar application services read those facts through `ScheduleQueryService`; they
 never call IIS, modify official occurrences or manufacture subject/room identifiers.
 
@@ -205,9 +208,17 @@ docker compose run --rm migrate
 docker compose up -d api worker beat
 ```
 
-Downgrade removes calendar data while preserving users and official schedules. Do not use
-deployment downgrade as a test. Implementation verification uses disposable services;
-it does not apply this migration to the running application database.
+Downgrading `0007_calendar` removes overrides, location and version metadata, but
+restores the original personal-event schema and retains its event rows. Downgrading
+past `0006_personal_calendar_events` removes personal events. Users and official
+schedules survive the calendar downgrade. Do not use deployment downgrade as a test.
+Implementation verification uses disposable services; it does not apply migrations
+to the running application database.
+
+The calendar upgrade rejects legacy rows with titles longer than 200 characters,
+untrimmed titles or descriptions longer than 10,000 characters before changing the
+event table. Resolve these out-of-contract records explicitly before retrying;
+the migration never truncates or silently rewrites stored content.
 
 ## Compatibility with the original personal-event API
 
@@ -222,4 +233,6 @@ Both APIs use the same canonical event table. `is_busy` maps to `blocks_time`, a
 legacy edits increment the canonical version while preserving location and other
 modern fields. Writes serialize using the canonical active-user lock. The original
 service/repository/domain compatibility code and its original tests are retained.
+Legacy reads return complete descriptions written through the expanded API, including
+those longer than the legacy 4000-character write limit.
 New clients should use the explicit versioned `/personal-events` contract.
