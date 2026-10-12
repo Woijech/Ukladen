@@ -1,0 +1,16 @@
+from typing import Protocol
+from uuid import UUID
+
+from app.modules.workspace.domain.organization import Organization, OrganizationKind
+
+
+class OrganizationRepository(Protocol):
+    def get(
+        self, user_id: UUID, kind: OrganizationKind, identifier: UUID
+    ) -> Organization | None: ...
+    def list(
+        self, user_id: UUID, kind: OrganizationKind, limit: int, offset: int
+    ) -> list[Organization]: ...
+    def create(self, organization: Organization) -> None: ...
+    def save(self, organization: Organization, expected_version: int) -> None: ...
+    def delete(self, organization: Organization, expected_version: int) -> None: ...

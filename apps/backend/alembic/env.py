@@ -11,6 +11,7 @@ from app.modules.notes.infrastructure import orm as notes_orm  # noqa: F401
 from app.modules.relations.infrastructure import orm as relations_orm  # noqa: F401
 from app.modules.schedule.infrastructure import orm as schedule_orm  # noqa: F401
 from app.modules.users.infrastructure import orm as users_orm  # noqa: F401
+from app.modules.workspace.infrastructure import orm as workspace_orm  # noqa: F401
 
 config = context.config
 # A CLI migration configures its own process. Embedded migrations preserve the

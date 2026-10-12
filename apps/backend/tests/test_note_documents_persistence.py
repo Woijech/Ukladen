@@ -117,13 +117,15 @@ def test_document_downgrade_refuses_loss_before_changing_schema(
         database.flush()
         database.add(PageModel(id=page_id, user_id=owner, title="Keep", document=document))
         database.commit()
-    with pytest.raises(RuntimeError, match="without losing block structure or IDs"):
+    head = database_connection.scalar(text("SELECT version_num FROM alembic_version"))
+    with (
+        pytest.raises(RuntimeError, match="without losing block structure or IDs"),
+        database_connection.begin_nested(),
+    ):
         command.downgrade(migration_config(database_connection), "0009_page_calendar_links")
     columns = {column["name"] for column in inspect(database_connection).get_columns("note_pages")}
     assert "document" in columns and "content" not in columns
-    assert database_connection.scalar(text("SELECT version_num FROM alembic_version")) == (
-        "0010_page_block_documents"
-    )
+    assert database_connection.scalar(text("SELECT version_num FROM alembic_version")) == head
     assert database_connection.scalar(
         select(PageModel.document).where(PageModel.id == page_id)
     ) == (document)

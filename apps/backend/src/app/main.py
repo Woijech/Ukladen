@@ -26,6 +26,7 @@ from app.modules.relations.presentation.routes import install_relations
 from app.modules.schedule.infrastructure.jobs import CeleryScheduleJobs
 from app.modules.schedule.presentation.routes import install_schedule
 from app.modules.users.presentation.routes import install_users
+from app.modules.workspace.presentation.routes import install_workspace
 from app.workers.logging import install_task_logging
 
 logger = logging.getLogger(__name__)
@@ -97,6 +98,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_calendar(application)
     install_notes(application)
     install_relations(application)
+    install_workspace(application)
     application.add_middleware(RequestLoggingMiddleware)
 
     @application.exception_handler(Exception)
