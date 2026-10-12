@@ -14,8 +14,10 @@ from app.modules.auth.presentation.dependencies import (
     require_csrf,
 )
 from app.modules.notes.application.service import NoteService
+from app.modules.notes.domain.blocks import InvalidDocumentInput
 from app.modules.notes.domain.pages import InvalidPageInput, PageConflict, PageNotFound
 from app.modules.notes.infrastructure.repository import SqlAlchemyPageRepository
+from app.modules.notes.presentation.documents import DocumentPut, DocumentResponse, DocumentSchema
 from app.modules.notes.presentation.schemas import (
     PageCreate,
     PageListResponse,
@@ -142,16 +144,55 @@ def restore_page(
     return result
 
 
+@router.get("/{page_id}/document", response_model=DocumentResponse)
+def get_document(
+    page_id: UUID,
+    current: CurrentSession,
+    database: Database,
+    notes: Notes,
+) -> DocumentResponse:
+    with database.begin():
+        page = notes.get(current.user_id, page_id)
+        return DocumentResponse(
+            page_id=page.id,
+            version=page.version,
+            document=DocumentSchema.model_validate(page.document),
+        )
+
+
+@router.put(
+    "/{page_id}/document", response_model=DocumentResponse, dependencies=[Depends(require_csrf)]
+)
+def replace_document(
+    page_id: UUID,
+    payload: DocumentPut,
+    current: CurrentSession,
+    database: Database,
+    notes: Notes,
+) -> DocumentResponse:
+    with database.begin():
+        page = notes.replace_document(
+            current.user_id, page_id, payload.document.model_dump(), payload.expected_version
+        )
+        result = DocumentResponse(
+            page_id=page.id,
+            version=page.version,
+            document=DocumentSchema.model_validate(page.document),
+        )
+    logger.info("notes.document_updated", extra={"user_id": str(current.user_id)})
+    return result
+
+
 def install_notes(application: FastAPI) -> None:
     def notes_error(request: Request, error: Exception) -> JSONResponse:
-        if isinstance(error, InvalidPageInput):
+        if isinstance(error, InvalidPageInput | InvalidDocumentInput):
             status, detail, reason = 422, "Invalid page input.", "invalid_input"
         elif isinstance(error, PageNotFound):
             status, detail, reason = 404, "Page not found.", "not_found"
         else:
             status, detail, reason = (
                 409,
-                "Page changed or hierarchy operation is unavailable.",
+                "Page changed or operation is unavailable for its current document or hierarchy.",
                 "conflict",
             )
         log_failure(logger, "notes.operation_rejected", error, level=logging.WARNING, reason=reason)
@@ -159,6 +200,6 @@ def install_notes(application: FastAPI) -> None:
             {"detail": detail}, status_code=status, headers={"Cache-Control": "no-store"}
         )
 
-    for error_type in (InvalidPageInput, PageNotFound, PageConflict):
+    for error_type in (InvalidPageInput, InvalidDocumentInput, PageNotFound, PageConflict):
         application.add_exception_handler(error_type, notes_error)
     application.include_router(router)

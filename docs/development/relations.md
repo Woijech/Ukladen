@@ -34,13 +34,15 @@ and Origin validation. Client-supplied owner IDs are never accepted.
 return the original link, without duplicate rows or backlinks. DELETE of an absent
 or foreign link returns 404. Lists use `limit` 1–200 (default 100), `offset` >= 0,
 and stable creation/UUID ordering. Unknown query/transport values follow FastAPI
-validation. Responses expose no owner IDs or page bodies. Fetch a page's detail for
-its Markdown content. No unbounded recursive tree or implicit descendant links exist.
+validation. Responses expose no owner IDs or page bodies, and summary reads do not
+load documents. Fetch a page's detail/document for its block content or derived
+Markdown. No unbounded recursive tree or implicit descendant links exist.
 
 A client can create an event with the existing calendar POST, then attach its chosen
 page with PUT. These are separate operations; event creation and linking are not a
 single atomic request. Creating a **new page from an existing event** is atomic:
-failed access validation or link persistence leaves no orphan page.
+failed access validation or link persistence leaves no orphan page. The notes create
+DTO also accepts a block `document`, mutually exclusive with legacy `content`.
 
 ## Lifecycle and official sources
 

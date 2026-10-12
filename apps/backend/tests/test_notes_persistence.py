@@ -34,7 +34,11 @@ def test_page_schema_constraints_cascade_and_migration(database_connection: Conn
         for changes in (
             {"title": " "},
             {"version": 0},
-            {"content": "x" * 100001},
+            {"document": {"schema_version": 2, "blocks": []}},
+            {"document": {"schema_version": 1, "blocks": {}}},
+            {"document": {"schema_version": 1, "blocks": [], "extra": "x"}},
+            {"document": {"schema_version": 1, "blocks": [{}] * 1001}},
+            {"document": {"schema_version": 1, "blocks": [{"text": "x" * 1048576}]}},
             {"trashed_at": now},
             {"trash_batch_id": uuid4()},
         ):

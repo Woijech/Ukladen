@@ -176,7 +176,7 @@ def parse_document(value: object) -> PageDocument:
     if size > MAX_CONTENT_LENGTH:
         raise InvalidDocumentInput()
     document = PageDocument(blocks)
-    encoded = json.dumps(document_value(document), ensure_ascii=False, separators=(",", ":"))
+    encoded = json.dumps(document_value(document), ensure_ascii=False)
     if len(encoded.encode("utf-8")) > MAX_DOCUMENT_BYTES:
         raise InvalidDocumentInput()
     return document
@@ -209,13 +209,15 @@ def is_markdown_document(document: PageDocument) -> bool:
     )
 
 
-def replace_markdown(document: PageDocument, content: str) -> PageDocument:
+def replace_markdown(
+    document: PageDocument, content: str, *, block_id: UUID | None = None
+) -> PageDocument:
     if not is_markdown_document(document):
         raise InvalidDocumentInput()
     _text(content)
     if content and document.blocks:
         return PageDocument((replace(document.blocks[0], text=content),))
-    return markdown_document(content)
+    return markdown_document(content, block_id=block_id)
 
 
 def _escape(text: str) -> str:

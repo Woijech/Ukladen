@@ -1,7 +1,7 @@
 # Workspace and Calendar Requirements
 
 Updated: 2026-10-12.
-Status: target requirements. Calendar, nested Markdown pages and page/calendar
+Status: target requirements. Calendar, nested pages with flat typed blocks and page/calendar
 links are implemented, backend only; see [notes](../development/notes.md) and
 [relations](../development/relations.md). Other capabilities remain planned. See [open decisions](open-questions.md) before selecting
 remaining editor, membership or calendar details; personal scope is confirmed.
@@ -171,8 +171,9 @@ User-authored content must have optimistic concurrency protection; stale edits
 must not silently replace newer content. Content listing needs bounded pagination.
 Transport DTOs expose only authorized fields and document omitted/null semantics.
 
-The proposed first page slice includes recoverable trash/restore. Durable revision
-history, permanent purge, exports and concurrent block editing are separate decisions.
+Pages implement recoverable trash/restore and version-safe whole-document block
+replacement. Durable revision history, permanent purge, exports and collaborative
+block editing are separate decisions.
 Collection deletion, page trash and permanent deletion must never be conflated.
 References to unavailable content must not reveal another user's title or body.
 

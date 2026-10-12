@@ -1,7 +1,7 @@
 # Workspace Backend Architecture
 
 Updated: 2026-10-12.
-Status: pages, hierarchy, branch trash and page/calendar links are implemented, backend only;
+Status: pages, flat typed blocks, hierarchy, branch trash and page/calendar links are implemented, backend only;
 see [notes contracts](../development/notes.md) and [relations](../development/relations.md). Other capabilities remain a target design under
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md), with current APIs documented separately. The owner confirmed pages/blocks/databases and mandatory table/calendar views,
 with personal ownership. Formulas and collaboration are deferred; remaining details
@@ -43,17 +43,17 @@ slice must specify SQL constraints, Alembic changes and transport DTOs before co
 ### Pages and documents
 
 - `Page`: UUID, owner, title, optional parent, version, timestamps and trash state.
-- `PageDocument`: content format/version and validated content; independent of any
+- `PageDocument`: schema version and validated blocks; independent of any
   subject or calendar interval.
 - `Block`: stable identity, type, validated payload and order/containment in the
-  owning document, introduced only with the block editing slice.
+  owning document. The implemented slice is a flat ordered array.
 
-A first text-only document can use Markdown/text with an explicit format version.
-Do not claim block support or pick an editor's opaque JSON before Q-08 is resolved.
-When blocks arrive, schema-versioned JSONB is acceptable for document content;
-ownership, parents, reference integrity and queryable fields remain relational.
-Choose one authoritative content representation per document. Do not keep independently
-editable Markdown and block JSON as competing sources of truth.
+The implemented document uses schema-versioned JSONB under
+[ADR 0006](../adr/0006-use-versioned-page-block-documents.md). Existing Markdown
+is wrapped without parsing; legacy reads derive Markdown from the canonical blocks.
+There is one authoritative representation, with no independently editable Markdown
+copy. Ownership, parents, reference integrity and queryable fields remain relational.
+Q-08 now concerns future rich formatting/nesting/editor work.
 
 Root pages are normal. Page-parent cycles and cross-owner moves are rejected by the
 application and appropriate database constraints. Document updates require optimistic
@@ -153,16 +153,17 @@ Current source identity limitations remain until verified matching improves them
 
 ## 6. Application operations and transport design
 
-The first page slice should expose services for `create_page`, `list_pages`,
-`get_page`, `update_page`, `trash_page` and `restore_page`. Hierarchy adds `move_page`;
-blocks add validated document operations. No operation requires a subject.
+The implemented page service supports creation, summaries/detail, metadata/legacy
+text updates, validated document replacement and branch trash/restore. Moves use
+the metadata update operation. No operation requires a subject.
 
 Implemented page HTTP routes (full behavior in [notes](../development/notes.md)):
 
-| Operation | Proposed route |
+| Operation | Implemented route |
 | --- | --- |
 | List/create | `GET /api/v1/notes/pages`, `POST /api/v1/notes/pages` |
 | Detail/edit | `GET /api/v1/notes/pages/{page_id}`, `PATCH /api/v1/notes/pages/{page_id}` |
+| Read/replace document | `GET /api/v1/notes/pages/{page_id}/document`, `PUT /api/v1/notes/pages/{page_id}/document` |
 | Recoverable deletion | `POST /api/v1/notes/pages/{page_id}/trash` |
 | Restore | `POST /api/v1/notes/pages/{page_id}/restore` |
 

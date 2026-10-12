@@ -18,8 +18,9 @@ and a workspace for standalone pages, nested content and user-defined organizati
 The target includes blocks, user-defined databases/properties and saved views.
 The owner confirmed pages, blocks and user-defined databases, with mandatory table
 and calendar views. Formulas are deferred. Remaining schema/editor details are in
-[open decisions](open-questions.md). Standalone nested Markdown pages are implemented, backend only. Blocks and databases
-remain not implemented and are delivered incrementally rather than all in the first backend slice.
+[open decisions](open-questions.md). Standalone nested pages with flat typed blocks
+and Markdown compatibility are implemented, backend only. Databases remain not
+implemented and are delivered in a separate requested slice.
 
 ## 2. Non-negotiable organization rules
 
@@ -39,15 +40,14 @@ See [workspace requirements](workspace.md) for examples and acceptance cases.
 
 ## 3. Pages and knowledge
 
-Implemented, backend only: standalone nested Markdown pages, versions and recoverable
+Implemented, backend only: standalone nested pages, flat typed blocks, versions and recoverable
 branch trash and optional personal/official calendar links; see
-[notes contracts](../development/notes.md) and [relations](../development/relations.md). Other capabilities below
-are planned and not implemented.
+[notes contracts](../development/notes.md) and [relations](../development/relations.md).
 
-Users can create standalone pages, nest pages, edit content, attach materials and
-optionally link pages to events, tasks or other pages. The target block document
-supports text, headings, lists, checklists, links and attachments incrementally.
-A first text-only backend slice must be labelled as such; it is not the full editor.
+Users can create standalone pages, nest pages, edit text/headings/lists/checkboxes/links
+and optionally link pages to events. Block IDs remain stable through edits and order
+changes; legacy Markdown is preserved without parsing. Materials, task/page-page
+links, rich formatting and editor UI are future requested slices.
 
 User-defined databases organize page-backed records with typed properties. Table
 and calendar views are mandatory. List/board views are optional later work; formulas
@@ -148,8 +148,8 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 | Public IIS directories and live reads | Implemented backend |
 | Official schedule storage, supported expansion and sync | Implemented backend with source limitations |
 | Personal events, official overrides and resolved calendar | Implemented backend |
-| Nested Markdown pages, recoverable trash, page/calendar links and backlinks | Implemented backend |
-| Blocks, page-page knowledge links, collections, tags, databases, views | Status: not implemented. |
+| Nested pages, flat typed blocks, Markdown compatibility, recoverable trash, page/calendar links and backlinks | Implemented backend |
+| Rich/nested blocks, page-page knowledge links, collections, tags, databases, views | Status: not implemented. |
 | Tasks, availability, reminders and notifications | Status: not implemented. |
 | General materials, search, AI and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |

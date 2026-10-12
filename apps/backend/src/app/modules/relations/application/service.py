@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Literal
@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 from app.modules.calendar.application.service import CalendarEventReference, CalendarService
 from app.modules.notes.application.service import NoteService
-from app.modules.notes.domain.pages import Page
+from app.modules.notes.domain.pages import PageMetadata
 from app.modules.relations.application.ports import CalendarPageLinks
 from app.modules.relations.domain.links import (
     CalendarPageLink,
@@ -18,7 +18,7 @@ from app.modules.relations.domain.links import (
 @dataclass(frozen=True)
 class LinkedPage:
     link: CalendarPageLink
-    page: Page
+    page: PageMetadata
 
 
 @dataclass(frozen=True)
@@ -56,7 +56,7 @@ class RelationService:
         page_id: UUID,
     ) -> LinkedPage:
         self.notes.require_user(user_id, write=True)
-        page = self.notes.get(user_id, page_id, active=True)
+        page = self.notes.summary(user_id, page_id, active=True)
         self.calendar.require_link_target(user_id, source, event_id)
         link = self.repository.put(
             CalendarPageLink(uuid4(), user_id, page.id, source, event_id, self.now())
@@ -71,10 +71,11 @@ class RelationService:
         title: str,
         content: str = "",
         parent_id: UUID | None = None,
+        document: Mapping[str, object] | None = None,
     ) -> LinkedPage:
         self.notes.require_user(user_id, write=True)
         self.calendar.require_link_target(user_id, source, event_id)
-        page = self.notes.create(user_id, title, content, parent_id)
+        page = self.notes.create(user_id, title, content, parent_id, document=document)
         return self.link(user_id, source, event_id, page.id)
 
     def unlink(
@@ -104,7 +105,7 @@ class RelationService:
             offset == 0 or not self.repository.for_event(user_id, source, event_id, 1, 0)
         ):
             self.calendar.require_link_target(user_id, source, event_id)
-        return [LinkedPage(link, self.notes.get(user_id, link.page_id)) for link in links]
+        return [LinkedPage(link, self.notes.summary(user_id, link.page_id)) for link in links]
 
     def page_events(
         self,
@@ -113,7 +114,7 @@ class RelationService:
         limit: int = 100,
         offset: int = 0,
     ) -> list[LinkedEvent]:
-        self.notes.get(user_id, page_id)
+        self.notes.summary(user_id, page_id)
         self._pagination(limit, offset)
         links = self.repository.for_page(user_id, page_id, limit, offset)
         events = self.calendar.linked_event_references(

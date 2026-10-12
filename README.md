@@ -45,7 +45,8 @@ Official schedule data and personal calendar state are logically separated.
 
 Matching lesson subject labels never merge lecture/lab occurrences or automatically
 create shared notes. User-selected links, collections, tags and saved views organize
-independent objects. These workspace features are not implemented yet.
+independent objects. Optional page/calendar links are implemented; collections,
+tags and saved views remain planned.
 
 ## Development Documentation
 
@@ -54,12 +55,13 @@ Start with the [documentation index](docs/README.md), then read the primary arch
 [open decisions](docs/product/open-questions.md) and
 [backend implementation roadmap](docs/development/implementation-roadmap.md).
 
-The next proposed slice is standalone pages, followed by optional links and user
-organization. Pages, blocks and user databases with table/calendar views are confirmed
+Standalone pages, flat typed blocks and calendar links are implemented, backend only.
+User organization and databases require a separate requested slice.
+Pages, blocks and user databases with table/calendar views are confirmed
 targets; formulas and collaboration are deferred. Current IIS scope is public schedule
 and related data; student-account integration is future-only. AI targets read/help,
 recommendations, confirmed writes and explicitly permitted automatic actions.
-These targets remain unimplemented; see the decision register for remaining details.
+Databases and AI remain unimplemented; see the decision register for remaining details.
 
 ## Architecture
 
@@ -382,7 +384,7 @@ your Cloudflare account; the checked-in configuration does not publish the site.
 Local storage uses SeaweedFS; [ADR 0001](docs/adr/0001-use-seaweedfs.md) records
 the provider decision. Production storage remains a separate deployment decision.
 Backend authentication, profiles, IIS schedule integration, the personal calendar,
-[standalone nested Markdown pages](docs/development/notes.md) and
+[standalone nested pages with typed blocks and Markdown compatibility](docs/development/notes.md) and
 [optional page/calendar links](docs/development/relations.md) are implemented, backend only.
-Calendar UI, free slots, tasks, blocks, materials,
+Calendar/editor UI, user databases, free slots, tasks, materials,
 search, AI and RAG remain **not implemented**.

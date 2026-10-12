@@ -1,8 +1,8 @@
 # ADR 0006: Use Versioned Page Block Documents
 
 Date: 2026-10-12.
-Status: accepted for the owner-requested notes block slice. Domain rules are
-implemented; storage and HTTP integration are pending in the next cohesive change.
+Status: accepted and implemented for the owner-requested notes block slice,
+including domain rules, JSONB migration and versioned HTTP operations. Backend only.
 
 ## Context
 
@@ -32,8 +32,9 @@ Markdown pages must survive the transition. UI and collaboration are out of scop
   document version, per-block storage tables or granular operation protocols yet.
 - Bound documents to 1000 blocks, 1000 items per list, 100000 aggregate text/URL
   characters and 1 MiB of normalized UTF-8 JSON. Reject NUL and invalid Unicode.
-- Refuse a storage downgrade while structured documents exist, rather than silently
-  flattening blocks or losing their IDs. Legacy wrappers can downgrade losslessly.
+- Refuse a storage downgrade while structured documents, custom block IDs or empty
+  text blocks exist, rather than flattening blocks or losing their IDs. Empty
+  documents and nonempty wrappers with the page UUID can downgrade losslessly.
 - Use standard-library domain logic and the existing Pydantic/SQLAlchemy stack;
   no editor library or new dependency is needed for the backend contract.
 

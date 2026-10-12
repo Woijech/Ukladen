@@ -2,13 +2,14 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from app.modules.notes.domain.pages import Page
+from app.modules.notes.domain.pages import Page, PageMetadata
 
 
 class PageRepository(Protocol):
     """Owner-scoped persistence in the caller's transaction."""
 
     def get(self, user_id: UUID, page_id: UUID) -> Page | None: ...
+    def summary(self, user_id: UUID, page_id: UUID) -> PageMetadata | None: ...
     def list_pages(
         self,
         user_id: UUID,
@@ -17,7 +18,7 @@ class PageRepository(Protocol):
         trashed: bool,
         limit: int,
         offset: int,
-    ) -> list[Page]: ...
+    ) -> list[PageMetadata]: ...
     def create(self, page: Page) -> None: ...
     def save(self, page: Page, expected_version: int) -> None: ...
     def trash_branch(self, user_id: UUID, page_id: UUID, now: datetime) -> None: ...

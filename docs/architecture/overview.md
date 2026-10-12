@@ -67,9 +67,9 @@ container log rotation are implemented; see [logging](../development/logging.md)
 Remote observability services, metrics, tracing, production
 TLS, production credentials and deployment automation are not implemented.
 
-Standalone nested Markdown pages and page/calendar links are implemented; see
+Standalone nested pages, flat typed block documents and page/calendar links are implemented; see
 [notes](../development/notes.md) and [relations](../development/relations.md).
-Blocks, collections/tags, custom databases/properties, saved views
+Rich/nested blocks, collections/tags, custom databases/properties, saved views
 and date projections are not implemented. Authenticated IIS capabilities remain
 unverified/unimplemented; see the [IIS roadmap](../integrations/bsuir-iis-roadmap.md).
 

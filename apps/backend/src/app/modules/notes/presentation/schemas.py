@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from app.modules.notes.domain.pages import InvalidPageInput, page_text
+from app.modules.notes.presentation.documents import DocumentSchema, VersionRequest
 
 
 class PageCreate(BaseModel):
@@ -11,16 +12,16 @@ class PageCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200, strict=True)
     content: str = Field(default="", max_length=100000, strict=True)
     parent_id: UUID | None = None
+    document: DocumentSchema | None = None
 
     @model_validator(mode="after")
     def validate_text(self) -> Self:
+        if "document" in self.model_fields_set and (
+            self.document is None or "content" in self.model_fields_set
+        ):
+            raise InvalidPageInput()
         page_text(self.title, self.content)
         return self
-
-
-class VersionRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    expected_version: int = Field(ge=1, le=2**31 - 2, strict=True)
 
 
 class PagePatch(VersionRequest):
@@ -49,6 +50,7 @@ class PageSummary(BaseModel):
 
 
 class PageResponse(PageSummary):
+    document: DocumentSchema
     content: str
     content_format: Literal["markdown"] = "markdown"
     content_format_version: Literal[1] = 1

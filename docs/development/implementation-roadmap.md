@@ -31,7 +31,7 @@ existing services just to match target vocabulary. A package marker is not a fea
 | University reads | Verified public directory/schedule/announcement reads | [University API](university-api.md) |
 | Schedule | Supported expansion, official storage, historical identities, background refresh | [Schedule](schedule.md) |
 | Calendar | Personal events, official overrides, resolved range queries | [Calendar](calendar.md) |
-| Notes | Standalone Markdown pages, nested hierarchy, versions and branch trash | [Notes](notes.md) |
+| Notes | Standalone pages, typed block documents, Markdown compatibility, nested hierarchy, versions and branch trash | [Notes](notes.md) |
 | Relations | Typed page/calendar links, backlinks, atomic linked page creation | [Relations](relations.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
@@ -97,24 +97,23 @@ user-executable SQL for the first view slice.
 
 ## 6. P-04 page hierarchy and block content
 
-Status: hierarchy implemented with P-01 at the owner's request; block content not implemented.
-See [branch trash and hierarchy policy](notes.md). Block schema decision Q-08 remains open.
+Status: implemented, backend only. Hierarchy was delivered with P-01; the subsequent
+block slice adds text, headings, flat lists, checkboxes and HTTP/HTTPS links.
+See [notes](notes.md) and [ADR 0006](../adr/0006-use-versioned-page-block-documents.md).
 
-Add optional parent/move operations, cycle-safe concurrent mutation behavior and
-explicit subtree trash/restore policy. Add a selected versioned block document
-contract with stable block IDs, supported payload types, ordering and validation.
-Plan a preserving migration from the first text document rather than discarding it.
+Documents use stable UUIDs and ordered, atomic whole-document replacement with the
+page version. Validation, legacy Markdown overwrite protection, preserving migration,
+concurrent/stale edits and refused destructive downgrade are covered by tests.
+Hierarchy moves remain cycle-safe and branch trash retains documents and links.
+Nesting and collection membership stay distinct.
 
-First block types: text, headings, lists/checklists and links. Materials references
-depend on P-08. Rich editor library/JSON format, operations granularity and export
-rules must be specified before persistence code; no real-time collaboration assumed.
-
-Done when WS-02, concurrent/stale edits, invalid blocks, moves/cycles and preserving
-content migration checks pass. Nesting and collection membership stay distinct.
+Q-08 remains open only for future rich inline formatting, nested blocks and editor
+choices. Materials references depend on P-08; export/history/collaboration remain
+separate requested slices. This backend API does not implement an editor UI.
 
 ## 7. P-05 user databases, properties and calendar projection
 
-Status: not implemented. Dependencies: P-01/03/04; remaining decisions Q-05/07/08/12.
+Status: not implemented. Dependencies: P-01/03/04; remaining decisions Q-05/07/12.
 Pages/blocks/databases and table/calendar views are confirmed under Q-01.
 
 Implement database/property/record CRUD, page-backed rows, stable property identities

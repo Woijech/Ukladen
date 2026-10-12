@@ -46,8 +46,9 @@ an explicit later phase and verified contracts; do not implement it in current s
 
 Current backend: authentication, profiles, public IIS reads, official schedule
 storage/sync, personal events, official overrides, resolved calendar reads, standalone
-nested Markdown pages, branch trash and optional page/calendar links.
-Status: not implemented — blocks, user organization/databases/views, tasks,
+nested pages with versioned blocks and Markdown compatibility, branch trash and
+optional page/calendar links.
+Status: not implemented — user organization/databases/views, tasks,
 availability, reminders, general materials, search, AI/RAG and authenticated IIS.
 The business frontend is not implemented except browser email verification.
 
@@ -547,10 +548,12 @@ Subject templates/catalogues are later slices, not a prerequisite for workspace 
 
 ## 5.9 notes
 
-Status: implemented, backend only: standalone Markdown pages, optional hierarchy,
-optimistic versions and recoverable branch trash/restore. See the
-[notes API](docs/development/notes.md). Blocks and editor UI are not implemented;
-search indexes are derived and owned by search.
+Status: implemented, backend only: standalone pages, optional hierarchy, versioned
+JSONB documents with text/headings/flat lists/checkboxes/links, optimistic versions
+and recoverable branch trash/restore. Existing Markdown is preserved; its API
+projection is derived from blocks. See the [notes API](docs/development/notes.md)
+and [ADR 0006](docs/adr/0006-use-versioned-page-block-documents.md).
+Editor UI is not implemented; search indexes are derived and owned by search.
 
 Page links are optional. Collections/property schemas/views belong to the planned
 workspace boundary; event time belongs to calendar. See
@@ -806,8 +809,8 @@ TaskCalendarBlock
 
 Reminder
 
-Page (implemented with Markdown body, notes-owned)
-PageDocument / Block (future structured content)
+Page (implemented, notes-owned)
+PageDocument / Block (implemented flat typed content, notes-owned)
 Collection / Tag / Database / PropertyDefinition / DatabaseRecord / SavedView (planned, workspace-owned)
 Material
 MaterialChunk
@@ -1178,8 +1181,9 @@ Calendar business UI is not implemented.
 
 ## Phase 2 — independent workspace
 
-Implemented, backend only: standalone pages, optional nesting, recoverable trash and
-page/calendar links. Tags/collections, saved views and blocks remain not implemented.
+Implemented, backend only: standalone pages, optional nesting, recoverable trash,
+typed block documents and page/calendar links. Tags/collections and saved views
+remain not implemented.
 `subjects` is not a prerequisite.
 
 ## Phase 3 — user databases and planning

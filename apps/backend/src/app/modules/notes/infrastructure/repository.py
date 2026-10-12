@@ -3,14 +3,27 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 
-from app.modules.notes.domain.pages import Page, PageConflict
+from app.modules.notes.domain.blocks import document_value, parse_document
+from app.modules.notes.domain.pages import Page, PageConflict, PageMetadata
 from app.modules.notes.infrastructure.orm import PageModel
 
 
+def page_metadata(row: PageModel) -> PageMetadata:
+    return PageMetadata(
+        **{field: getattr(row, field) for field in PageMetadata.__dataclass_fields__}
+    )
+
+
 def page_entity(row: PageModel) -> Page:
-    return Page(**{field: getattr(row, field) for field in Page.__dataclass_fields__})
+    return Page(**asdict(page_metadata(row)), document=parse_document(row.document))
+
+
+def page_values(page: Page) -> dict[str, object]:
+    values: dict[str, object] = asdict(page)
+    values["document"] = document_value(page.document)
+    return values
 
 
 class SqlAlchemyPageRepository:
@@ -25,6 +38,15 @@ class SqlAlchemyPageRepository:
         )
         return page_entity(row) if row else None
 
+    def summary(self, user_id: UUID, page_id: UUID) -> PageMetadata | None:
+        row = self.session.scalar(
+            select(PageModel)
+            .options(defer(PageModel.document))
+            .where(PageModel.user_id == user_id, PageModel.id == page_id)
+            .execution_options(populate_existing=True)
+        )
+        return page_metadata(row) if row else None
+
     def list_pages(
         self,
         user_id: UUID,
@@ -33,26 +55,30 @@ class SqlAlchemyPageRepository:
         trashed: bool,
         limit: int,
         offset: int,
-    ) -> list[Page]:
-        query = select(PageModel).where(
-            PageModel.user_id == user_id,
-            PageModel.trashed_at.is_not(None) if trashed else PageModel.trashed_at.is_(None),
+    ) -> list[PageMetadata]:
+        query = (
+            select(PageModel)
+            .options(defer(PageModel.document))
+            .where(
+                PageModel.user_id == user_id,
+                PageModel.trashed_at.is_not(None) if trashed else PageModel.trashed_at.is_(None),
+            )
         )
         if parent_id is not None or roots_only:
             query = query.where(PageModel.parent_id == parent_id)
         return [
-            page_entity(row)
+            page_metadata(row)
             for row in self.session.scalars(
                 query.order_by(PageModel.created_at, PageModel.id).limit(limit).offset(offset)
             )
         ]
 
     def create(self, page: Page) -> None:
-        self.session.add(PageModel(**asdict(page)))
+        self.session.add(PageModel(**page_values(page)))
         self.session.flush()
 
     def save(self, page: Page, expected_version: int) -> None:
-        values = asdict(page)
+        values = page_values(page)
         values.pop("id")
         values.pop("user_id")
         row_id = self.session.scalar(

@@ -13,6 +13,7 @@ before implementing incompatible schemas, integrations or behavior.
 - Preserve official facts, personal overrides and existing backend contracts.
 - Technical documentation/code is English; initial product text may be Russian.
 - The owner requested the backend pages/hierarchy/calendar-link slice with incremental local commits.
+- The owner subsequently requested the backend block-document slice with local commits.
 
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md) records organization.
 [ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md) records AI authorization.
@@ -39,7 +40,7 @@ confirmed requirement for automatic actions.
 | Q-05 | Beyond mandatory database calendar views, which calendar features are required first: all-day events, recurrence, multiple calendars or external providers? | Existing timed events plus date projections; dates/deadlines are nonblocking. Recurrence/all-day contracts are separate; no Google/Microsoft sync assumed. | Date DTOs, recurrence/exception model and availability |
 | Q-06 | Which history, purge and export features should follow recoverable trash? | Implemented branch trash restores its batch root and preserves previously trashed children; see [notes](../development/notes.md). No purge/history/export yet. | Future cleanup, history and export |
 | Q-07 | Are tasks typed planning objects, database records, or both with an explicit binding? | Typed tasks retain planning rules; ordinary records do not become tasks automatically. | Task API, date bindings and AI tools |
-| Q-08 | Which rich inline formatting, nested blocks and editor should follow the initial block slice? | The owner authorized text, headings, lists, checkboxes and links. [ADR 0006](../adr/0006-use-versioned-page-block-documents.md) selects the versioned backend schema; persistence/HTTP integration is pending. UI/editor, attachments and rich formatting remain later work. | Future editor, rendering and export |
+| Q-08 | Which rich inline formatting, nested blocks and editor should follow the initial block slice? | Text, headings, flat lists, checkboxes and links are implemented, backend only. [ADR 0006](../adr/0006-use-versioned-page-block-documents.md) records the versioned schema and preserving migration. UI/editor, attachments and rich formatting remain later work. | Future editor, rendering and export |
 | Q-09 | Should optional subjects use templates or a separately imported catalogue? | Defer; never merge by label or require subject IDs. | Subject module and explicit academic relations |
 | Q-10 | How should upstream replacements be reconciled without stable IDs? | Preserve historical references and expose uncertain replacements; explicit relinking. | Import matching, overrides and notifications |
 | Q-11 | What content/file/query and operational limits are required? | Define limits per slice; no unlimited storage/provider usage promise. | Uploads, indexing, quotas and production readiness |
@@ -66,7 +67,7 @@ current implementation status separate from confirmed future scope.
 ## Next decisions by slice
 
 - Standalone pages: document first-slice content limits and recoverable trash behavior.
-- Nested/block pages: Q-06 and Q-08; personal ownership is already confirmed.
+- Future rich blocks/history: Q-06 and Q-08; initial blocks and hierarchy are implemented.
 - Databases/calendar projection: Q-05, Q-07 and Q-12; table/calendar views are required.
 - AI execution: Q-04a, idempotency, versions and provider data policy.
 - Private IIS: deferred; requires a new phase request and verified upstream contracts.

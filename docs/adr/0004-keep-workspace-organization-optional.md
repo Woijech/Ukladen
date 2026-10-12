@@ -1,7 +1,9 @@
 # ADR 0004: Keep Workspace Organization Optional
 
 Date: 2026-10-12.
-Status: accepted product direction from the repository owner; implementation not started.
+Status: accepted product direction from the repository owner. Independent pages,
+hierarchy, trash, calendar links and flat typed blocks are implemented; user
+organization/databases/views remain planned.
 
 ## Context
 
@@ -32,12 +34,16 @@ separation is compatible with this direction and must be retained.
 
 ## Consequences
 
-Architecture, product requirements and development order are aligned. Blocks,
-databases, date projections and AI remain planned. Concrete API/SQL schemas belong
+Architecture, product requirements and development order are aligned. At decision
+time, blocks, databases, date projections and AI were planned. Concrete API/SQL schemas belong
 to implementation slices; the architecture does not replace typed entities with
 an unvalidated universal JSON object table.
 
-No runtime behavior, schema, frontend, credentials or calendar data changes in this task.
+No runtime behavior, schema, frontend, credentials or calendar data changes in the
+original documentation task. Subsequent implementation delivers standalone pages,
+hierarchy, trash, page/calendar links and flat typed blocks; see
+[notes](../development/notes.md), [relations](../development/relations.md) and
+[ADR 0006](0006-use-versioned-page-block-documents.md) for current contracts.
 
 ## Owner scope clarification (2026-10-12)
 

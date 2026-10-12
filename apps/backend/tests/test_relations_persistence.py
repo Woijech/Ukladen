@@ -64,8 +64,8 @@ def test_typed_link_constraints_lifecycles_and_migration(database_connection: Co
         database.commit()
     command.downgrade(config, "0008_note_pages")
     assert "page_calendar_links" not in inspect(database_connection).get_table_names()
-    with Session(database_connection, join_transaction_mode="create_savepoint") as database:
-        assert database.get(PageModel, page_id) is not None
-        database.commit()
+    assert (
+        database_connection.scalar(select(PageModel.id).where(PageModel.id == page_id)) == page_id
+    )
     command.upgrade(config, "head")
     command.check(config)
