@@ -1,8 +1,9 @@
 # Authentication Email Delivery
 
 Status: SMTP delivery, fake delivery and disabled mode are implemented.
-The browser email-verification page is implemented. Login, registration and password-reset
-forms, automatic delivery retries and durable publication recovery are not implemented.
+The browser email-verification, login and registration pages are implemented.
+Password-reset forms, automatic delivery retries and durable publication recovery
+are not implemented.
 
 Registration, verification resend and password-reset requests commit their
 single-use token hashes to PostgreSQL, then enqueue `auth.send_email` through the

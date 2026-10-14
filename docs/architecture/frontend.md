@@ -1,11 +1,10 @@
 # Ukladen Frontend Foundation
 
-Status: shell and browser email verification implemented; other business UI is not implemented.
+Status: shell, browser email verification, login/registration, academic-group selection and a weekly calendar with personal-event creation/deletion are implemented. Other business UI remains not implemented.
 
 `apps/web` uses Next.js App Router, React and strict TypeScript. The root layout
-provides a TanStack Query client created once per mounted provider. The shell uses
-the query client for a same-origin `/api/health/live` connection indicator and
-renders Russian product text with an explicit pre-launch message.
+provides a TanStack Query client created once per mounted provider. The frontend
+uses the query client for same-origin API reads and writes. Product text is Russian.
 
 The only frontend route handler is `GET /health`, which returns `{ "status": "ok" }`.
 It checks the frontend process, not the backend. In Compose, Traefik routes API
@@ -21,21 +20,29 @@ The browser supplies Origin; FastAPI retains all validation, expiry and single-u
 business rules. A reused promise avoids duplicate confirmation when React repeats
 effects. The page uses no-referrer/no-store/noindex policies and does not retain
 tokens in browser storage. GET previews do not mutate user data. It renders Russian
-success, invalid/expired, rate-limit and temporary-failure states. Login, registration
-and password-reset UI are not implemented.
+success, invalid/expired, rate-limit and temporary-failure states.
+
+`/workspace` provides email/password login and registration using the existing CSRF
+and session-cookie contracts. Password visibility lasts three seconds. After login,
+users without an academic profile can choose to connect a BSUIR group or continue
+without one. Group selection uses the existing group catalogue, group-context,
+profile PATCH and schedule-sync endpoints. The calendar displays the authenticated
+user's resolved week and supports personal-event creation/deletion. Profile actions
+open the group selector or revoke the current session. It does not implement tasks,
+page editing, password reset or saved views.
 
 `src/app` contains routing and the shell. `src/shared` contains the query provider
 and connection indicator. Feature/entity/widget directories will be introduced
 with real UI slices rather than empty scaffolding.
 
 Zustand and the FullCalendar core, React, daygrid, timegrid and interaction packages
-are installed and locked. No Zustand store or calendar view is implemented.
-Permissions, schedule resolution and planning rules are not implemented in the
-frontend.
+are installed and locked. The current weekly calendar is rendered with React and CSS;
+it uses backend-resolved events and does not implement drag-and-drop or availability
+calculations. Permissions, schedule resolution and planning rules remain backend-owned.
 
 ## Target product responsibilities
 
-Status: not implemented. Future business UI presents independent pages, direct event
+Status: partially implemented. Future business UI adds independent pages, direct event
 editing, optional organization, block documents and database/calendar views. Subjects
 are optional navigation. Date labels and time reservations must be distinguishable.
 AI UI exposes supporting sources, recommendations, exact proposals/confirmation and
@@ -43,7 +50,7 @@ explicit automatic-action permission management. Shared editing and formulas are
 
 Follow [workspace requirements](../product/workspace.md) and resolve editor/collaboration
 scope in [open decisions](../product/open-questions.md) before choosing UI contracts.
-This documentation task introduces no editor library, layout or business UI.
+The current calendar does not introduce an editor library or database-view system.
 
 ## Current verification and runtime
 

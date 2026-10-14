@@ -1,9 +1,10 @@
 # Personal calendar API
 
-Status: implemented, backend only — personal-event CRUD, official-event overrides,
-resolved date-range reads, ownership/CSRF protection and safe structured diagnostics.
+Status: implemented — backend personal-event CRUD, official-event overrides,
+resolved date-range reads, ownership/CSRF protection and safe structured diagnostics;
+frontend weekly calendar with personal-event create/delete and schedule group selection.
 Free slots, conflict checking, task blocks, recurring/all-day personal events,
-subject templates, reminders and the calendar frontend are not implemented.
+subject templates and reminders are not implemented.
 Standalone nested pages and optional calendar links are implemented; see
 [notes](notes.md) and [relations](relations.md).
 

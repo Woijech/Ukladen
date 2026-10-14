@@ -10,8 +10,8 @@ Celery email queuing, a development fake and configurable SMTP delivery are impl
 A Google OIDC identity adapter, account-resolution application service and
 browser-bound Redis OAuth state and Google browser login are implemented.
 Explicit Google linking is implemented. A deployment must supply its SMTP service;
-browser email verification is implemented. Other frontend authentication UI and
-durable email publication recovery are not implemented.
+browser email verification and email/password login/registration UI are implemented.
+Password-reset UI and durable email publication recovery are not implemented.
 
 The backend users profile API is implemented. It reuses browser authentication and
 CSRF protection; see [profile contracts and API examples](../development/user-profile.md).

@@ -50,7 +50,9 @@ nested pages with versioned blocks and Markdown compatibility, branch trash and
 optional page/calendar links.
 Status: not implemented — user organization/databases/views, tasks,
 availability, reminders, general materials, search, AI/RAG and authenticated IIS.
-The business frontend is not implemented except browser email verification.
+The frontend currently implements login/registration, browser email verification,
+academic-group selection and a weekly calendar with personal-event creation/deletion.
+Other workspace business UI remains unimplemented.
 
 Detailed behavior: [product overview](docs/product/overview.md) and
 [workspace requirements](docs/product/workspace.md).
@@ -440,8 +442,8 @@ store and Redis as a session cache. Only session token hashes are persisted.
 Status: backend authentication is implemented, including email/password flows,
 Google OIDC login and explicit linking with password re-authentication. Authentication
 email delivery uses the existing Celery worker and a configurable SMTP adapter;
-the deployment supplies its SMTP service. Browser email verification is implemented;
-other frontend authentication UI is not implemented. See
+the deployment supplies its SMTP service. Browser email verification and email/password
+login/registration UI are implemented. See
 [backend architecture](docs/architecture/backend.md) for current runtime details.
 
 ## 5.2 users
@@ -505,8 +507,9 @@ resolved personal calendar
 ```
 
 Status: backend personal events, per-user overrides and resolved calendar reads are
-implemented; see [calendar contracts](docs/development/calendar.md). Free-slot/conflict
-queries, task blocks and the calendar frontend are not implemented. User tags and
+implemented; see [calendar contracts](docs/development/calendar.md). The weekly
+calendar supports resolved reads and personal-event create/delete. Free-slot/conflict
+queries and task blocks are not implemented. User tags and
 collections are implemented in workspace. Saved views, all-day/recurring personal
 events and database-date projections are not implemented.
 
@@ -1181,7 +1184,7 @@ Redis, Celery, SeaweedFS and CI. Infrastructure availability is not AI/RAG suppo
 
 Implemented backend: auth, user/academic profiles, verified public IIS reads,
 official schedule storage/sync, personal events and official overrides/resolved reads.
-Calendar business UI is not implemented.
+Login/registration, academic-group selection and weekly calendar UI are implemented.
 
 ## Phase 2 — independent workspace
 

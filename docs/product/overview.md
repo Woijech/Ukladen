@@ -66,8 +66,9 @@ page links/backlinks.
 See [current calendar API](../development/calendar.md).
 
 Collection/tag names, colors and explicit memberships are implemented in workspace.
-Status: not implemented — calendar UI, saved views, per-event colors, all-day and
-recurring personal events, database-record projections, occupied/free intervals,
+The weekly calendar UI and basic academic-group selection are implemented. Status:
+not implemented — saved views, per-event colors, all-day and recurring personal
+events, database-record projections, occupied/free intervals,
 conflict checks and task scheduling blocks.
 
 The target supports day/week/month views, direct editing, moving/resizing, optional
@@ -145,7 +146,7 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 | Capability | Current status |
 | --- | --- |
 | Monolith, Compose, migrations, workers, CI, safe diagnostics | Implemented foundation |
-| Browser auth, Google login/linking, email delivery | Implemented backend; email verification UI only |
+| Browser auth, Google login/linking, email delivery | Implemented backend; login/registration and email-verification UI |
 | User profile/avatar and academic profile | Implemented backend |
 | Public IIS directories and live reads | Implemented backend |
 | Official schedule storage, supported expansion and sync | Implemented backend with source limitations |
@@ -156,7 +157,8 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 | Tasks, availability, reminders and notifications | Status: not implemented. |
 | General materials, search, AI and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
-| Workspace/calendar business UI | Status: not implemented. |
+| Weekly calendar, personal-event create/delete, login/registration and group selection UI | Implemented |
+| Workspace pages, tasks, saved views, databases and remaining business UI | Status: not implemented. |
 
 ## 10. Development approach
 

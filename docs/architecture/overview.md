@@ -60,8 +60,7 @@ external clients. Inter-module access must use application services or interface
 
 ## Scope
 
-Status: not implemented — free slots, conflict checks, task blocks, calendar UI,
-tasks, reminders, materials, search,
+Status: not implemented — free slots, conflict checks, task blocks, tasks, reminders, materials, search,
 notifications, AI and RAG. Structured diagnostics, request/task correlation and
 container log rotation are implemented; see [logging](../development/logging.md).
 Remote observability services, metrics, tracing, production

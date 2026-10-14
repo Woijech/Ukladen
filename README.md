@@ -209,14 +209,14 @@ verification, login/logout/logout-all, password reset/change, session management
 Google OIDC browser login and explicit account linking with password re-authentication.
 Browser authentication uses opaque HttpOnly sessions, PostgreSQL storage, Redis
 caching/rate limiting and CSRF protection. Celery queues email after commit using
-a development fake or a configurable SMTP adapter. Browser email verification is
-implemented; other authentication UI is not implemented.
+a development fake or a configurable SMTP adapter. Login, registration and browser
+email-verification UI are implemented.
 
 Backend user/academic profiles, official IIS schedule storage/synchronization and
 the personal calendar API are implemented. Calendar supports personal events,
 per-user schedule overrides and resolved reads; see
-[Calendar API](docs/development/calendar.md). Calendar UI, free slots and task blocks
-remain unimplemented.
+[Calendar API](docs/development/calendar.md). The weekly calendar and basic group
+selection UI are implemented; free slots and task blocks remain unimplemented.
 
 ```text
 apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests

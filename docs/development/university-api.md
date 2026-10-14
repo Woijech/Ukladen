@@ -97,8 +97,9 @@ needed for this read slice.
 Official event expansion, schedule storage and Celery synchronization are implemented
 in the [schedule module](schedule.md), with new stored-event endpoints. The existing
 GET routes above retain their live contracts. Authoritative cancellation/split
-precedence and calendar UI: **Status: not implemented.** Personal overrides and
-resolved reads are implemented in the [calendar module](calendar.md).
+precedence: **Status: not implemented.** Weekly calendar UI and group-selection flow
+use the current APIs. Personal overrides and resolved reads are implemented in the
+[calendar module](calendar.md).
 Authenticated student-account reads are unverified/unimplemented; see the
 [deep integration roadmap](../integrations/bsuir-iis-roadmap.md).
 
