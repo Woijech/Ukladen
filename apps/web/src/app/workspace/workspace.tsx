@@ -10,6 +10,8 @@ type CalendarEvent = {
   source_event_id: string;
   kind: "lesson" | "exam" | "announcement" | "personal";
   title: string;
+  description: string | null;
+  version: number;
   starts_at: string;
   ends_at: string;
   location: string | null;
@@ -17,7 +19,18 @@ type CalendarEvent = {
   skipped: boolean;
   lesson_type: string | null;
   subject: string | null;
+  subject_full_name: string | null;
   rooms: string[];
+  teacher_names: string[];
+};
+
+type ScheduleSyncStatus = {
+  group_id: number;
+  group_number: string;
+  status: "not_synced" | "syncing" | "ready" | "unpublished" | "error" | "unsupported";
+  last_attempt_at: string | null;
+  last_success_at: string | null;
+  error_code: string | null;
 };
 
 type CalendarPayload = {
@@ -60,7 +73,7 @@ const weekdays = ["Понедельник", "Вторник", "Среда", "Ч�
 const shortWeekdays = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
 const startHour = 8;
 const endHour = 21;
-const hourHeight = 68;
+const hourHeight = 54;
 
 function localDate(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -80,6 +93,37 @@ function shiftDate(date: Date, days: number) {
 
 function prettyDate(date: Date, options: Intl.DateTimeFormatOptions = {}) {
   return new Intl.DateTimeFormat("ru-RU", options).format(date);
+}
+
+function eventColumns(events: CalendarEvent[]) {
+  const sorted = [...events].sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+  const columns = new Map<string, { lane: number; count: number }>();
+  let cluster: CalendarEvent[] = [];
+  let clusterEnd = 0;
+  const placeCluster = () => {
+    const laneEnds: number[] = [];
+    const placements: Array<{ event: CalendarEvent; lane: number }> = [];
+    for (const event of cluster) {
+      const start = new Date(event.starts_at).getTime();
+      const end = new Date(event.ends_at).getTime();
+      let lane = laneEnds.findIndex(value => value <= start);
+      if (lane < 0) lane = laneEnds.length;
+      laneEnds[lane] = end;
+      placements.push({ event, lane });
+    }
+    for (const placement of placements) columns.set(placement.event.id, { lane: placement.lane, count: laneEnds.length });
+    cluster = [];
+    clusterEnd = 0;
+  };
+  for (const event of sorted) {
+    const start = new Date(event.starts_at).getTime();
+    const end = new Date(event.ends_at).getTime();
+    if (cluster.length && start >= clusterEnd) placeCluster();
+    cluster.push(event);
+    clusterEnd = Math.max(clusterEnd, end);
+  }
+  if (cluster.length) placeCluster();
+  return columns;
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -179,7 +223,7 @@ function AuthPanel({ onSuccess }: { onSuccess: () => Promise<void> }) {
   </div>;
 }
 
-function GroupPicker({ profile, onClose, onSaved }: { profile: AcademicProfile | null; onClose: () => void; onSaved: (message: string) => void }) {
+function GroupPicker({ profile, onClose, onSaved }: { profile: AcademicProfile | null; onClose: () => void; onSaved: (syncAccepted: boolean) => void }) {
   const [search, setSearch] = useState("");
   const [groupId, setGroupId] = useState<number | null>(profile?.group.id ?? null);
   const [subgroup, setSubgroup] = useState(profile?.subgroup ? String(profile.subgroup) : "");
@@ -210,14 +254,14 @@ function GroupPicker({ profile, onClose, onSaved }: { profile: AcademicProfile |
         headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
         body: JSON.stringify({ group_id: groupId, subgroup: subgroup ? Number(subgroup) : null }),
       });
-      let message = "Группа сохранена. Учебное расписание добавлено в календарь.";
+      let syncAccepted = false;
       try {
         await requestJson<{ group_id: number }>("/api/v1/schedule/me/sync", { method: "POST", headers: { "X-CSRF-Token": token } });
-        message = "Группа сохранена. Загружаем учебное расписание.";
+        syncAccepted = true;
       } catch {
-        message = "Группа сохранена. Расписание обновится автоматически.";
+        syncAccepted = false;
       }
-      onSaved(message);
+      onSaved(syncAccepted);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Не удалось сохранить группу.");
     } finally { setSaving(false); }
@@ -263,10 +307,19 @@ export function Workspace() {
   const [topAccountMenuOpen, setTopAccountMenuOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
+  const [description, setDescription] = useState("");
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
   const [loadingAuth, setLoadingAuth] = useState(false);
+  const [syncPending, setSyncPending] = useState(false);
+  const [syncFinished, setSyncFinished] = useState(false);
+  const [syncWaiting, setSyncWaiting] = useState(false);
+  const [syncStartedAt, setSyncStartedAt] = useState(0);
+  const [syncNotice, setSyncNotice] = useState("");
+  const [officialEvent, setOfficialEvent] = useState<CalendarEvent | null>(null);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const syncTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const weekStart = useMemo(() => startOfWeek(selected), [selected]);
   const days = useMemo(() => Array.from({ length: 7 }, (_, index) => shiftDate(weekStart, index)), [weekStart]);
@@ -277,6 +330,13 @@ export function Workspace() {
     retry: false,
   });
   const meQuery = useQuery({ queryKey: ["workspace-profile"], queryFn: () => requestJson<AcademicProfile | null>("/api/v1/academics/me"), retry: false });
+  const syncStatusQuery = useQuery({
+    queryKey: ["schedule-sync-status", meQuery.data?.group.id],
+    queryFn: () => requestJson<ScheduleSyncStatus>("/api/v1/schedule/me/sync-status"),
+    enabled: syncPending && Boolean(meQuery.data?.group.id),
+    refetchInterval: syncPending ? 3000 : false,
+    retry: false,
+  });
   const apiError = calendarQuery.error instanceof Error ? calendarQuery.error : null;
   const needsAuth = apiError?.message.includes("Войдите") ?? false;
   const events = calendarQuery.data?.events ?? [];
@@ -286,13 +346,57 @@ export function Workspace() {
   const weekEndLabel = prettyDate(days[6], { day: "numeric", month: "long", year: "numeric" });
   const selectedEvents = events.filter(event => localDate(new Date(event.starts_at)) === selectedKey).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
 
+  useEffect(() => {
+    const status = syncStatusQuery.data;
+    if (!syncPending || !status || status.group_id !== meQuery.data?.group.id) return;
+    const attemptTime = status.last_attempt_at ? Date.parse(status.last_attempt_at) : 0;
+    if (status.status === "ready" && !status.last_success_at) return;
+    if (status.status !== "ready" && (!attemptTime || attemptTime < syncStartedAt - 5000)) return;
+    if (status.status === "ready") {
+      setSyncPending(false);
+      setSyncNotice("");
+      setSyncWaiting(false);
+      if (syncTimeout.current) clearTimeout(syncTimeout.current);
+      void queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] }).then(async () => {
+        const latest = await queryClient.fetchQuery({
+          queryKey: ["workspace-calendar", range.from, range.to],
+          queryFn: () => requestJson<CalendarPayload>(`/api/v1/calendar/events?date_from=${range.from}&date_to=${range.to}`),
+        });
+        const lessonCount = latest.events.filter(item => item.source === "official").length;
+        const message = lessonCount ? `Расписание загружено: ${lessonCount} занятий на этой неделе.` : "Расписание синхронизировано. На этой неделе занятий нет.";
+        setSyncFinished(true);
+        setSyncNotice(message);
+        setToast(message);
+        window.setTimeout(() => setToast(""), 5000);
+      }).catch(() => {
+        const message = "IIS завершил импорт, но календарь пока не удалось обновить. Обновите страницу позже.";
+        setSyncFinished(false);
+        setSyncWaiting(false);
+        setSyncNotice(message);
+        setToast(message);
+      });
+    } else if (["unpublished", "error", "unsupported"].includes(status.status)) {
+      setSyncPending(false);
+      setSyncFinished(false);
+      setSyncWaiting(status.status === "unpublished");
+      if (syncTimeout.current) clearTimeout(syncTimeout.current);
+      const message = status.status === "unpublished" ? "Группа сохранена. Для неё пока нет опубликованного расписания." : status.status === "unsupported" ? "Группа сохранена, но формат расписания IIS пока не поддерживается." : "Группа сохранена, но IIS не удалось синхронизировать. Попробуйте позже.";
+      setSyncNotice(message);
+      setToast(message);
+      window.setTimeout(() => setToast(""), 6000);
+    }
+  }, [syncPending, syncStartedAt, syncStatusQuery.data, meQuery.data?.group.id, queryClient, range.from, range.to]);
+
+  useEffect(() => () => { if (syncTimeout.current) clearTimeout(syncTimeout.current); }, []);
+
   function openCreate(date = selected) {
+    setEditingEvent(null);
     setSelected(date);
     const initial = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 10, 0);
     setStartValue(toDateTimeLocal(initial));
     const end = new Date(initial.getTime() + 60 * 60_000);
     setEndValue(toDateTimeLocal(end));
-    setTitle(""); setLocation(""); setFormError(""); setShowEventForm(true);
+    setTitle(""); setLocation(""); setDescription(""); setFormError(""); setShowEventForm(true);
   }
 
   const [startValue, setStartValue] = useState("");
@@ -320,16 +424,44 @@ export function Workspace() {
     }
   }
 
-  async function afterGroupSaved(message: string) {
+  async function afterGroupSaved(syncAccepted: boolean) {
     setShowGroupPicker(false);
     setAccountMenuOpen(false);
     setTopAccountMenuOpen(false);
-    setToast(message);
+    setSyncPending(true);
+    setSyncFinished(false);
+    setSyncWaiting(false);
+    setSyncStartedAt(Date.now());
+    setSyncNotice(syncAccepted ? "Группа выбрана. IIS загружает расписание…" : "Группа сохранена. Ждём фоновую синхронизацию расписания…");
+    setToast(syncAccepted ? "Группа выбрана. Загружаем расписание IIS…" : "Группа сохранена. Ждём синхронизацию IIS…");
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] }),
       queryClient.invalidateQueries({ queryKey: ["workspace-profile"] }),
+      queryClient.invalidateQueries({ queryKey: ["schedule-sync-status"] }),
     ]);
-    window.setTimeout(() => setToast(""), 3600);
+    window.setTimeout(() => setToast(""), 5000);
+    if (syncTimeout.current) clearTimeout(syncTimeout.current);
+    syncTimeout.current = setTimeout(() => {
+      setSyncPending(false);
+      setSyncWaiting(true);
+      setSyncNotice("Импорт ещё выполняется. Статус можно проверить позже; расписание появится после завершения синхронизации.");
+    }, 180_000);
+  }
+
+  function openEvent(item: CalendarEvent) {
+    setSelected(new Date(item.starts_at));
+    if (item.source === "official") {
+      setOfficialEvent(item);
+      return;
+    }
+    setEditingEvent(item);
+    setTitle(item.title);
+    setLocation(item.location ?? "");
+    setDescription(item.description ?? "");
+    setStartValue(toDateTimeLocal(new Date(item.starts_at)));
+    setEndValue(toDateTimeLocal(new Date(item.ends_at)));
+    setFormError("");
+    setShowEventForm(true);
   }
 
   async function createEvent(event: FormEvent<HTMLFormElement>) {
@@ -337,11 +469,18 @@ export function Workspace() {
     setSaving(true); setFormError("");
     try {
       const token = await csrfToken();
-      await requestJson<PersonalEvent>("/api/v1/calendar/personal-events", {
-        method: "POST", headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
-        body: JSON.stringify({ title, location: location || null, description: null, starts_at: new Date(startValue).toISOString(), ends_at: new Date(endValue).toISOString(), blocks_time: true }),
-      });
-      setShowEventForm(false); setToast("Событие добавлено");
+      if (editingEvent) {
+        await requestJson<PersonalEvent>(`/api/v1/calendar/personal-events/${editingEvent.source_event_id}`, {
+          method: "PATCH", headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
+          body: JSON.stringify({ expected_version: editingEvent.version, title, location: location || null, description: description || null, starts_at: new Date(startValue).toISOString(), ends_at: new Date(endValue).toISOString() }),
+        });
+      } else {
+        await requestJson<PersonalEvent>("/api/v1/calendar/personal-events", {
+          method: "POST", headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
+          body: JSON.stringify({ title, location: location || null, description: description || null, starts_at: new Date(startValue).toISOString(), ends_at: new Date(endValue).toISOString(), blocks_time: true }),
+        });
+      }
+      setShowEventForm(false); setEditingEvent(null); setToast(editingEvent ? "Событие обновлено" : "Событие добавлено");
       await queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] });
       window.setTimeout(() => setToast(""), 2600);
     } catch (error) {
@@ -354,6 +493,7 @@ export function Workspace() {
     try {
       const token = await csrfToken();
       await requestJson<void>(`/api/v1/calendar/personal-events/${event.source_event_id}`, { method: "DELETE", headers: { "X-CSRF-Token": token } });
+      setShowEventForm(false); setEditingEvent(null);
       setToast("Событие удалено");
       await queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] });
       window.setTimeout(() => setToast(""), 2600);
@@ -371,7 +511,7 @@ export function Workspace() {
   }
 
   if (needsAuth) return <main className="workspace-auth"><AuthPanel onSuccess={afterAuthentication} /></main>;
-  if (showGroupPicker) return <GroupPicker profile={meQuery.data ?? null} onClose={() => setShowGroupPicker(false)} onSaved={message => void afterGroupSaved(message)} />;
+  if (showGroupPicker) return <GroupPicker profile={meQuery.data ?? null} onClose={() => setShowGroupPicker(false)} onSaved={accepted => void afterGroupSaved(accepted)} />;
 
   return <main className="workspace-shell">
     <aside className="sidebar">
@@ -388,7 +528,7 @@ export function Workspace() {
     </aside>
 
     <section className="main-panel">
-        <header className="topbar"><button className="mobile-menu" aria-label="Меню профиля" aria-expanded={topAccountMenuOpen} onClick={() => setTopAccountMenuOpen(open => !open)}><Icon name="menu"/></button><div className="breadcrumb">Моё пространство <Icon name="chevron"/> <strong>Календарь</strong></div><div className="topbar-actions"><span className={`connection-dot ${calendarQuery.isError ? "offline" : ""}`}/><span className="connection-label">{calendarQuery.isFetching || loadingAuth ? "Синхронизация" : calendarQuery.isError ? "Нет соединения" : "Синхронизировано"}</span><button className="avatar top-avatar" aria-label="Меню профиля" aria-expanded={topAccountMenuOpen} onClick={() => setTopAccountMenuOpen(open => !open)}>U</button></div>
+        <header className="topbar"><button className="mobile-menu" aria-label="Меню профиля" aria-expanded={topAccountMenuOpen} onClick={() => setTopAccountMenuOpen(open => !open)}><Icon name="menu"/></button><div className="breadcrumb">Моё пространство <Icon name="chevron"/> <strong>Календарь</strong></div><div className="topbar-actions"><span className={`connection-dot ${calendarQuery.isError ? "offline" : ""}`}/><span className="connection-label">{syncPending ? "Загрузка расписания" : calendarQuery.isFetching || loadingAuth ? "Синхронизация" : calendarQuery.isError ? "Нет соединения" : "Синхронизировано"}</span><button className="avatar top-avatar" aria-label="Меню профиля" aria-expanded={topAccountMenuOpen} onClick={() => setTopAccountMenuOpen(open => !open)}>U</button></div>
           {topAccountMenuOpen && <div className="top-account-popover"><div className="popover-heading">Профиль и расписание</div><button onClick={() => { setTopAccountMenuOpen(false); setShowGroupPicker(true); }}><Icon name="cap"/><span>{meQuery.data ? "Сменить учебную группу" : "Выбрать учебную группу"}</span></button><button onClick={() => void logout()}><Icon name="logout"/><span>Выйти из аккаунта</span></button></div>}
         </header>
 
@@ -403,6 +543,7 @@ export function Workspace() {
             {days.map((day, dayIndex) => {
               const dayKey = localDate(day);
               const dayEvents = events.filter(item => localDate(new Date(item.starts_at)) === dayKey);
+              const columns = eventColumns(dayEvents);
               return <div className={`day-column ${dayKey === today ? "is-today" : ""} ${dayKey === selectedKey ? "is-selected" : ""}`} key={dayKey}>
                 <button className="day-heading" onClick={() => setSelected(day)}><span>{shortWeekdays[dayIndex]}</span><strong>{day.getDate()}</strong></button>
                 <button className="all-day-cell" onClick={() => openCreate(day)} aria-label={`Добавить событие на ${weekdays[dayIndex]}`}/>
@@ -412,7 +553,10 @@ export function Workspace() {
                     const start = new Date(item.starts_at); const finish = new Date(item.ends_at);
                     const top = Math.max(0, (start.getHours() - startHour + start.getMinutes() / 60) * hourHeight);
                     const height = Math.max(35, (finish.getTime() - start.getTime()) / 3_600_000 * hourHeight);
-                    return <button type="button" key={item.id} className={`event-card ${item.source === "official" ? "official-event" : "personal-event"} ${item.skipped ? "skipped-event" : ""}`} style={{ top: `${top}px`, height: `${Math.min(height, 250)}px` }} onClick={() => setSelected(day)} title={`${item.title}${item.location ? ` · ${item.location}` : ""}`}>
+                    const column = columns.get(item.id) ?? { lane: 0, count: 1 };
+                    const left = `calc(${column.lane * 100 / column.count}% + 3px)`;
+                    const right = `calc(${(column.count - column.lane - 1) * 100 / column.count}% + 3px)`;
+                    return <button type="button" key={item.id} className={`event-card ${item.source === "official" ? "official-event" : "personal-event"} ${item.skipped ? "skipped-event" : ""}`} style={{ top: `${top}px`, height: `${Math.min(height, 250)}px`, left, right }} onClick={() => openEvent(item)} title={`${item.title}${item.location ? ` · ${item.location}` : ""}`}>
                       <span className="event-time">{prettyDate(start, { hour: "2-digit", minute: "2-digit" })} — {prettyDate(finish, { hour: "2-digit", minute: "2-digit" })}</span><strong>{item.title}</strong>{(item.location || item.subject) && <span className="event-location">{item.location || item.subject}</span>}{item.source === "personal" && <span className="event-delete" onClick={event => { event.stopPropagation(); void removeEvent(item); }} role="button" tabIndex={0} aria-label="Удалить событие">×</span>}
                     </button>;
                   })}
@@ -424,15 +568,17 @@ export function Workspace() {
           {!calendarQuery.isPending && !calendarQuery.isError && events.length === 0 && <div className="empty-note"><span className="empty-icon"><Icon name="calendar"/></span><div><strong>Неделя пока свободна</strong><span>Добавь личное событие или подключи учебную группу в профиле.</span></div><button onClick={() => openCreate()}>Добавить событие</button></div>}
           {apiError && !needsAuth && <div className="inline-error" role="alert">{apiError.message}<button onClick={() => void calendarQuery.refetch()}>Повторить</button></div>}
           {!!calendarQuery.data?.warnings.length && <p className="schedule-warning">Учебное расписание может быть неактуальным. Проверь источник перед важными планами.</p>}
+          {syncNotice && <p className={`schedule-sync-notice ${syncPending ? "is-loading" : syncFinished ? "is-success" : syncWaiting ? "is-loading" : "is-error"}`} role="status">{syncPending && <span className="spinner"/>}{syncNotice}</p>}
         </section>
 
-        <div className="below-grid"><section className="selected-day-card"><div className="section-title"><div><span className="greeting">ВЫБРАННЫЙ ДЕНЬ</span><h2>{prettyDate(selected, { weekday: "long", day: "numeric", month: "long" })}</h2></div><button className="text-action" onClick={() => openCreate()}>+ Событие</button></div>{selectedEvents.length ? <div className="agenda-list">{selectedEvents.map(item => <div className="agenda-row" key={item.id}><span className={`agenda-dot ${item.source === "official" ? "dot-official" : "dot-personal"}`}/><span className="agenda-time">{prettyDate(new Date(item.starts_at), { hour: "2-digit", minute: "2-digit" })}</span><span className="agenda-name">{item.title}</span><span className="agenda-place">{item.location ?? item.subject ?? ""}</span></div>)}</div> : <p className="agenda-empty">Здесь появятся события на выбранный день.</p>}</section>
+        <div className="below-grid"><section className="selected-day-card"><div className="section-title"><div><span className="greeting">ВЫБРАННЫЙ ДЕНЬ</span><h2>{prettyDate(selected, { weekday: "long", day: "numeric", month: "long" })}</h2></div><button className="text-action" onClick={() => openCreate()}>+ Событие</button></div>{selectedEvents.length ? <div className="agenda-list">{selectedEvents.map(item => <button type="button" className="agenda-row" key={item.id} onClick={() => openEvent(item)}><span className={`agenda-dot ${item.source === "official" ? "dot-official" : "dot-personal"}`}/><span className="agenda-time">{prettyDate(new Date(item.starts_at), { hour: "2-digit", minute: "2-digit" })}</span><span className="agenda-name">{item.title}</span><span className="agenda-place">{item.location ?? item.subject ?? ""}</span></button>)}</div> : <p className="agenda-empty">Здесь появятся события на выбранный день.</p>}</section>
           <section className="schedule-source-card"><div className="source-icon"><Icon name="cap"/></div><div className="source-copy"><span className="greeting">УЧЕБНОЕ РАСПИСАНИЕ</span><strong>{meQuery.data ? `Группа ${meQuery.data.group.name}` : "Добавь свою группу"}</strong><p>{meQuery.data ? `Подгруппа: ${meQuery.data.subgroup ?? "все"}. Официальные занятия отображаются вместе с личными планами.` : "Выбери группу, чтобы видеть пары в личном календаре."}</p></div><button aria-label="Настроить учебную группу" className="source-chevron" onClick={() => setShowGroupPicker(true)}><Icon name="chevron"/></button></section></div>
         {toast && <div className="toast" role="status">{toast}</div>}
       </div>
     </section>
 
-    {showEventForm && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setShowEventForm(false); }}><form className="event-modal" onSubmit={createEvent}><button type="button" className="modal-close" onClick={() => setShowEventForm(false)} aria-label="Закрыть">×</button><span className="greeting">ЛИЧНЫЙ КАЛЕНДАРЬ</span><h2>Новое событие</h2><p>Добавь план в своё расписание.</p><label htmlFor="event-title">Название</label><input id="event-title" autoFocus required maxLength={200} value={title} onChange={event => setTitle(event.target.value)} placeholder="Например, подготовка к экзамену"/><div className="form-row"><div><label htmlFor="event-start">Начало</label><input id="event-start" type="datetime-local" required value={startValue} onChange={event => setStartValue(event.target.value)}/></div><div><label htmlFor="event-end">Окончание</label><input id="event-end" type="datetime-local" required value={endValue} onChange={event => setEndValue(event.target.value)}/></div></div><label htmlFor="event-location">Место <span className="optional">необязательно</span></label><input id="event-location" value={location} onChange={event => setLocation(event.target.value)} maxLength={500} placeholder="Аудитория или место"/>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="modal-actions"><button type="button" className="cancel-button" onClick={() => setShowEventForm(false)}>Отмена</button><button className="primary-button" disabled={saving}>{saving ? "Сохраняем…" : "Добавить событие"}</button></div></form></div>}
+    {showEventForm && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setShowEventForm(false); }}><form className="event-modal" onSubmit={createEvent}><button type="button" className="modal-close" onClick={() => setShowEventForm(false)} aria-label="Закрыть">×</button><span className="greeting">ЛИЧНЫЙ КАЛЕНДАРЬ</span><h2>{editingEvent ? "Изменить событие" : "Новое событие"}</h2><p>{editingEvent ? "Можно изменить личный план. Учебные пары остаются без изменений." : "Личное событие можно поставить в любое время, даже одновременно с парой."}</p><label htmlFor="event-title">Название</label><input id="event-title" autoFocus required maxLength={200} value={title} onChange={event => setTitle(event.target.value)} placeholder="Например, подготовка к экзамену"/><div className="form-row"><div><label htmlFor="event-start">Начало</label><input id="event-start" type="datetime-local" required value={startValue} onChange={event => setStartValue(event.target.value)}/></div><div><label htmlFor="event-end">Окончание</label><input id="event-end" type="datetime-local" required value={endValue} onChange={event => setEndValue(event.target.value)}/></div></div><label htmlFor="event-location">Место <span className="optional">необязательно</span></label><input id="event-location" value={location} onChange={event => setLocation(event.target.value)} maxLength={500} placeholder="Аудитория или место"/><label htmlFor="event-description">Описание <span className="optional">необязательно</span></label><textarea id="event-description" value={description} onChange={event => setDescription(event.target.value)} maxLength={10000} placeholder="Подробности личного события"/>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="modal-actions"><button type="button" className="cancel-button" onClick={() => setShowEventForm(false)}>Отмена</button>{editingEvent && <button type="button" className="cancel-button" onClick={() => void removeEvent(editingEvent)}>Удалить</button>}<button className="primary-button" disabled={saving}>{saving ? "Сохраняем…" : editingEvent ? "Сохранить" : "Добавить событие"}</button></div></form></div>}
+    {officialEvent && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setOfficialEvent(null); }}><section className="event-modal event-readonly" aria-labelledby="official-event-title"><button type="button" className="modal-close" onClick={() => setOfficialEvent(null)} aria-label="Закрыть">×</button><span className="greeting">РАСПИСАНИЕ IIS · ТОЛЬКО ПРОСМОТР</span><h2 id="official-event-title">{officialEvent.subject_full_name || officialEvent.subject || officialEvent.title}</h2><p>{prettyDate(new Date(officialEvent.starts_at), { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p><dl><div><dt>Время</dt><dd>{prettyDate(new Date(officialEvent.starts_at), { hour: "2-digit", minute: "2-digit" })} — {prettyDate(new Date(officialEvent.ends_at), { hour: "2-digit", minute: "2-digit" })}</dd></div>{officialEvent.lesson_type && <div><dt>Вид занятия</dt><dd>{officialEvent.lesson_type}</dd></div>}{officialEvent.rooms.length > 0 && <div><dt>Аудитория</dt><dd>{officialEvent.rooms.join(", ")}</dd></div>}{officialEvent.teacher_names.length > 0 && <div><dt>Преподаватель</dt><dd>{officialEvent.teacher_names.join(", ")}</dd></div>}{officialEvent.description && <div><dt>Примечание</dt><dd>{officialEvent.description}</dd></div>}<div><dt>Статус</dt><dd>{officialEvent.skipped ? "Отменено или пропущено в календаре" : "Источник: расписание БГУИР"}</dd></div></dl><div className="modal-actions"><button type="button" className="primary-button" onClick={() => setOfficialEvent(null)}>Закрыть</button></div></section></div>}
   </main>;
 }
 
