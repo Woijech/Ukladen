@@ -325,3 +325,25 @@ button.day-heading { cursor: pointer; }
   .calendar-card { overflow-x: auto; }
   .schedule-sync-notice { min-width: 760px; }
 }
+
+/* Keep native date controls inside the event dialog and prioritize event names. */
+.form-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.form-row > div { min-width: 0; }
+.form-row input { width: 100%; min-width: 0; max-width: 100%; padding: 0 8px; font-size: 14px; }
+.event-card > .event-time,
+.event-card > strong { flex: 0 0 auto; }
+.event-card > strong { max-height: 2.5em; overflow: hidden; line-height: 1.25; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.event-card > .event-location { flex: 0 0 auto; }
+@media (max-width: 520px) {
+  .form-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .event-modal { padding: 24px 20px; }
+}
+.view-picker { position: relative; }
+.view-menu { position: absolute; z-index: 8; top: calc(100% + 7px); right: 0; width: 260px; padding: 8px; border: 1px solid #e9e5ef; border-radius: 11px; background: #fff; box-shadow: 0 12px 32px #342c461c; }
+.calendar-controls .view-menu-title { padding: 8px 10px 9px; color: #918b9c; font-size: 13px; font-weight: 650; }
+.calendar-controls .view-menu button { width: 100%; height: auto; min-height: 42px; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 2px 8px; padding: 7px 10px; border: 0; border-radius: 7px; background: transparent; color: #5e586c; text-align: left; font-size: 14px; }
+.calendar-controls .view-menu button:hover:not(:disabled) { background: #f5f2fa; }
+.calendar-controls .view-menu button small { grid-column: 1; color: #9a94a3; font-size: 12px; }
+.calendar-controls .view-menu button strong { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: #8271a8; }
+.calendar-controls .view-menu button:disabled { color: #aaa5b2; cursor: default; }
+.view-menu p { margin: 7px 9px 5px; padding-top: 9px; border-top: 1px solid #f0edf4; color: #8e8999; font-size: 12px; line-height: 1.45; }
