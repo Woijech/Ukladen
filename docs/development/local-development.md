@@ -31,6 +31,9 @@ Open `http://localhost:8080` for the shell and `http://localhost:8080/api/docs` 
 API documentation. SeaweedFS's Admin UI is at `http://localhost:23646`, and its
 S3 endpoint is `http://localhost:8333`. Admin UI credentials are
 the local example values from `.env`; replace them for any shared deployment.
+If host port `5432` is already in use, set `POSTGRES_HOST_PORT=5433` in `.env` and
+rerun Compose. This changes only the host-side PostgreSQL port; containers continue
+to use `postgres:5432` on the Compose network.
 Keep PostgreSQL username/password/database values URL-safe when Compose assembles
 the connection URL. `S3_ACCESS_KEY`/`S3_SECRET_KEY` configure both the S3 account and the local Admin UI.
 `S3_BUCKET` is created automatically by `weed mini` on startup. S3 operations
