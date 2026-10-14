@@ -1,6 +1,6 @@
 .workspace-shell, .workspace-auth { --ink: #302b3f; --muted: #8b8797; --line: #efedf3; --purple: #8374ad; --pale: #f3f0fa; --lavender: #e9e3f5; min-height: 100vh; color: var(--ink); background: #fbfaff; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .workspace-shell *,.workspace-auth * { box-sizing: border-box; }
-.workspace-shell button,.workspace-auth button,.workspace-shell input,.workspace-auth input { font: inherit; }
+.workspace-shell button,.workspace-auth button,.workspace-shell input,.workspace-auth input { font-family: inherit; }
 .workspace-shell button,.workspace-auth button { cursor: pointer; }
 .workspace-shell { display: flex; }
 .sidebar { width: 246px; flex: 0 0 246px; min-height: 100vh; padding: 26px 15px 16px; display: flex; flex-direction: column; background: rgba(255,255,255,.82); border-right: 1px solid #f0edf4; }
@@ -283,6 +283,7 @@ button.day-heading { cursor: pointer; }
 /* Calendar sizing, clear contrast, and readable forms. */
 .workspace-shell,.workspace-auth { background-color: #f4f0f9; }
 .workspace-shell,.workspace-auth,.group-page { font-size: 20px; }
+.workspace-shell section { max-width: none; margin-top: 0; }
 .group-page { background: radial-gradient(ellipse at 15% 10%,#eee8f7 0,transparent 37%),#f4f0f9; }
 .group-picker-layout { min-height: 500px; grid-template-columns: minmax(0,1.15fr) minmax(390px,.85fr); gap: 22px; }
 .group-list-panel,.group-details-panel { border-color: #e7e1ee; box-shadow: 0 12px 36px #4939630a; }
@@ -294,7 +295,8 @@ button.day-heading { cursor: pointer; }
 .content-wrap { max-width: none; }
 .calendar-card,.below-grid { width: 100%; }
 .calendar-card { overflow: hidden; }
-.week-grid { width: 100%; }
+.week-grid { width: 100%; grid-template-columns: 72px repeat(7,minmax(0,1fr)); }
+.all-day-label { white-space: nowrap; font-size: 10px; letter-spacing: 0; }
 .time-label { height: 54px; }
 .day-canvas { height: calc((21 - 8) * 54px); }
 .agenda-row { width: 100%; padding: 0; border-right: 0; border-bottom: 0; border-left: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
@@ -305,10 +307,12 @@ button.day-heading { cursor: pointer; }
 .event-readonly dl div { display: grid; grid-template-columns: 130px minmax(0,1fr); gap: 12px; padding-top: 10px; border-top: 1px solid #f1eff4; }
 .event-readonly dt { color: #918b9c; }
 .event-readonly dd { margin: 0; color: #484354; }
-.schedule-sync-notice { display: flex; align-items: center; gap: 10px; margin: 0; padding: 14px 18px; border-top: 1px solid #e9e3f1; color: #635783; background: #f5f1fa; font-size: 18px; line-height: 1.45; }
+.schedule-sync-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0; padding: 14px 18px; border-top: 1px solid #e9e3f1; color: #635783; background: #f5f1fa; font-size: 18px; line-height: 1.45; }
+.schedule-sync-notice > span:not(.spinner) { flex: 1 1 420px; }
 .schedule-sync-notice.is-loading { background: #fbf8ed; color: #806d45; }
 .schedule-sync-notice.is-error { background: #fcf2f2; color: #8e555a; }
 .schedule-sync-notice .spinner { flex: 0 0 auto; width: 17px; height: 17px; }
+.sync-retry-button { padding: 9px 13px; border: 1px solid #d9cfea; border-radius: 8px; color: #675987; background: #fff; font-size: 15px; white-space: nowrap; }
 .inline-error,.schedule-warning,.group-error,.form-error,.toast { font-size: 17px !important; line-height: 1.45; }
 @media (max-width: 760px) {
   .group-picker-layout { grid-template-columns: minmax(0,1fr); }

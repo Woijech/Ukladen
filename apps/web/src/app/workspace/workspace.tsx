@@ -126,6 +126,26 @@ function eventColumns(events: CalendarEvent[]) {
   return columns;
 }
 
+function scheduleStatusMessage(status: ScheduleSyncStatus) {
+  if (status.status === "unpublished") return "Для этой группы IIS не публикует расписание.";
+  if (status.status === "error") return "IIS не ответил или вернул неожиданный ответ. Проверьте подключение и повторите синхронизацию.";
+  const unsupported: Record<string, string> = {
+    unsupported_split_precedence: "IIS пометил занятие как split. Импортёр пока не умеет надёжно распределять такие записи по неделям и подгруппам, поэтому остановил импорт, чтобы не показать неверное расписание.",
+    unsupported_undated_exception: "В ответе IIS есть исключение без даты; его нельзя безопасно поставить в календарь.",
+    unsupported_invalid_period: "IIS вернул некорректные границы периода расписания.",
+    unsupported_missing_week_numbers: "У повторяющегося занятия IIS не указал номера учебных недель.",
+    unsupported_nonlocal_source_time: "IIS вернул время занятия с неподдерживаемым часовым поясом.",
+    unsupported_invalid_time: "В ответе IIS время окончания занятия не позже времени начала.",
+    unsupported_unknown_weekday: "IIS вернул неизвестный день недели.",
+    unsupported_invalid_date: "IIS вернул некорректную дату занятия.",
+    unsupported_too_many_events: "Импорт IIS превысил безопасный предел количества занятий.",
+    unsupported_invalid_academic_year: "В расписании IIS есть дата до начала поддерживаемого учебного года.",
+    unsupported_missing_group: "В ответе IIS отсутствует идентификатор учебной группы.",
+    unsupported_invalid_event: "В расписании IIS есть занятие с некорректным временем или подгруппой.",
+  };
+  return unsupported[status.error_code ?? ""] ?? "IIS вернул запись расписания, которую текущий импортёр не может безопасно преобразовать в занятие.";
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { ...init, credentials: "same-origin", cache: "no-store" });
   if (!response.ok) {
@@ -333,7 +353,7 @@ export function Workspace() {
   const syncStatusQuery = useQuery({
     queryKey: ["schedule-sync-status", meQuery.data?.group.id],
     queryFn: () => requestJson<ScheduleSyncStatus>("/api/v1/schedule/me/sync-status"),
-    enabled: syncPending && Boolean(meQuery.data?.group.id),
+    enabled: Boolean(meQuery.data?.group.id),
     refetchInterval: syncPending ? 3000 : false,
     retry: false,
   });
@@ -380,7 +400,7 @@ export function Workspace() {
       setSyncFinished(false);
       setSyncWaiting(status.status === "unpublished");
       if (syncTimeout.current) clearTimeout(syncTimeout.current);
-      const message = status.status === "unpublished" ? "Группа сохранена. Для неё пока нет опубликованного расписания." : status.status === "unsupported" ? "Группа сохранена, но формат расписания IIS пока не поддерживается." : "Группа сохранена, но IIS не удалось синхронизировать. Попробуйте позже.";
+      const message = scheduleStatusMessage(status);
       setSyncNotice(message);
       setToast(message);
       window.setTimeout(() => setToast(""), 6000);
@@ -388,6 +408,22 @@ export function Workspace() {
   }, [syncPending, syncStartedAt, syncStatusQuery.data, meQuery.data?.group.id, queryClient, range.from, range.to]);
 
   useEffect(() => () => { if (syncTimeout.current) clearTimeout(syncTimeout.current); }, []);
+
+  useEffect(() => {
+    const status = syncStatusQuery.data;
+    if (syncPending || !status || status.group_id !== meQuery.data?.group.id) return;
+    if (status.status === "syncing") {
+      setSyncPending(true);
+      setSyncStartedAt(status.last_attempt_at ? Date.parse(status.last_attempt_at) : Date.now());
+      setSyncFinished(false);
+      setSyncWaiting(false);
+      setSyncNotice("IIS синхронизирует расписание…");
+    } else if (status.status === "unsupported" || status.status === "error" || status.status === "unpublished") {
+      setSyncFinished(false);
+      setSyncWaiting(status.status === "unpublished");
+      setSyncNotice(scheduleStatusMessage(status));
+    }
+  }, [syncPending, syncStatusQuery.data, meQuery.data?.group.id]);
 
   function openCreate(date = selected) {
     setEditingEvent(null);
@@ -401,6 +437,30 @@ export function Workspace() {
 
   const [startValue, setStartValue] = useState("");
   const [endValue, setEndValue] = useState("");
+
+  async function retryScheduleSync() {
+    try {
+      const token = await csrfToken();
+      await requestJson<{ group_id: number }>("/api/v1/schedule/me/sync", { method: "POST", headers: { "X-CSRF-Token": token } });
+      setSyncPending(true);
+      setSyncFinished(false);
+      setSyncWaiting(false);
+      setSyncStartedAt(Date.now());
+      setSyncNotice("Запрос принят. Проверяем результат синхронизации IIS…");
+      if (syncTimeout.current) clearTimeout(syncTimeout.current);
+      syncTimeout.current = setTimeout(() => {
+        setSyncPending(false);
+        setSyncWaiting(true);
+        setSyncNotice("Импорт ещё выполняется. Статус можно проверить позже; расписание появится после завершения синхронизации.");
+      }, 180_000);
+      await queryClient.invalidateQueries({ queryKey: ["schedule-sync-status"] });
+    } catch (error) {
+      setSyncPending(false);
+      setSyncFinished(false);
+      setSyncWaiting(false);
+      setSyncNotice(error instanceof Error ? error.message : "Не удалось запустить синхронизацию IIS.");
+    }
+  }
 
   async function reload() {
     setLoadingAuth(true);
@@ -568,7 +628,7 @@ export function Workspace() {
           {!calendarQuery.isPending && !calendarQuery.isError && events.length === 0 && <div className="empty-note"><span className="empty-icon"><Icon name="calendar"/></span><div><strong>Неделя пока свободна</strong><span>Добавь личное событие или подключи учебную группу в профиле.</span></div><button onClick={() => openCreate()}>Добавить событие</button></div>}
           {apiError && !needsAuth && <div className="inline-error" role="alert">{apiError.message}<button onClick={() => void calendarQuery.refetch()}>Повторить</button></div>}
           {!!calendarQuery.data?.warnings.length && <p className="schedule-warning">Учебное расписание может быть неактуальным. Проверь источник перед важными планами.</p>}
-          {syncNotice && <p className={`schedule-sync-notice ${syncPending ? "is-loading" : syncFinished ? "is-success" : syncWaiting ? "is-loading" : "is-error"}`} role="status">{syncPending && <span className="spinner"/>}{syncNotice}</p>}
+          {syncNotice && <div className={`schedule-sync-notice ${syncPending ? "is-loading" : syncFinished ? "is-success" : syncWaiting ? "is-loading" : "is-error"}`} role="status">{syncPending && <span className="spinner"/>}<span>{syncNotice}</span>{!syncPending && meQuery.data && <button type="button" className="sync-retry-button" onClick={() => void retryScheduleSync()}>Повторить синхронизацию</button>}</div>}
         </section>
 
         <div className="below-grid"><section className="selected-day-card"><div className="section-title"><div><span className="greeting">ВЫБРАННЫЙ ДЕНЬ</span><h2>{prettyDate(selected, { weekday: "long", day: "numeric", month: "long" })}</h2></div><button className="text-action" onClick={() => openCreate()}>+ Событие</button></div>{selectedEvents.length ? <div className="agenda-list">{selectedEvents.map(item => <button type="button" className="agenda-row" key={item.id} onClick={() => openEvent(item)}><span className={`agenda-dot ${item.source === "official" ? "dot-official" : "dot-personal"}`}/><span className="agenda-time">{prettyDate(new Date(item.starts_at), { hour: "2-digit", minute: "2-digit" })}</span><span className="agenda-name">{item.title}</span><span className="agenda-place">{item.location ?? item.subject ?? ""}</span></button>)}</div> : <p className="agenda-empty">Здесь появятся события на выбранный день.</p>}</section>

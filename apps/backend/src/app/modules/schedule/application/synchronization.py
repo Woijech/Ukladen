@@ -91,7 +91,7 @@ class ScheduleSyncService:
                 group_number=group_number,
                 reason=reason,
             )
-            self.store.fail(group_id, token, "unsupported_schedule", self.clock())
+            self.store.fail(group_id, token, f"unsupported_{reason}", self.clock())
         except (AcademicProfileConflict, UniversityEntityNotFound) as error:
             log_failure(logger, "schedule.identity_conflict", error, **fields)
             self.store.fail(group_id, token, "identity_conflict", self.clock())

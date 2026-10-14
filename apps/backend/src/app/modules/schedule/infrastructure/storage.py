@@ -145,7 +145,11 @@ class SqlAlchemyScheduleStore:
         with self.sessions.begin() as database:
             source = self._owned(database, group_id, token, now)
             if source is not None:
-                source.status = "unsupported" if code == "unsupported_schedule" else "error"
+                source.status = (
+                    "unsupported"
+                    if code == "unsupported_schedule" or code.startswith("unsupported_")
+                    else "error"
+                )
                 source.error_code = code
                 source.sync_token, source.lease_until = None, None
 
