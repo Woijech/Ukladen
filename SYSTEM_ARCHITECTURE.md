@@ -50,7 +50,7 @@ nested pages with versioned blocks and Markdown compatibility, branch trash and
 optional page/calendar links, collections/tags with typed memberships and saved
 calendar views and recoverable user databases/properties/page-backed records.
 Saved table/calendar database views, date projection and date moves are implemented.
-Mixed calendar display composition is in progress.
+Additive mixed calendar display is implemented through application query ports.
 Status: not implemented — tasks,
 availability, reminders, general materials, search, AI/RAG and authenticated IIS.
 The business frontend is not implemented except browser email verification.
@@ -423,7 +423,7 @@ relations
 search
 ai
 notifications
-workspace (user organization; database/view schemas planned)
+workspace (user organization; database/property/record/view schemas)
 integrations
 ```
 
@@ -512,7 +512,8 @@ Status: backend personal events, per-user overrides and resolved calendar reads 
 implemented; see [calendar contracts](docs/development/calendar.md). Free-slot/conflict
 queries, task blocks and the calendar frontend are not implemented. User tags and
 collections and saved calendar views are implemented in workspace. All-day/recurring
-personal events and database-date projections are not implemented.
+personal events remain not implemented. Nonblocking database-date projections and
+`GET /api/v1/calendar/display` are implemented; see [database contracts](docs/development/databases.md).
 Saved views filter authorized resolved events without changing this module's HTTP
 contracts or busy flags; see [saved calendar views](docs/development/calendar-views.md).
 
@@ -563,7 +564,8 @@ and [ADR 0006](docs/adr/0006-use-versioned-page-block-documents.md).
 Editor UI is not implemented; search indexes are derived and owned by search.
 
 Page links are optional. Collections/property schemas/views belong to the
-workspace boundary; property schemas and page/database views remain planned. Event time belongs to calendar. See
+workspace boundary, including implemented typed properties and table/calendar database
+views. Event time belongs to calendar. See
 [workspace architecture](docs/architecture/workspace.md).
 
 ## 5.10 materials
@@ -652,7 +654,8 @@ Status: collections, tags, typed memberships, forward/reverse lists and saved ca
 backend only; see [workspace API](docs/development/workspace.md). Own user-controlled
 organization, references, saved calendar-view configuration and recoverable databases,
 property schemas/values, page-backed records and saved table/calendar views with
-nonblocking date projection. Mixed display composition remains planned. It does not own
+nonblocking date projection. Mixed display uses the calendar application composition
+service and a workspace query port implementation. It does not own
 page bodies, event time or official facts.
 
 Saved calendar views store bounded per-source collection/tag filters, layout,
@@ -830,7 +833,7 @@ Reminder
 Page (implemented, notes-owned)
 PageDocument / Block (implemented flat typed content, notes-owned)
 Collection / Tag / TypedMembership (implemented, workspace-owned)
-Database / PropertyDefinition / DatabaseRecord / SavedView (planned, workspace-owned)
+Database / PropertyDefinition / DatabaseRecord / SavedView (implemented, workspace-owned)
 Material
 MaterialChunk
 
@@ -1203,14 +1206,14 @@ Calendar business UI is not implemented.
 Implemented, backend only: standalone pages, optional nesting, recoverable trash,
 typed block documents, page/calendar links, collections/tags and typed memberships.
 Saved calendar views over resolved events are implemented, backend only.
-Page/database views remain future work with user databases.
+Table/calendar database views are implemented under Phase 3.
 `subjects` is not a prerequisite.
 
 ## Phase 3 — user databases and planning
 
-Status: in progress for user databases: recoverable database/property/page-backed
-record APIs, saved table/calendar views and date projection are implemented;
-mixed calendar display composition remains planned.
+Implemented, backend only, for user databases: recoverable database/property/page-backed
+record APIs, saved table/calendar views, date projection, versioned date moves and
+additive mixed calendar display. Planning remains not implemented.
 See [database delivery status](docs/development/databases.md) and
 [ADR 0007](docs/adr/0007-use-page-backed-database-records.md). Typed tasks,
 availability/conflicts, explicit work blocks and reminders/in-app notifications

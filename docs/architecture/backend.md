@@ -41,7 +41,8 @@ collections/tags with membership and saved calendar views are implemented; see [
 [relations](../development/relations.md), [workspace](../development/workspace.md)
 and [calendar views](../development/calendar-views.md). Database/property/page-backed
 record APIs are implemented; see [the database guide](../development/databases.md).
-Saved table views are implemented. Calendar database views/projection and other workspace/AI capabilities are not implemented. The [workspace design](workspace.md) extends typed events
+Saved table/calendar database views, date moves and mixed date projection are
+implemented. Typed tasks, rich blocks and AI remain not implemented. The [workspace design](workspace.md) extends typed events
 with independent pages, optional links, user organization, properties and saved views.
 `notes` owns page bodies; the `workspace` boundary owns organization/property/view
 definitions; calendar retains scheduling truth. Subjects are optional; lecture/lab
@@ -1057,3 +1058,11 @@ pytest command therefore runs native integration/concurrency checks rather than
 skipping them. CI credentials belong only to the disposable test database; tests
 still create/drop isolated schemas and clean generated Redis keys/queues. Google
 calls remain fake or mocked.
+
+P-05 verification (2026-10-15): Ruff, format, Pyright and Compose configuration
+passed. The full backend suite with disposable PostgreSQL/pgvector and Redis passed
+(1345 passed, 1 optional native S3 avatar test skipped), including typed schemas,
+retained trash/conversions, table queries, bound-date calendar reads/moves, mixed
+source permissions, migration preservation and snapshot compatibility. See the
+[database guide](../development/databases.md) for incremental verification history.
+The running application database was not migrated; frontend code was not changed.

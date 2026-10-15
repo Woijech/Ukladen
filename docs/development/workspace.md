@@ -3,8 +3,9 @@
 Updated: 2026-10-15.
 Status: collections, tags, typed memberships, member lists and reverse lookups are
 implemented, backend only. Saved calendar views are also implemented; see
-[their API and filter lifecycle](calendar-views.md). User databases, page/database
-views and UI are not implemented.
+[their API and filter lifecycle](calendar-views.md). User databases and table/calendar
+views with mixed date projection are implemented; see [database contracts](databases.md).
+The workspace UI is not implemented.
 
 Collections and tags are independent personal definitions. No academic profile,
 page or event is required. Names are trimmed to 1–100 characters; NUL and invalid

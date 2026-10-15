@@ -1,9 +1,10 @@
 # Notes Backend
 
-Updated: 2026-10-12.
+Updated: 2026-10-15.
 Status: implemented, backend only: independent nested pages, versioned block documents
-and recoverable trash. Editor UI, user databases, sharing, permanent deletion,
-revision history and export are not implemented.
+and recoverable trash. Editor UI, sharing, permanent deletion, revision history and
+export are not implemented. Page-backed user databases reference these pages through
+notes application services; see [database contracts](databases.md).
 
 ## Content and ownership
 

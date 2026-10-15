@@ -1,10 +1,9 @@
 # User Database Backend
 
 Updated: 2026-10-15.
-Status: P-05 is in progress. Database/property/page-backed record APIs, recoverable
-trash, typed value validation/conversions and saved table views are implemented.
-Date-bound calendar views, projection and date moves are implemented; mixed display
-with official/personal events is the remaining P-05 increment.
+Status: P-05 is implemented, backend only: database/property/page-backed record APIs,
+recoverable trash, typed validation/conversions, table/calendar views, date moves
+and mixed display with official/personal events.
 This guide records each delivered increment separately.
 
 ## Database definitions
@@ -53,7 +52,8 @@ Dates are discriminated objects: `{"kind":"date","start":"2026-10-20","end":null
 or `{"kind":"datetime","start":"2026-10-20T12:00:00+03:00","end":null}`.
 Date-only values retain their date, including inclusive optional end dates. Timed
 values require explicit offsets, normalize to UTC and have a strictly later optional
-end. A missing end means a single date or instant. Calendar projection preserves these values; they do not reserve busy time.
+end. A missing end means a single date or instant. Calendar projection preserves
+these values; they do not reserve busy time.
 
 Safe conversions support text/URL after URL validation and select/multi-select
 when no selected option is lost. Other populated type changes, removal of used
@@ -210,6 +210,30 @@ the ordinary record PATCH. Table queries on calendar views return 409.
 Downgrade to 0016 refuses retained calendar views. Table-only settings survive the
 column removal and upgrade without changes.
 
+## Mixed calendar display
+
+`GET /api/v1/calendar/display?date_from=2026-10-01&date_to=2026-10-31` returns
+`entries`, `timezone`, schedule `source` state and `warnings`. Optional repeated
+`database_view_ids` selects up to 20 distinct owned database calendar views.
+`include_hidden` and `source=official|personal` apply to event selection, using the
+unchanged calendar resolver. Record selection comes from each chosen view's query.
+A missing, foreign, trashed-parent or invalid requested view fails the whole request;
+no source is silently omitted. No selected database views produces the event-only set.
+
+Entries discriminate `source: official|personal|record_date`. Event fields/identities,
+overrides, hidden/skipped/busy state and source diagnostics are preserved. Record-date
+entries retain their typed date and write IDs, always nonblocking. The same record/
+property selected by multiple views appears once; different date properties remain
+separate. At most 10000 distinct record-date entries are returned; larger selections
+are rejected without partial results. Events retain chronological order first, then
+record entries follow selected-view/query order. Clients place date and timed entries
+using their discriminated payloads rather than relying on a global midnight timestamp.
+
+The calendar application composes through its own `RecordCalendarQuery` port, with a
+workspace application implementation wired at presentation. All sources share a
+repeatable-read transaction. Existing `/calendar/events`, legacy timestamp reads and
+P-03 event-view APIs are unchanged. This display is not an availability query.
+
 ## Delivery order
 
 Lifecycle selected under the owner's 2026-10-15 delegation: a page may participate
@@ -217,8 +241,7 @@ in several databases, sharing its body and keeping values per record. Databases,
 properties and records use recoverable trash. Parent database trash hides
 its contents without changing each child's independent trash state. Removing a
 record never trashes its page. These persistence/API operations are implemented;
-saved table/calendar views and date projection are also implemented. Mixed display
-composition remains planned.
+saved table/calendar views, date projection and mixed display are also implemented.
 The persistence/version/lifecycle contract is recorded in
 [ADR 0007](../adr/0007-use-page-backed-database-records.md).
 
@@ -263,3 +286,13 @@ configuration passed. Native calendar/table/migration checks passed (12 tests),
 including DST overlap, date-only ranges, instant/interval boundaries, schema/record/
 binding conflicts, owner/CSRF checks, trash and preserving/refused downgrades.
 Mixed display composition is not implemented in this increment.
+
+2026-10-15, completed P-05/mixed display increment: Ruff, Ruff format, Pyright and
+`docker compose --env-file .env.example config --quiet` passed. Mixed display/database/
+event-view checks passed (30 tests). The full backend suite passed against disposable
+PostgreSQL/pgvector and Redis: **1345 passed, 1 optional native S3 avatar test skipped**.
+No test calls real IIS or an LLM. Existing Starlette TestClient/Alembic deprecation
+warnings remain. Local documentation links and `git diff --check` passed.
+The slice uses migrations 0014–0017; no running-stack database was migrated.
+Frontend checks are not applicable because this slice changes no frontend code.
+No frontend UI, P-06 planning, deployment or push is included.

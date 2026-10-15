@@ -4,7 +4,7 @@ Date: 2026-10-15.
 Status: accepted implementation design for the owner-requested P-05 backend slice.
 Database/property/page-backed record persistence and HTTP operations are implemented.
 Saved table/calendar views, date projection and date moves are implemented.
-Mixed calendar display composition remains planned.
+Additive mixed calendar display composition is implemented through application query ports.
 Delivery status is maintained in [the database guide](../development/databases.md).
 
 ## Context

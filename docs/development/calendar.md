@@ -13,8 +13,10 @@ Standalone events do not require a subject or page. Official subject labels are
 source metadata; equal labels never merge lecture/lab occurrences. Page links are
 optional and implemented through relations. Collections/tags and their page/event
 memberships are implemented in [workspace](workspace.md). [Saved calendar views](calendar-views.md)
-reuse this resolved calendar through an additive workspace API. Date projections
-remain not implemented.
+reuse this resolved calendar through an additive workspace API. Nonblocking database
+date projections and mixed `GET /api/v1/calendar/display` are implemented through
+application query ports; see [database contracts](databases.md). The existing event
+endpoint still returns only personal/official events.
 Preserve current identities/routes. A visual filter must not determine occupied-time truth.
 See [requirements](../product/workspace.md), [architecture](../architecture/workspace.md)
 and [roadmap](implementation-roadmap.md).

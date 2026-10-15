@@ -89,8 +89,8 @@ An event appears in "Study" and "This week", with a linked standalone page.
 - Tags and collections are personal; they do not alter official schedule labels.
 
 Collections/tags and membership/reverse APIs are implemented, including safe
-deletion and duplicate handling. Saved calendar views are implemented; page/database
-views remain planned. Membership
+deletion and duplicate handling. Saved event views and database table/calendar
+views are implemented, backend only. Membership
 does not implicitly include nested pages, linked events or other organization.
 
 ### WS-06: User-defined databases
@@ -123,8 +123,9 @@ The user shows the database's "Planned date" property in a calendar view.
 - Display identities distinguish personal events, official occurrences, record-date
   projections and deadlines. No copied event is manufactured just for rendering.
 
-Personal all-day events and this projection are not implemented. Date/time and
-recurrence scope must be finalized under Q-05 before their API slice.
+Database-record date projection and versioned moves are implemented, backend only;
+see [database contracts](../development/databases.md). Personal all-day events, task
+deadlines and recurrence remain not implemented; their scope stays under Q-05/07.
 
 ### WS-08: Independent visibility and availability
 

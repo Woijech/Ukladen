@@ -25,7 +25,7 @@ their documented semantics while new page/view contracts are introduced.
 | Boundary | Owns | Does not own |
 | --- | --- | --- |
 | `notes` | Pages, content documents/blocks, page hierarchy, content versions and trash | Event times, attendance, database property schemas |
-| `workspace` | Implemented collections/membership, tags, saved event views and database/property/record APIs; implemented table views; planned calendar database views/projection | Page body, shared official facts, planning rules |
+| `workspace` | Implemented collections/membership, tags, saved event views and database/property/record APIs; implemented table/calendar views and date projection | Page body, shared official facts, planning rules |
 | `relations` | Optional links between authorized typed objects and backlink queries | Page containment, database property storage, task dependencies |
 | `calendar` | Personal events, official overrides, resolved events, availability/conflicts, calendar composition | Source imports, page content, custom property definitions |
 | `schedule` | Shared official occurrences, normalization, synchronization, provenance | Personal grouping or content |
@@ -94,7 +94,7 @@ the database schema version, and value writes check schema plus record versions.
 Recoverable trash retains schemas and values without trashing pages. Shared active-owner
 locking and atomic conversions protect retained records, including trash.
 
-The following list describes the current boundaries and remaining view work.
+The following list describes the implemented boundaries and remaining content work.
 
 - `Collection` and `CollectionMembership`: user-owned named sets and typed references.
 - `Tag` and `TagAssignment`: personal labels; an upstream subject string is not a tag ID.
@@ -102,8 +102,9 @@ The following list describes the current boundaries and remaining view work.
 - `PropertyDefinition`: stable ID, name, supported type, configuration and schema version.
 - `DatabaseRecord`: database membership referencing a content page, with its own identity.
 - `PropertyValue`: value validated against that definition in that database.
-- `SavedView`: calendar source/layout/filter/sort settings are implemented;
-  database sources and optional date-property binding remain planned.
+- `SavedView`: separate event-view and database-view definitions are implemented.
+  Database table/calendar views share typed query settings; calendar binding uses
+  an explicit property UUID and day/week/month preference.
 
 One content page can be referenced without copying its body. A page may participate
 in several databases, with values scoped to each database record; names do not make
@@ -111,8 +112,8 @@ different property definitions equivalent. This was selected under the owner's
 delegation on 2026-10-15; see Q-12. Databases, properties and records use
 recoverable trash, preserving page content and values; permanent purge is outside P-05.
 
-Implement table and calendar view query contracts for the same records; other layouts
-are optional. Formulas are explicitly deferred by the owner.
+Table and calendar query contracts use the same records; other layouts remain
+optional. Formulas are explicitly deferred by the owner.
 
 Start with a bounded type set: text, number, checkbox, select/multi-select, URL and
 date/date-range. Relations require endpoint validation and may be a later property
@@ -139,34 +140,33 @@ remains in `notes`; these are not generic links with special meaning inferred la
 
 ## 4. Calendar views and date projection
 
-Implemented saved calendar views use
+Implemented saved event views use
 `GET /api/v1/workspace/calendar-views/{id}/events` over the existing resolved event
-contract. Page dates, database records and task deadlines are not view sources yet.
+contract. They retain official/personal sources only. Database calendar views use
+`GET /api/v1/workspace/databases/{database_id}/views/{view_id}/entries` with an
+explicit active date-property binding. Undated and trashed content is omitted.
 
-Existing `GET /api/v1/calendar/events` returns official/personal events with their
-current source and write identities. Do not relabel a page-date projection as a
-personal event to fit that DTO. Introduce an explicit additive projection/composition
-contract when the view slice is implemented; document compatibility before changing
-the existing endpoint.
+`GET /api/v1/calendar/display` adds discriminated official/personal/record-date
+entries. It accepts up to 20 distinct owned database calendar view IDs alongside
+normal event filters. `CalendarCompositionService` calls `CalendarService` and the
+calendar-owned `RecordCalendarQuery` port, implemented by workspace application
+services. It does not read workspace ORM. All source reads share one repeatable-read
+snapshot, preserving event warnings, overrides, hidden/skipped flags and busy state.
+The existing `/calendar/events` and P-03 view contracts are unchanged.
 
-Planned composition:
+Projection identity is `record_date:{record_id}:{property_id}`; duplicate references
+across selected views collapse to one entry, while different date fields stay distinct.
+Entries carry record/schema versions and explicit write IDs, without copying page
+bodies or creating personal events. Moving a record-date delegates to workspace,
+rechecks the current binding and updates only that property. Moving an event still
+calls calendar. Deleting a view preserves content.
 
-```text
-Saved view definition
-  + authorized resolved calendar events
-  + authorized dated database records / task deadlines
-  -> discriminated display entries with source identity and edit target
-```
-
-`calendar` composes through `workspace`/`tasks` application query interfaces. It never
-reads another module's ORM tables directly. Workspace date queries apply ownership
-and property-schema validation before returning bounded records.
-
-A projected entry identifies record and bound property, not only page title. Moving
-it updates that property through `workspace`; moving an event calls `calendar`.
-Date-only values are calendar dates, timed values use explicit offsets/IANA timezone
-rules, and intervals have positive duration. All-day/recurrence representation must
-be decided under Q-05 before finalizing DTOs.
+Date-only values remain inclusive calendar dates; offset-aware timed values normalize
+to UTC. Optional timed ends are exclusive and strictly later; no end means one instant.
+The profile's IANA timezone defines the requested date window, including DST. A
+projection always has `blocks_time: false`. Recurring/all-day personal events and
+task deadlines remain separate, unimplemented slices under Q-05/07. See
+[database contracts](../development/databases.md) for bounds and error behavior.
 
 Filtering is presentation only. Availability uses the full authorized busy set, not
 the currently selected visual view. A task deadline or record date defaults to
@@ -215,9 +215,9 @@ OpenAPI must describe the implemented slice, not every future feature.
 
 Organization services provide collection/tag CRUD, explicit typed membership and
 forward/reverse lists. Saved calendar-view CRUD and event queries are implemented;
-database/property/record CRUD, trash/restore and saved table views are implemented;
-calendar database views and date projection remain planned. Relation
-services provide page/calendar link/unlink and backlink queries. These must
+database/property/record CRUD, trash/restore, saved table/calendar views and date
+projection/moves are implemented; calendar composition uses an application query port.
+Relation services provide page/calendar link/unlink and backlink queries. These must
 remain normal application operations reusable by HTTP and AI.
 
 ## 7. Verification requirements

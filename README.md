@@ -47,7 +47,8 @@ Matching lesson subject labels never merge lecture/lab occurrences or automatica
 create shared notes. User-selected links, collections, tags and saved views organize
 independent objects. Optional page/calendar links, collections, tags and typed
 memberships and saved calendar views are implemented, backend only.
-Database/property/record APIs are implemented; saved table views are implemented; calendar database views remain planned.
+Database/property/record APIs, saved table/calendar views and nonblocking date
+projection with mixed calendar display are implemented.
 
 ## Development Documentation
 
@@ -57,12 +58,12 @@ Start with the [documentation index](docs/README.md), then read the primary arch
 [backend implementation roadmap](docs/development/implementation-roadmap.md).
 
 Standalone pages, flat typed blocks and calendar links are implemented, backend only.
-User organization and databases require a separate requested slice.
+User organization, databases and table/calendar views are implemented, backend only.
 Pages, blocks and user databases with table/calendar views are confirmed
 targets; formulas and collaboration are deferred. Current IIS scope is public schedule
 and related data; student-account integration is future-only. AI targets read/help,
 recommendations, confirmed writes and explicitly permitted automatic actions.
-Databases and AI remain unimplemented; see the decision register for remaining details.
+AI remains unimplemented; see the decision register for remaining details.
 
 ## Architecture
 
@@ -182,7 +183,8 @@ integrations
 ```
 
 The additional `workspace` boundary implements collections, tags and typed
-memberships, saved event views and database/property/record APIs. Saved table views are implemented; calendar database views remain planned. See
+memberships, saved event views and database/property/record APIs with table/calendar
+views, date moves and mixed calendar display. See
 [workspace contracts](docs/development/workspace.md) and
 [ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md).
 
@@ -388,5 +390,6 @@ the provider decision. Production storage remains a separate deployment decision
 Backend authentication, profiles, IIS schedule integration, the personal calendar,
 [standalone nested pages with typed blocks and Markdown compatibility](docs/development/notes.md) and
 [optional page/calendar links](docs/development/relations.md) are implemented, backend only.
-Calendar/editor UI, user databases, free slots, tasks, materials,
+[User databases and table/calendar views](docs/development/databases.md) are implemented.
+Calendar/editor UI, free slots, tasks, materials,
 search, AI and RAG remain **not implemented**.

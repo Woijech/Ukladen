@@ -16,8 +16,9 @@ before implementing incompatible schemas, integrations or behavior.
 - The owner subsequently requested the backend block-document slice with local commits.
 - The owner then requested the backend organization slice with local commits.
   Collections/tags and explicit page/personal/official membership are implemented;
-  saved calendar views were subsequently requested and implemented. Databases and
-  their views remain a separate requested slice.
+  saved calendar views were subsequently requested and implemented. The owner then
+  requested P-05 databases/table/calendar views with incremental commits and delegated
+  membership/lifecycle choices. This backend slice is implemented under ADR 0007.
 
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md) records organization.
 [ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md) records AI authorization.
@@ -82,3 +83,11 @@ resolve Q-05's future all-day/recurrence/provider scope or database decisions Q-
 - Databases/calendar projection: Q-05, Q-07 and Q-12; table/calendar views are required.
 - AI execution: Q-04a, idempotency, versions and provider data policy.
 - Private IIS: deferred; requires a new phase request and verified upstream contracts.
+
+P-05 database implementation (2026-10-15): Q-12 is resolved under owner delegation.
+Each database is bounded to 100 retained properties and 10000 retained records;
+values and queries have explicit byte limits in [database contracts](../development/databases.md).
+Calendar binding uses an active date-property UUID, date-only or offset-aware timed
+values and nonblocking projection. Mixed display preserves the existing event API.
+Personal all-day events, recurrence, typed task deadlines and scoped AI execution
+remain later decisions; P-05 does not implement them.

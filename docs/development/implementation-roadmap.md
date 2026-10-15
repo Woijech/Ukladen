@@ -33,12 +33,12 @@ existing services just to match target vocabulary. A package marker is not a fea
 | Calendar | Personal events, official overrides, resolved range queries | [Calendar](calendar.md) |
 | Notes | Standalone pages, typed block documents, Markdown compatibility, nested hierarchy, versions and branch trash | [Notes](notes.md) |
 | Relations | Typed page/calendar links, backlinks, atomic linked page creation | [Relations](relations.md) |
-| Workspace | Collections, tags, typed membership, forward/reverse lists and saved calendar views | [Workspace](workspace.md), [calendar views](calendar-views.md) |
+| Workspace | Collections/tags, typed membership, event views and recoverable page-backed databases with table/calendar views | [Workspace](workspace.md), [calendar views](calendar-views.md), [databases](databases.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
 Calendar free slots/conflicts, tasks, reminders, general materials,
 search, notifications and AI are not implemented. Workspace organization exists;
-saved calendar views exist; user databases and page/database views do not.
+saved event views, user databases, table/calendar views and mixed date projection exist.
 Authenticated IIS is unverified/unimplemented.
 Frontend business flows remain unimplemented apart from browser email verification.
 
@@ -84,7 +84,7 @@ Do not implement task/material relations before those endpoint services exist.
 
 Status: implemented, backend only — collections, tags, typed memberships and saved
 calendar views; see [workspace](workspace.md) and [calendar views](calendar-views.md).
-Dependencies: P-01/02 and current calendar. Page/database views remain future P-05 work.
+Dependencies: P-01/02 and current calendar. Database views are delivered under P-05.
 
 The `workspace` module provides real user-owned tags, collections/membership,
 metadata versions, bounded member-type filters and reverse queries. Saved calendar
@@ -92,7 +92,7 @@ definitions add versioned name/color, per-source collection/tag filters, layout,
 sort direction and hidden-event settings. Event queries reuse authorized resolved
 calendar reads with warnings in one database snapshot. Deleted filter references
 require explicit repair; view deletion preserves data. Database sources/property
-filters and date bindings arrive with P-05.
+filters and date bindings are delivered separately under P-05.
 
 Official event membership stores a per-user reference, never shared-source preferences.
 Filtering and hiding must not remove busy intervals from planning truth. Deleting
@@ -121,21 +121,22 @@ separate requested slices. This backend API does not implement an editor UI.
 
 ## 7. P-05 user databases, properties and calendar projection
 
-Status: in progress; database/property/page-backed record APIs, trash/restore and
-typed value/schema conversion, saved table/calendar views and date projection are implemented.
-Mixed calendar display composition remains planned; see [database delivery status](databases.md).
+Status: implemented, backend only. Database/property/page-backed record APIs, trash/restore,
+typed value/schema conversion, saved table/calendar views, date moves and additive
+mixed calendar display are implemented; see [database delivery status](databases.md).
 Dependencies: P-01/03/04.
 Pages/blocks/databases and table/calendar views are confirmed under Q-01.
 
-Implement database/property/record CRUD, page-backed rows, stable property identities
+Delivered database/property/record CRUD, page-backed rows, stable property identities
 and type-validated values. Table and calendar views over the same records are required;
-list/board views are optional and formulas are deferred. Start with a bounded set of property types and view filters.
+list/board views remain optional and formulas are deferred. The initial property
+types, query limits and filters are bounded in the database guide.
 Multiple-database membership, recoverable deletion and preserving schema conversion
 are defined in [ADR 0007](../adr/0007-use-page-backed-database-records.md).
 
-Add explicit date-property view binding and a discriminated calendar display contract.
+Implemented explicit date-property view binding and a discriminated calendar display contract.
 Projected entries reference their owning record/property; moving them updates that
-property via `workspace`. Preserve existing calendar HTTP contracts.
+property via `workspace`. Existing calendar HTTP contracts are preserved.
 
 Done when WS-06/07, property/schema version checks, data-preserving type conversion,
 permission-filtered query and date/time edge cases pass. Dates/deadlines are nonblocking

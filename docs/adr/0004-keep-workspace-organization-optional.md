@@ -4,7 +4,7 @@ Date: 2026-10-12.
 Status: accepted product direction from the repository owner. Independent pages,
 hierarchy, trash, calendar links, flat typed blocks, collections/tags and saved calendar
 views are implemented. Database/property/record APIs are implemented under ADR 0007;
-saved table views are implemented, while calendar database views remain planned.
+table/calendar database views and nonblocking mixed date projection are implemented.
 
 ## Context
 
@@ -60,7 +60,8 @@ The requested P-03 backend slice now stores optional saved calendar filters in
 `workspace`, with event resolution through the existing calendar application service.
 Definitions reference current data, preserve busy flags/source warnings and never
 own or delete members. Deleted collection/tag filters require repair. See the
-[implemented API](../development/calendar-views.md). Database-backed views remain planned;
+[implemented API](../development/calendar-views.md). Database-backed views were outside
+that increment and are now implemented under [ADR 0007](0007-use-page-backed-database-records.md);
 the optional-organization decision and module ownership are unchanged.
 
 References: [workspace requirements](../product/workspace.md),

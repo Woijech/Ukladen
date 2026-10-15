@@ -20,7 +20,8 @@ The owner confirmed pages, blocks and user-defined databases, with mandatory tab
 and calendar views. Formulas are deferred. Remaining schema/editor details are in
 [open decisions](open-questions.md). Standalone nested pages with flat typed blocks
 and Markdown compatibility are implemented, backend only. Database/property/page-backed
-record APIs and saved table views are implemented; calendar database views remain planned.
+record APIs, saved table/calendar views, nonblocking date projection and mixed
+calendar display are implemented.
 See [database delivery status](../development/databases.md).
 
 ## 2. Non-negotiable organization rules
@@ -69,8 +70,9 @@ See [current calendar API](../development/calendar.md).
 Collection/tag names, colors and explicit memberships are implemented in workspace.
 Saved calendar views over authorized official/personal events are implemented,
 with per-source collection/tag filters and saved layout/sorting preferences.
-Status: not implemented — calendar UI, page/database views, per-event colors, all-day and
-recurring personal events, database-record projections, occupied/free intervals,
+Database table/calendar views, date projection and versioned date moves are implemented.
+Status: not implemented — calendar UI, per-event colors, all-day and
+recurring personal events, occupied/free intervals,
 conflict checks and task scheduling blocks.
 
 The target supports day/week/month views, direct editing, moving/resizing, optional
@@ -156,9 +158,10 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 | Nested pages, flat typed blocks, Markdown compatibility, recoverable trash, page/calendar links and backlinks | Implemented backend |
 | Collections, tags, typed membership and forward/reverse lists | Implemented backend |
 | Saved calendar views, source/membership filters and resolved event queries | Implemented backend |
-| Database/property/page-backed record APIs with recoverable trash | Implemented backend; P-05 in progress |
+| Database/property/page-backed record APIs with recoverable trash | Implemented backend |
 | Saved table views, typed filters/sorts and column selection | Implemented backend |
-| Rich/nested blocks, page-page knowledge links, calendar database views/projection | Status: not implemented. |
+| Date-bound calendar views, date moves and mixed calendar display | Implemented backend |
+| Rich/nested blocks and page-page knowledge links | Status: not implemented. |
 | Tasks, availability, reminders and notifications | Status: not implemented. |
 | General materials, search, AI and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
@@ -169,8 +172,8 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 Implement backend vertical slices with acceptance criteria before UI work is requested.
 Pages, hierarchy and page/calendar links were delivered together at the owner's request.
 Block content, user organization and saved calendar views are also implemented.
-The requested P-05 slice is in progress: database/property/record APIs are implemented;
-saved table views are implemented; calendar views/date projection remain planned.
+The requested P-05 backend slice is implemented: database/property/record APIs,
+saved table/calendar views, typed filters/sorts, versioned date moves and mixed display.
 `subjects` is no longer a prerequisite. The [roadmap](../development/implementation-roadmap.md)
 defines dependencies; [open decisions](open-questions.md) record unknowns.
 

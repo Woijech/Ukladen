@@ -20,6 +20,7 @@ from app.modules.auth.infrastructure.password_hasher import Argon2PasswordHasher
 from app.modules.auth.infrastructure.request_protection import RedisRateLimiter
 from app.modules.auth.infrastructure.token_service import generate_token
 from app.modules.auth.presentation.routes import install_auth
+from app.modules.calendar.presentation.composition import router as calendar_display_router
 from app.modules.calendar.presentation.routes import install_calendar
 from app.modules.notes.presentation.routes import install_notes
 from app.modules.relations.presentation.routes import install_relations
@@ -99,6 +100,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_notes(application)
     install_relations(application)
     install_workspace(application)
+    application.include_router(calendar_display_router)
     application.add_middleware(RequestLoggingMiddleware)
 
     @application.exception_handler(Exception)

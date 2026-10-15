@@ -2,7 +2,9 @@
 
 Updated: 2026-10-15.
 Status: implemented, backend only. This completes the calendar-view part of P-03.
-Page/database views, database date projections and calendar UI remain not implemented.
+Database table/calendar views and date projections are implemented separately under
+[database contracts](databases.md). This P-03 API continues to return event sources only.
+Calendar UI is not implemented.
 
 ## Ownership and responsibilities
 
