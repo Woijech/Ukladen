@@ -105,10 +105,11 @@ Main backend modules:
 - `integrations`
 
 `workspace` implements collections, tags, typed membership, saved calendar views
-and recoverable database definitions
+and recoverable databases/properties/page-backed records
 under ADR 0004; see `docs/development/workspace.md` and
-`docs/development/calendar-views.md`. Database properties and page/database views
-remain not implemented. A package marker does not count as a feature.
+`docs/development/calendar-views.md` and `docs/development/databases.md`.
+Saved database views and date projection remain not implemented.
+A package marker does not count as a feature.
 
 ### Workspace product invariants
 

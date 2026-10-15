@@ -39,8 +39,9 @@ The original personal-event API remains compatible alongside the versioned
 Standalone nested pages, flat typed block documents, page/calendar links and
 collections/tags with membership and saved calendar views are implemented; see [notes](../development/notes.md),
 [relations](../development/relations.md), [workspace](../development/workspace.md)
-and [calendar views](../development/calendar-views.md).
-Other workspace/AI capabilities are not implemented. The [workspace design](workspace.md) extends typed events
+and [calendar views](../development/calendar-views.md). Database/property/page-backed
+record APIs are implemented; see [the database guide](../development/databases.md).
+Saved database views/projection and other workspace/AI capabilities are not implemented. The [workspace design](workspace.md) extends typed events
 with independent pages, optional links, user organization, properties and saved views.
 `notes` owns page bodies; the `workspace` boundary owns organization/property/view
 definitions; calendar retains scheduling truth. Subjects are optional; lecture/lab

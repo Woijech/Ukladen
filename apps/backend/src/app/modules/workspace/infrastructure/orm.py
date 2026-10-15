@@ -166,3 +166,89 @@ class DatabaseModel(Base):
         ),
         Index("ix_workspace_databases_user", "user_id", "trashed_at", "created_at", "id"),
     )
+
+
+class DatabasePropertyModel(Base):
+    __tablename__ = "workspace_database_properties"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column()
+    database_id: Mapped[UUID] = mapped_column()
+    name: Mapped[str] = mapped_column(String(100))
+    kind: Mapped[str] = mapped_column(String(16))
+    options: Mapped[list[dict[str, str]]] = mapped_column(JSONB, server_default="[]")
+    position: Mapped[int] = mapped_column(Integer, server_default="0")
+    version: Mapped[int] = mapped_column(Integer, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    trashed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["database_id", "user_id"],
+            ["workspace_databases.id", "workspace_databases.user_id"],
+            ondelete="CASCADE",
+            name="fk_database_properties_owner",
+        ),
+        UniqueConstraint(
+            "id", "database_id", "user_id", name="uq_database_properties_id_database_user"
+        ),
+        CheckConstraint(
+            "char_length(btrim(name)) BETWEEN 1 AND 100 AND name = btrim(name)",
+            name="ck_database_properties_name",
+        ),
+        CheckConstraint(
+            "kind IN ('text', 'number', 'checkbox', 'select', 'multi_select', 'url', 'date')",
+            name="ck_database_properties_kind",
+        ),
+        CheckConstraint(
+            "version > 0 AND position BETWEEN 0 AND 100000",
+            name="ck_database_properties_position_version",
+        ),
+        CheckConstraint(
+            "CASE WHEN jsonb_typeof(options) = 'array' THEN "
+            "jsonb_array_length(options) <= 100 ELSE false END",
+            name="ck_database_properties_options",
+        ),
+        Index("ix_database_properties_database", "database_id", "position", "id"),
+    )
+
+
+class DatabaseRecordModel(Base):
+    __tablename__ = "workspace_database_records"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column()
+    database_id: Mapped[UUID] = mapped_column()
+    page_id: Mapped[UUID] = mapped_column()
+    values: Mapped[dict[str, object]] = mapped_column(JSONB, server_default="{}")
+    version: Mapped[int] = mapped_column(Integer, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    trashed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["database_id", "user_id"],
+            ["workspace_databases.id", "workspace_databases.user_id"],
+            ondelete="CASCADE",
+            name="fk_database_records_owner",
+        ),
+        ForeignKeyConstraint(
+            ["page_id", "user_id"],
+            ["note_pages.id", "note_pages.user_id"],
+            ondelete="CASCADE",
+            name="fk_database_records_page_owner",
+        ),
+        UniqueConstraint("database_id", "page_id", name="uq_database_records_database_page"),
+        UniqueConstraint(
+            "id", "database_id", "user_id", name="uq_database_records_id_database_user"
+        ),
+        CheckConstraint("version > 0", name="ck_database_records_version"),
+        CheckConstraint(
+            'jsonb_typeof("values") = \'object\' AND octet_length("values"::text) <= 131072',
+            name="ck_database_records_values",
+        ),
+        Index("ix_database_records_database", "database_id", "trashed_at", "created_at", "id"),
+        Index("ix_database_records_page", "user_id", "page_id", "created_at", "id"),
+    )

@@ -1,17 +1,17 @@
 # User Database Backend
 
 Updated: 2026-10-15.
-Status: P-05 is in progress. Database definition CRUD/trash/restore and internal
-property-value validation/conversion rules are implemented. Property/record
-persistence and HTTP operations and database views are not implemented yet.
+Status: P-05 is in progress. Database/property/page-backed record APIs, recoverable
+trash and typed value validation/conversions are implemented. Saved table/calendar
+database views and date projection are not implemented yet.
 This guide records each delivered increment separately.
 
 ## Database definitions
 
 Migration `0014_user_databases` adds owner-scoped `workspace_databases`. Definitions
 have name/color, optimistic metadata version, schema version, timestamps and trash
-state. They do not own or delete page content. Schema version starts at 1; property
-operations in the next increment will change it.
+state. They do not own or delete page content. Schema version starts at 1; every
+property creation, edit, trash and restore increments it and the database version.
 
 Routes under `/api/v1/workspace/databases`:
 
@@ -61,14 +61,76 @@ options and multi-select-to-select with several values fail with a conflict.
 Unset values may change type. Application operations must validate every stored
 value, including recoverable records, before committing any schema conversion.
 
+## Property and record operations
+
+Migration `0015_database_content` adds relational property definitions and page-backed
+records. Composite foreign keys enforce the database owner and page owner. A page
+may have one record per database, including trash, and may participate in several
+databases. Re-adding a trashed membership returns 409; restore the existing record.
+Values use stable property UUID keys and belong to the record, not the page body.
+
+Routes under `/api/v1/workspace/databases/{database_id}`:
+
+| Method | Suffix | Behavior |
+| --- | --- | --- |
+| POST | `/properties` | Create name/kind/options with `expected_schema_version` |
+| GET | `/properties` | List active definitions in position/UUID order, with current schema version |
+| GET | `/properties/{id}` | Read a definition, including trash |
+| PATCH | `/properties/{id}` | Edit supplied name/kind/options/position with property and schema versions |
+| POST | `/properties/{id}/trash` or `/restore` | Preserve or recover the property and all values |
+| POST | `/records` | Add an owned `page_id` or create an empty page with `title`; supply values/schema version |
+| GET | `/records` | List active record references and current page summaries |
+| GET | `/records/{id}` | Read values, page summary and current schema version |
+| PATCH | `/records/{id}` | Partially update values with record and schema versions |
+| POST | `/records/{id}/trash` or `/restore` | Preserve/recover membership without trashing the page |
+
+Property lifecycle bodies include `expected_version` and `expected_schema_version`.
+Record lifecycle bodies require `expected_version`. Lists accept `trashed=true` to
+inspect independently trashed children; record lists use standard bounded pagination.
+Property creation appends a column, while PATCH can set a position from 0–100000.
+Option IDs are generated when omitted on creation; retain returned IDs when renaming
+options. Options replace the whole list atomically.
+
+Record creation requires exactly one of `page_id` or `title`. New-page creation,
+value validation and record insertion share one transaction, so failures leave no
+orphan page. Record responses contain `record`, `page` metadata and `schema_version`,
+without page bodies or owner IDs. Membership page IDs are immutable. Edit page title/
+content through the existing notes API and its page version.
+
+Value PATCH preserves omitted keys; null clears a value. Unknown, foreign, trashed
+or wrong-database property IDs are rejected. Each record retains at most 100 values
+and 128 KiB of normalized UTF-8 JSON. Each database supports at most 100 property
+definitions and 10000 records, including trash. Trash occupies these limits until
+a separately requested permanent-purge policy exists.
+
+All value writes check the current schema version. Schema conversions validate
+active and trashed record values before any mutation, update converted record
+versions and commit all changes atomically. Renaming preserves property/option IDs.
+Normal record responses hide trashed-property values while preserving them in
+storage; unrelated value edits retain them. Restoring a property reveals them again.
+
+Database trash hides operations on its contents with 409 and preserves each child's
+independent state. Restore the database before restoring/editing children. Record
+reference reads retain page trash metadata; adding/editing/restoring a record requires
+an active page. Future table/calendar content queries will omit trashed pages.
+Multi-module reads use one repeatable-read snapshot.
+
+`GET /api/v1/workspace/pages/{page_id}/database-records` lists a page's active records
+in active databases with bounded pagination. Clients can retrieve each referenced
+database's property definitions to display values above the shared page body.
+No nesting, collection or event link creates records implicitly.
+
+Migration downgrade refuses while properties or records exist, including trash.
+Empty-table round trips preserve page content. No permanent-delete API is exposed.
+
 ## Delivery order
 
 Lifecycle selected under the owner's 2026-10-15 delegation: a page may participate
 in several databases, sharing its body and keeping values per record. Databases,
-properties and records will use recoverable trash. Parent database trash will hide
+properties and records use recoverable trash. Parent database trash hides
 its contents without changing each child's independent trash state. Removing a
-record never trashes its page. These persistence/API operations remain planned
-until the corresponding increment is delivered.
+record never trashes its page. These persistence/API operations are implemented;
+saved database views and calendar projection remain planned.
 The persistence/version/lifecycle contract is recorded in
 [ADR 0007](../adr/0007-use-page-backed-database-records.md).
 
@@ -93,3 +155,10 @@ configuration passed. Native database/workspace/calendar-view compatibility chec
 passed (48 tests), including migration metadata/round trips, refused destructive
 downgrade, isolation, versions, rollback and trash/restore. The full-suite result
 above belongs to the earlier increment and was not rerun for this metadata-only step.
+
+2026-10-15, property/record increment: Ruff, Ruff format, Pyright and Compose
+configuration passed. Native database/workspace checks passed (29 tests), including
+SQL ownership constraints, preserving/refused downgrades, retained trash values,
+schema conversion rollback, shared-page membership, schema concurrency, page/record
+snapshot reads and value limits. The final service version guard was rechecked by
+the 11 property/record HTTP/persistence tests. Table/calendar views remain planned.

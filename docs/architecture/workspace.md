@@ -25,7 +25,7 @@ their documented semantics while new page/view contracts are introduced.
 | Boundary | Owns | Does not own |
 | --- | --- | --- |
 | `notes` | Pages, content documents/blocks, page hierarchy, content versions and trash | Event times, attendance, database property schemas |
-| `workspace` | Implemented collections/membership, tags/assignments and saved calendar views; planned user databases/property values and their views | Page body, shared official facts, planning rules |
+| `workspace` | Implemented collections/membership, tags, saved event views and database/property/record APIs; planned database views/projection | Page body, shared official facts, planning rules |
 | `relations` | Optional links between authorized typed objects and backlink queries | Page containment, database property storage, task dependencies |
 | `calendar` | Personal events, official overrides, resolved events, availability/conflicts, calendar composition | Source imports, page content, custom property definitions |
 | `schedule` | Shared official occurrences, normalization, synchronization, provenance | Personal grouping or content |
@@ -35,8 +35,8 @@ their documented semantics while new page/view contracts are introduced.
 | `search` | Permission-filtered indexes and retrieval | Canonical content ownership |
 | `ai` | Conversations, authorized tools, proposals and orchestration | Independent copies of business rules |
 
-`workspace` implements organization and saved calendar views. Do not generate empty
-repositories or DTOs for databases or their views. Existing packages do not need renaming.
+`workspace` implements organization, saved event views and database/property/record APIs.
+Do not generate empty repositories or DTOs for database views. Existing packages do not need renaming.
 
 ## 3. Data contracts and remaining design
 
@@ -86,7 +86,15 @@ return 409 until repaired, preventing silent filter broadening. View deletion ne
 deletes source data. The complete implemented contract is in
 [saved calendar views](../development/calendar-views.md).
 
-The following list distinguishes existing organization from planned database capabilities.
+Database/property/page-backed record persistence and APIs are also implemented under
+[ADR 0007](../adr/0007-use-page-backed-database-records.md); see the
+[database contract](../development/databases.md). Metadata/ownership remain relational;
+options and bounded typed value maps use validated JSONB. All schema writes check
+the database schema version, and value writes check schema plus record versions.
+Recoverable trash retains schemas and values without trashing pages. Shared active-owner
+locking and atomic conversions protect retained records, including trash.
+
+The following list describes the current boundaries and remaining view work.
 
 - `Collection` and `CollectionMembership`: user-owned named sets and typed references.
 - `Tag` and `TagAssignment`: personal labels; an upstream subject string is not a tag ID.
@@ -100,7 +108,7 @@ The following list distinguishes existing organization from planned database cap
 One content page can be referenced without copying its body. A page may participate
 in several databases, with values scoped to each database record; names do not make
 different property definitions equivalent. This was selected under the owner's
-delegation on 2026-10-15; see Q-12. Databases, properties and records will use
+delegation on 2026-10-15; see Q-12. Databases, properties and records use
 recoverable trash, preserving page content and values; permanent purge is outside P-05.
 
 Implement table and calendar view query contracts for the same records; other layouts
@@ -207,7 +215,8 @@ OpenAPI must describe the implemented slice, not every future feature.
 
 Organization services provide collection/tag CRUD, explicit typed membership and
 forward/reverse lists. Saved calendar-view CRUD and event queries are implemented;
-schema/record CRUD and page/database views remain planned. Relation
+database/property/record CRUD and trash/restore are implemented; saved database views
+and date projection remain planned. Relation
 services provide page/calendar link/unlink and backlink queries. These must
 remain normal application operations reusable by HTTP and AI.
 

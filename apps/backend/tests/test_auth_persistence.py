@@ -72,6 +72,8 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "workspace_memberships",
         "workspace_calendar_views",
         "workspace_databases",
+        "workspace_database_properties",
+        "workspace_database_records",
         "auth_credentials",
         "auth_identities",
         "auth_sessions",

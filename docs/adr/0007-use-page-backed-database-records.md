@@ -2,8 +2,8 @@
 
 Date: 2026-10-15.
 Status: accepted implementation design for the owner-requested P-05 backend slice.
-Property validation and database definition persistence/HTTP are implemented;
-property/record persistence and database views are not implemented yet.
+Database/property/page-backed record persistence and HTTP operations are implemented.
+Saved database views and calendar projection are not implemented yet.
 Delivery status is maintained in [the database guide](../development/databases.md).
 
 ## Context

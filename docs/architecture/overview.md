@@ -51,7 +51,7 @@ search, ai, notifications and workspace. The integrations boundary lives at
 Its adapter packages are bsuir, llm, embeddings and storage.
 
 The `workspace` boundary implements collections, tags, typed membership and saved
-calendar views; properties and page/database views remain planned.
+calendar views and database/property/record APIs. Saved database views and date projection remain planned.
 
 Unused boundaries contain only package markers. No speculative entities, DTOs or
 repositories are generated. When a vertical slice is implemented, its dependencies
@@ -71,8 +71,8 @@ TLS, production credentials and deployment automation are not implemented.
 Standalone nested pages, flat typed blocks, page/calendar links and collections/tags
 are implemented; see [notes](../development/notes.md), [relations](../development/relations.md)
 and [workspace](../development/workspace.md), plus [saved calendar views](../development/calendar-views.md).
-Rich/nested blocks, custom databases/properties, page/database views
-and date projections are not implemented. Authenticated IIS capabilities remain
+Database/property/record APIs are also implemented, backend only. Rich/nested blocks,
+saved database views and date projections are not implemented. Authenticated IIS capabilities remain
 unverified/unimplemented; see the [IIS roadmap](../integrations/bsuir-iis-roadmap.md).
 
 The storage provider replacement is recorded in [ADR 0001](../adr/0001-use-seaweedfs.md).

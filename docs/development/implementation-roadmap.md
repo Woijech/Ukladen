@@ -121,17 +121,17 @@ separate requested slices. This backend API does not implement an editor UI.
 
 ## 7. P-05 user databases, properties and calendar projection
 
-Status: in progress; database definitions/trash/restore and internal property/date
-validation/conversions are implemented. Property/record persistence and APIs and
-table/calendar views are not implemented yet; see [database delivery status](databases.md).
+Status: in progress; database/property/page-backed record APIs, trash/restore and
+typed value/schema conversion are implemented. Saved table/calendar database views
+and date projection are not implemented yet; see [database delivery status](databases.md).
 Dependencies: P-01/03/04.
 Pages/blocks/databases and table/calendar views are confirmed under Q-01.
 
 Implement database/property/record CRUD, page-backed rows, stable property identities
 and type-validated values. Table and calendar views over the same records are required;
 list/board views are optional and formulas are deferred. Start with a bounded set of property types and view filters.
-Finalize whether a page may participate in several databases and document deletion
-and schema-conversion behavior before designing tables.
+Multiple-database membership, recoverable deletion and preserving schema conversion
+are defined in [ADR 0007](../adr/0007-use-page-backed-database-records.md).
 
 Add explicit date-property view binding and a discriminated calendar display contract.
 Projected entries reference their owning record/property; moving them updates that
