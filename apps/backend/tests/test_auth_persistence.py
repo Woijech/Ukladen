@@ -79,6 +79,8 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "auth_identities",
         "auth_sessions",
         "auth_one_time_tokens",
+        "reminders",
+        "notifications",
     }
     assert set(inspect(database_connection).get_table_names()) == expected
     command.check(config)
