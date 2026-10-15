@@ -121,7 +121,9 @@ separate requested slices. This backend API does not implement an editor UI.
 
 ## 7. P-05 user databases, properties and calendar projection
 
-Status: not implemented. Dependencies: P-01/03/04; remaining decisions Q-05/07/12.
+Status: in progress; internal property/date validation and safe conversions are
+implemented. Persistence, HTTP operations and table/calendar views are not implemented
+yet; see [database delivery status](databases.md). Dependencies: P-01/03/04.
 Pages/blocks/databases and table/calendar views are confirmed under Q-01.
 
 Implement database/property/record CRUD, page-backed rows, stable property identities

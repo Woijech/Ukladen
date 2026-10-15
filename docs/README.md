@@ -30,6 +30,7 @@ Planned contracts do not override the current implemented API silently.
 - [ADR 0004](adr/0004-keep-workspace-organization-optional.md): optional user organization.
 - [ADR 0005](adr/0005-support-scoped-ai-action-permissions.md): confirmed/scoped automatic AI actions.
 - [ADR 0006](adr/0006-use-versioned-page-block-documents.md): notes block document schema and preserving migration.
+- [ADR 0007](adr/0007-use-page-backed-database-records.md): database record ownership, schema versions and recovery.
 
 ## Current implementation guides
 
@@ -43,6 +44,7 @@ Planned contracts do not override the current implemented API silently.
 - [Notes and page hierarchy](development/notes.md).
 - [Workspace collections and tags](development/workspace.md).
 - [Saved calendar views](development/calendar-views.md).
+- [User databases delivery status](development/databases.md).
 - [Page and calendar links](development/relations.md).
 - [Diagnostics](development/logging.md).
 - [Home-server deployment](deployment/home-server.md).

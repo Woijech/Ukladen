@@ -97,10 +97,11 @@ The following list distinguishes existing organization from planned database cap
 - `SavedView`: calendar source/layout/filter/sort settings are implemented;
   database sources and optional date-property binding remain planned.
 
-One content page can be referenced without copying its body. If a page participates
-in multiple databases, values are scoped to each database record; names do not make
-different property definitions equivalent. This is a proposed behavior to confirm
-under Q-12 before implementing database membership.
+One content page can be referenced without copying its body. A page may participate
+in several databases, with values scoped to each database record; names do not make
+different property definitions equivalent. This was selected under the owner's
+delegation on 2026-10-15; see Q-12. Databases, properties and records will use
+recoverable trash, preserving page content and values; permanent purge is outside P-05.
 
 Implement table and calendar view query contracts for the same records; other layouts
 are optional. Formulas are explicitly deferred by the owner.

@@ -48,7 +48,7 @@ confirmed requirement for automatic actions.
 | Q-09 | Should optional subjects use templates or a separately imported catalogue? | Defer; never merge by label or require subject IDs. | Subject module and explicit academic relations |
 | Q-10 | How should upstream replacements be reconciled without stable IDs? | Preserve historical references and expose uncertain replacements; explicit relinking. | Import matching, overrides and notifications |
 | Q-11 | What content/file/query and operational limits are required? | Define limits per slice; no unlimited storage/provider usage promise. | Uploads, indexing, quotas and production readiness |
-| Q-12 | May one page be a record in several user databases? How should membership removal and property values behave? | Reference the same body; values belong to each database record; removing membership preserves the page. | Database membership constraints and lifecycle |
+| Q-12 | Resolved on 2026-10-15 under the owner's delegation to choose the best fit: a page may belong to several databases, with a shared body and separate record values. | Membership is explicit. Databases, properties and records use recoverable trash; their deletion preserves page content and retained values. No permanent purge is included. | Database membership constraints and lifecycle |
 
 These details do not block the confirmed documentation direction. Clarify only those
 needed by the requested implementation slice; do not repeatedly ask whether pages,
