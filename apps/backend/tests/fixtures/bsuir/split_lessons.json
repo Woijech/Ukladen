@@ -1,0 +1,90 @@
+[
+  {
+    "numSubgroup": 1,
+    "weekNumber": [
+      1
+    ],
+    "auditories": [
+      "308-5 к."
+    ],
+    "startLessonTime": "15:30",
+    "endLessonTime": "16:55",
+    "subject": "КПрог",
+    "subjectFullName": "Конструирование программ",
+    "note": null,
+    "lessonTypeAbbrev": "ЛР",
+    "dateLesson": null,
+    "startLessonDate": "02.09.2026",
+    "endLessonDate": "23.12.2026",
+    "announcement": false,
+    "split": true,
+    "employees": null,
+    "studentGroups": []
+  },
+  {
+    "numSubgroup": 2,
+    "weekNumber": [
+      3
+    ],
+    "auditories": [
+      "308-5 к."
+    ],
+    "startLessonTime": "15:30",
+    "endLessonTime": "16:55",
+    "subject": "КПрог",
+    "subjectFullName": "Конструирование программ",
+    "note": null,
+    "lessonTypeAbbrev": "ЛР",
+    "dateLesson": null,
+    "startLessonDate": "16.09.2026",
+    "endLessonDate": "09.12.2026",
+    "announcement": false,
+    "split": true,
+    "employees": null,
+    "studentGroups": []
+  },
+  {
+    "numSubgroup": 1,
+    "weekNumber": [
+      1
+    ],
+    "auditories": [
+      "308-5 к."
+    ],
+    "startLessonTime": "17:05",
+    "endLessonTime": "18:30",
+    "subject": "КПрог",
+    "subjectFullName": "Конструирование программ",
+    "note": null,
+    "lessonTypeAbbrev": "ЛР",
+    "dateLesson": null,
+    "startLessonDate": "02.09.2026",
+    "endLessonDate": "23.12.2026",
+    "announcement": false,
+    "split": true,
+    "employees": null,
+    "studentGroups": []
+  },
+  {
+    "numSubgroup": 2,
+    "weekNumber": [
+      3
+    ],
+    "auditories": [
+      "308-5 к."
+    ],
+    "startLessonTime": "17:05",
+    "endLessonTime": "18:30",
+    "subject": "КПрог",
+    "subjectFullName": "Конструирование программ",
+    "note": null,
+    "lessonTypeAbbrev": "ЛР",
+    "dateLesson": null,
+    "startLessonDate": "16.09.2026",
+    "endLessonDate": "09.12.2026",
+    "announcement": false,
+    "split": true,
+    "employees": null,
+    "studentGroups": []
+  }
+]

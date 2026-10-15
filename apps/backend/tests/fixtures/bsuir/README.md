@@ -23,3 +23,10 @@ responses, two teacher announcements with their page envelope, and department
 announcements. Contact/calendar/photo fields and long announcement text are
 removed or replaced. Synthetic next-period/exam fixtures reuse these lessons to
 verify filtering; their business precedence and recurrence are not inferred.
+
+`split_lessons.json` contains the four Wednesday `split=true` laboratory rows from
+the public group 553501 response captured on 2026-10-16. Week numbers, subgroups,
+lesson times and date bounds are retained. Teacher/contact records are removed and
+group lists emptied; tests combine these row excerpts with existing sanitized group
+metadata and ordinary lessons. See the dated split verification in
+`docs/integrations/bsuir-iis-public-api.md` for official renderer evidence.
