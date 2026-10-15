@@ -108,7 +108,7 @@ def test_constraints_deduplication_lifecycle_and_migration(database_connection: 
         notifications.create_once(replace(notification, id=uuid4()))
         assert notifications.list(owner, True, 100, 0) == [notification]
         assert notifications.list(other, False, 100, 0) == []
-        notifications.mark_read(owner, notification.id, now)
+        notifications.mark_read(owner, notification.id, now - timedelta(seconds=1))
         notifications.mark_read(owner, notification.id, now + timedelta(seconds=1))
         assert notifications.get(owner, notification.id) == replace(notification, read_at=now)
         assert notifications.list(owner, True, 100, 0) == []

@@ -51,3 +51,8 @@ class NotificationService:
         self.require_user(user_id, write=True)
         self.repository.mark_read(user_id, notification_id, self.now())
         return self.get(user_id, notification_id)
+
+    def publish(self, notification: Notification) -> None:
+        """Internal application operation; no HTTP endpoint accepts notification payloads."""
+        self.require_user(notification.user_id, write=True)
+        self.repository.create_once(notification)

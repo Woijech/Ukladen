@@ -18,7 +18,13 @@ from app.core.logging import (
 )
 
 logger = logging.getLogger(__name__)
-_TASKS = {"foundation.ping", "auth.send_email", "schedule.sync_group", "schedule.refresh_selected"}
+_TASKS = {
+    "foundation.ping",
+    "auth.send_email",
+    "schedule.sync_group",
+    "schedule.refresh_selected",
+    "reminders.dispatch_due",
+}
 
 
 def configure_worker_logging(**kwargs: Any) -> None:

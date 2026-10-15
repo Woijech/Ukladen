@@ -61,7 +61,11 @@ class SqlAlchemyNotificationRepository:
         identifier = self.session.scalar(
             update(NotificationModel)
             .where(NotificationModel.user_id == user_id, NotificationModel.id == notification_id)
-            .values(read_at=func.coalesce(NotificationModel.read_at, now))
+            .values(
+                read_at=func.coalesce(
+                    NotificationModel.read_at, func.greatest(NotificationModel.created_at, now)
+                )
+            )
             .returning(NotificationModel.id)
         )
         if identifier is None:
