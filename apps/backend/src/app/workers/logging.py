@@ -24,6 +24,8 @@ _TASKS = {
     "schedule.sync_group",
     "schedule.refresh_selected",
     "reminders.dispatch_due",
+    "materials.dispatch",
+    "materials.process",
 }
 
 

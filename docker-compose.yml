@@ -103,6 +103,17 @@ services:
     depends_on:
       api: { condition: service_healthy }
 
+  material-worker:
+    <<: *backend
+    command: celery -A app.workers.celery_app:celery_app worker --loglevel=INFO --queues=materials --concurrency=1 --prefetch-multiplier=1
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app:celery_app inspect ping --destination celery@$$HOSTNAME --timeout 5"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
   web:
     logging: *logging
     image: ukladen-web:local

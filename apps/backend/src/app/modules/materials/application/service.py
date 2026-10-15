@@ -217,3 +217,20 @@ class MaterialService:
         )
         self.repository.save(updated, expected_version)
         return updated
+
+    def purge_expired(self, user_id: UUID, material_id: UUID) -> None:
+        self.users.lock_active(user_id)
+        material, now = self.repository.get(user_id, material_id), self.now()
+        if material is None:
+            return
+        expired_upload = (
+            material.status == "uploading" and material.created_at + timedelta(hours=1) <= now
+        )
+        expired_trash = (
+            material.trashed_at is not None and material.trashed_at + timedelta(days=30) <= now
+        )
+        if not expired_upload and not expired_trash:
+            return
+        if material.kind == "file":
+            self.storage.delete(material.storage_key)
+        self.repository.purge(user_id, material_id)

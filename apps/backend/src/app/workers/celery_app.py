@@ -13,6 +13,7 @@ celery_app = Celery(
         "app.modules.auth.infrastructure.email_tasks",
         "app.modules.schedule.infrastructure.tasks",
         "app.modules.reminders.infrastructure.tasks",
+        "app.modules.materials.infrastructure.tasks",
     ],
 )
 celery_app.conf.update(
@@ -26,6 +27,7 @@ celery_app.conf.update(
     broker_connection_retry_on_startup=True,
     beat_schedule={
         "reminders-dispatch-due": {"task": "reminders.dispatch_due", "schedule": 30.0},
+        "materials-dispatch": {"task": "materials.dispatch", "schedule": 30.0},
         **(
             {"schedule-refresh-selected": {"task": "schedule.refresh_selected", "schedule": 60.0}}
             if settings.schedule_sync_enabled
