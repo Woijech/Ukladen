@@ -23,7 +23,9 @@ from app.modules.auth.presentation.routes import install_auth
 from app.modules.calendar.presentation.composition import router as calendar_display_router
 from app.modules.calendar.presentation.routes import install_calendar
 from app.modules.notes.presentation.routes import install_notes
+from app.modules.notifications.presentation.routes import install_notifications
 from app.modules.relations.presentation.routes import install_relations
+from app.modules.reminders.presentation.routes import install_reminders
 from app.modules.schedule.infrastructure.jobs import CeleryScheduleJobs
 from app.modules.schedule.presentation.routes import install_schedule
 from app.modules.users.presentation.routes import install_users
@@ -98,6 +100,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_schedule(application)
     install_calendar(application)
     install_notes(application)
+    install_reminders(application)
+    install_notifications(application)
     install_relations(application)
     install_workspace(application)
     application.include_router(calendar_display_router)

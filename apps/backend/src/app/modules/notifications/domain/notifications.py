@@ -8,6 +8,10 @@ class NotificationNotFound(Exception):
     pass
 
 
+class InvalidNotificationInput(ValueError):
+    pass
+
+
 @dataclass(frozen=True, kw_only=True)
 class Notification:
     id: UUID
