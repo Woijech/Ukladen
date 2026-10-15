@@ -4,7 +4,7 @@ Date: 2026-10-12.
 Status: accepted product direction from the repository owner. Independent pages,
 hierarchy, trash, calendar links, flat typed blocks, collections/tags and saved calendar
 views are implemented. Database/property/record APIs are implemented under ADR 0007;
-saved database views remain planned.
+saved table views are implemented, while calendar database views remain planned.
 
 ## Context
 

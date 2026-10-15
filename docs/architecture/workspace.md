@@ -25,7 +25,7 @@ their documented semantics while new page/view contracts are introduced.
 | Boundary | Owns | Does not own |
 | --- | --- | --- |
 | `notes` | Pages, content documents/blocks, page hierarchy, content versions and trash | Event times, attendance, database property schemas |
-| `workspace` | Implemented collections/membership, tags, saved event views and database/property/record APIs; planned database views/projection | Page body, shared official facts, planning rules |
+| `workspace` | Implemented collections/membership, tags, saved event views and database/property/record APIs; implemented table views; planned calendar database views/projection | Page body, shared official facts, planning rules |
 | `relations` | Optional links between authorized typed objects and backlink queries | Page containment, database property storage, task dependencies |
 | `calendar` | Personal events, official overrides, resolved events, availability/conflicts, calendar composition | Source imports, page content, custom property definitions |
 | `schedule` | Shared official occurrences, normalization, synchronization, provenance | Personal grouping or content |
@@ -215,8 +215,8 @@ OpenAPI must describe the implemented slice, not every future feature.
 
 Organization services provide collection/tag CRUD, explicit typed membership and
 forward/reverse lists. Saved calendar-view CRUD and event queries are implemented;
-database/property/record CRUD and trash/restore are implemented; saved database views
-and date projection remain planned. Relation
+database/property/record CRUD, trash/restore and saved table views are implemented;
+calendar database views and date projection remain planned. Relation
 services provide page/calendar link/unlink and backlink queries. These must
 remain normal application operations reusable by HTTP and AI.
 

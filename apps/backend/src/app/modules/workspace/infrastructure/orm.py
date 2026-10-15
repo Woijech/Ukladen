@@ -252,3 +252,43 @@ class DatabaseRecordModel(Base):
         Index("ix_database_records_database", "database_id", "trashed_at", "created_at", "id"),
         Index("ix_database_records_page", "user_id", "page_id", "created_at", "id"),
     )
+
+
+class DatabaseViewModel(Base):
+    __tablename__ = "workspace_database_views"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column()
+    database_id: Mapped[UUID] = mapped_column()
+    name: Mapped[str] = mapped_column(String(100))
+    color: Mapped[str | None] = mapped_column(String(7))
+    layout: Mapped[str] = mapped_column(String(16), server_default="table")
+    query: Mapped[dict[str, object]] = mapped_column(JSONB)
+    version: Mapped[int] = mapped_column(Integer, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["database_id", "user_id"],
+            ["workspace_databases.id", "workspace_databases.user_id"],
+            ondelete="CASCADE",
+            name="fk_database_views_owner",
+        ),
+        CheckConstraint(
+            "char_length(btrim(name)) BETWEEN 1 AND 100 AND name = btrim(name)",
+            name="ck_database_views_name",
+        ),
+        CheckConstraint(
+            "color IS NULL OR color ~ '^#[0-9a-f]{6}$'", name="ck_database_views_color"
+        ),
+        CheckConstraint("layout = 'table'", name="ck_database_views_layout"),
+        CheckConstraint("version > 0", name="ck_database_views_version"),
+        CheckConstraint(
+            "jsonb_typeof(query) = 'object' AND octet_length(query::text) <= 65536 "
+            "AND COALESCE(query -> 'version' = '1'::jsonb "
+            "AND query ->> 'version' = '1', false)",
+            name="ck_database_views_query",
+        ),
+        Index("ix_database_views_database", "database_id", "created_at", "id"),
+    )

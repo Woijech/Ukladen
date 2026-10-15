@@ -2,8 +2,8 @@
 
 Updated: 2026-10-15.
 Status: P-05 is in progress. Database/property/page-backed record APIs, recoverable
-trash and typed value validation/conversions are implemented. Saved table/calendar
-database views and date projection are not implemented yet.
+trash, typed value validation/conversions and saved table views are implemented.
+Calendar database views and date projection are not implemented yet.
 This guide records each delivered increment separately.
 
 ## Database definitions
@@ -112,7 +112,8 @@ storage; unrelated value edits retain them. Restoring a property reveals them ag
 Database trash hides operations on its contents with 409 and preserves each child's
 independent state. Restore the database before restoring/editing children. Record
 reference reads retain page trash metadata; adding/editing/restoring a record requires
-an active page. Future table/calendar content queries will omit trashed pages.
+an active page. Table content queries omit trashed pages before pagination;
+calendar projection remains planned.
 Multi-module reads use one repeatable-read snapshot.
 
 `GET /api/v1/workspace/pages/{page_id}/database-records` lists a page's active records
@@ -123,6 +124,59 @@ No nesting, collection or event link creates records implicitly.
 Migration downgrade refuses while properties or records exist, including trash.
 Empty-table round trips preserve page content. No permanent-delete API is exposed.
 
+## Saved table views
+
+Migration `0016_database_table_views` adds saved owner/database-scoped settings.
+Routes under `/api/v1/workspace/databases/{database_id}/views`:
+
+| Method | Suffix | Behavior |
+| --- | --- | --- |
+| POST | empty | Create name/color/query with `expected_schema_version` |
+| GET | empty | List saved definitions with bounded pagination |
+| GET | `/{id}` | Read settings, including references needing repair |
+| PATCH | `/{id}` | Edit supplied name/color/query with view/schema versions |
+| DELETE | `/{id}?expected_version=N` | Remove settings only |
+| GET | `/{id}/records` | Return selected properties, matching records, schema version and total/limit/offset |
+
+Current layout is `table`. Query settings have strict integer `version: 1`, at most
+100 column IDs, 20 AND-combined filters and 3 distinct sort fields, within 64 KiB.
+`columns: null` automatically shows all active properties in their schema order;
+an explicit list fixes order/selection, and `[]` produces title-only rows. The page
+title remains in each page summary. Returned values include only displayed columns;
+filters may reference other active columns. Omitted query fields use empty filters/
+sorts and automatic columns. PATCH replaces the whole query object atomically.
+
+Filters identify stable property UUIDs and allow only typed operations:
+
+- `eq`/`neq` compare scalar values or an entire normalized date/date-range value.
+  `neq` also includes unset values. Multi-select uses `contains` instead of equality.
+- `contains` searches text literally and case-sensitively, including literal `%`/`_`,
+  or checks one valid option UUID in a multi-select field.
+- `gt`/`gte`/`lt`/`lte` compare numbers or date starts. Date comparisons match the
+  supplied date kind; date-only comparisons do not guess a timezone for timed values.
+- `is_empty`/`is_not_empty` distinguish missing/null/empty text/empty selections
+  from meaningful false and zero values. These operators take no value.
+
+Sorts are ascending/descending over scalar fields; select sorts follow configured
+option order, dates use canonical start values, and unset values always sort last.
+Multi-select sorting is rejected. Creation time/UUID break ties deterministically.
+Property/option renaming preserves filters. Unknown/trashed properties, incompatible
+changed types and removed selected options fail validation rather than weakening
+the query. Saved query reads return 409 until repaired; definition GET/DELETE remain
+available and PATCH can replace the query using the current schema version.
+
+SQL filters/sorts use bound SQLAlchemy expressions in workspace infrastructure.
+Only matching record/page IDs are collected, with the existing 10000-record limit;
+page metadata is fetched through a bounded notes application query without bodies.
+Page trash is excluded before applying offset/limit, then only selected record
+values are loaded. This keeps pagination/total correct without crossing into notes
+ORM from workspace. The entire read shares one repeatable-read snapshot.
+
+View operations use normal active-owner/session/CSRF/version rules. Deleting a view
+preserves records, schemas, pages and event busy state. Database trash requires
+restoring the database before querying its views. Migration downgrade refuses to
+drop retained view settings; empty-table round trips preserve canonical content.
+
 ## Delivery order
 
 Lifecycle selected under the owner's 2026-10-15 delegation: a page may participate
@@ -130,7 +184,7 @@ in several databases, sharing its body and keeping values per record. Databases,
 properties and records use recoverable trash. Parent database trash hides
 its contents without changing each child's independent trash state. Removing a
 record never trashes its page. These persistence/API operations are implemented;
-saved database views and calendar projection remain planned.
+saved table views are also implemented. Calendar views and projection remain planned.
 The persistence/version/lifecycle contract is recorded in
 [ADR 0007](../adr/0007-use-page-backed-database-records.md).
 
@@ -162,3 +216,10 @@ SQL ownership constraints, preserving/refused downgrades, retained trash values,
 schema conversion rollback, shared-page membership, schema concurrency, page/record
 snapshot reads and value limits. The final service version guard was rechecked by
 the 11 property/record HTTP/persistence tests. Table/calendar views remain planned.
+
+2026-10-15, saved table-view increment: Ruff, Ruff format, Pyright and Compose
+configuration passed. Database/query/notes compatibility checks passed (113 tests),
+including typed filters, literal text matching, stable sorting, page-trash-aware
+pagination, one-snapshot metadata reads, permissions, SQL constraints, query version
+checks and preserving/refused downgrades. Calendar database views/projection remain
+planned. No frontend changes, running-stack migration, deployment or push.

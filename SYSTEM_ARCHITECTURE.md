@@ -49,7 +49,8 @@ storage/sync, personal events, official overrides, resolved calendar reads, stan
 nested pages with versioned blocks and Markdown compatibility, branch trash and
 optional page/calendar links, collections/tags with typed memberships and saved
 calendar views and recoverable user databases/properties/page-backed records.
-Status: not implemented — saved database views/date projection, tasks,
+Saved table views are implemented.
+Status: not implemented — calendar database views/date projection, tasks,
 availability, reminders, general materials, search, AI/RAG and authenticated IIS.
 The business frontend is not implemented except browser email verification.
 
@@ -236,7 +237,7 @@ groups
 optional subjects
 pages, versioned documents, collections, tags, typed memberships and saved calendar views
 database/property definitions and page-backed records with typed values
-planned saved database views and date projections
+saved table view settings; planned calendar database views and date projections
 official schedule
 personal schedule overrides
 personal calendar events
@@ -649,8 +650,8 @@ verified contracts. See [IIS roadmap](docs/integrations/bsuir-iis-roadmap.md).
 Status: collections, tags, typed memberships, forward/reverse lists and saved calendar views implemented,
 backend only; see [workspace API](docs/development/workspace.md). Own user-controlled
 organization, references, saved calendar-view configuration and recoverable databases,
-property schemas/values and page-backed records. Saved database views and date
-projection remain not implemented. It does not own
+property schemas/values, page-backed records and saved table views. Calendar database
+views/date projection remain not implemented. It does not own
 page bodies, event time or official facts.
 
 Saved calendar views store bounded per-source collection/tag filters, layout,
@@ -1207,7 +1208,7 @@ Page/database views remain future work with user databases.
 ## Phase 3 — user databases and planning
 
 Status: in progress for user databases: recoverable database/property/page-backed
-record APIs are implemented; saved table/calendar views and date projection remain planned.
+record APIs and saved table views are implemented; calendar views/date projection remain planned.
 See [database delivery status](docs/development/databases.md) and
 [ADR 0007](docs/adr/0007-use-page-backed-database-records.md). Typed tasks,
 availability/conflicts, explicit work blocks and reminders/in-app notifications

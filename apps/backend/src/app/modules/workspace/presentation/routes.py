@@ -32,6 +32,7 @@ from app.modules.workspace.infrastructure.repository import (
 from app.modules.workspace.presentation.calendar_views import router as calendar_view_router
 from app.modules.workspace.presentation.database_content import page_router as database_page_router
 from app.modules.workspace.presentation.database_content import router as database_content_router
+from app.modules.workspace.presentation.database_views import router as database_view_router
 from app.modules.workspace.presentation.databases import router as database_router
 from app.modules.workspace.presentation.schemas import (
     MemberListResponse,
@@ -302,4 +303,5 @@ def install_workspace(application: FastAPI) -> None:
     application.include_router(database_router)
     application.include_router(database_content_router)
     application.include_router(database_page_router)
+    application.include_router(database_view_router)
     application.include_router(router)

@@ -122,8 +122,8 @@ separate requested slices. This backend API does not implement an editor UI.
 ## 7. P-05 user databases, properties and calendar projection
 
 Status: in progress; database/property/page-backed record APIs, trash/restore and
-typed value/schema conversion are implemented. Saved table/calendar database views
-and date projection are not implemented yet; see [database delivery status](databases.md).
+typed value/schema conversion and saved table views are implemented. Calendar
+database views and date projection are not implemented yet; see [database delivery status](databases.md).
 Dependencies: P-01/03/04.
 Pages/blocks/databases and table/calendar views are confirmed under Q-01.
 

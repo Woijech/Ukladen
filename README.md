@@ -47,7 +47,7 @@ Matching lesson subject labels never merge lecture/lab occurrences or automatica
 create shared notes. User-selected links, collections, tags and saved views organize
 independent objects. Optional page/calendar links, collections, tags and typed
 memberships and saved calendar views are implemented, backend only.
-Database/property/record APIs are implemented; saved database views remain planned.
+Database/property/record APIs are implemented; saved table views are implemented; calendar database views remain planned.
 
 ## Development Documentation
 
@@ -182,7 +182,7 @@ integrations
 ```
 
 The additional `workspace` boundary implements collections, tags and typed
-memberships, saved event views and database/property/record APIs. Saved database views remain planned. See
+memberships, saved event views and database/property/record APIs. Saved table views are implemented; calendar database views remain planned. See
 [workspace contracts](docs/development/workspace.md) and
 [ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md).
 

@@ -20,7 +20,7 @@ The owner confirmed pages, blocks and user-defined databases, with mandatory tab
 and calendar views. Formulas are deferred. Remaining schema/editor details are in
 [open decisions](open-questions.md). Standalone nested pages with flat typed blocks
 and Markdown compatibility are implemented, backend only. Database/property/page-backed
-record APIs are implemented; saved table/calendar database views remain planned.
+record APIs and saved table views are implemented; calendar database views remain planned.
 See [database delivery status](../development/databases.md).
 
 ## 2. Non-negotiable organization rules
@@ -157,7 +157,8 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 | Collections, tags, typed membership and forward/reverse lists | Implemented backend |
 | Saved calendar views, source/membership filters and resolved event queries | Implemented backend |
 | Database/property/page-backed record APIs with recoverable trash | Implemented backend; P-05 in progress |
-| Rich/nested blocks, page-page knowledge links, saved database views/projection | Status: not implemented. |
+| Saved table views, typed filters/sorts and column selection | Implemented backend |
+| Rich/nested blocks, page-page knowledge links, calendar database views/projection | Status: not implemented. |
 | Tasks, availability, reminders and notifications | Status: not implemented. |
 | General materials, search, AI and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
@@ -169,7 +170,7 @@ Implement backend vertical slices with acceptance criteria before UI work is req
 Pages, hierarchy and page/calendar links were delivered together at the owner's request.
 Block content, user organization and saved calendar views are also implemented.
 The requested P-05 slice is in progress: database/property/record APIs are implemented;
-table/calendar views and date projection remain planned.
+saved table views are implemented; calendar views/date projection remain planned.
 `subjects` is no longer a prerequisite. The [roadmap](../development/implementation-roadmap.md)
 defines dependencies; [open decisions](open-questions.md) record unknowns.
 
