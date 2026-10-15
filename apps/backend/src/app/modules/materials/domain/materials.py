@@ -9,6 +9,7 @@ from app.core.urls import http_url
 MAX_FILE_BYTES = 25 * 1024 * 1024
 USER_STORAGE_BYTES = 1024 * 1024 * 1024
 MAX_MATERIALS = 10000
+MAX_TEXT_BYTES = 2 * 1024 * 1024
 MIME_TYPES = {
     ".pdf": "application/pdf",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -41,6 +42,12 @@ class StorageQuotaExceeded(Exception):
 
 class MaterialStorageUnavailable(Exception):
     pass
+
+
+class DocumentExtractionError(Exception):
+    def __init__(self, code: str = "invalid_document") -> None:
+        self.code = code
+        super().__init__(code)
 
 
 def material_title(value: object) -> str:
