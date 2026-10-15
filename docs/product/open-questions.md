@@ -1,6 +1,6 @@
 # Product Decisions and Open Questions
 
-Updated: 2026-10-15.
+Updated: 2026-10-16.
 Status: decision register. Owner-confirmed scope is distinguished from open design
 choices. Proposed defaults are not owner confirmation; resolve relevant unknowns
 before implementing incompatible schemas, integrations or behavior.
@@ -22,6 +22,10 @@ before implementing incompatible schemas, integrations or behavior.
 - The owner requested P-07 reminders/notifications with incremental local commits.
   Existing calendar targets and the durable in-app inbox are implemented; P-06 tasks
   and additional notification channels are separate future work.
+- The owner requested P-08 materials/basic search with incremental local commits,
+  a 25 MiB file limit, 1 GiB file storage per user and no OCR. Implement locally;
+  deployment may be requested later. No deployment or external processing provider
+  is required by this slice.
 
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md) records organization.
 [ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md) records AI authorization.
@@ -48,10 +52,10 @@ confirmed requirement for automatic actions.
 | Q-05 | Beyond mandatory database calendar views, which calendar features are required first: all-day events, recurrence, multiple calendars or external providers? | Existing timed events plus date projections; dates/deadlines are nonblocking. Recurrence/all-day contracts are separate; no Google/Microsoft sync assumed. | Date DTOs, recurrence/exception model and availability |
 | Q-06 | Which history, purge and export features should follow recoverable trash? | Implemented branch trash restores its batch root and preserves previously trashed children; see [notes](../development/notes.md). No purge/history/export yet. | Future cleanup, history and export |
 | Q-07 | Are tasks typed planning objects, database records, or both with an explicit binding? | Typed tasks retain planning rules; ordinary records do not become tasks automatically. | Task API, date bindings and AI tools |
-| Q-08 | Which rich inline formatting, nested blocks and editor should follow the initial block slice? | Text, headings, flat lists, checkboxes and links are implemented, backend only. [ADR 0006](../adr/0006-use-versioned-page-block-documents.md) records the versioned schema and preserving migration. UI/editor, attachments and rich formatting remain later work. | Future editor, rendering and export |
+| Q-08 | Which rich inline formatting, nested blocks and editor should follow the initial block slice? | Text, headings, flat lists, checkboxes and links are implemented, backend only. [ADR 0006](../adr/0006-use-versioned-page-block-documents.md) records the versioned schema and preserving migration. Page/material relations are implemented separately; embedded attachment blocks, UI/editor and rich formatting remain later work. | Future editor, rendering and export |
 | Q-09 | Should optional subjects use templates or a separately imported catalogue? | Defer; never merge by label or require subject IDs. | Subject module and explicit academic relations |
 | Q-10 | How should upstream replacements be reconciled without stable IDs? | Preserve historical references and expose uncertain replacements; explicit relinking. | Import matching, overrides and notifications |
-| Q-11 | What content/file/query and operational limits are required? | Define limits per slice; no unlimited storage/provider usage promise. | Uploads, indexing, quotas and production readiness |
+| Q-11 | What further content/query and operational limits are required? | Owner confirmed 25 MiB/file, 1 GiB retained file storage/user and no OCR for P-08. Other slice limits are in [materials/search contracts](../development/materials.md); no production throughput promise. | Later quota changes, indexing and production readiness |
 | Q-12 | Resolved on 2026-10-15 under the owner's delegation to choose the best fit: a page may belong to several databases, with a shared body and separate record values. | Membership is explicit. Databases, properties and records use recoverable trash; their deletion preserves page content and retained values. No permanent purge is included. | Database membership constraints and lifecycle |
 
 These details do not block the confirmed documentation direction. Clarify only those
@@ -102,3 +106,12 @@ at delivery evaluation; physical event deletion removes its reminders. Broker re
 rescans PostgreSQL and catches up only before event end. These are documented slice
 contracts, not owner confirmation of future task, recurrence or external-channel policy.
 See [reminders](../development/reminders.md).
+
+P-08 implementation choices (2026-10-16): PDF text/DOCX/PPTX/TXT/MD extraction,
+bookmarks without URL fetching, optional page relations, 30-day material trash,
+one-hour incomplete-upload expiry and bounded lexical search. Reservations, failures
+and trash count against the confirmed file quota until permanent cleanup. Retained
+material count, parser/time/text limits and recovery behavior are implementation
+defaults, documented in [materials/search](../development/materials.md). These do
+not resolve future semantic retrieval, provider budgets, malware isolation or
+production capacity. OCR is explicitly excluded by the owner.

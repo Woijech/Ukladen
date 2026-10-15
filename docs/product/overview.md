@@ -1,6 +1,6 @@
 # Ukladen Product Overview
 
-Updated: 2026-10-15.
+Updated: 2026-10-16.
 Status: target product specification; only capabilities listed as implemented
 below exist. Product references describe intent, not feature parity with another app.
 
@@ -49,8 +49,8 @@ branch trash, optional personal/official calendar links, user collections/tags a
 
 Users can create standalone pages, nest pages, edit text/headings/lists/checkboxes/links
 and optionally link pages to events. Block IDs remain stable through edits and order
-changes; legacy Markdown is preserved without parsing. Materials, task/page-page
-links, rich formatting and editor UI are future requested slices.
+changes; legacy Markdown is preserved without parsing. Optional material attachments
+are implemented; task/page-page links, rich formatting and editor UI remain future work.
 
 User-defined databases organize page-backed records with typed properties. Table
 and calendar views are mandatory. List/board views are optional later work; formulas
@@ -131,11 +131,13 @@ and push channels require their own contracts and delivery decisions.
 
 ## 8. Materials, search and AI
 
-Status: not implemented, except private avatars using the existing S3 adapter.
-
-Material files belong in S3-compatible storage, with ownership and processing
-metadata in PostgreSQL. Processing extracts text, chunks and indexes supported
-formats asynchronously. Structured/full-text search precedes semantic search/RAG.
+Status: private materials, page attachments and basic search are implemented,
+backend only. Files use S3-compatible storage, with ownership and processing metadata
+in PostgreSQL. Limits are 25 MiB/file and 1 GiB retained file storage/user. Text PDF,
+DOCX, PPTX, TXT and Markdown extraction runs asynchronously without OCR. Bookmarks
+store URLs without fetching them. Filtered full-text search covers authorized pages,
+material titles and extracted text; see [contracts](../development/materials.md).
+Chunking, embeddings, semantic search, AI and RAG remain not implemented.
 
 AI answers questions about the user's calendar and workspace, searches content,
 explains imported information and proposes edits/plans. It accesses data only
@@ -167,7 +169,9 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 | Rich/nested blocks and page-page knowledge links | Status: not implemented. |
 | One-shot calendar reminders and durable in-app notifications | Implemented backend |
 | Tasks, availability and task/deadline reminders | Status: not implemented. |
-| General materials, search, AI and RAG | Status: not implemented. |
+| Private materials, page attachments and bounded document extraction | Implemented backend; no OCR |
+| Filtered PostgreSQL full-text search over pages/materials | Implemented backend |
+| Semantic search, AI and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
 | Workspace/calendar business UI | Status: not implemented. |
 

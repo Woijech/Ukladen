@@ -21,3 +21,5 @@ Database/property/record APIs, table/calendar views and nonblocking date project
 with mixed calendar display are implemented. AI and authenticated IIS remain not implemented.
 One-shot calendar reminders and the durable in-app inbox are implemented, backend only;
 see [reminder contracts](docs/development/reminders.md).
+Private materials, optional page attachments and basic full-text search are
+implemented, backend only; see [P-08 contracts](docs/development/materials.md).

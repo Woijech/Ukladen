@@ -1,6 +1,6 @@
 # Ukladen Documentation Index
 
-Updated: 2026-10-15.
+Updated: 2026-10-16.
 
 ## Contract and reading order
 
@@ -42,6 +42,7 @@ Planned contracts do not override the current implemented API silently.
 - [Official schedule](development/schedule.md).
 - [Personal calendar](development/calendar.md).
 - [Reminders and in-app notifications](development/reminders.md).
+- [Materials, page attachments and basic search](development/materials.md).
 - [Notes and page hierarchy](development/notes.md).
 - [Workspace collections and tags](development/workspace.md).
 - [Saved calendar views](development/calendar-views.md).

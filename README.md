@@ -395,5 +395,8 @@ Backend authentication, profiles, IIS schedule integration, the personal calenda
 [standalone nested pages with typed blocks and Markdown compatibility](docs/development/notes.md) and
 [optional page/calendar links](docs/development/relations.md) are implemented, backend only.
 [User databases and table/calendar views](docs/development/databases.md) are implemented.
-Calendar/editor UI, free slots, tasks, materials,
-search, AI and RAG remain **not implemented**.
+[Private materials, page attachments and PostgreSQL full-text search](docs/development/materials.md)
+are implemented, backend only: 25 MiB/file, 1 GiB retained originals/user and bounded
+PDF-text/DOCX/PPTX/TXT/MD extraction without OCR.
+Calendar/editor/material UI, free slots, tasks, semantic search, AI and RAG remain
+**not implemented**.

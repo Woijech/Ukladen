@@ -13,7 +13,8 @@ The Compose project is `ukladen`. Images are `ukladen-backend:local` and
 | --- | --- |
 | `api` | FastAPI/Uvicorn, backend image, non-root user. |
 | `worker` | Celery worker, same backend image, concurrency 2. |
-| `beat` | Celery Beat, same backend image, scans reminders every 30 seconds and selected-group schedule imports every 60 seconds when enabled. |
+| `material-worker` | Same backend image, `materials` queue, concurrency 1 and prefetch 1 for bounded document processing. |
+| `beat` | Celery Beat, same backend image, scans reminders/material maintenance every 30 seconds and selected-group schedule imports every 60 seconds when enabled. |
 | `web` | Next.js standalone server, non-root user. |
 | `postgres` | PostgreSQL 18 image with pgvector available. |
 | `redis` | Redis 7.4, temporary broker data, no persistent volume. |
@@ -36,8 +37,10 @@ PostgreSQL and SeaweedFS use separate named volumes. PostgreSQL 18's volume moun
 at `/var/lib/postgresql`; SeaweedFS's data mounts at `/data`.
 `docker compose down` preserves volumes. Redis is deliberately ephemeral: pending
 broker messages can be lost if its container is recreated. Reminder recovery rescans
-PostgreSQL on the next Beat tick; retries cannot duplicate inbox records. See
-[reminder recovery and expiry rules](../development/reminders.md). Authentication
+PostgreSQL on the next Beat tick; retries cannot duplicate inbox records. Pending
+material extraction and expired processing leases are also redispatched from
+PostgreSQL. See [reminder recovery](../development/reminders.md) and
+[material recovery/cleanup](../development/materials.md). Authentication
 email publication recovery remains not implemented.
 
 ## Object Storage
@@ -50,10 +53,12 @@ disabled. SeaweedFS needs no host Go compiler or custom storage image.
 authentication on the local Admin UI. `S3_BUCKET` seeds the initial bucket.
 Anonymous object operations are not enabled. The S3 gateway provides `/readyz`
 for container and API readiness probes; probes do not verify bucket permissions.
-Private user avatar upload/read/removal are implemented through the backend's
-S3 adapter. General material/file upload APIs are not implemented. The API lifespan
-owns a timeout-bounded boto3 client using the existing endpoint, bucket and credentials;
-avatar processing uses Pillow. See [avatar API](../development/user-avatar.md).
+Private avatar and material upload/read/removal use the backend S3 adapters. They
+share timeout-bounded boto3 configuration and existing endpoint/bucket/credentials,
+with distinct server-generated key prefixes. The API lifespan owns its clients;
+background material jobs open/close their own. Avatar processing uses Pillow;
+material extraction uses bounded child processes. See [avatar API](../development/user-avatar.md)
+and [materials/search](../development/materials.md). No new external provider is needed.
 
 The provider decision is recorded in [ADR 0001](../adr/0001-use-seaweedfs.md).
 Old MinIO volumes are retained and cannot be attached directly to SeaweedFS.
@@ -86,14 +91,15 @@ and [setup instructions](../deployment/home-server.md).
 ## CI
 
 GitHub Actions runs backend lint/format/type/tests, frontend lint/type/build/browser
-tests, and a Compose build/start/health smoke check. uv and npm lockfiles are used
+tests, and a Compose build/start/health smoke check. Backend CI provisions disposable
+PostgreSQL, Redis and SeaweedFS for native integration tests. uv and npm lockfiles are used
 for reproducible application installs. Infrastructure/base image tags are explicit
 but not digest-pinned. CI is a verification baseline; it does not publish or deploy.
 
 ## Planned capability use
 
-Workspace databases and one-shot calendar reminders/in-app notifications are implemented.
-PostgreSQL/pgvector, Celery and S3 availability does not implement
-document processing, embeddings or AI. Add jobs/storage contracts only
+Workspace databases, one-shot calendar reminders/in-app notifications and P-08
+materials/basic search are implemented, backend only. PostgreSQL/pgvector, Celery
+and S3 availability does not implement embeddings or AI. Add jobs/storage contracts only
 with their [requested slices](../development/implementation-roadmap.md). Private IIS
 requires verified contracts and a connection design; public jobs have no student credentials.

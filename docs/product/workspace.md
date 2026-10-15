@@ -1,12 +1,14 @@
 # Workspace and Calendar Requirements
 
-Updated: 2026-10-15.
+Updated: 2026-10-16.
 Status: target requirements. Calendar, nested pages with flat typed blocks and page/calendar
 links, collections/tags and saved calendar views are implemented, backend only; see [notes](../development/notes.md),
 [relations](../development/relations.md), [workspace](../development/workspace.md)
 and [calendar views](../development/calendar-views.md).
 Other capabilities remain planned. See [open decisions](open-questions.md) before selecting
 remaining editor, membership or calendar details; personal scope is confirmed.
+Private materials, optional page attachments and basic full-text search are also
+implemented, backend only; see [materials/search](../development/materials.md).
 
 ## 1. Vocabulary
 
@@ -36,7 +38,7 @@ ordinary links and collection membership.
 The user creates "Ideas" with text and no date, group, subject or collection.
 
 - Create, read and edit work without an academic profile.
-- The page is discoverable in the user's page list and later search.
+- The page is discoverable in the user's page list and basic full-text search.
 - Linking it to an event later does not move ownership or change its content.
 - A new page does not silently create a calendar event or busy interval.
 - Another user cannot list, fetch, modify or link this private page.

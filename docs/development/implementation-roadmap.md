@@ -1,6 +1,6 @@
 # Backend Implementation Roadmap
 
-Updated: 2026-10-15.
+Updated: 2026-10-16.
 Status: implementation roadmap; completed slices are marked below. This document does not authorize starting the
 next phase; request a concrete slice before implementing it. Pages/blocks/databases,
 mandatory table/calendar views, personal scope and AI execution modes are confirmed.
@@ -32,13 +32,14 @@ existing services just to match target vocabulary. A package marker is not a fea
 | Schedule | Supported expansion, official storage, historical identities, background refresh | [Schedule](schedule.md) |
 | Calendar | Personal events, official overrides, resolved range queries | [Calendar](calendar.md) |
 | Reminders/notifications | One-shot calendar reminders, durable inbox and replay-safe periodic delivery | [Reminders](reminders.md) |
+| Materials/search | Private quota-limited files/bookmarks, page attachments, bounded extraction and PostgreSQL full-text search | [Materials/search](materials.md) |
 | Notes | Standalone pages, typed block documents, Markdown compatibility, nested hierarchy, versions and branch trash | [Notes](notes.md) |
 | Relations | Typed page/calendar links, backlinks, atomic linked page creation | [Relations](relations.md) |
 | Workspace | Collections/tags, typed membership, event views and recoverable page-backed databases with table/calendar views | [Workspace](workspace.md), [calendar views](calendar-views.md), [databases](databases.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
-Calendar free slots/conflicts, tasks, general materials,
-search and AI are not implemented. Workspace organization exists;
+Calendar free slots/conflicts, tasks, semantic search and AI are not implemented.
+Workspace organization exists;
 saved event views, user databases, table/calendar views and mixed date projection exist.
 Authenticated IIS is unverified/unimplemented.
 Frontend business flows remain unimplemented apart from browser email verification.
@@ -117,7 +118,7 @@ Hierarchy moves remain cycle-safe and branch trash retains documents and links.
 Nesting and collection membership stay distinct.
 
 Q-08 remains open only for future rich inline formatting, nested blocks and editor
-choices. Materials references depend on P-08; export/history/collaboration remain
+choices. Material references are implemented in P-08; export/history/collaboration remain
 separate requested slices. This backend API does not implement an editor UI.
 
 ## 7. P-05 user databases, properties and calendar projection
@@ -183,19 +184,20 @@ Additional channels/UI/recurrence require separate requested slices and contract
 
 ## 10. P-08 materials and basic search
 
-Status: not implemented. Dependencies: auth, S3/worker foundation; page relations optional.
+Status: implemented, backend only. See [materials/search contracts](materials.md)
+for limits, DTOs, migration/recovery rules and dated verification.
 
-General material upload/read/link/delete APIs reuse the storage boundary. Define
-formats/size limits, ownership, upload-finalization/orphan cleanup and safe URL fetch
-rules. Store binaries in S3 and metadata in PostgreSQL. Add processing states and
-idempotent extraction jobs for explicitly supported formats.
+Private file reservation/upload/download, bookmarks, optional page attachments,
+versioned edits, 30-day trash and periodic S3 cleanup reuse the existing storage
+boundary. Owner limits are 25 MiB/file and 1 GiB retained originals/user, with no OCR.
+PDF text, DOCX, PPTX, TXT and Markdown use bounded child-process extraction through
+the dedicated materials queue/worker. Failed parsing preserves original downloads.
 
-Add structured/full-text retrieval of authorized pages/material text. Keep permissions
-and trash/deletion effective even while derived indexes lag. Make processing failures
-visible without deleting the source file. Do not claim arbitrary PDF/OCR support.
-
-Done when native storage and rollback/cleanup/ownership checks plus bounded search
-checks pass. Existing avatar APIs must keep working.
+Filtered PostgreSQL full-text retrieval covers canonical page blocks, material titles
+and derived file text with immediate owner/trash checks. Native S3, Redis task payloads,
+quota races, rollback/cleanup, fenced retries and existing avatar compatibility are
+tested. UI, legacy Office conversion, remote fetching, chunking, embeddings, semantic
+retrieval and AI/RAG remain not implemented. No deployment is performed by this slice.
 
 ## 11. P-09 AI help, recommendations, confirmed/automatic actions and RAG
 

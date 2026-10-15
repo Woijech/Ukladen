@@ -1,6 +1,6 @@
 # Workspace Backend Architecture
 
-Updated: 2026-10-15.
+Updated: 2026-10-16.
 Status: pages, flat typed blocks, hierarchy, branch trash, page/calendar links and
 collections/tags with typed memberships and saved calendar views are implemented, backend only; see
 [notes](../development/notes.md), [relations](../development/relations.md) and
@@ -57,6 +57,12 @@ is wrapped without parsing; legacy reads derive Markdown from the canonical bloc
 There is one authoritative representation, with no independently editable Markdown
 copy. Ownership, parents, reference integrity and queryable fields remain relational.
 Q-08 now concerns future rich formatting/nesting/editor work.
+
+Optional page/material attachments are implemented through the `relations` boundary,
+separate from block payloads. Materials and basic lexical search are documented in
+[P-08 contracts](../development/materials.md). Unlinking/trashing a page preserves
+material originals; material cleanup never deletes the attached page. Search reads
+canonical page text and owner/trash state, not independently editable content copies.
 
 Root pages are normal. Page-parent cycles and cross-owner moves are rejected by the
 application and appropriate database constraints. Document updates require optimistic

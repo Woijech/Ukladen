@@ -68,8 +68,13 @@ chmod 600 .env.home
 
 Edit `.env.home` locally. Set `CLOUDFLARE_TUNNEL_TOKEN` to the token, and copy
 your working PostgreSQL, S3 and SMTP credentials from `.env`. Never paste these
-credentials in chat or commit them. The API, worker, Beat and migrations read
+credentials in chat or commit them. The API, both workers, Beat and migrations read
 `.env.home`; `.env` remains the development configuration.
+
+P-08 adds `material-worker` using the same backend image and configuration. Apply
+the checked-in migrations and refresh both workers with API/Beat when upgrading;
+no OCR service or new provider credentials are required. See
+[materials/search upgrade and limits](../development/materials.md).
 
 This deployment reuses the `ukladen` Compose project and its existing PostgreSQL
 and SeaweedFS volumes. Existing accounts remain in the same database. Switching
