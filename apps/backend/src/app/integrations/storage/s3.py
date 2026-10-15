@@ -35,27 +35,31 @@ def log_storage_failure(operation: str, error: BaseException) -> None:
     )
 
 
+def create_s3_client(settings: Settings):
+    return boto3.client(
+        "s3",
+        endpoint_url=str(settings.s3_endpoint),
+        aws_access_key_id=settings.s3_access_key.get_secret_value(),
+        aws_secret_access_key=settings.s3_secret_key.get_secret_value(),
+        region_name="us-east-1",
+        config=Config(
+            signature_version="s3v4",
+            s3={"addressing_style": "path"},
+            connect_timeout=3,
+            read_timeout=3,
+            retries={"mode": "standard", "total_max_attempts": 2},
+            request_checksum_calculation="when_required",
+            response_checksum_validation="when_required",
+        ),
+    )
+
+
 class S3AvatarStorage:
     """Private objects in the existing bucket; never log SDK error payloads or object keys."""
 
     def __init__(self, settings: Settings) -> None:
         self.bucket = settings.s3_bucket
-        self.client = boto3.client(
-            "s3",
-            endpoint_url=str(settings.s3_endpoint),
-            aws_access_key_id=settings.s3_access_key.get_secret_value(),
-            aws_secret_access_key=settings.s3_secret_key.get_secret_value(),
-            region_name="us-east-1",
-            config=Config(
-                signature_version="s3v4",
-                s3={"addressing_style": "path"},
-                connect_timeout=3,
-                read_timeout=3,
-                retries={"mode": "standard", "total_max_attempts": 2},
-                request_checksum_calculation="when_required",
-                response_checksum_validation="when_required",
-            ),
-        )
+        self.client = create_s3_client(settings)
 
     def put(self, key: str, content: bytes) -> None:
         try:

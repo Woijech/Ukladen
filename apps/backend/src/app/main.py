@@ -12,6 +12,7 @@ from app.core.logging import configure_logging
 from app.core.request_logging import RequestLoggingMiddleware
 from app.db.session import create_database_engine, create_session_factory
 from app.integrations.bsuir.public_api import IisPublicProvider
+from app.integrations.storage.materials import S3MaterialStorage
 from app.integrations.storage.s3 import S3AvatarStorage
 from app.modules.academics.presentation.routes import install_academics
 from app.modules.auth.infrastructure.email_sender import CeleryEmailSender
@@ -22,6 +23,7 @@ from app.modules.auth.infrastructure.token_service import generate_token
 from app.modules.auth.presentation.routes import install_auth
 from app.modules.calendar.presentation.composition import router as calendar_display_router
 from app.modules.calendar.presentation.routes import install_calendar
+from app.modules.materials.presentation.routes import install_materials
 from app.modules.notes.presentation.routes import install_notes
 from app.modules.notifications.presentation.routes import install_notifications
 from app.modules.relations.presentation.routes import install_relations
@@ -73,12 +75,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 celery, enabled=config.schedule_sync_enabled
             )
             application.state.avatar_storage = S3AvatarStorage(config)
+            application.state.material_storage = S3MaterialStorage(config)
             application.state.dummy_password_hash = application.state.passwords.hash(
                 generate_token()
             )
             logger.info("api.started")
             yield
         finally:
+            if hasattr(application.state, "material_storage"):
+                application.state.material_storage.close()
             if hasattr(application.state, "avatar_storage"):
                 application.state.avatar_storage.close()
             celery.close()
@@ -100,6 +105,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_schedule(application)
     install_calendar(application)
     install_notes(application)
+    install_materials(application)
     install_reminders(application)
     install_notifications(application)
     install_relations(application)
