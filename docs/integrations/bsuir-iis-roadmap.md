@@ -31,7 +31,8 @@ guaranteed. Last-update dates are not reliable monotonic change tokens.
 | Public catalogues and group/teacher schedule reads | Verified; implemented | Preserve contracts; improve only with new evidence |
 | Group schedule persistence, supported dated expansion and sync | Implemented | Preserve shared identities, source states and last valid data |
 | Personal attendance/visibility/time overrides | Implemented in calendar | Keep user interpretation out of the source adapter |
-| Exception/split/cancellation precedence | Contract incomplete; unsupported cases preserve last valid import | Obtain authoritative rules and sanitized examples before expansion changes |
+| Split rows with explicit dates/weeks/subgroups | Implemented from observed official renderer behavior verified on 2026-10-16 | Preserve row facts; see [public evidence](bsuir-iis-public-api.md#split-row-verification-2026-10-16) |
+| Exception/cancellation precedence | Contract incomplete; unsupported cases preserve last valid import | Obtain authoritative rules and sanitized examples before expansion changes |
 | Rich teacher/room/announcement context in workspace | Public reads exist; workspace enrichment not implemented | Add explicit links/context without duplicate calendar occurrences |
 | Authenticated student identity and enrollment | Contract unverified; not implemented | Deferred; new phase request and verified upstream contract required |
 | Grades and academic progress | Candidate requirement; endpoint/payload unverified | Deferred; new phase request and verified upstream contract required |

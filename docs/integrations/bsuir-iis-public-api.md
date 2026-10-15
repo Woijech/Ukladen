@@ -40,8 +40,9 @@ subgroup includes whole-group lessons (`numSubgroup=0`) and that subgroup;
 null selection includes all. Announcement dates in live responses use ISO format;
 lesson and root schedule dates use `DD.MM.YYYY`.
 
-This contract does not establish cancellation/split precedence, recurrence for
+This contract does not establish cancellation/replacement precedence, recurrence for
 arbitrary dates, synchronization guarantees or authenticated IIS account APIs.
+Observed split-row expansion is verified separately below.
 Calendar persistence, personal overrides and background synchronization are implemented
 separately; see [schedule](../development/schedule.md) and [calendar](../development/calendar.md).
 Private account capabilities remain unverified/unimplemented; see
@@ -68,3 +69,26 @@ undated announcements and `split=true` fail expansion with a safe unsupported
 state: TODO obtain authoritative exception/split rules before implementing them.
 The last valid import survives such failures. The verified raw read API still
 returns every original field, including unsupported rows.
+
+## Split-row verification (2026-10-16)
+
+This supersedes the split rejection recorded in the historical 2026-10-07 section.
+Read the rendered [public API documentation](https://iis.bsuir.by/api), the official
+[553501 schedule](https://iis.bsuir.by/schedule/553501), its cookie-free
+[JSON response](https://iis.bsuir.by/api/v1/schedule?studentGroup=553501) and public
+[frontend bundle](https://iis.bsuir.by/static/js/main.9bfb86fc.js).
+Bundle SHA-256: `81c9138d2c73727036102344dfadd34c64b5d060b7c39070a0148976c77b5fe3`.
+
+The official day-list component (`Oi`, byte offset 2387189 in this bundle) selects
+rows by explicit lesson date/range and `weekNumber`. It applies no `split` rule.
+The official table also displays the sampled split rows: Wednesday laboratory
+slots 15:30–16:55 and 17:05–18:30, subgroup 1 on week 1 and subgroup 2 on week 3.
+Their ranges are September 2–December 23 and September 16–December 9 respectively.
+The four JSON rows expand to 18 independent dated occurrences.
+
+Ukladen therefore applies its existing explicit recurrence/date rules to split rows,
+preserving subgroup, time, bounds and original snapshot flags. It does not infer a
+replacement/cancellation rule from the flag or notes. This is observed official
+client behavior, not a guarantee of every future upstream variant. Invalid/incomplete
+rows still fail atomically. Sanitized regression excerpts are in
+`apps/backend/tests/fixtures/bsuir/split_lessons.json`; ordinary tests remain offline.
