@@ -10,6 +10,8 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    func,
+    literal_column,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -68,6 +70,11 @@ class MaterialModel(Base):
         Index("ix_materials_owner", "user_id", "trashed_at", "created_at", "id"),
         Index("ix_materials_work", "status", "updated_at", "id"),
         Index("ix_materials_trash", "trashed_at", "id"),
+        Index(
+            "ix_materials_title_search",
+            func.ukladen_search_vector(title, literal_column("''")),
+            postgresql_using="gin",
+        ),
     )
 
 

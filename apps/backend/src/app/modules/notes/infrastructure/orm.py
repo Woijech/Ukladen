@@ -68,4 +68,9 @@ class PageModel(Base):
         ),
         Index("ix_note_pages_user_parent", "user_id", "parent_id"),
         Index("ix_note_pages_user_trash", "user_id", "trashed_at", "created_at", "id"),
+        Index(
+            "ix_note_pages_search",
+            func.ukladen_search_vector(title, func.ukladen_page_search_body(document)),
+            postgresql_using="gin",
+        ),
     )

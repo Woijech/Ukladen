@@ -13,6 +13,7 @@ from app.modules.notifications.infrastructure import orm as notifications_orm  #
 from app.modules.relations.infrastructure import orm as relations_orm  # noqa: F401
 from app.modules.reminders.infrastructure import orm as reminders_orm  # noqa: F401
 from app.modules.schedule.infrastructure import orm as schedule_orm  # noqa: F401
+from app.modules.search.infrastructure import orm as search_orm  # noqa: F401
 from app.modules.users.infrastructure import orm as users_orm  # noqa: F401
 from app.modules.workspace.infrastructure import orm as workspace_orm  # noqa: F401
 

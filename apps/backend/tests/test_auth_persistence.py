@@ -84,6 +84,7 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "materials",
         "material_objects",
         "page_material_links",
+        "search_material_documents",
     }
     assert set(inspect(database_connection).get_table_names()) == expected
     command.check(config)
