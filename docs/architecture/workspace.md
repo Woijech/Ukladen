@@ -1,10 +1,11 @@
 # Workspace Backend Architecture
 
-Updated: 2026-10-12.
+Updated: 2026-10-15.
 Status: pages, flat typed blocks, hierarchy, branch trash, page/calendar links and
-collections/tags with typed memberships are implemented, backend only; see
+collections/tags with typed memberships and saved calendar views are implemented, backend only; see
 [notes](../development/notes.md), [relations](../development/relations.md) and
-[workspace](../development/workspace.md). Other capabilities remain a target design under
+[workspace](../development/workspace.md) and [calendar views](../development/calendar-views.md).
+Other capabilities remain a target design under
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md), with current APIs documented separately. The owner confirmed pages/blocks/databases and mandatory table/calendar views,
 with personal ownership. Formulas and collaboration are deferred; remaining details
 are recorded as open decisions.
@@ -24,7 +25,7 @@ their documented semantics while new page/view contracts are introduced.
 | Boundary | Owns | Does not own |
 | --- | --- | --- |
 | `notes` | Pages, content documents/blocks, page hierarchy, content versions and trash | Event times, attendance, database property schemas |
-| `workspace` | Implemented collections/membership and tags/assignments; planned user databases/property values and saved view definitions | Page body, shared official facts, planning rules |
+| `workspace` | Implemented collections/membership, tags/assignments and saved calendar views; planned user databases/property values and their views | Page body, shared official facts, planning rules |
 | `relations` | Optional links between authorized typed objects and backlink queries | Page containment, database property storage, task dependencies |
 | `calendar` | Personal events, official overrides, resolved events, availability/conflicts, calendar composition | Source imports, page content, custom property definitions |
 | `schedule` | Shared official occurrences, normalization, synchronization, provenance | Personal grouping or content |
@@ -34,8 +35,8 @@ their documented semantics while new page/view contracts are introduced.
 | `search` | Permission-filtered indexes and retrieval | Canonical content ownership |
 | `ai` | Conversations, authorized tools, proposals and orchestration | Independent copies of business rules |
 
-`workspace` now implements the requested organization slice. Do not generate empty
-repositories or DTOs for databases/views. Existing packages do not need renaming.
+`workspace` implements organization and saved calendar views. Do not generate empty
+repositories or DTOs for databases or their views. Existing packages do not need renaming.
 
 ## 3. Data contracts and remaining design
 
@@ -69,7 +70,23 @@ pagination and lifecycle contracts are in [workspace](../development/workspace.m
 Both definitions share a constrained metadata table; association rows enforce one
 typed foreign-key target and owner equality for pages/personal events. Membership
 is explicit, many-to-many and independent of hierarchy and page/calendar links.
-The following database/record/property/view contracts remain planned.
+Saved calendar views are implemented separately from organization metadata in
+`workspace_calendar_views`. They store one or two unique `official`/`personal`
+source rules, each with bounded collection/tag ID lists, plus name/color, day/week/month
+layout, chronological sort direction, hidden-event preference and optimistic version.
+`CalendarViewService` queries `CalendarService` through its application interface,
+then filters workspace event memberships without loading page content. It retains
+source warnings and busy flags. Resolution uses a single repeatable-read snapshot.
+
+Source filters are validated JSONB settings, with SQL metadata/envelope constraints.
+Organization IDs within them have no foreign keys: writes validate owner/kind under
+the same active-owner lock as organization mutations, and event reads revalidate
+references. Deleting an organization keeps the definition repairable; event reads
+return 409 until repaired, preventing silent filter broadening. View deletion never
+deletes source data. The complete implemented contract is in
+[saved calendar views](../development/calendar-views.md).
+
+The following list distinguishes existing organization from planned database capabilities.
 
 - `Collection` and `CollectionMembership`: user-owned named sets and typed references.
 - `Tag` and `TagAssignment`: personal labels; an upstream subject string is not a tag ID.
@@ -77,7 +94,8 @@ The following database/record/property/view contracts remain planned.
 - `PropertyDefinition`: stable ID, name, supported type, configuration and schema version.
 - `DatabaseRecord`: database membership referencing a content page, with its own identity.
 - `PropertyValue`: value validated against that definition in that database.
-- `SavedView`: source, layout, allowed filters, sorting and optional date binding.
+- `SavedView`: calendar source/layout/filter/sort settings are implemented;
+  database sources and optional date-property binding remain planned.
 
 One content page can be referenced without copying its body. If a page participates
 in multiple databases, values are scoped to each database record; names do not make
@@ -111,6 +129,10 @@ Task dependency edges remain in `tasks`, where cycle rules belong. Page hierarch
 remains in `notes`; these are not generic links with special meaning inferred later.
 
 ## 4. Calendar views and date projection
+
+Implemented saved calendar views use
+`GET /api/v1/workspace/calendar-views/{id}/events` over the existing resolved event
+contract. Page dates, database records and task deadlines are not view sources yet.
 
 Existing `GET /api/v1/calendar/events` returns official/personal events with their
 current source and write identities. Do not relabel a page-date projection as a
@@ -183,7 +205,8 @@ semantics, error codes and explicit omitted/null behavior. Transport schemas and
 OpenAPI must describe the implemented slice, not every future feature.
 
 Organization services provide collection/tag CRUD, explicit typed membership and
-forward/reverse lists. Schema/record CRUD and saved views remain planned. Relation
+forward/reverse lists. Saved calendar-view CRUD and event queries are implemented;
+schema/record CRUD and page/database views remain planned. Relation
 services provide page/calendar link/unlink and backlink queries. These must
 remain normal application operations reusable by HTTP and AI.
 

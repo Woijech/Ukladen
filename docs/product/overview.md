@@ -1,6 +1,6 @@
 # Ukladen Product Overview
 
-Updated: 2026-10-12.
+Updated: 2026-10-15.
 Status: target product specification; only capabilities listed as implemented
 below exist. Product references describe intent, not feature parity with another app.
 
@@ -41,9 +41,9 @@ See [workspace requirements](workspace.md) for examples and acceptance cases.
 ## 3. Pages and knowledge
 
 Implemented, backend only: standalone nested pages, flat typed blocks, versions and recoverable
-branch trash, optional personal/official calendar links and user collections/tags; see
+branch trash, optional personal/official calendar links, user collections/tags and saved calendar views; see
 [notes](../development/notes.md), [relations](../development/relations.md) and
-[workspace](../development/workspace.md).
+[workspace](../development/workspace.md) and [calendar views](../development/calendar-views.md).
 
 Users can create standalone pages, nest pages, edit text/headings/lists/checkboxes/links
 and optionally link pages to events. Block IDs remain stable through edits and order
@@ -66,7 +66,9 @@ page links/backlinks.
 See [current calendar API](../development/calendar.md).
 
 Collection/tag names, colors and explicit memberships are implemented in workspace.
-Status: not implemented — calendar UI, saved views, per-event colors, all-day and
+Saved calendar views over authorized official/personal events are implemented,
+with per-source collection/tag filters and saved layout/sorting preferences.
+Status: not implemented — calendar UI, page/database views, per-event colors, all-day and
 recurring personal events, database-record projections, occupied/free intervals,
 conflict checks and task scheduling blocks.
 
@@ -152,7 +154,8 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 | Personal events, official overrides and resolved calendar | Implemented backend |
 | Nested pages, flat typed blocks, Markdown compatibility, recoverable trash, page/calendar links and backlinks | Implemented backend |
 | Collections, tags, typed membership and forward/reverse lists | Implemented backend |
-| Rich/nested blocks, page-page knowledge links, databases, saved views | Status: not implemented. |
+| Saved calendar views, source/membership filters and resolved event queries | Implemented backend |
+| Rich/nested blocks, page-page knowledge links, databases, page/database views | Status: not implemented. |
 | Tasks, availability, reminders and notifications | Status: not implemented. |
 | General materials, search, AI and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
@@ -162,8 +165,9 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 
 Implement backend vertical slices with acceptance criteria before UI work is requested.
 Pages, hierarchy and page/calendar links were delivered together at the owner's request.
-Block content and user organization are also implemented. Saved views and user
-databases are possible next slices; each needs an explicit request.
+Block content, user organization and saved calendar views are also implemented.
+User databases and their table/calendar views are a possible next slice requiring
+an explicit request.
 `subjects` is no longer a prerequisite. The [roadmap](../development/implementation-roadmap.md)
 defines dependencies; [open decisions](open-questions.md) record unknowns.
 

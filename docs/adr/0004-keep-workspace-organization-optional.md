@@ -2,8 +2,8 @@
 
 Date: 2026-10-12.
 Status: accepted product direction from the repository owner. Independent pages,
-hierarchy, trash, calendar links, flat typed blocks and collections/tags are implemented;
-user databases and saved views remain planned.
+hierarchy, trash, calendar links, flat typed blocks, collections/tags and saved calendar
+views are implemented; user databases and their views remain planned.
 
 ## Context
 
@@ -52,6 +52,15 @@ The owner confirmed pages/blocks/user databases and mandatory table/calendar vie
 deferred formulas, private IIS and collaboration, and requested AI help/recommendations,
 confirmed execution and explicitly permitted automatic actions.
 [ADR 0005](0005-support-scoped-ai-action-permissions.md) records the AI authorization change.
+
+## Saved calendar views delivered (2026-10-15)
+
+The requested P-03 backend slice now stores optional saved calendar filters in
+`workspace`, with event resolution through the existing calendar application service.
+Definitions reference current data, preserve busy flags/source warnings and never
+own or delete members. Deleted collection/tag filters require repair. See the
+[implemented API](../development/calendar-views.md). Database-backed views remain planned;
+the optional-organization decision and module ownership are unchanged.
 
 References: [workspace requirements](../product/workspace.md),
 [workspace architecture](../architecture/workspace.md),

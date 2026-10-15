@@ -1,6 +1,6 @@
 # Backend Implementation Roadmap
 
-Updated: 2026-10-12.
+Updated: 2026-10-15.
 Status: implementation roadmap; completed slices are marked below. This document does not authorize starting the
 next phase; request a concrete slice before implementing it. Pages/blocks/databases,
 mandatory table/calendar views, personal scope and AI execution modes are confirmed.
@@ -33,12 +33,13 @@ existing services just to match target vocabulary. A package marker is not a fea
 | Calendar | Personal events, official overrides, resolved range queries | [Calendar](calendar.md) |
 | Notes | Standalone pages, typed block documents, Markdown compatibility, nested hierarchy, versions and branch trash | [Notes](notes.md) |
 | Relations | Typed page/calendar links, backlinks, atomic linked page creation | [Relations](relations.md) |
-| Workspace | Collections, tags, typed membership and forward/reverse lists | [Workspace](workspace.md) |
+| Workspace | Collections, tags, typed membership, forward/reverse lists and saved calendar views | [Workspace](workspace.md), [calendar views](calendar-views.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
 Calendar free slots/conflicts, tasks, reminders, general materials,
 search, notifications and AI are not implemented. Workspace organization exists;
-user databases and saved views do not exist. Authenticated IIS is unverified/unimplemented.
+saved calendar views exist; user databases and page/database views do not.
+Authenticated IIS is unverified/unimplemented.
 Frontend business flows remain unimplemented apart from browser email verification.
 
 ## 3. P-01 standalone pages
@@ -81,22 +82,26 @@ Do not implement task/material relations before those endpoint services exist.
 
 ## 5. P-03 user organization and saved calendar views
 
-Status: collections, tags and typed memberships implemented, backend only; see
-[workspace](workspace.md). Saved views remain not implemented. Dependencies: P-01/02 and current calendar.
+Status: implemented, backend only — collections, tags, typed memberships and saved
+calendar views; see [workspace](workspace.md) and [calendar views](calendar-views.md).
+Dependencies: P-01/02 and current calendar. Page/database views remain future P-05 work.
 
 The `workspace` module provides real user-owned tags, collections/membership,
-metadata versions, bounded member-type filters and reverse queries. Next implement
-saved view definitions. Define bounded sources/filters, sorting, names/colors and
-supported layout settings. Initial views can operate on existing events/pages;
-database property filters arrive with P-05.
+metadata versions, bounded member-type filters and reverse queries. Saved calendar
+definitions add versioned name/color, per-source collection/tag filters, layout,
+sort direction and hidden-event settings. Event queries reuse authorized resolved
+calendar reads with warnings in one database snapshot. Deleted filter references
+require explicit repair; view deletion preserves data. Database sources/property
+filters and date bindings arrive with P-05.
 
 Official event membership stores a per-user reference, never shared-source preferences.
 Filtering and hiding must not remove busy intervals from planning truth. Deleting
 collections/views or removing members must preserve pages and events.
 
-Done when WS-05/08 and permissions/filter validation/lifecycle checks pass. A backend
-view API is not a working calendar UI. Do not create a generic query language or
-user-executable SQL for the first view slice.
+Verification covers WS-05, the display/hidden/busy-flag invariants of WS-08 and
+permissions/filter validation/lifecycle checks. Availability queries remain P-06.
+A backend view API is not a working calendar UI. No generic query language or
+user-executable SQL is provided.
 
 ## 6. P-04 page hierarchy and block content
 

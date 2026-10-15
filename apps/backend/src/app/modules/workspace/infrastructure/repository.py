@@ -2,10 +2,11 @@ from dataclasses import asdict
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
+from app.modules.workspace.domain.calendar_views import EventSource
 from app.modules.workspace.domain.membership import Membership, TargetFilter, TargetType
 from app.modules.workspace.domain.organization import (
     Organization,
@@ -127,6 +128,31 @@ def membership_entity(row: MembershipModel) -> Membership:
 class SqlAlchemyMemberships:
     def __init__(self, session: Session) -> None:
         self.session = session
+
+    def event_organizations(
+        self,
+        user_id: UUID,
+        organization_ids: tuple[UUID, ...],
+        personal_ids: tuple[UUID, ...],
+        official_ids: tuple[UUID, ...],
+    ) -> dict[tuple[EventSource, UUID], set[UUID]]:
+        result: dict[tuple[EventSource, UUID], set[UUID]] = {}
+        for row in self.session.scalars(
+            select(MembershipModel).where(
+                MembershipModel.user_id == user_id,
+                MembershipModel.organization_id.in_(organization_ids),
+                or_(
+                    MembershipModel.personal_event_id.in_(personal_ids),
+                    MembershipModel.official_event_id.in_(official_ids),
+                ),
+            )
+        ):
+            member = membership_entity(row)
+            if member.target_type != "page":
+                result.setdefault((member.target_type, member.target_id), set()).add(
+                    member.organization_id
+                )
+        return result
 
     def put(self, membership: Membership) -> Membership:
         column = target_column(membership.target_type)

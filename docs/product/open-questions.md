@@ -1,6 +1,6 @@
 # Product Decisions and Open Questions
 
-Updated: 2026-10-12.
+Updated: 2026-10-15.
 Status: decision register. Owner-confirmed scope is distinguished from open design
 choices. Proposed defaults are not owner confirmation; resolve relevant unknowns
 before implementing incompatible schemas, integrations or behavior.
@@ -16,7 +16,8 @@ before implementing incompatible schemas, integrations or behavior.
 - The owner subsequently requested the backend block-document slice with local commits.
 - The owner then requested the backend organization slice with local commits.
   Collections/tags and explicit page/personal/official membership are implemented;
-  saved views and databases remain separate requested slices.
+  saved calendar views were subsequently requested and implemented. Databases and
+  their views remain a separate requested slice.
 
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md) records organization.
 [ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md) records AI authorization.
@@ -68,6 +69,13 @@ boundaries or authorization change, then affected roadmap/product sections. Keep
 current implementation status separate from confirmed future scope.
 
 ## Next decisions by slice
+
+P-03 calendar-view implementation (2026-10-15): bounded per-source collection/tag
+filters, day/week/month preference, chronological sort direction and hidden-event
+preference are implemented over existing timed events. Deleted filter references
+require repair; they never silently broaden selection. These implementation choices
+are documented in [the API contract](../development/calendar-views.md). They do not
+resolve Q-05's future all-day/recurrence/provider scope or database decisions Q-07/12.
 
 - Standalone pages: document first-slice content limits and recoverable trash behavior.
 - Future rich blocks/history: Q-06 and Q-08; initial blocks and hierarchy are implemented.

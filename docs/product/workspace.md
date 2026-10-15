@@ -1,9 +1,10 @@
 # Workspace and Calendar Requirements
 
-Updated: 2026-10-12.
+Updated: 2026-10-15.
 Status: target requirements. Calendar, nested pages with flat typed blocks and page/calendar
-links and collections/tags are implemented, backend only; see [notes](../development/notes.md),
-[relations](../development/relations.md) and [workspace](../development/workspace.md).
+links, collections/tags and saved calendar views are implemented, backend only; see [notes](../development/notes.md),
+[relations](../development/relations.md), [workspace](../development/workspace.md)
+and [calendar views](../development/calendar-views.md).
 Other capabilities remain planned. See [open decisions](open-questions.md) before selecting
 remaining editor, membership or calendar details; personal scope is confirmed.
 
@@ -88,7 +89,8 @@ An event appears in "Study" and "This week", with a linked standalone page.
 - Tags and collections are personal; they do not alter official schedule labels.
 
 Collections/tags and membership/reverse APIs are implemented, including safe
-deletion and duplicate handling. Saved views remain not implemented. Membership
+deletion and duplicate handling. Saved calendar views are implemented; page/database
+views remain planned. Membership
 does not implicitly include nested pages, linked events or other organization.
 
 ### WS-06: User-defined databases

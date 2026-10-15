@@ -1,6 +1,7 @@
 from typing import Protocol
 from uuid import UUID
 
+from app.modules.workspace.domain.calendar_views import CalendarView, EventSource
 from app.modules.workspace.domain.membership import Membership, TargetFilter, TargetType
 from app.modules.workspace.domain.organization import Organization, OrganizationKind
 
@@ -18,6 +19,14 @@ class OrganizationRepository(Protocol):
 
 
 class MembershipRepository(Protocol):
+    def event_organizations(
+        self,
+        user_id: UUID,
+        organization_ids: tuple[UUID, ...],
+        personal_ids: tuple[UUID, ...],
+        official_ids: tuple[UUID, ...],
+    ) -> dict[tuple[EventSource, UUID], set[UUID]]: ...
+
     def put(self, membership: Membership) -> Membership: ...
     def delete(
         self, user_id: UUID, organization_id: UUID, target_type: TargetType, target_id: UUID
@@ -40,3 +49,11 @@ class MembershipRepository(Protocol):
         limit: int,
         offset: int,
     ) -> list[Organization]: ...
+
+
+class CalendarViewRepository(Protocol):
+    def get(self, user_id: UUID, identifier: UUID) -> CalendarView | None: ...
+    def list(self, user_id: UUID, limit: int, offset: int) -> list[CalendarView]: ...
+    def create(self, view: CalendarView) -> None: ...
+    def save(self, view: CalendarView, expected_version: int) -> None: ...
+    def delete(self, view: CalendarView, expected_version: int) -> None: ...

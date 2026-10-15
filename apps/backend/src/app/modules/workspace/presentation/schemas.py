@@ -5,6 +5,12 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validato
 
 from app.modules.notes.presentation.schemas import PageSummary
 from app.modules.relations.presentation.schemas import EventReferenceResponse
+from app.modules.workspace.domain.calendar_views import (
+    CalendarLayout,
+    EventSource,
+    SortOrder,
+    view_values,
+)
 from app.modules.workspace.domain.membership import TargetType
 from app.modules.workspace.domain.organization import (
     InvalidWorkspaceInput,
@@ -74,5 +80,62 @@ class MemberResponse(BaseModel):
 
 class MemberListResponse(BaseModel):
     items: list[MemberResponse]
+    limit: int
+    offset: int
+
+
+class CalendarViewSourceSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid", from_attributes=True)
+    source: EventSource
+    collection_ids: list[UUID] = Field(default_factory=list, max_length=20)
+    tag_ids: list[UUID] = Field(default_factory=list, max_length=20)
+
+
+class CalendarViewCreate(OrganizationCreate):
+    sources: list[CalendarViewSourceSchema] = Field(
+        default_factory=lambda: [
+            CalendarViewSourceSchema(source="official"),
+            CalendarViewSourceSchema(source="personal"),
+        ],
+        min_length=1,
+        max_length=2,
+    )
+    layout: CalendarLayout = "week"
+    sort_order: SortOrder = "asc"
+    include_hidden: bool = Field(default=False, strict=True)
+
+    @model_validator(mode="after")
+    def validate_view(self) -> Self:
+        view_values(
+            self.model_dump(
+                include={"name", "color", "sources", "layout", "sort_order", "include_hidden"}
+            )
+        )
+        return self
+
+
+class CalendarViewPatch(OrganizationPatch):
+    sources: list[CalendarViewSourceSchema] | None = Field(default=None, min_length=1, max_length=2)
+    layout: CalendarLayout | None = None
+    sort_order: SortOrder | None = None
+    include_hidden: bool | None = Field(default=None, strict=True)
+
+    @model_validator(mode="after")
+    def validate_view_changes(self) -> Self:
+        changes = self.model_dump(exclude_unset=True, exclude={"expected_version"})
+        view_values({"name": "placeholder"} | changes)
+        return self
+
+
+class CalendarViewResponse(CalendarViewCreate):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    version: int
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+
+
+class CalendarViewListResponse(BaseModel):
+    items: list[CalendarViewResponse]
     limit: int
     offset: int

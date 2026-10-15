@@ -1,8 +1,10 @@
 # Workspace Organization Backend
 
-Updated: 2026-10-12.
+Updated: 2026-10-15.
 Status: collections, tags, typed memberships, member lists and reverse lookups are
-implemented, backend only. Saved views, user databases and UI are not implemented.
+implemented, backend only. Saved calendar views are also implemented; see
+[their API and filter lifecycle](calendar-views.md). User databases, page/database
+views and UI are not implemented.
 
 Collections and tags are independent personal definitions. No academic profile,
 page or event is required. Names are trimmed to 1–100 characters; NUL and invalid
@@ -94,3 +96,7 @@ Verification on 2026-10-12: Ruff, Ruff format, Pyright and Compose configuration
 passed. The complete backend suite with disposable PostgreSQL/Redis passed:
 1187 passed, 1 optional native S3 avatar-storage test skipped. No live IIS/LLM calls,
 frontend changes, running-stack migration or deployment were performed.
+
+The saved calendar-view implementation and its 2026-10-15 verification are recorded
+in [the calendar-view guide](calendar-views.md); the verification above remains
+the historical organization/membership result.

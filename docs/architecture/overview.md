@@ -2,7 +2,8 @@
 
 Status: foundation, backend authentication, user profiles, academic profiles and
 public university reads, persisted official schedule synchronization and the backend
-personal calendar, pages/block documents, relations and collection/tag organization implemented.
+personal calendar, pages/block documents, relations, collection/tag organization
+and saved calendar views implemented.
 
 The product name is **Ukladen**. Technical identifiers use lowercase `ukladen`:
 the Compose project, Celery application and default PostgreSQL database. Package
@@ -49,8 +50,8 @@ search, ai, notifications and workspace. The integrations boundary lives at
 `app/integrations`, following the architecture document's repository tree.
 Its adapter packages are bsuir, llm, embeddings and storage.
 
-The `workspace` boundary implements collections, tags and typed membership;
-properties and saved views remain planned.
+The `workspace` boundary implements collections, tags, typed membership and saved
+calendar views; properties and page/database views remain planned.
 
 Unused boundaries contain only package markers. No speculative entities, DTOs or
 repositories are generated. When a vertical slice is implemented, its dependencies
@@ -69,7 +70,8 @@ TLS, production credentials and deployment automation are not implemented.
 
 Standalone nested pages, flat typed blocks, page/calendar links and collections/tags
 are implemented; see [notes](../development/notes.md), [relations](../development/relations.md)
-and [workspace](../development/workspace.md). Rich/nested blocks, custom databases/properties, saved views
+and [workspace](../development/workspace.md), plus [saved calendar views](../development/calendar-views.md).
+Rich/nested blocks, custom databases/properties, page/database views
 and date projections are not implemented. Authenticated IIS capabilities remain
 unverified/unimplemented; see the [IIS roadmap](../integrations/bsuir-iis-roadmap.md).
 

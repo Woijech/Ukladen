@@ -1,6 +1,6 @@
 # Ukladen Documentation Index
 
-Updated: 2026-10-12.
+Updated: 2026-10-15.
 
 ## Contract and reading order
 
@@ -20,7 +20,7 @@ Planned contracts do not override the current implemented API silently.
 
 - [Architecture overview](architecture/overview.md): actual module/runtime baseline.
 - [Backend](architecture/backend.md): current backend contracts and verification.
-- [Workspace](architecture/workspace.md): implemented pages/organization and planned databases/views.
+- [Workspace](architecture/workspace.md): implemented pages/organization/calendar views and planned databases.
 - [AI](architecture/ai.md): planned tools, confirmed actions, retrieval and provider boundaries.
 - [Frontend](architecture/frontend.md): existing shell and target responsibilities.
 - [Infrastructure](architecture/infrastructure.md): actual processes/storage/exposure.
@@ -42,6 +42,7 @@ Planned contracts do not override the current implemented API silently.
 - [Personal calendar](development/calendar.md).
 - [Notes and page hierarchy](development/notes.md).
 - [Workspace collections and tags](development/workspace.md).
+- [Saved calendar views](development/calendar-views.md).
 - [Page and calendar links](development/relations.md).
 - [Diagnostics](development/logging.md).
 - [Home-server deployment](deployment/home-server.md).

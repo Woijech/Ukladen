@@ -8,7 +8,7 @@
 >
 > **Important:** This document intentionally does **not** define concrete BSUIR IIS response fields, exact external API payloads, full SQL schema, or detailed endpoint DTOs. Those contracts are separate documents.
 
-Updated: 2026-10-12. Target features are not implemented unless explicitly marked.
+Updated: 2026-10-15. Target features are not implemented unless explicitly marked.
 Read the [documentation index](docs/README.md), [open decisions](docs/product/open-questions.md)
 and [implementation roadmap](docs/development/implementation-roadmap.md) for a concrete slice.
 [ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md) records optional organization.
@@ -47,8 +47,9 @@ an explicit later phase and verified contracts; do not implement it in current s
 Current backend: authentication, profiles, public IIS reads, official schedule
 storage/sync, personal events, official overrides, resolved calendar reads, standalone
 nested pages with versioned blocks and Markdown compatibility, branch trash and
-optional page/calendar links.
-Status: not implemented — user organization/databases/views, tasks,
+optional page/calendar links, collections/tags with typed memberships and saved
+calendar views.
+Status: not implemented — user databases, page/database views, tasks,
 availability, reminders, general materials, search, AI/RAG and authenticated IIS.
 The business frontend is not implemented except browser email verification.
 
@@ -200,7 +201,7 @@ Responsibilities:
 - authentication;
 - users;
 - academic profile;
-- user organization and saved views (planned);
+- user organization and saved calendar views;
 - optional subjects;
 - schedule;
 - personal calendar;
@@ -233,8 +234,8 @@ users
 academic profiles
 groups
 optional subjects
-pages, versioned documents, collections, tags and typed memberships
-planned databases, property values and saved views
+pages, versioned documents, collections, tags, typed memberships and saved calendar views
+planned databases, property values and page/database views
 official schedule
 personal schedule overrides
 personal calendar events
@@ -507,8 +508,10 @@ resolved personal calendar
 Status: backend personal events, per-user overrides and resolved calendar reads are
 implemented; see [calendar contracts](docs/development/calendar.md). Free-slot/conflict
 queries, task blocks and the calendar frontend are not implemented. User tags and
-collections are implemented in workspace. Saved views, all-day/recurring personal
-events and database-date projections are not implemented.
+collections and saved calendar views are implemented in workspace. All-day/recurring
+personal events and database-date projections are not implemented.
+Saved views filter authorized resolved events without changing this module's HTTP
+contracts or busy flags; see [saved calendar views](docs/development/calendar-views.md).
 
 Calendar composition is presentation over independently owned typed data. Page dates
 and task deadlines do not automatically block time. Availability must use the complete
@@ -557,7 +560,7 @@ and [ADR 0006](docs/adr/0006-use-versioned-page-block-documents.md).
 Editor UI is not implemented; search indexes are derived and owned by search.
 
 Page links are optional. Collections/property schemas/views belong to the
-workspace boundary; property schemas/views remain planned. Event time belongs to calendar. See
+workspace boundary; property schemas and page/database views remain planned. Event time belongs to calendar. See
 [workspace architecture](docs/architecture/workspace.md).
 
 ## 5.10 materials
@@ -642,10 +645,18 @@ verified contracts. See [IIS roadmap](docs/integrations/bsuir-iis-roadmap.md).
 
 ## 5.16 workspace
 
-Status: collections, tags, typed memberships and forward/reverse lists implemented,
+Status: collections, tags, typed memberships, forward/reverse lists and saved calendar views implemented,
 backend only; see [workspace API](docs/development/workspace.md). Own user-controlled
-organization and its references. Database/property schemas and values and saved view
-configuration remain not implemented. It does not own page bodies, event time or official facts.
+organization, references and saved calendar-view configuration. Database/property
+schemas/values and page/database views remain not implemented. It does not own
+page bodies, event time or official facts.
+
+Saved calendar views store bounded per-source collection/tag filters, layout,
+sorting and hidden-event preferences in PostgreSQL. Application queries compose
+through `CalendarService` and workspace membership persistence in one read snapshot;
+they preserve calendar permissions, overrides and source warnings. Filter references
+are checked on writes and reads; a deleted reference requires repair rather than
+silently broadening results. See the [implemented contract](docs/development/calendar-views.md).
 
 The organization slice adds real owner-scoped services and foreign-key associations.
 [ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md) explains the addition.
@@ -1187,7 +1198,8 @@ Calendar business UI is not implemented.
 
 Implemented, backend only: standalone pages, optional nesting, recoverable trash,
 typed block documents, page/calendar links, collections/tags and typed memberships.
-Saved views remain not implemented.
+Saved calendar views over resolved events are implemented, backend only.
+Page/database views remain future work with user databases.
 `subjects` is not a prerequisite.
 
 ## Phase 3 — user databases and planning

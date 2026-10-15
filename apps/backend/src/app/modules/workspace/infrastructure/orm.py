@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -97,4 +99,41 @@ class MembershipModel(Base):
         Index(
             "ix_workspace_memberships_official", "user_id", "official_event_id", "organization_id"
         ),
+    )
+
+
+class CalendarViewModel(Base):
+    __tablename__ = "workspace_calendar_views"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(100))
+    color: Mapped[str | None] = mapped_column(String(7))
+    sources: Mapped[list[dict[str, object]]] = mapped_column(JSONB)
+    layout: Mapped[str] = mapped_column(String(8), server_default="week")
+    sort_order: Mapped[str] = mapped_column(String(4), server_default="asc")
+    include_hidden: Mapped[bool] = mapped_column(Boolean, server_default="false")
+    version: Mapped[int] = mapped_column(Integer, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "char_length(btrim(name)) BETWEEN 1 AND 100 AND name = btrim(name)",
+            name="ck_workspace_calendar_views_name",
+        ),
+        CheckConstraint(
+            "color IS NULL OR color ~ '^#[0-9a-f]{6}$'", name="ck_workspace_calendar_views_color"
+        ),
+        CheckConstraint("version > 0", name="ck_workspace_calendar_views_version"),
+        CheckConstraint(
+            "layout IN ('day', 'week', 'month')", name="ck_workspace_calendar_views_layout"
+        ),
+        CheckConstraint("sort_order IN ('asc', 'desc')", name="ck_workspace_calendar_views_sort"),
+        CheckConstraint(
+            "CASE WHEN jsonb_typeof(sources) = 'array' THEN "
+            "jsonb_array_length(sources) BETWEEN 1 AND 2 ELSE false END",
+            name="ck_workspace_calendar_views_sources",
+        ),
+        Index("ix_workspace_calendar_views_user", "user_id", "created_at", "id"),
     )
