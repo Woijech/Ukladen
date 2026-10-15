@@ -3,7 +3,7 @@
 Status: foundation, backend authentication, user profiles, academic profiles and
 public university reads, persisted official schedule synchronization and the backend
 personal calendar, pages/block documents, relations, collection/tag organization
-and saved calendar views implemented.
+and saved calendar views, calendar reminders and durable in-app notifications implemented.
 
 The product name is **Ukladen**. Technical identifiers use lowercase `ukladen`:
 the Compose project, Celery application and default PostgreSQL database. Package
@@ -63,8 +63,10 @@ external clients. Inter-module access must use application services or interface
 ## Scope
 
 Status: not implemented — free slots, conflict checks, task blocks, calendar UI,
-tasks, reminders, materials, search,
-notifications, AI and RAG. Structured diagnostics, request/task correlation and
+tasks, task/deadline reminders, materials, search,
+AI and RAG. One-shot calendar reminders and the durable inbox are implemented,
+backend only; see [reminder contracts](../development/reminders.md).
+Structured diagnostics, request/task correlation and
 container log rotation are implemented; see [logging](../development/logging.md).
 Remote observability services, metrics, tracing, production
 TLS, production credentials and deployment automation are not implemented.

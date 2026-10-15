@@ -3,7 +3,8 @@
 Status: implemented, backend only — personal-event CRUD, official-event overrides,
 resolved date-range reads, ownership/CSRF protection and safe structured diagnostics.
 Free slots, conflict checking, task blocks, recurring/all-day personal events,
-subject templates, reminders and the calendar frontend are not implemented.
+subject templates and the calendar frontend are not implemented. One-shot calendar
+reminders and the durable inbox are implemented; see [reminder contracts](reminders.md).
 Standalone nested pages and optional calendar links are implemented; see
 [notes](notes.md) and [relations](relations.md).
 

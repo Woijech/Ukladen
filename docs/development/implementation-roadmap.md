@@ -31,13 +31,14 @@ existing services just to match target vocabulary. A package marker is not a fea
 | University reads | Verified public directory/schedule/announcement reads | [University API](university-api.md) |
 | Schedule | Supported expansion, official storage, historical identities, background refresh | [Schedule](schedule.md) |
 | Calendar | Personal events, official overrides, resolved range queries | [Calendar](calendar.md) |
+| Reminders/notifications | One-shot calendar reminders, durable inbox and replay-safe periodic delivery | [Reminders](reminders.md) |
 | Notes | Standalone pages, typed block documents, Markdown compatibility, nested hierarchy, versions and branch trash | [Notes](notes.md) |
 | Relations | Typed page/calendar links, backlinks, atomic linked page creation | [Relations](relations.md) |
 | Workspace | Collections/tags, typed membership, event views and recoverable page-backed databases with table/calendar views | [Workspace](workspace.md), [calendar views](calendar-views.md), [databases](databases.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
-Calendar free slots/conflicts, tasks, reminders, general materials,
-search, notifications and AI are not implemented. Workspace organization exists;
+Calendar free slots/conflicts, tasks, general materials,
+search and AI are not implemented. Workspace organization exists;
 saved event views, user databases, table/calendar views and mixed date projection exist.
 Authenticated IIS is unverified/unimplemented.
 Frontend business flows remain unimplemented apart from browser email verification.
@@ -169,15 +170,16 @@ Do not force subjects into task creation or reject all intentional event overlap
 
 ## 9. P-07 reminders and notifications
 
-Status: not implemented. Dependencies: relevant calendar/task target, existing workers.
+Status: implemented, backend only, for existing personal and official calendar targets.
+See [reminder/inbox contracts and recovery](reminders.md). Task/deadline targets remain
+not implemented because P-06 is not implemented; requesting P-07 does not start P-06.
 
-Implement owner-scoped reminder CRUD and durable in-app notification records. Define
-timezone/trigger rules, deduplication, cancellation and retries. Celery/Beat dispatch
-due work from PostgreSQL; broker contents are not authoritative reminder storage.
-
-Done when retried jobs do not duplicate notifications, edits/deletions cancel obsolete
-deliveries, owner isolation holds and broker interruption has a documented recovery path.
-Additional channels need separate adapters/contracts, not guessed integrations.
+Delivered owner-scoped versioned CRUD/cancellation, elapsed-UTC-minute triggers,
+durable in-app notifications, idempotent read marking and typed target foreign keys.
+Celery/Beat scans PostgreSQL every 30 seconds in bounded batches, revalidates targets
+and atomically persists one notification per reminder. Edits/deletions cancel obsolete
+work; retries, concurrent sweeps, rollback and broker-gap recovery are covered.
+Additional channels/UI/recurrence require separate requested slices and contracts.
 
 ## 10. P-08 materials and basic search
 

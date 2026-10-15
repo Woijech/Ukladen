@@ -221,6 +221,10 @@ per-user schedule overrides and resolved reads; see
 [Calendar API](docs/development/calendar.md). Calendar UI, free slots and task blocks
 remain unimplemented.
 
+One-shot calendar reminders and durable in-app notifications are implemented,
+backend only; see [reminder API and recovery](docs/development/reminders.md).
+Task/deadline reminders and additional channels remain unimplemented.
+
 ```text
 apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests
 apps/web         Next.js/React/TypeScript shell and browser tests

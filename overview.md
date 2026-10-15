@@ -19,3 +19,5 @@ implementation guides. Nested pages with typed blocks, page/calendar links,
 collections/tags and saved calendar views are implemented, backend only;
 Database/property/record APIs, table/calendar views and nonblocking date projections
 with mixed calendar display are implemented. AI and authenticated IIS remain not implemented.
+One-shot calendar reminders and the durable in-app inbox are implemented, backend only;
+see [reminder contracts](docs/development/reminders.md).

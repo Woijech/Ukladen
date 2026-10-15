@@ -59,6 +59,16 @@ below describe current backend behavior, not the full target feature set.
 
 ## Current runtime
 
+Calendar reminders and durable in-app notifications are implemented, backend only.
+The `reminders` application service authorizes existing calendar targets and owns
+versioned trigger state. `notifications` owns historical inbox records and first-read
+state. Worker delivery uses both services in one transaction after taking the shared
+owner lock; a PostgreSQL delivery key prevents replay duplicates. Migration
+`0018_reminders_notifications` adds typed target associations and the inbox.
+Beat scans due state every 30 seconds independently of schedule synchronization.
+Task/deadline targets and additional channels remain not implemented.
+See [reminder contracts and recovery](../development/reminders.md).
+
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
 The application lifespan creates shared health clients, a SQLAlchemy engine and

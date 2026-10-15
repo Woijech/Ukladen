@@ -113,9 +113,10 @@ External labels remain metadata, not authoritative grouping identities.
 
 ## 7. Tasks, planning and reminders
 
-Status: not implemented.
+Tasks and availability: status not implemented. Calendar reminders and durable
+in-app notifications are implemented, backend only; see [reminder contracts](../development/reminders.md).
 
-Tasks exist independently of subjects and pages. Targets include status, priority,
+Planned tasks exist independently of subjects and pages. Targets include status, priority,
 optional deadline, effort, dependencies, optional links and explicit calendar blocks.
 A deadline and a work block are separate concepts.
 
@@ -123,7 +124,9 @@ Availability considers resolved official occurrences, personal busy events and t
 blocks. Skipped lessons and nonblocking entries do not occupy time; hidden busy
 entries still do. Missing source coverage remains visible in planning results.
 
-Reminders first produce durable in-app notifications. Additional email, Telegram
+Implemented one-shot reminders target personal or authorized official calendar events,
+revalidate their current state and produce durable in-app notifications without duplicates
+on job replay. Task/deadline targets depend on P-06. Additional email, Telegram
 and push channels require their own contracts and delivery decisions.
 
 ## 8. Materials, search and AI
@@ -162,7 +165,8 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 | Saved table views, typed filters/sorts and column selection | Implemented backend |
 | Date-bound calendar views, date moves and mixed calendar display | Implemented backend |
 | Rich/nested blocks and page-page knowledge links | Status: not implemented. |
-| Tasks, availability, reminders and notifications | Status: not implemented. |
+| One-shot calendar reminders and durable in-app notifications | Implemented backend |
+| Tasks, availability and task/deadline reminders | Status: not implemented. |
 | General materials, search, AI and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
 | Workspace/calendar business UI | Status: not implemented. |

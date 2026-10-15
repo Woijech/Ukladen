@@ -19,6 +19,9 @@ before implementing incompatible schemas, integrations or behavior.
   saved calendar views were subsequently requested and implemented. The owner then
   requested P-05 databases/table/calendar views with incremental commits and delegated
   membership/lifecycle choices. This backend slice is implemented under ADR 0007.
+- The owner requested P-07 reminders/notifications with incremental local commits.
+  Existing calendar targets and the durable in-app inbox are implemented; P-06 tasks
+  and additional notification channels are separate future work.
 
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md) records organization.
 [ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md) records AI authorization.
@@ -91,3 +94,11 @@ Calendar binding uses an active date-property UUID, date-only or offset-aware ti
 values and nonblocking projection. Mixed display preserves the existing event API.
 Personal all-day events, recurrence, typed task deadlines and scoped AI execution
 remain later decisions; P-05 does not implement them.
+
+P-07 implementation choices (2026-10-15): one-shot personal/official calendar targets,
+0–43200 elapsed UTC minutes before start, strictly future create/edit, and one durable
+notification per reminder UUID. Moved/skipped/withdrawn/inaccessible targets cancel
+at delivery evaluation; physical event deletion removes its reminders. Broker recovery
+rescans PostgreSQL and catches up only before event end. These are documented slice
+contracts, not owner confirmation of future task, recurrence or external-channel policy.
+See [reminders](../development/reminders.md).

@@ -13,7 +13,7 @@ The Compose project is `ukladen`. Images are `ukladen-backend:local` and
 | --- | --- |
 | `api` | FastAPI/Uvicorn, backend image, non-root user. |
 | `worker` | Celery worker, same backend image, concurrency 2. |
-| `beat` | Celery Beat, same backend image, dispatches due selected-group schedule imports every 60 seconds. |
+| `beat` | Celery Beat, same backend image, scans reminders every 30 seconds and selected-group schedule imports every 60 seconds when enabled. |
 | `web` | Next.js standalone server, non-root user. |
 | `postgres` | PostgreSQL 18 image with pgvector available. |
 | `redis` | Redis 7.4, temporary broker data, no persistent volume. |
@@ -35,8 +35,10 @@ reported locally in DevTools. See [logging](../development/logging.md).
 PostgreSQL and SeaweedFS use separate named volumes. PostgreSQL 18's volume mounts
 at `/var/lib/postgresql`; SeaweedFS's data mounts at `/data`.
 `docker compose down` preserves volumes. Redis is deliberately ephemeral: pending
-broker messages can be lost if its container is recreated. Durable queue recovery
-and idempotent business jobs require design in their own slice.
+broker messages can be lost if its container is recreated. Reminder recovery rescans
+PostgreSQL on the next Beat tick; retries cannot duplicate inbox records. See
+[reminder recovery and expiry rules](../development/reminders.md). Authentication
+email publication recovery remains not implemented.
 
 ## Object Storage
 
@@ -90,7 +92,8 @@ but not digest-pinned. CI is a verification baseline; it does not publish or dep
 
 ## Planned capability use
 
-PostgreSQL/pgvector, Celery and S3 availability does not implement workspace databases,
-document processing, reminders, embeddings or AI. Add jobs/storage contracts only
+Workspace databases and one-shot calendar reminders/in-app notifications are implemented.
+PostgreSQL/pgvector, Celery and S3 availability does not implement
+document processing, embeddings or AI. Add jobs/storage contracts only
 with their [requested slices](../development/implementation-roadmap.md). Private IIS
 requires verified contracts and a connection design; public jobs have no student credentials.

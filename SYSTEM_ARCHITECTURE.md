@@ -51,8 +51,9 @@ optional page/calendar links, collections/tags with typed memberships and saved
 calendar views and recoverable user databases/properties/page-backed records.
 Saved table/calendar database views, date projection and date moves are implemented.
 Additive mixed calendar display is implemented through application query ports.
+One-shot calendar reminders and durable in-app notifications are implemented, backend only.
 Status: not implemented — tasks,
-availability, reminders, general materials, search, AI/RAG and authenticated IIS.
+availability, general materials, search, AI/RAG and authenticated IIS.
 The business frontend is not implemented except browser email verification.
 
 Detailed behavior: [product overview](docs/product/overview.md) and
@@ -537,6 +538,11 @@ task scheduling
 
 ## 5.7 reminders
 
+Status: one-shot reminders for personal and authorized official calendar events are
+implemented, backend only. PostgreSQL owns triggers/state; Celery/Beat performs
+replay-safe due scans and target revalidation. See [reminder contracts](docs/development/reminders.md).
+Task/deadline targets remain not implemented pending P-06. Target capabilities:
+
 ```text
 task reminders
 calendar reminders
@@ -614,6 +620,10 @@ scoped owner-issued automatic-action permissions
 ```
 
 ## 5.14 notifications
+
+Status: durable owner-scoped in-app inbox, first-read marking and atomic reminder
+delivery are implemented, backend only; see [reminder/inbox contracts](docs/development/reminders.md).
+Additional channels remain not implemented. Target capabilities:
 
 ```text
 in-app notifications
@@ -1213,10 +1223,11 @@ Table/calendar database views are implemented under Phase 3.
 
 Implemented, backend only, for user databases: recoverable database/property/page-backed
 record APIs, saved table/calendar views, date projection, versioned date moves and
-additive mixed calendar display. Planning remains not implemented.
+additive mixed calendar display. One-shot calendar reminders and durable in-app
+notifications are also implemented; see [reminders](docs/development/reminders.md).
 See [database delivery status](docs/development/databases.md) and
 [ADR 0007](docs/adr/0007-use-page-backed-database-records.md). Typed tasks,
-availability/conflicts, explicit work blocks and reminders/in-app notifications
+availability/conflicts, explicit work blocks and task/deadline reminders
 remain not implemented.
 Planning can be requested independently of database features.
 

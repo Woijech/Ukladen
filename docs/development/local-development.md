@@ -94,7 +94,9 @@ uv run --env-file ../../.env celery -A app.workers.celery_app:celery_app worker 
 uv run --env-file ../../.env celery -A app.workers.celery_app:celery_app beat --loglevel=INFO --schedule=/tmp/ukladen-beat
 ```
 
-Do not run host Beat together with Compose Beat. There are no periodic business jobs.
+Do not run host Beat together with Compose Beat. Beat dispatches reminder scans every
+30 seconds and selected-group schedule refreshes every 60 seconds when enabled.
+See [reminder contracts and recovery](reminders.md).
 
 ## Checks
 

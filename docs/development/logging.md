@@ -49,6 +49,12 @@ Expected import failures are stored as source state, so `task.finished` can have
 `SUCCESS` while `schedule.sync_finished` has `error` or `unsupported`. Inspect
 the latter or the authenticated `GET /api/v1/schedule/me/sync-status` endpoint.
 
+Reminder dispatch uses the known task name `reminders.dispatch_due` and normal task
+start/finish/retry diagnostics. Fixed `reminders.delivery_failed` and
+`reminders.dispatch_failed` events record safe failure locations without exception
+messages, reminder payloads or event titles. Retried batches may already contain
+successfully committed deliveries; inbox deduplication prevents repeats.
+
 The browser console records fixed JSON events for failed health checks, email
 verification network/API failures, and rendering boundaries. Failed API responses
 include a validated request ID when available. Browser messages, stacks, token

@@ -41,6 +41,7 @@ Planned contracts do not override the current implemented API silently.
 - [Public university reads](development/university-api.md).
 - [Official schedule](development/schedule.md).
 - [Personal calendar](development/calendar.md).
+- [Reminders and in-app notifications](development/reminders.md).
 - [Notes and page hierarchy](development/notes.md).
 - [Workspace collections and tags](development/workspace.md).
 - [Saved calendar views](development/calendar-views.md).
