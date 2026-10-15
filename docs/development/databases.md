@@ -1,9 +1,35 @@
 # User Database Backend
 
 Updated: 2026-10-15.
-Status: P-05 is in progress. Property-value validation and safe conversion rules
-are implemented internally. Persistence, HTTP operations and database views are
-not implemented yet. This guide records each delivered increment separately.
+Status: P-05 is in progress. Database definition CRUD/trash/restore and internal
+property-value validation/conversion rules are implemented. Property/record
+persistence and HTTP operations and database views are not implemented yet.
+This guide records each delivered increment separately.
+
+## Database definitions
+
+Migration `0014_user_databases` adds owner-scoped `workspace_databases`. Definitions
+have name/color, optimistic metadata version, schema version, timestamps and trash
+state. They do not own or delete page content. Schema version starts at 1; property
+operations in the next increment will change it.
+
+Routes under `/api/v1/workspace/databases`:
+
+| Method | Suffix | Behavior |
+| --- | --- | --- |
+| POST | empty | Create with name and optional color |
+| GET | empty | List active definitions; `trashed=true` lists trash |
+| GET | `/{id}` | Read owned metadata, including trash |
+| PATCH | `/{id}` | Edit name/color with `expected_version` |
+| POST | `/{id}/trash` | Recoverable removal with `expected_version` |
+| POST | `/{id}/restore` | Restore with `expected_version` |
+
+Lists use limit 1–200 (default 100), nonnegative bounded offset and creation/UUID
+order. Names/colors, omitted/null PATCH semantics, sessions, CSRF and safe ownership
+errors reuse organization contracts. Writes recheck/lock the canonical active owner.
+Stale versions, editing trash and invalid lifecycle transitions return 409.
+Responses omit owner IDs and use no-store. Downgrade refuses while any database
+definitions exist; an empty-table round trip preserves existing pages and events.
 
 ## Property rules
 
@@ -43,7 +69,7 @@ properties and records will use recoverable trash. Parent database trash will hi
 its contents without changing each child's independent trash state. Removing a
 record never trashes its page. These persistence/API operations remain planned
 until the corresponding increment is delivered.
-The planned persistence/version/lifecycle contract is recorded in
+The persistence/version/lifecycle contract is recorded in
 [ADR 0007](../adr/0007-use-page-backed-database-records.md).
 
 1. Internal property/date validation and conversion rules, with unit tests.
@@ -61,3 +87,9 @@ configuration passed. Property/block unit checks passed (100 tests), and the ful
 backend suite with disposable PostgreSQL/Redis passed: 1303 passed, 1 optional
 native S3 avatar test skipped. Database persistence and view APIs were not part of
 this increment. No running-stack migration, frontend work, deployment or push.
+
+2026-10-15, database definition increment: Ruff, Ruff format, Pyright and Compose
+configuration passed. Native database/workspace/calendar-view compatibility checks
+passed (48 tests), including migration metadata/round trips, refused destructive
+downgrade, isolation, versions, rollback and trash/restore. The full-suite result
+above belongs to the earlier increment and was not rerun for this metadata-only step.

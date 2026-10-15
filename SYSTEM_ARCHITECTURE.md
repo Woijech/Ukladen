@@ -48,8 +48,8 @@ Current backend: authentication, profiles, public IIS reads, official schedule
 storage/sync, personal events, official overrides, resolved calendar reads, standalone
 nested pages with versioned blocks and Markdown compatibility, branch trash and
 optional page/calendar links, collections/tags with typed memberships and saved
-calendar views.
-Status: not implemented — user databases, page/database views, tasks,
+calendar views and recoverable user database definitions.
+Status: not implemented — database properties/records, page/database views, tasks,
 availability, reminders, general materials, search, AI/RAG and authenticated IIS.
 The business frontend is not implemented except browser email verification.
 
@@ -235,7 +235,7 @@ academic profiles
 groups
 optional subjects
 pages, versioned documents, collections, tags, typed memberships and saved calendar views
-planned databases, property values and page/database views
+database definitions; planned property definitions/values, records and database views
 official schedule
 personal schedule overrides
 personal calendar events
@@ -647,8 +647,8 @@ verified contracts. See [IIS roadmap](docs/integrations/bsuir-iis-roadmap.md).
 
 Status: collections, tags, typed memberships, forward/reverse lists and saved calendar views implemented,
 backend only; see [workspace API](docs/development/workspace.md). Own user-controlled
-organization, references and saved calendar-view configuration. Database/property
-schemas/values and page/database views remain not implemented. It does not own
+organization, references, saved calendar-view configuration and recoverable database
+definitions. Property schemas/values, records and page/database views remain not implemented. It does not own
 page bodies, event time or official facts.
 
 Saved calendar views store bounded per-source collection/tag filters, layout,
@@ -1204,8 +1204,12 @@ Page/database views remain future work with user databases.
 
 ## Phase 3 — user databases and planning
 
-Status: not implemented. Typed properties/records and date-bound views; typed tasks,
-availability/conflicts and explicit work blocks; reminders/in-app notifications.
+Status: in progress for user databases: recoverable definitions and property validation
+are implemented; typed property/record APIs and date-bound views remain planned.
+See [database delivery status](docs/development/databases.md) and
+[ADR 0007](docs/adr/0007-use-page-backed-database-records.md). Typed tasks,
+availability/conflicts, explicit work blocks and reminders/in-app notifications
+remain not implemented.
 Planning can be requested independently of database features.
 
 ## Phase 4 — knowledge and retrieval

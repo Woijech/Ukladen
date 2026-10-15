@@ -137,3 +137,32 @@ class CalendarViewModel(Base):
         ),
         Index("ix_workspace_calendar_views_user", "user_id", "created_at", "id"),
     )
+
+
+class DatabaseModel(Base):
+    __tablename__ = "workspace_databases"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(100))
+    color: Mapped[str | None] = mapped_column(String(7))
+    version: Mapped[int] = mapped_column(Integer, server_default="1")
+    schema_version: Mapped[int] = mapped_column(Integer, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    trashed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        UniqueConstraint("id", "user_id", name="uq_workspace_databases_id_user"),
+        CheckConstraint(
+            "char_length(btrim(name)) BETWEEN 1 AND 100 AND name = btrim(name)",
+            name="ck_workspace_databases_name",
+        ),
+        CheckConstraint(
+            "color IS NULL OR color ~ '^#[0-9a-f]{6}$'", name="ck_workspace_databases_color"
+        ),
+        CheckConstraint(
+            "version > 0 AND schema_version > 0", name="ck_workspace_databases_versions"
+        ),
+        Index("ix_workspace_databases_user", "user_id", "trashed_at", "created_at", "id"),
+    )
