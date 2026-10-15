@@ -1,16 +1,20 @@
 from dataclasses import asdict
+from datetime import date, datetime
+from typing import cast
 from uuid import UUID
 
-from sqlalchemy import bindparam, case, delete, or_, select, update
+from sqlalchemy import bindparam, case, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.modules.workspace.application.database_view_ports import RecordReference
+from app.modules.workspace.application.database_view_ports import RecordDate, RecordReference
 from app.modules.workspace.domain.database_views import (
+    CalendarLayout,
     DatabaseQuery,
     DatabaseView,
     PropertyFilter,
+    ViewLayout,
     parse_query,
     query_value,
 )
@@ -31,6 +35,9 @@ def view_entity(row: DatabaseViewModel) -> DatabaseView:
         version=row.version,
         created_at=row.created_at,
         updated_at=row.updated_at,
+        layout=cast(ViewLayout, row.layout),
+        date_property_id=row.date_property_id,
+        calendar_layout=cast(CalendarLayout | None, row.calendar_layout),
     )
 
 
@@ -106,6 +113,14 @@ class SqlAlchemyDatabaseViews:
     def __init__(self, session: Session) -> None:
         self.session = session
 
+    def get_owned(self, user_id: UUID, view_id: UUID) -> DatabaseView | None:
+        row = self.session.scalar(
+            select(DatabaseViewModel)
+            .where(DatabaseViewModel.user_id == user_id, DatabaseViewModel.id == view_id)
+            .execution_options(populate_existing=True)
+        )
+        return view_entity(row) if row else None
+
     def get(self, user_id: UUID, database_id: UUID, view_id: UUID) -> DatabaseView | None:
         row = self.session.scalar(
             select(DatabaseViewModel)
@@ -169,13 +184,13 @@ class SqlAlchemyDatabaseViews:
         if result is None:
             raise WorkspaceConflict()
 
-    def candidates(
-        self,
+    @staticmethod
+    def candidate_statement(
         user_id: UUID,
         database_id: UUID,
         query: DatabaseQuery,
         definitions: list[DatabaseProperty],
-    ) -> list[RecordReference]:
+    ):
         properties = {item.id: item for item in definitions}
         statement = select(DatabaseRecordModel.id, DatabaseRecordModel.page_id).where(
             DatabaseRecordModel.user_id == user_id,
@@ -189,13 +204,55 @@ class SqlAlchemyDatabaseViews:
             statement = statement.order_by(
                 (expression.desc() if sort.direction == "desc" else expression.asc()).nulls_last()
             )
-        statement = statement.order_by(
-            DatabaseRecordModel.created_at, DatabaseRecordModel.id
-        ).limit(10001)
+        return statement.order_by(DatabaseRecordModel.created_at, DatabaseRecordModel.id).limit(
+            10001
+        )
+
+    def candidates(
+        self,
+        user_id: UUID,
+        database_id: UUID,
+        query: DatabaseQuery,
+        definitions: list[DatabaseProperty],
+    ) -> list[RecordReference]:
+        statement = self.candidate_statement(user_id, database_id, query, definitions)
         return [
             RecordReference(identifier, page_id)
             for identifier, page_id in self.session.execute(statement)
         ]
+
+    def dates(
+        self,
+        user_id: UUID,
+        view: DatabaseView,
+        definitions: list[DatabaseProperty],
+        date_from: date,
+        date_to: date,
+        starts_at: datetime,
+        ends_at: datetime,
+    ) -> list[RecordDate]:
+        value = DatabaseRecordModel.values[str(view.date_property_id)]
+        start, end = value["start"].as_string(), value["end"].as_string()
+        overlap = (
+            (value["kind"].as_string() == "date")
+            & (start <= date_to.isoformat())
+            & (func.coalesce(end, start) >= date_from.isoformat())
+        ) | (
+            (value["kind"].as_string() == "datetime")
+            & (start < ends_at.isoformat())
+            & ((end > starts_at.isoformat()) | (end.is_(None) & (start >= starts_at.isoformat())))
+        )
+        statement = (
+            self.candidate_statement(user_id, view.database_id, view.query, definitions)
+            .with_only_columns(
+                DatabaseRecordModel.id,
+                DatabaseRecordModel.page_id,
+                DatabaseRecordModel.version,
+                value,
+            )
+            .where(overlap)
+        )
+        return [RecordDate(*row) for row in self.session.execute(statement)]
 
     def records(
         self, user_id: UUID, database_id: UUID, record_ids: tuple[UUID, ...]

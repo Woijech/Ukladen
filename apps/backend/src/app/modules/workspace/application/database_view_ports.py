@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date, datetime
 from typing import Protocol
 from uuid import UUID
 
@@ -12,7 +13,16 @@ class RecordReference:
     page_id: UUID
 
 
+@dataclass(frozen=True)
+class RecordDate:
+    id: UUID
+    page_id: UUID
+    version: int
+    value: object
+
+
 class DatabaseViewRepository(Protocol):
+    def get_owned(self, user_id: UUID, view_id: UUID) -> DatabaseView | None: ...
     def get(self, user_id: UUID, database_id: UUID, view_id: UUID) -> DatabaseView | None: ...
     def list(
         self, user_id: UUID, database_id: UUID, limit: int, offset: int
@@ -30,3 +40,13 @@ class DatabaseViewRepository(Protocol):
     def records(
         self, user_id: UUID, database_id: UUID, record_ids: tuple[UUID, ...]
     ) -> list[DatabaseRecord]: ...
+    def dates(
+        self,
+        user_id: UUID,
+        view: DatabaseView,
+        definitions: list[DatabaseProperty],
+        date_from: date,
+        date_to: date,
+        starts_at: datetime,
+        ends_at: datetime,
+    ) -> list[RecordDate]: ...

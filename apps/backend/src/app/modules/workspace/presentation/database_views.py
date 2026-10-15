@@ -12,13 +12,18 @@ from app.modules.auth.presentation.dependencies import (
     get_current_session,
     require_csrf,
 )
+from app.modules.calendar.presentation.record_dates import RecordDateResponse
+from app.modules.calendar.presentation.schemas import CalendarDate
+from app.modules.users.presentation.routes import Profiles
+from app.modules.workspace.application.database_calendar import DatabaseCalendarService
 from app.modules.workspace.application.database_views import DatabaseViewService
-from app.modules.workspace.domain.database_views import FilterOperator
+from app.modules.workspace.domain.database_views import CalendarLayout, FilterOperator, ViewLayout
 from app.modules.workspace.domain.organization import InvalidWorkspaceInput
 from app.modules.workspace.infrastructure.database_views import SqlAlchemyDatabaseViews
 from app.modules.workspace.presentation.database_content import Content
 from app.modules.workspace.presentation.database_schemas import (
     PropertyResponse,
+    PropertyVersionRequest,
     RecordResultResponse,
     SchemaVersionRequest,
 )
@@ -55,11 +60,16 @@ class QuerySchema(BaseModel):
 
 class ViewCreate(OrganizationCreate, SchemaVersionRequest):
     query: QuerySchema = Field(default_factory=QuerySchema)
+    layout: ViewLayout = "table"
+    date_property_id: UUID | None = None
+    calendar_layout: CalendarLayout | None = None
 
 
 class ViewPatch(OrganizationPatch):
     expected_schema_version: int = Field(ge=1, le=2**31 - 2, strict=True)
     query: QuerySchema | None = None
+    date_property_id: UUID | None = None
+    calendar_layout: CalendarLayout | None = None
 
     @model_validator(mode="after")
     def validate_view_changes(self) -> Self:
@@ -76,7 +86,9 @@ class ViewResponse(OrganizationCreate):
     id: UUID
     database_id: UUID
     query: QuerySchema
-    layout: Literal["table"]
+    layout: ViewLayout
+    date_property_id: UUID | None
+    calendar_layout: CalendarLayout | None
     version: int
     created_at: AwareDatetime
     updated_at: AwareDatetime
@@ -97,6 +109,17 @@ class TableResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class CalendarEntriesResponse(BaseModel):
+    view: ViewResponse
+    entries: list[RecordDateResponse]
+    timezone: str
+
+
+class MoveDateRequest(PropertyVersionRequest):
+    property_id: UUID
+    date: dict[str, object]
 
 
 def get_views(database: Database, content: Content) -> DatabaseViewService:
@@ -209,4 +232,60 @@ def table_records(
         "workspace.database_view_queried",
         extra={"user_id": str(current.user_id), "record_count": len(response.items)},
     )
+    return response
+
+
+@router.get("/{view_id}/entries", response_model=CalendarEntriesResponse)
+def calendar_entries(
+    database_id: UUID,
+    view_id: UUID,
+    current: CurrentSession,
+    database: Database,
+    views: Views,
+    profiles: Profiles,
+    date_from: CalendarDate,
+    date_to: CalendarDate,
+) -> CalendarEntriesResponse:
+    with database.begin():
+        database.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+        view = views.get(current.user_id, database_id, view_id)
+        timezone = profiles.get(current.user_id).timezone
+        entries = DatabaseCalendarService(views).entries(
+            current.user_id, view_id, date_from, date_to, timezone
+        )
+        return CalendarEntriesResponse(
+            view=ViewResponse.model_validate(view),
+            entries=[RecordDateResponse.model_validate(item) for item in entries],
+            timezone=timezone,
+        )
+
+
+@router.patch(
+    "/{view_id}/entries/{record_id}",
+    response_model=RecordResultResponse,
+    dependencies=[Depends(require_csrf)],
+)
+def move_record_date(
+    database_id: UUID,
+    view_id: UUID,
+    record_id: UUID,
+    payload: MoveDateRequest,
+    current: CurrentSession,
+    database: Database,
+    views: Views,
+) -> RecordResultResponse:
+    with database.begin():
+        response = RecordResultResponse.model_validate(
+            DatabaseCalendarService(views).move(
+                current.user_id,
+                database_id,
+                view_id,
+                record_id,
+                payload.property_id,
+                payload.expected_version,
+                payload.expected_schema_version,
+                payload.date,
+            )
+        )
+    logger.info("workspace.database_record_date_moved", extra={"user_id": str(current.user_id)})
     return response

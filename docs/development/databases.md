@@ -3,7 +3,8 @@
 Updated: 2026-10-15.
 Status: P-05 is in progress. Database/property/page-backed record APIs, recoverable
 trash, typed value validation/conversions and saved table views are implemented.
-Calendar database views and date projection are not implemented yet.
+Date-bound calendar views, projection and date moves are implemented; mixed display
+with official/personal events is the remaining P-05 increment.
 This guide records each delivered increment separately.
 
 ## Database definitions
@@ -52,8 +53,7 @@ Dates are discriminated objects: `{"kind":"date","start":"2026-10-20","end":null
 or `{"kind":"datetime","start":"2026-10-20T12:00:00+03:00","end":null}`.
 Date-only values retain their date, including inclusive optional end dates. Timed
 values require explicit offsets, normalize to UTC and have a strictly later optional
-end. A missing end means a single date or instant. Calendar projection is not
-implemented yet; these values do not reserve busy time.
+end. A missing end means a single date or instant. Calendar projection preserves these values; they do not reserve busy time.
 
 Safe conversions support text/URL after URL validation and select/multi-select
 when no selected option is lost. Other populated type changes, removal of used
@@ -113,7 +113,7 @@ Database trash hides operations on its contents with 409 and preserves each chil
 independent state. Restore the database before restoring/editing children. Record
 reference reads retain page trash metadata; adding/editing/restoring a record requires
 an active page. Table content queries omit trashed pages before pagination;
-calendar projection remains planned.
+calendar projection also omits trashed pages.
 Multi-module reads use one repeatable-read snapshot.
 
 `GET /api/v1/workspace/pages/{page_id}/database-records` lists a page's active records
@@ -138,7 +138,7 @@ Routes under `/api/v1/workspace/databases/{database_id}/views`:
 | DELETE | `/{id}?expected_version=N` | Remove settings only |
 | GET | `/{id}/records` | Return selected properties, matching records, schema version and total/limit/offset |
 
-Current layout is `table`. Query settings have strict integer `version: 1`, at most
+The default layout is `table`; calendar views reuse the same query contract. Query settings have strict integer `version: 1`, at most
 100 column IDs, 20 AND-combined filters and 3 distinct sort fields, within 64 KiB.
 `columns: null` automatically shows all active properties in their schema order;
 an explicit list fixes order/selection, and `[]` produces title-only rows. The page
@@ -177,6 +177,39 @@ preserves records, schemas, pages and event busy state. Database trash requires
 restoring the database before querying its views. Migration downgrade refuses to
 drop retained view settings; empty-table round trips preserve canonical content.
 
+## Date-bound calendar views
+
+Migration `0017_database_calendar_views` adds calendar layout and an owned composite
+foreign key to the chosen property. Create a view with `layout: "calendar"`, an
+explicit active `date_property_id` and optional `calendar_layout` (`day`, `week`,
+`month`, default `week`). A table has neither calendar field. Layout kind is immutable;
+create another view over the same records for a different layout. PATCH may change
+binding or calendar preference with view/schema versions. Property renaming preserves
+binding; trash or incompatible type changes require explicit repair (409 on query).
+
+`GET /api/v1/workspace/databases/{database_id}/views/{view_id}/entries` takes
+`date_from`/`date_to` inclusive dates, covering at most 366 days in the current user
+profile timezone. It applies saved filters/sorts and excludes undated, trashed record,
+page and database content. Date-only values retain inclusive date ends. Timed ranges
+use half-open overlap; a missing end is an instant, including the start of the window
+and excluding its end. DST boundaries follow the user's IANA timezone.
+
+Entries retain a discriminated date payload and `source: "record_date"`, with
+`blocks_time: false`. Identity is `record_date:{record_id}:{property_id}`. The entry
+carries database, page, record and property IDs plus record/schema versions, without
+page body or unrelated values. SQL loads only matching references and the bound date;
+notes metadata and workspace values share one repeatable-read snapshot.
+
+`PATCH .../views/{view_id}/entries/{record_id}` accepts `property_id`, `date`,
+`expected_version` (record) and `expected_schema_version`. It rechecks the current
+binding under the owner lock and delegates to the normal record-value operation.
+A stale binding cannot move a different property. Page content and personal events
+are untouched; projection never creates an event or reserves time. Clear a date with
+the ordinary record PATCH. Table queries on calendar views return 409.
+
+Downgrade to 0016 refuses retained calendar views. Table-only settings survive the
+column removal and upgrade without changes.
+
 ## Delivery order
 
 Lifecycle selected under the owner's 2026-10-15 delegation: a page may participate
@@ -184,7 +217,8 @@ in several databases, sharing its body and keeping values per record. Databases,
 properties and records use recoverable trash. Parent database trash hides
 its contents without changing each child's independent trash state. Removing a
 record never trashes its page. These persistence/API operations are implemented;
-saved table views are also implemented. Calendar views and projection remain planned.
+saved table/calendar views and date projection are also implemented. Mixed display
+composition remains planned.
 The persistence/version/lifecycle contract is recorded in
 [ADR 0007](../adr/0007-use-page-backed-database-records.md).
 
@@ -223,3 +257,9 @@ including typed filters, literal text matching, stable sorting, page-trash-aware
 pagination, one-snapshot metadata reads, permissions, SQL constraints, query version
 checks and preserving/refused downgrades. Calendar database views/projection remain
 planned. No frontend changes, running-stack migration, deployment or push.
+
+2026-10-15, date-bound calendar increment: Ruff, Ruff format, Pyright and Compose
+configuration passed. Native calendar/table/migration checks passed (12 tests),
+including DST overlap, date-only ranges, instant/interval boundaries, schema/record/
+binding conflicts, owner/CSRF checks, trash and preserving/refused downgrades.
+Mixed display composition is not implemented in this increment.

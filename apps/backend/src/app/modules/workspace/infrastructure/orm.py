@@ -263,6 +263,8 @@ class DatabaseViewModel(Base):
     name: Mapped[str] = mapped_column(String(100))
     color: Mapped[str | None] = mapped_column(String(7))
     layout: Mapped[str] = mapped_column(String(16), server_default="table")
+    date_property_id: Mapped[UUID | None] = mapped_column()
+    calendar_layout: Mapped[str | None] = mapped_column(String(8))
     query: Mapped[dict[str, object]] = mapped_column(JSONB)
     version: Mapped[int] = mapped_column(Integer, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -282,7 +284,21 @@ class DatabaseViewModel(Base):
         CheckConstraint(
             "color IS NULL OR color ~ '^#[0-9a-f]{6}$'", name="ck_database_views_color"
         ),
-        CheckConstraint("layout = 'table'", name="ck_database_views_layout"),
+        ForeignKeyConstraint(
+            ["date_property_id", "database_id", "user_id"],
+            [
+                "workspace_database_properties.id",
+                "workspace_database_properties.database_id",
+                "workspace_database_properties.user_id",
+            ],
+            name="fk_database_views_date_property",
+        ),
+        CheckConstraint(
+            "(layout = 'table' AND date_property_id IS NULL AND calendar_layout IS NULL) OR "
+            "(layout = 'calendar' AND date_property_id IS NOT NULL AND "
+            "calendar_layout IS NOT NULL AND calendar_layout IN ('day', 'week', 'month'))",
+            name="ck_database_views_layout",
+        ),
         CheckConstraint("version > 0", name="ck_database_views_version"),
         CheckConstraint(
             "jsonb_typeof(query) = 'object' AND octet_length(query::text) <= 65536 "

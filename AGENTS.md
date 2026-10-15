@@ -108,7 +108,7 @@ Main backend modules:
 and recoverable databases/properties/page-backed records
 under ADR 0004; see `docs/development/workspace.md` and
 `docs/development/calendar-views.md` and `docs/development/databases.md`.
-Saved table views are implemented; calendar database views/date projection remain not implemented.
+Saved table/calendar database views and date projection are implemented; mixed display composition remains planned.
 A package marker does not count as a feature.
 
 ### Workspace product invariants

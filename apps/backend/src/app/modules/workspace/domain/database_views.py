@@ -13,6 +13,25 @@ FilterOperator = Literal[
     "eq", "neq", "contains", "gt", "gte", "lt", "lte", "is_empty", "is_not_empty"
 ]
 FILTER_OPERATORS = ("eq", "neq", "contains", "gt", "gte", "lt", "lte", "is_empty", "is_not_empty")
+ViewLayout = Literal["table", "calendar"]
+CalendarLayout = Literal["day", "week", "month"]
+
+
+def validate_binding(
+    layout: ViewLayout,
+    date_property_id: UUID | None,
+    calendar_layout: CalendarLayout | None,
+    definitions: list[DatabaseProperty],
+) -> None:
+    if layout == "table" and date_property_id is None and calendar_layout is None:
+        return
+    if layout == "calendar" and calendar_layout in ("day", "week", "month"):
+        if any(
+            item.id == date_property_id and item.kind == "date" and item.trashed_at is None
+            for item in definitions
+        ):
+            return
+    raise InvalidWorkspaceInput()
 
 
 @dataclass(frozen=True)
@@ -156,4 +175,6 @@ class DatabaseView:
     version: int
     created_at: datetime
     updated_at: datetime
-    layout: Literal["table"] = "table"
+    layout: ViewLayout = "table"
+    date_property_id: UUID | None = None
+    calendar_layout: CalendarLayout | None = None

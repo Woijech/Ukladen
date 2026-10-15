@@ -4,7 +4,14 @@ from uuid import UUID, uuid4
 
 from app.modules.workspace.application.database_content import DatabaseContentService, RecordResult
 from app.modules.workspace.application.database_view_ports import DatabaseViewRepository
-from app.modules.workspace.domain.database_views import DatabaseView, query_value, validate_query
+from app.modules.workspace.domain.database_views import (
+    CalendarLayout,
+    DatabaseView,
+    ViewLayout,
+    query_value,
+    validate_binding,
+    validate_query,
+)
 from app.modules.workspace.domain.databases import DatabaseProperty
 from app.modules.workspace.domain.organization import (
     InvalidWorkspaceInput,
@@ -54,12 +61,18 @@ class DatabaseViewService:
         name: str,
         color: str | None = None,
         query: object = None,
+        layout: ViewLayout = "table",
+        date_property_id: UUID | None = None,
+        calendar_layout: CalendarLayout | None = None,
     ) -> DatabaseView:
         _, definitions = self.content.schema(
             user_id, database_id, expected_schema_version=expected_schema_version, write=True
         )
         name, color = organization_values(name, color)
         normalized = validate_query({} if query is None else query, definitions)
+        if layout == "calendar" and calendar_layout is None:
+            calendar_layout = "week"
+        validate_binding(layout, date_property_id, calendar_layout, definitions)
         now = self.now()
         view = DatabaseView(
             id=uuid4(),
@@ -71,6 +84,9 @@ class DatabaseViewService:
             version=1,
             created_at=now,
             updated_at=now,
+            layout=layout,
+            date_property_id=date_property_id,
+            calendar_layout=calendar_layout,
         )
         self.repository.create(view)
         return view
@@ -89,7 +105,13 @@ class DatabaseViewService:
         )
         view = self.get(user_id, database_id, view_id)
         require_version(view.version, expected_version)
-        if not changes or changes.keys() - {"name", "color", "query"}:
+        if not changes or changes.keys() - {
+            "name",
+            "color",
+            "query",
+            "date_property_id",
+            "calendar_layout",
+        }:
             raise InvalidWorkspaceInput()
         name, color = organization_values(
             changes.get("name", view.name), changes.get("color", view.color)
@@ -102,6 +124,11 @@ class DatabaseViewService:
             query=query,
             version=view.version + 1,
             updated_at=self.now(),
+            date_property_id=changes.get("date_property_id", view.date_property_id),
+            calendar_layout=changes.get("calendar_layout", view.calendar_layout),
+        )
+        validate_binding(
+            updated.layout, updated.date_property_id, updated.calendar_layout, definitions
         )
         self.repository.save(updated, expected_version)
         return updated
@@ -120,6 +147,8 @@ class DatabaseViewService:
         pagination(limit, offset)
         view = self.get(user_id, database_id, view_id)
         database, definitions = self.content.schema(user_id, database_id)
+        if view.layout != "table":
+            raise WorkspaceConflict()
         try:
             query = validate_query(query_value(view.query), definitions)
         except InvalidWorkspaceInput:
