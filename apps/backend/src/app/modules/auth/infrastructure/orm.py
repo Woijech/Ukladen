@@ -94,3 +94,33 @@ class OneTimeTokenModel(Base):
         CheckConstraint("token_hash ~ '^[0-9a-f]{64}$'", name="ck_auth_one_time_tokens_hash"),
         CheckConstraint("expires_at > created_at", name="ck_auth_one_time_tokens_expiry"),
     )
+
+
+class GoogleEmailConfirmationModel(Base):
+    __tablename__ = "auth_google_email_confirmations"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(CHAR(64), unique=True)
+    subject: Mapped[str] = mapped_column(String(255))
+    email: Mapped[str] = mapped_column(String(320))
+    canonical_email: Mapped[str] = mapped_column(String(320))
+    browser_token_hash: Mapped[str] = mapped_column(CHAR(64))
+    password_fingerprint: Mapped[str] = mapped_column(CHAR(64))
+    session_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("auth_sessions.id", ondelete="CASCADE")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint("token_hash ~ '^[0-9a-f]{64}$'", name="ck_google_email_token_hash"),
+        CheckConstraint(
+            "browser_token_hash ~ '^[0-9a-f]{64}$'", name="ck_google_email_browser_hash"
+        ),
+        CheckConstraint(
+            "password_fingerprint ~ '^[0-9a-f]{64}$'", name="ck_google_email_password_hash"
+        ),
+        CheckConstraint("expires_at > created_at", name="ck_google_email_expiry"),
+    )

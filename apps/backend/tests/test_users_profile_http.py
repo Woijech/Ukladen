@@ -180,7 +180,7 @@ def snapshot(engine: Engine) -> dict[str, list[dict[str, object]]]:
         }
 
 
-def test_live_google_only_profile_without_credentials(
+def test_live_google_profile_requires_password_setup(
     live_client: TestClient, concurrent_engine: Engine
 ) -> None:
     token = generate_token()
@@ -200,6 +200,21 @@ def test_live_google_only_profile_without_credentials(
         )
     live_client.cookies.set(SESSION_COOKIE, token)
     before = snapshot(concurrent_engine)
+    assert live_client.get(URL).status_code == 403
+    assert (
+        live_client.patch(URL, headers=csrf_headers(live_client), json={"locale": "en"}).status_code
+        == 403
+    )
+    assert snapshot(concurrent_engine) == before
+    assert (
+        live_client.post(
+            "/api/v1/auth/registration/password",
+            headers=csrf_headers(live_client),
+            json={"password": "completed-google-password"},
+        ).status_code
+        == 204
+    )
+    before = snapshot(concurrent_engine)
     response = live_client.get(URL)
     assert response.status_code == 200
     profile = response.json()
@@ -208,8 +223,8 @@ def test_live_google_only_profile_without_credentials(
     response = live_client.patch(URL, headers=csrf_headers(live_client), json={"locale": "en"})
     assert response.status_code == 200 and response.json()["locale"] == "en"
     after = snapshot(concurrent_engine)
-    assert after["auth_credentials"] == []
-    for table in ("auth_identities", "auth_sessions", "auth_one_time_tokens"):
+    assert len(after["auth_credentials"]) == 1
+    for table in ("auth_credentials", "auth_identities", "auth_sessions", "auth_one_time_tokens"):
         assert after[table] == before[table]
 
 
@@ -239,7 +254,7 @@ def test_live_profile_persistence_ownership_and_auth_preservation(
     assert response.status_code == 200 and set(response.json()) == FIELDS
     profile = response.json()
     assert (profile["display_name"], profile["timezone"], profile["locale"]) == (None, "UTC", "ru")
-    assert profile["email_verified_at"] is None
+    assert profile["email_verified_at"] is not None
     assert datetime.fromisoformat(profile["created_at"]).utcoffset() is not None
     assert snapshot(concurrent_engine) == initial
     headers = csrf_headers(live_client)

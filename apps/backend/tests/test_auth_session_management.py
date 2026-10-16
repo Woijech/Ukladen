@@ -39,7 +39,7 @@ from app.modules.auth.domain.errors import SessionNotFound
 from app.modules.auth.infrastructure.orm import SessionModel
 from app.modules.auth.infrastructure.repository import SqlAlchemySessionRepository
 from app.modules.auth.infrastructure.token_service import generate_token, hash_token
-from app.modules.auth.presentation.dependencies import get_current_session
+from app.modules.auth.presentation.dependencies import get_current_session, get_registration_session
 from app.modules.users.infrastructure.orm import UserModel
 
 
@@ -134,6 +134,7 @@ def test_session_management_requires_authentication(
     client: TestClient, application: FastAPI, sessions: Mock, method: str
 ) -> None:
     application.dependency_overrides.pop(get_current_session)
+    application.dependency_overrides.pop(get_registration_session, None)
     path = "/api/v1/auth/sessions" + (f"/{uuid4()}" if method == "delete" else "")
     response = client.request(method, path, headers=csrf_headers(client))
     assert response.status_code == 401

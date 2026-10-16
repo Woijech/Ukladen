@@ -2,14 +2,20 @@ from datetime import UTC, datetime
 from ipaddress import ip_address
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.modules.auth.domain.entities import AuthSession, OneTimeToken, TokenType
+from app.modules.auth.domain.entities import (
+    AuthSession,
+    GoogleEmailConfirmation,
+    OneTimeToken,
+    TokenType,
+)
 from app.modules.auth.domain.errors import InvalidExternalIdentity
 from app.modules.auth.infrastructure.orm import (
     CredentialModel,
+    GoogleEmailConfirmationModel,
     IdentityModel,
     OneTimeTokenModel,
     SessionModel,
@@ -35,6 +41,9 @@ class SqlAlchemyGoogleIdentityRepository:
             is not None
         )
 
+    def remove_for_user(self, user_id: UUID) -> None:
+        self.session.execute(delete(IdentityModel).where(IdentityModel.user_id == user_id))
+
     def create(self, user_id: UUID, subject: str, email: str, created_at: datetime) -> None:
         identity_id = self.session.scalar(
             insert(IdentityModel)
@@ -53,6 +62,69 @@ class SqlAlchemyGoogleIdentityRepository:
         )
         if identity_id is None:
             raise InvalidExternalIdentity("Google identity could not be resolved.")
+
+
+class SqlAlchemyGoogleEmailConfirmationRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def create(self, record: GoogleEmailConfirmation) -> None:
+        token = record.token
+        self.session.add(
+            GoogleEmailConfirmationModel(
+                id=token.id,
+                user_id=token.user_id,
+                token_hash=token.token_hash,
+                created_at=token.created_at,
+                expires_at=token.expires_at,
+                used_at=token.used_at,
+                subject=record.subject,
+                email=record.email,
+                canonical_email=record.canonical_email,
+                browser_token_hash=record.browser_token_hash,
+                password_fingerprint=record.password_fingerprint,
+                session_id=record.session_id,
+            )
+        )
+        self.session.flush()
+
+    def get_by_token_hash(self, token_hash: str) -> GoogleEmailConfirmation | None:
+        row = self.session.scalar(
+            select(GoogleEmailConfirmationModel)
+            .where(
+                GoogleEmailConfirmationModel.token_hash == token_hash,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if row is None:
+            return None
+        return GoogleEmailConfirmation(
+            token=OneTimeToken(
+                id=row.id,
+                user_id=row.user_id,
+                token_type=TokenType.EMAIL_VERIFICATION,
+                token_hash=row.token_hash,
+                created_at=row.created_at,
+                expires_at=row.expires_at,
+                used_at=row.used_at,
+            ),
+            subject=row.subject,
+            email=row.email,
+            canonical_email=row.canonical_email,
+            browser_token_hash=row.browser_token_hash,
+            password_fingerprint=row.password_fingerprint,
+            session_id=row.session_id,
+        )
+
+    def mark_used(self, token_id: UUID, used_at: datetime) -> None:
+        self.session.execute(
+            update(GoogleEmailConfirmationModel)
+            .where(
+                GoogleEmailConfirmationModel.id == token_id,
+            )
+            .values(used_at=used_at)
+        )
 
 
 class SqlAlchemyCredentialRepository:

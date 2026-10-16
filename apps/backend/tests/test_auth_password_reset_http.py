@@ -37,7 +37,11 @@ from app.modules.auth.domain.errors import InvalidOneTimeToken, InvalidPassword
 from app.modules.auth.infrastructure.orm import CredentialModel, OneTimeTokenModel, SessionModel
 from app.modules.auth.infrastructure.request_protection import RedisRateLimiter
 from app.modules.auth.infrastructure.token_service import generate_token, hash_token
-from app.modules.auth.presentation.dependencies import get_current_session, get_password_recovery
+from app.modules.auth.presentation.dependencies import (
+    get_current_session,
+    get_password_recovery,
+    get_registration_session,
+)
 from app.modules.auth.presentation.schemas import PasswordResetConfirmationRequest
 from app.modules.users.infrastructure.orm import UserModel
 
@@ -55,6 +59,7 @@ def reset_service() -> Mock:
 def reset_client(client: TestClient, application: FastAPI, reset_service: Mock) -> TestClient:
     application.dependency_overrides[get_password_recovery] = lambda: reset_service
     application.dependency_overrides.pop(get_current_session)
+    application.dependency_overrides.pop(get_registration_session, None)
     return client
 
 
@@ -234,7 +239,7 @@ def test_live_reset_revokes_owned_sessions_and_allows_new_password_login(
         assert token and token.used_at
         assert credential and credential.password_updated_at == token.used_at
         assert credential.password_hash != password_hash
-        assert user and user.email_verified_at is None and user.status == "active"
+        assert user and user.email_verified_at is not None and user.status == "active"
         for session in database.scalars(select(SessionModel)):
             assert (session.revoked_at is not None) == (session.user_id == user_id)
     for session_token in (first, current):
@@ -266,7 +271,6 @@ def test_live_reset_revokes_owned_sessions_and_allows_new_password_login(
         "used",
         "wrong_type",
         "disabled",
-        "no_credential",
         "policy",
     ],
 )

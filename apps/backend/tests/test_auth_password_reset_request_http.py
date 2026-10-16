@@ -46,6 +46,7 @@ from app.modules.auth.presentation.dependencies import (
     get_current_session,
     get_email_sender,
     get_password_recovery,
+    get_registration_session,
 )
 from app.modules.users.infrastructure.orm import UserModel
 
@@ -74,6 +75,7 @@ def request_client(
     application.dependency_overrides[get_password_recovery] = lambda: reset_service
     application.dependency_overrides[get_email_sender] = lambda: email_sender
     application.dependency_overrides.pop(get_current_session)
+    application.dependency_overrides.pop(get_registration_session, None)
     return client
 
 
@@ -309,10 +311,10 @@ def test_live_request_has_identical_responses_for_every_account_outcome(
     assert response.headers["cache-control"] == "no-store" and "set-cookie" not in response.headers
     assert live_request_client.cookies.get(SESSION_COOKIE) == session_token
     fake: FakeEmailSender = cast(FastAPI, live_request_client.app).state.email_sender
-    assert len(fake.messages) == (1 if state == "eligible" else 0)
+    assert len(fake.messages) == (1 if state in {"eligible", "no_credential"} else 0)
     with Session(concurrent_engine) as database:
         tokens = list(database.scalars(select(OneTimeTokenModel)))
-        assert len(tokens) == (1 if state == "eligible" else 0)
+        assert len(tokens) == (1 if state in {"eligible", "no_credential"} else 0)
         assert all(session.revoked_at is None for session in database.scalars(select(SessionModel)))
         if tokens:
             message = fake.messages[0]

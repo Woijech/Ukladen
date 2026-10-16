@@ -5,6 +5,7 @@ import ssl
 from collections import deque
 from email.message import EmailMessage as SmtpMessage
 from email.utils import formatdate, make_msgid
+from enum import StrEnum
 from html import escape
 from urllib.parse import urlencode
 
@@ -15,15 +16,20 @@ from app.core.config import Settings
 from app.core.logging import log_failure
 from app.modules.auth.application.ports import EmailDeliveryUnavailable
 from app.modules.auth.application.registration import normalize_email
-from app.modules.auth.domain.entities import TokenType
 
 logger = logging.getLogger(__name__)
+
+
+class EmailKind(StrEnum):
+    EMAIL_VERIFICATION = "email_verification"
+    PASSWORD_RESET = "password_reset"
+    GOOGLE_LINK = "google_link"
 
 
 class EmailMessage(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
 
-    kind: TokenType
+    kind: EmailKind
     email: str = Field(min_length=1, max_length=320)
     token: SecretStr = Field(min_length=43, max_length=43, repr=False)
 
@@ -48,12 +54,15 @@ class FakeEmailSender:
         self.messages: deque[EmailMessage] = deque(maxlen=100)
 
     def send_email_verification(self, email: str, token: str) -> None:
-        self._record(TokenType.EMAIL_VERIFICATION, email, token)
+        self._record(EmailKind.EMAIL_VERIFICATION, email, token)
 
     def send_password_reset(self, email: str, token: str) -> None:
-        self._record(TokenType.PASSWORD_RESET, email, token)
+        self._record(EmailKind.PASSWORD_RESET, email, token)
 
-    def _record(self, kind: TokenType, email: str, token: str) -> None:
+    def send_google_link_confirmation(self, email: str, token: str) -> None:
+        self._record(EmailKind.GOOGLE_LINK, email, token)
+
+    def _record(self, kind: EmailKind, email: str, token: str) -> None:
         try:
             message = EmailMessage.model_validate({"kind": kind, "email": email, "token": token})
             if message not in self.messages:
@@ -71,12 +80,15 @@ class CeleryEmailSender:
         self.settings = settings
 
     def send_email_verification(self, email: str, token: str) -> None:
-        self._enqueue(TokenType.EMAIL_VERIFICATION, email, token)
+        self._enqueue(EmailKind.EMAIL_VERIFICATION, email, token)
 
     def send_password_reset(self, email: str, token: str) -> None:
-        self._enqueue(TokenType.PASSWORD_RESET, email, token)
+        self._enqueue(EmailKind.PASSWORD_RESET, email, token)
 
-    def _enqueue(self, kind: TokenType, email: str, token: str) -> None:
+    def send_google_link_confirmation(self, email: str, token: str) -> None:
+        self._enqueue(EmailKind.GOOGLE_LINK, email, token)
+
+    def _enqueue(self, kind: EmailKind, email: str, token: str) -> None:
         try:
             if (
                 self.settings.auth_email_delivery_mode not in ("fake", "smtp")
@@ -109,12 +121,15 @@ class SmtpEmailSender:
         self.settings = settings
 
     def send_email_verification(self, email: str, token: str) -> None:
-        self._send(TokenType.EMAIL_VERIFICATION, email, token)
+        self._send(EmailKind.EMAIL_VERIFICATION, email, token)
 
     def send_password_reset(self, email: str, token: str) -> None:
-        self._send(TokenType.PASSWORD_RESET, email, token)
+        self._send(EmailKind.PASSWORD_RESET, email, token)
 
-    def _send(self, kind: TokenType, email: str, token: str) -> None:
+    def send_google_link_confirmation(self, email: str, token: str) -> None:
+        self._send(EmailKind.GOOGLE_LINK, email, token)
+
+    def _send(self, kind: EmailKind, email: str, token: str) -> None:
         try:
             config = self.settings
             if (
@@ -124,13 +139,17 @@ class SmtpEmailSender:
             ):
                 raise EmailDeliveryUnavailable("Email delivery is unavailable.")
             data = EmailMessage.model_validate({"kind": kind, "email": email, "token": token})
-            verification = kind == TokenType.EMAIL_VERIFICATION
+            verification = kind == EmailKind.EMAIL_VERIFICATION
             subject = "Verify your Ukladen email" if verification else "Reset your Ukladen password"
+            if kind == EmailKind.GOOGLE_LINK:
+                subject = "Confirm Google sign-in to Ukladen"
             lifetime = (
                 config.auth_email_verification_ttl_seconds
                 if verification
                 else config.auth_password_reset_ttl_seconds
             )
+            if kind == EmailKind.GOOGLE_LINK:
+                lifetime = config.auth_oauth_state_ttl_seconds
             message = SmtpMessage()
             message["From"] = config.smtp_from_email
             message["To"] = data.email
@@ -148,8 +167,15 @@ class SmtpEmailSender:
                     destination = (
                         destination.removesuffix("/auth/verify-email") + "/auth/reset-password"
                     )
+                if kind == EmailKind.GOOGLE_LINK:
+                    destination = (
+                        str(config.auth_email_verification_url).removesuffix("/auth/verify-email")
+                        + "/auth/confirm-google-link"
+                    )
                 link = f"{destination}#{urlencode({'token': token})}"
                 action = "Confirm email address" if verification else "Reset password"
+                if kind == EmailKind.GOOGLE_LINK:
+                    action = "Confirm Google sign-in"
                 message.set_content(
                     f"{subject} by opening this link:\n\n{link}\n\n"
                     f"The link expires {lifetime} seconds after the request. "

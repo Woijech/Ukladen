@@ -14,8 +14,11 @@ from test_auth_sessions import settings as settings
 from app.core import config
 from app.core.config import Settings
 from app.modules.auth.application.ports import EmailDeliveryUnavailable, EmailSender
-from app.modules.auth.domain.entities import TokenType
-from app.modules.auth.infrastructure.email_sender import CeleryEmailSender, FakeEmailSender
+from app.modules.auth.infrastructure.email_sender import (
+    CeleryEmailSender,
+    EmailKind,
+    FakeEmailSender,
+)
 from app.modules.auth.infrastructure.token_service import generate_token
 
 EMAIL = "student@example.com"
@@ -43,19 +46,19 @@ def celery() -> Mock:
     return app
 
 
-@pytest.mark.parametrize("kind", list(TokenType))
+@pytest.mark.parametrize("kind", list(EmailKind))
 @pytest.mark.parametrize("mode", ["fake", "smtp"])
 def test_queue_payload_and_representations(
-    celery: Mock, fake_settings: Settings, kind: TokenType, mode: str
+    celery: Mock, fake_settings: Settings, kind: EmailKind, mode: str
 ) -> None:
     sender: EmailSender = CeleryEmailSender(
         celery, fake_settings.model_copy(update={"auth_email_delivery_mode": mode})
     )
-    method = (
-        sender.send_email_verification
-        if kind == TokenType.EMAIL_VERIFICATION
-        else sender.send_password_reset
-    )
+    method = {
+        EmailKind.EMAIL_VERIFICATION: sender.send_email_verification,
+        EmailKind.PASSWORD_RESET: sender.send_password_reset,
+        EmailKind.GOOGLE_LINK: sender.send_google_link_confirmation,
+    }[kind]
     assert method(" Student@Example.COM ", TOKEN) is None
     celery.send_task.assert_called_once_with(
         "auth.send_email",
@@ -94,7 +97,7 @@ def test_delivery_defaults_disabled_and_rejects_unknown_provider(settings: Setti
         Settings.model_validate(settings.model_dump() | {"auth_email_delivery_mode": "unknown"})
 
 
-def test_fake_records_both_kinds_without_logging_and_bounds_memory(
+def test_fake_records_all_kinds_without_logging_and_bounds_memory(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     fake = FakeEmailSender()
@@ -103,7 +106,8 @@ def test_fake_records_both_kinds_without_logging_and_bounds_memory(
         sender.send_email_verification(EMAIL, TOKEN)
         sender.send_email_verification(EMAIL, TOKEN)
         sender.send_password_reset(EMAIL, TOKEN)
-    assert [message.kind for message in fake.messages] == list(TokenType)
+        sender.send_google_link_confirmation(EMAIL, TOKEN)
+    assert [message.kind for message in fake.messages] == list(EmailKind)
     assert all(message.token.get_secret_value() == TOKEN for message in fake.messages)
     assert TOKEN not in repr(fake.messages) and TOKEN not in caplog.text
     assert all(TOKEN not in message.model_dump_json() for message in fake.messages)
@@ -130,9 +134,9 @@ def test_worker_task_registration(email_tasks: ModuleType) -> None:
     assert email_tasks.celery_app.conf.task_protocol == 2
 
 
-@pytest.mark.parametrize("kind", list(TokenType))
+@pytest.mark.parametrize("kind", list(EmailKind))
 def test_worker_executes_and_deduplicates_fake_delivery(
-    email_tasks: ModuleType, caplog: pytest.LogCaptureFixture, kind: TokenType
+    email_tasks: ModuleType, caplog: pytest.LogCaptureFixture, kind: EmailKind
 ) -> None:
     with caplog.at_level(logging.DEBUG):
         for _ in range(2):
@@ -169,7 +173,7 @@ def test_worker_errors_and_task_logs_never_echo_tokens(
         monkeypatch.setattr(
             email_tasks.fake_sender, "send_password_reset", Mock(side_effect=RuntimeError(TOKEN))
         )
-    payload = {"kind": TokenType.PASSWORD_RESET.value, "email": EMAIL, "token": TOKEN}
+    payload = {"kind": EmailKind.PASSWORD_RESET.value, "email": EMAIL, "token": TOKEN}
     if failure in ("kind", "recipient"):
         payload["kind" if failure == "kind" else "email"] = TOKEN
     elif failure == "token":
@@ -216,11 +220,12 @@ def test_live_redis_queue_to_fake_worker(
     try:
         sender.send_email_verification(EMAIL, TOKEN)
         sender.send_password_reset(EMAIL, TOKEN)
+        sender.send_google_link_confirmation(EMAIL, TOKEN)
         assert not email_tasks.fake_sender.messages
         with app.connection_for_read() as connection:
             inbox = connection.SimpleQueue(queue)
             try:
-                for kind in TokenType:
+                for kind in EmailKind:
                     message = inbox.get(block=False)
                     try:
                         assert message.headers["task"] == "auth.send_email"
@@ -238,7 +243,7 @@ def test_live_redis_queue_to_fake_worker(
             finally:
                 inbox.queue.delete()
                 inbox.close()
-        assert [message.kind for message in email_tasks.fake_sender.messages] == list(TokenType)
+        assert [message.kind for message in email_tasks.fake_sender.messages] == list(EmailKind)
         assert TOKEN not in caplog.text
     finally:
         app.close()

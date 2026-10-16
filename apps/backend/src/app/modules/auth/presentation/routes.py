@@ -9,10 +9,11 @@ from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.logging import log_failure
-from app.modules.auth.application.dto import GoogleAuthorization, IssuedSession
+from app.modules.auth.application.dto import GoogleAuthorization, GoogleEmailDelivery, IssuedSession
+from app.modules.auth.application.google_email_link import GoogleEmailLinkService
 from app.modules.auth.application.google_link import GoogleLinkService
-from app.modules.auth.application.google_login import GoogleLoginService
 from app.modules.auth.application.google_oauth import GoogleOAuthService
+from app.modules.auth.application.google_sign_in import GoogleSignInService
 from app.modules.auth.application.login import LoginService
 from app.modules.auth.application.password_recovery import PasswordRecoveryService
 from app.modules.auth.application.ports import (
@@ -49,12 +50,14 @@ from app.modules.auth.presentation.dependencies import (
     RegistrationSession,
     Sessions,
     client_ip,
+    get_callback_email_sender,
     get_email_sender,
     get_email_verification,
     get_email_verification_request,
+    get_google_email_links,
     get_google_link,
-    get_google_login,
     get_google_oauth,
+    get_google_sign_in,
     get_login,
     get_password_recovery,
     get_registration,
@@ -197,8 +200,8 @@ def google_callback(
     settings: Config,
     database: Database,
     oauth: Annotated[GoogleOAuthService, Depends(get_google_oauth)],
-    accounts: Annotated[GoogleLoginService, Depends(get_google_login)],
-    links: Annotated[GoogleLinkService, Depends(get_google_link)],
+    sign_in: Annotated[GoogleSignInService, Depends(get_google_sign_in)],
+    sender: Annotated[EmailSender, Depends(get_callback_email_sender)],
 ) -> Response:
     try:
         if any(len(request.query_params.getlist(name)) > 1 for name in ("code", "state", "error")):
@@ -213,16 +216,13 @@ def google_callback(
         with database.begin():
             user_agent = request.headers.get("user-agent", "")[:1024] or None
             peer = client_ip(request)
-            if result.link is None:
-                issued = accounts.login(result.identity, user_agent=user_agent, ip_address=peer)
-            else:
-                issued = links.complete(
-                    result.identity,
-                    result.link,
-                    request.cookies.get(settings.auth_session_cookie_name),
-                    user_agent=user_agent,
-                    ip_address=peer,
-                )
+            issued = sign_in.complete(
+                result,
+                request.cookies.get(settings.auth_oauth_cookie_name),
+                request.cookies.get(settings.auth_session_cookie_name),
+                user_agent=user_agent,
+                ip_address=peer,
+            )
     except (
         InvalidOAuthState,
         InvalidSession,
@@ -251,11 +251,60 @@ def google_callback(
             headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
         )
         return response
+    if isinstance(issued, GoogleEmailDelivery):
+        destination = (
+            str(settings.frontend_auth_error_url) + "?reason=google_email_confirmation_required"
+        )
+        try:
+            sender.send_google_link_confirmation(issued.email, issued.token)
+        except EmailDeliveryUnavailable as error:
+            log_failure(logger, "auth.google_email_queue_failed", error)
+            destination = str(settings.frontend_auth_error_url)
+        response = RedirectResponse(
+            destination,
+            status_code=303,
+            headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+        )
+        browser_token = request.cookies.get(settings.auth_oauth_cookie_name)
+        if browser_token is not None:
+            set_oauth_cookie(response, browser_token, settings)
+        return response
     response = RedirectResponse(
         str(settings.frontend_auth_success_url),
         status_code=303,
         headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
     )
+    clear_oauth_cookie(response, settings)
+    set_session_cookie(response, issued, settings)
+    return response
+
+
+@router.post(
+    "/google/email/confirm",
+    status_code=204,
+    dependencies=[Depends(require_csrf), Depends(limit_google_callback)],
+)
+def confirm_google_email(
+    payload: EmailVerificationRequest,
+    request: Request,
+    database: Database,
+    settings: Config,
+    service: Annotated[GoogleEmailLinkService, Depends(get_google_email_links)],
+) -> Response:
+    try:
+        with database.begin():
+            issued = service.confirm(
+                payload.token.get_secret_value(),
+                request.cookies.get(settings.auth_oauth_cookie_name),
+                request.cookies.get(settings.auth_session_cookie_name),
+                user_agent=request.headers.get("user-agent", "")[:1024] or None,
+                ip_address=client_ip(request),
+            )
+    except InvalidOneTimeToken, InvalidExternalIdentity, InvalidCredentials, InvalidSession:
+        raise HTTPException(
+            400, "Invalid or expired token.", headers={"Cache-Control": "no-store"}
+        ) from None
+    response = Response(status_code=204, headers={"Cache-Control": "no-store"})
     clear_oauth_cookie(response, settings)
     set_session_cookie(response, issued, settings)
     return response

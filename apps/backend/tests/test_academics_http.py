@@ -38,7 +38,7 @@ from app.modules.academics.presentation.routes import get_academic_provider, get
 from app.modules.auth.application.dto import IssuedSession
 from app.modules.auth.infrastructure.orm import IdentityModel, SessionModel
 from app.modules.auth.infrastructure.token_service import generate_token, hash_token
-from app.modules.auth.presentation.dependencies import get_current_session
+from app.modules.auth.presentation.dependencies import get_current_session, get_registration_session
 from app.modules.users.application.ports import UserAuthentication
 from app.modules.users.infrastructure.orm import UserModel
 
@@ -161,6 +161,7 @@ def test_unauthenticated_requests(
     client: TestClient, application: FastAPI, method: str, path: str
 ) -> None:
     application.dependency_overrides.pop(get_current_session)
+    application.dependency_overrides.pop(get_registration_session, None)
     response = client.request(
         method,
         path,
@@ -350,7 +351,7 @@ def test_upstream_unavailable_reads_are_safe(client: TestClient, provider: Mock,
     assert response.headers["cache-control"] == "no-store"
 
 
-def test_live_google_only_user_and_avatar_are_preserved(
+def test_live_google_registration_must_finish_before_academic_access(
     live_client: TestClient,
     concurrent_engine: Engine,
     provider: Mock,
@@ -358,7 +359,7 @@ def test_live_google_only_user_and_avatar_are_preserved(
     cast(FastAPI, live_client.app).state.academic_provider = provider
     token = generate_token()
     with Session(concurrent_engine) as database, database.begin():
-        user = UserModel(email="google-only@example.com")
+        user = UserModel(email="google-only@example.com", email_verified_at=datetime.now(UTC))
         database.add(user)
         database.flush()
         user.avatar_key = f"avatars/{user.id}/{uuid4().hex}.png"
@@ -373,6 +374,15 @@ def test_live_google_only_user_and_avatar_are_preserved(
             )
         )
     live_client.cookies.set(SESSION_COOKIE, token)
+    assert live_client.get(URL).status_code == 403
+    assert (
+        live_client.post(
+            "/api/v1/auth/registration/password",
+            headers=csrf_headers(live_client),
+            json={"password": "completed-google-password"},
+        ).status_code
+        == 204
+    )
     before = snapshot(concurrent_engine)
     assert live_client.get(URL).json() is None
     response = live_client.patch(

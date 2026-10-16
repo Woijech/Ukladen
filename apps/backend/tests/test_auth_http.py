@@ -308,6 +308,7 @@ def test_authenticated_dependency_checks_active_user(
     active: bool,
 ) -> None:
     application.dependency_overrides.pop(get_current_session)
+    application.dependency_overrides.pop(get_registration_session, None)
     headers = csrf_headers(client)
     client.cookies.set(SESSION_COOKIE, issued.token)
     database.scalar.return_value = issued.session.user_id if active else None
@@ -411,9 +412,9 @@ def live_client(concurrent_engine: Engine, browser_settings: Settings) -> Iterat
         redis.close()
 
 
-def seed_user(engine: Engine, email: str, password_hash: str) -> None:
+def seed_user(engine: Engine, email: str, password_hash: str, *, verified: bool = True) -> None:
     with Session(engine) as database, database.begin():
-        user = UserModel(email=email)
+        user = UserModel(email=email, email_verified_at=datetime.now(UTC) if verified else None)
         database.add(user)
         database.flush()
         database.add(CredentialModel(user_id=user.id, password_hash=password_hash))

@@ -45,6 +45,7 @@ from app.modules.auth.presentation.dependencies import (
     get_current_session,
     get_email_sender,
     get_email_verification_request,
+    get_registration_session,
 )
 from app.modules.users.application.ports import EmailVerifier
 from app.modules.users.infrastructure.orm import UserModel
@@ -205,6 +206,7 @@ def test_http_requires_authentication_before_limiter_and_issuance(
     limiter: Mock,
 ) -> None:
     application.dependency_overrides.pop(get_current_session)
+    application.dependency_overrides.pop(get_registration_session, None)
     response = request_client.post(PATH, json={}, headers=csrf_headers(request_client))
     assert response.status_code == 401
     verification_request_service.request.assert_not_called()
@@ -311,8 +313,8 @@ def test_live_resend_then_confirmation_preserves_prior_tokens_and_sessions(
     password_hash: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    seed_user(concurrent_engine, EMAIL, password_hash)
-    seed_user(concurrent_engine, "other@example.com", password_hash)
+    seed_user(concurrent_engine, EMAIL, password_hash, verified=False)
+    seed_user(concurrent_engine, "other@example.com", password_hash, verified=False)
     session_token = browser_login(live_request_client)
     app = cast(FastAPI, live_request_client.app)
     sender: FakeEmailSender = app.state.email_sender
@@ -375,7 +377,7 @@ def test_live_resend_failure_and_retry(
     monkeypatch: pytest.MonkeyPatch,
     failure: str,
 ) -> None:
-    seed_user(concurrent_engine, EMAIL, password_hash)
+    seed_user(concurrent_engine, EMAIL, password_hash, verified=False)
     session_token = browser_login(live_request_client)
     app = cast(FastAPI, live_request_client.app)
     sender: FakeEmailSender = app.state.email_sender
@@ -466,8 +468,8 @@ def test_live_user_adapter_eligibility_and_lock(concurrent_engine: Engine, state
 def test_live_resend_per_user_redis_window(
     live_request_client: TestClient, concurrent_engine: Engine, password_hash: str
 ) -> None:
-    seed_user(concurrent_engine, EMAIL, password_hash)
-    seed_user(concurrent_engine, "other@example.com", password_hash)
+    seed_user(concurrent_engine, EMAIL, password_hash, verified=False)
+    seed_user(concurrent_engine, "other@example.com", password_hash, verified=False)
     browser_login(live_request_client)
     app = cast(FastAPI, live_request_client.app)
     app.state.settings = app.state.settings.model_copy(

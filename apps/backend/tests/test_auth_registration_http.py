@@ -50,6 +50,7 @@ from app.modules.auth.presentation.dependencies import (
     get_current_session,
     get_email_sender,
     get_registration,
+    get_registration_session,
 )
 from app.modules.auth.presentation.schemas import RegistrationRequest
 from app.modules.users.infrastructure.orm import UserModel
@@ -78,6 +79,7 @@ def registration_client(
     application.dependency_overrides[get_registration] = lambda: registration_service
     application.dependency_overrides[get_email_sender] = lambda: email_sender
     application.dependency_overrides.pop(get_current_session)
+    application.dependency_overrides.pop(get_registration_session, None)
     return client
 
 
@@ -348,7 +350,7 @@ def test_live_registration_login_and_verification(
     with Session(concurrent_engine) as database:
         session = database.get(SessionModel, UUID(response.json()["session_id"]))
         assert session and session.token_hash == hash_token(session_token)
-    assert live_registration_client.get("/api/v1/auth/sessions").status_code == 200
+    assert live_registration_client.get("/api/v1/auth/sessions").status_code == 403
     assert browser_login(live_registration_client) != session_token
     confirmation = live_registration_client.post(
         "/api/v1/auth/email-verification/confirm",
@@ -356,6 +358,7 @@ def test_live_registration_login_and_verification(
         headers=csrf_headers(live_registration_client),
     )
     assert confirmation.status_code == 204
+    assert live_registration_client.get("/api/v1/auth/sessions").status_code == 200
     with Session(concurrent_engine) as database:
         user = database.get(UserModel, UUID(response.json()["user_id"]))
         token = database.scalar(select(OneTimeTokenModel))
@@ -473,7 +476,7 @@ def test_live_registration_queue_failure_preserves_unverified_account_and_sessio
             and verification
             and verification.used_at is None
         )
-    assert live_registration_client.get("/api/v1/auth/sessions").status_code == 200
+    assert live_registration_client.get("/api/v1/auth/sessions").status_code == 403
     browser_login(live_registration_client)
     assert not sender.messages
 

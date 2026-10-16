@@ -18,7 +18,11 @@ from test_auth_sessions import settings as settings
 from app.core.config import Settings
 from app.modules.auth.application.dto import IssuedSession, VerifiedGoogleIdentity
 from app.modules.auth.application.google_login import GoogleLoginService
-from app.modules.auth.application.ports import GoogleIdentityRepository, SessionCache
+from app.modules.auth.application.ports import (
+    CredentialRepository,
+    GoogleIdentityRepository,
+    SessionCache,
+)
 from app.modules.auth.application.service import SessionService
 from app.modules.auth.domain.errors import (
     AccountLinkingRequired,
@@ -32,6 +36,7 @@ from app.modules.auth.infrastructure.orm import (
     SessionModel,
 )
 from app.modules.auth.infrastructure.repository import (
+    SqlAlchemyCredentialRepository,
     SqlAlchemyGoogleIdentityRepository,
     SqlAlchemySessionRepository,
 )
@@ -126,6 +131,7 @@ def service(database: Session, cache: SessionCache, settings: Settings) -> Googl
             hash_token=hash_token,
         ),
         profiles=SqlAlchemyProfileRepository(database),
+        credentials=SqlAlchemyCredentialRepository(database),
         now=lambda: NOW,
     )
 
@@ -153,7 +159,14 @@ def test_resolution_policy(path: str) -> None:
     if path in {"concurrent", "collision"}:
         users.create.side_effect = EmailAlreadyExists("private details")
     login = GoogleLoginService(
-        users, authentication, verifier, identities, sessions, profiles=profiles, now=lambda: NOW
+        users,
+        authentication,
+        verifier,
+        identities,
+        sessions,
+        profiles=profiles,
+        credentials=create_autospec(CredentialRepository, instance=True),
+        now=lambda: NOW,
     )
     if path in {"collision", "disabled"}:
         error = AccountLinkingRequired if path == "collision" else InvalidExternalIdentity
@@ -218,6 +231,7 @@ def test_invalid_new_account_stops_before_identity_or_session(failure: str) -> N
         identities,
         sessions,
         profiles=create_autospec(ProfileRepository, instance=True),
+        credentials=create_autospec(CredentialRepository, instance=True),
     )
     identity = VerifiedGoogleIdentity(
         IDENTITY.subject, "bad email" if failure == "email" else IDENTITY.email, True

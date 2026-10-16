@@ -67,15 +67,7 @@ class GoogleLinkService:
         self._require_session(current.user_id, current.id, current.token_hash)
         return OAuthLinkContext(current.user_id, current.id, self.hash_token(stored_hash))
 
-    def complete(
-        self,
-        identity: VerifiedGoogleIdentity,
-        context: OAuthLinkContext,
-        session_token: str | None,
-        *,
-        user_agent: str | None = None,
-        ip_address: IPv4Address | IPv6Address | None = None,
-    ) -> IssuedSession:
+    def validate(self, context: OAuthLinkContext, session_token: str | None) -> None:
         if session_token is None or re.fullmatch(r"[A-Za-z0-9_-]{43}", session_token) is None:
             raise InvalidSession("Invalid or expired session.")
         if not self.users.lock_active(context.user_id):
@@ -86,6 +78,17 @@ class GoogleLinkService:
         ):
             raise InvalidCredentials("Invalid current password.")
         self._require_session(context.user_id, context.session_id, self.hash_token(session_token))
+
+    def complete(
+        self,
+        identity: VerifiedGoogleIdentity,
+        context: OAuthLinkContext,
+        session_token: str | None,
+        *,
+        user_agent: str | None = None,
+        ip_address: IPv4Address | IPv6Address | None = None,
+    ) -> IssuedSession:
+        self.validate(context, session_token)
         owner = self.identities.get_user_id(identity.subject)
         if owner is not None and owner != context.user_id:
             raise InvalidExternalIdentity("Google identity could not be linked.")

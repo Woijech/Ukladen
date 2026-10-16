@@ -57,7 +57,7 @@ PATH = "/api/v1/auth/google/link/start"
 def seed(engine: Engine, password_hash: str, email: str = IDENTITY.email):
     user_id = uuid4()
     with Session(engine) as database, database.begin():
-        database.add(UserModel(id=user_id, email=email))
+        database.add(UserModel(id=user_id, email=email, email_verified_at=datetime.now(UTC)))
         database.flush()
         database.add(CredentialModel(user_id=user_id, password_hash=password_hash))
     return user_id
@@ -111,6 +111,10 @@ def test_live_login_collision_then_link_preserves_password_account_and_supports_
     json_response: bool,
 ) -> None:
     user_id = seed(concurrent_engine, password_hash)
+    with Session(concurrent_engine) as database, database.begin():
+        database.execute(
+            update(UserModel).where(UserModel.id == user_id).values(email_verified_at=None)
+        )
     response = live_client.get("/api/v1/auth/google/start")
     state = parse_qs(urlsplit(response.headers["location"]).query)["state"][0]
     response = live_client.get(CALLBACK, params={"state": state, "code": "test-code"})
@@ -119,6 +123,12 @@ def test_live_login_collision_then_link_preserves_password_account_and_supports_
     with Session(concurrent_engine) as database:
         assert database.scalar(select(func.count()).select_from(IdentityModel)) == 0
         assert database.scalar(select(func.count()).select_from(SessionModel)) == 0
+    with Session(concurrent_engine) as database, database.begin():
+        database.execute(
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(email_verified_at=datetime.now(UTC))
+        )
     original = browser_login(live_client)
     state = start_link(live_client, json_response=json_response)
     response = live_client.get(CALLBACK, params={"state": state, "code": "test-code"})
@@ -129,7 +139,7 @@ def test_live_login_collision_then_link_preserves_password_account_and_supports_
         user = database.get(UserModel, user_id)
         credential = database.get(CredentialModel, user_id)
         identity = database.scalar(select(IdentityModel))
-        assert user and user.email == IDENTITY.email and user.email_verified_at is None
+        assert user and user.email == IDENTITY.email and user.email_verified_at is not None
         assert credential and credential.password_hash == password_hash
         assert (
             identity
@@ -282,7 +292,7 @@ def test_live_google_only_account_cannot_link_with_a_password(
     response = live_client.post(
         PATH, headers=csrf_headers(live_client), json={"current_password": PASSWORD}
     )
-    assert response.status_code == 401
+    assert response.status_code == 403 and response.json()["code"] == "registration_incomplete"
     provider.build_authorization_url.assert_not_called()
 
 

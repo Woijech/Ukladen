@@ -7,8 +7,10 @@ from app.core.config import Settings
 from app.modules.auth.application.dto import PasswordResetDelivery
 from app.modules.auth.application.ports import (
     CredentialRepository,
+    GoogleIdentityRepository,
     PasswordHasher,
     PasswordResetRepository,
+    RegistrationRepository,
 )
 from app.modules.auth.application.registration import normalize_email
 from app.modules.auth.application.service import SessionService
@@ -19,7 +21,7 @@ from app.modules.auth.domain.errors import (
     InvalidPassword,
     InvalidRegistration,
 )
-from app.modules.users.application.ports import UserAuthentication
+from app.modules.users.application.ports import EmailVerifier, ProfileRepository, UserAuthentication
 
 
 class PasswordRecoveryService:
@@ -34,6 +36,10 @@ class PasswordRecoveryService:
         sessions: SessionService,
         settings: Settings,
         *,
+        profiles: ProfileRepository,
+        verifier: EmailVerifier,
+        identities: GoogleIdentityRepository,
+        registration: RegistrationRepository,
         generate_token: Callable[[], str],
         hash_token: Callable[[str], str],
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
@@ -43,6 +49,8 @@ class PasswordRecoveryService:
         self.repository = repository
         self.passwords = passwords
         self.sessions = sessions
+        self.profiles, self.verifier = profiles, verifier
+        self.identities, self.registration = identities, registration
         self.minimum_password_length = settings.auth_password_min_length
         self.lifetime = timedelta(seconds=settings.auth_password_reset_ttl_seconds)
         self.generate_token = generate_token
@@ -55,7 +63,7 @@ class PasswordRecoveryService:
         except InvalidRegistration:
             return None
         user_id = self.users.get_active_id_by_email(email)
-        if user_id is None or self.credentials.get_password_hash(user_id) is None:
+        if user_id is None:
             return None
         token = self.generate_token()
         now = self.now()
@@ -78,15 +86,22 @@ class PasswordRecoveryService:
         stored = self.repository.get_by_token_hash(self.hash_token(token))
         if stored is None or stored.token_type != TokenType.PASSWORD_RESET:
             raise InvalidOneTimeToken("Invalid or expired token.")
-        if (
-            not self.users.lock_active(stored.user_id)
-            or self.credentials.get_password_hash(stored.user_id) is None
-        ):
+        if not self.users.lock_active(stored.user_id):
+            raise InvalidOneTimeToken("Invalid or expired token.")
+        previous_hash = self.credentials.get_password_hash(stored.user_id)
+        profile = self.profiles.get_active(stored.user_id)
+        if profile is None:
             raise InvalidOneTimeToken("Invalid or expired token.")
         now = self.now()
         stored.consume(now)
-        if not self.credentials.update_password_hash(stored.user_id, password_hash, now):
+        if previous_hash is None:
+            self.registration.create_credential(stored.user_id, password_hash, now)
+        elif not self.credentials.update_password_hash(stored.user_id, password_hash, now):
             raise InvalidOneTimeToken("Invalid or expired token.")
+        if profile.email_verified_at is None:
+            self.identities.remove_for_user(stored.user_id)
+            if not self.verifier.mark_verified(stored.user_id, now):
+                raise InvalidOneTimeToken("Invalid or expired token.")
         self.repository.mark_used(stored.id, now)
         self.sessions.revoke_all_for_user(stored.user_id)
         return stored.user_id

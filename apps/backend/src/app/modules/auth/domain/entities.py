@@ -59,3 +59,14 @@ class OneTimeToken:
     def consume(self, now: datetime) -> None:
         self.require_usable(now)
         self.used_at = now
+
+
+@dataclass(kw_only=True)
+class GoogleEmailConfirmation:
+    token: OneTimeToken
+    subject: str = field(repr=False)
+    email: str = field(repr=False)
+    canonical_email: str = field(repr=False)
+    browser_token_hash: str = field(repr=False)
+    password_fingerprint: str = field(repr=False)
+    session_id: UUID | None = None

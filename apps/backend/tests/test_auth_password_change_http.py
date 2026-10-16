@@ -33,7 +33,11 @@ from app.modules.auth.domain.errors import InvalidCredentials, InvalidPassword, 
 from app.modules.auth.infrastructure.orm import CredentialModel, SessionModel
 from app.modules.auth.infrastructure.request_protection import RedisRateLimiter
 from app.modules.auth.infrastructure.token_service import hash_token
-from app.modules.auth.presentation.dependencies import get_current_session, get_password_recovery
+from app.modules.auth.presentation.dependencies import (
+    get_current_session,
+    get_password_recovery,
+    get_registration_session,
+)
 from app.modules.auth.presentation.schemas import PasswordChangeRequest
 from app.modules.users.infrastructure.orm import UserModel
 
@@ -119,6 +123,7 @@ def test_change_requires_authentication(
     password_client: TestClient, application: FastAPI, password_service: Mock, limiter: Mock
 ) -> None:
     application.dependency_overrides.pop(get_current_session)
+    application.dependency_overrides.pop(get_registration_session, None)
     response = password_client.post(PATH, json=PAYLOAD, headers=csrf_headers(password_client))
     assert response.status_code == 401
     password_service.change_password.assert_not_called()

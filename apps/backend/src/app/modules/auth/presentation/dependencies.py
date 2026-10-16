@@ -8,9 +8,11 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.modules.auth.application.google_email_link import GoogleEmailLinkService
 from app.modules.auth.application.google_link import GoogleLinkService
 from app.modules.auth.application.google_login import GoogleLoginService
 from app.modules.auth.application.google_oauth import GoogleOAuthService
+from app.modules.auth.application.google_sign_in import GoogleSignInService
 from app.modules.auth.application.login import LoginService
 from app.modules.auth.application.oauth_state import OAuthStateService
 from app.modules.auth.application.password_recovery import PasswordRecoveryService
@@ -31,6 +33,7 @@ from app.modules.auth.infrastructure.oauth_state import RedisOAuthStateStore
 from app.modules.auth.infrastructure.repository import (
     SqlAlchemyCredentialRepository,
     SqlAlchemyEmailVerificationRepository,
+    SqlAlchemyGoogleEmailConfirmationRepository,
     SqlAlchemyGoogleIdentityRepository,
     SqlAlchemyPasswordResetRepository,
     SqlAlchemyRegistrationRepository,
@@ -62,6 +65,11 @@ Database = Annotated[Session, Depends(get_database)]
 def get_email_sender(request: Request, settings: Config) -> EmailSender:
     if settings.auth_email_delivery_mode == "disabled":
         raise EmailDeliveryUnavailable("Email delivery is unavailable.")
+    return request.app.state.email_sender
+
+
+def get_callback_email_sender(request: Request) -> EmailSender:
+    """Google callbacks need delivery only when a mailbox challenge is selected."""
     return request.app.state.email_sender
 
 
@@ -142,6 +150,7 @@ def get_google_login(database: Database, sessions: Sessions) -> GoogleLoginServi
         SqlAlchemyGoogleIdentityRepository(database),
         sessions,
         profiles=SqlAlchemyProfileRepository(database),
+        credentials=SqlAlchemyCredentialRepository(database),
     )
 
 
@@ -155,6 +164,33 @@ def get_google_link(request: Request, database: Database, sessions: Sessions) ->
         hash_token=hash_token,
         dummy_password_hash=request.app.state.dummy_password_hash,
     )
+
+
+def get_google_email_links(
+    database: Database,
+    sessions: Sessions,
+    settings: Config,
+    links: Annotated[GoogleLinkService, Depends(get_google_link)],
+) -> GoogleEmailLinkService:
+    return GoogleEmailLinkService(
+        SqlAlchemyProfileRepository(database),
+        SqlAlchemyCredentialRepository(database),
+        SqlAlchemyGoogleIdentityRepository(database),
+        SqlAlchemyGoogleEmailConfirmationRepository(database),
+        links,
+        sessions,
+        settings,
+        generate_token=generate_token,
+        hash_token=hash_token,
+    )
+
+
+def get_google_sign_in(
+    accounts: Annotated[GoogleLoginService, Depends(get_google_login)],
+    links: Annotated[GoogleLinkService, Depends(get_google_link)],
+    email_links: Annotated[GoogleEmailLinkService, Depends(get_google_email_links)],
+) -> GoogleSignInService:
+    return GoogleSignInService(accounts, links, email_links)
 
 
 def require_google_navigation(request: Request, settings: Config) -> None:
@@ -176,6 +212,10 @@ def get_password_recovery(
         request.app.state.passwords,
         sessions,
         settings,
+        profiles=SqlAlchemyProfileRepository(database),
+        verifier=SqlAlchemyEmailVerifier(database),
+        identities=SqlAlchemyGoogleIdentityRepository(database),
+        registration=SqlAlchemyRegistrationRepository(database),
         generate_token=generate_token,
         hash_token=hash_token,
     )

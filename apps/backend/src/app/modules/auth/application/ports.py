@@ -3,7 +3,7 @@ from typing import Protocol
 from uuid import UUID
 
 from app.modules.auth.application.dto import OAuthStateRecord, VerifiedGoogleIdentity
-from app.modules.auth.domain.entities import AuthSession, OneTimeToken
+from app.modules.auth.domain.entities import AuthSession, GoogleEmailConfirmation, OneTimeToken
 
 
 class SessionCacheUnavailable(Exception):
@@ -55,6 +55,8 @@ class GoogleIdentityRepository(Protocol):
 
     def has_for_user(self, user_id: UUID) -> bool: ...
 
+    def remove_for_user(self, user_id: UUID) -> None: ...
+
     def create(self, user_id: UUID, subject: str, email: str, created_at: datetime) -> None:
         """Never overwrite a subject's owner; conflicts raise InvalidExternalIdentity."""
         ...
@@ -66,6 +68,18 @@ class EmailSender(Protocol):
     def send_email_verification(self, email: str, token: str) -> None: ...
 
     def send_password_reset(self, email: str, token: str) -> None: ...
+
+    def send_google_link_confirmation(self, email: str, token: str) -> None: ...
+
+
+class GoogleEmailConfirmationRepository(Protocol):
+    def create(self, record: GoogleEmailConfirmation) -> None: ...
+
+    def get_by_token_hash(self, token_hash: str) -> GoogleEmailConfirmation | None:
+        """Lock the record until transaction completion."""
+        ...
+
+    def mark_used(self, token_id: UUID, used_at: datetime) -> None: ...
 
 
 class RateLimiter(Protocol):

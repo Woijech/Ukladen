@@ -5,8 +5,8 @@ from celery import Task
 from app.core.config import get_settings
 from app.core.logging import log_failure
 from app.modules.auth.application.ports import EmailDeliveryUnavailable, EmailSender
-from app.modules.auth.domain.entities import TokenType
 from app.modules.auth.infrastructure.email_sender import (
+    EmailKind,
     EmailMessage,
     FakeEmailSender,
     SmtpEmailSender,
@@ -35,8 +35,10 @@ def send_auth_email(task: Task, *args: object, **payload: object) -> None:
             else fake_sender
         )
         token = message.token.get_secret_value()
-        if message.kind == TokenType.EMAIL_VERIFICATION:
+        if message.kind == EmailKind.EMAIL_VERIFICATION:
             sender.send_email_verification(message.email, token)
+        elif message.kind == EmailKind.GOOGLE_LINK:
+            sender.send_google_link_confirmation(message.email, token)
         else:
             sender.send_password_reset(message.email, token)
     except Exception as error:

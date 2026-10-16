@@ -20,7 +20,8 @@ from test_auth_sessions import concurrent_engine as concurrent_engine
 from test_auth_sessions import settings as settings
 
 from app.core.config import Settings
-from app.modules.auth.infrastructure.orm import CredentialModel, SessionModel
+from app.modules.auth.infrastructure.email_sender import FakeEmailSender
+from app.modules.auth.infrastructure.orm import CredentialModel, IdentityModel, SessionModel
 from app.modules.auth.infrastructure.password_hasher import Argon2PasswordHasher
 from app.modules.auth.infrastructure.token_service import generate_token, hash_token
 from app.modules.auth.presentation.dependencies import get_email_sender
@@ -193,3 +194,72 @@ def test_pending_session_can_request_verification_and_log_out(
     assert sender.send_email_verification.call_args.args[0] == "student@example.com"
     assert live_client.post("/api/v1/auth/logout", headers=headers).status_code == 204
     assert live_client.get("/api/v1/auth/registration").status_code == 401
+
+
+@pytest.mark.parametrize("password_present", [False, True])
+def test_mailbox_recovery_completes_pending_signup_and_removes_prior_access(
+    live_client: TestClient,
+    concurrent_engine: Engine,
+    google_settings: Settings,
+    password_hash: str,
+    password_present: bool,
+) -> None:
+    user_id = seed(
+        live_client,
+        concurrent_engine,
+        google_settings,
+        password_hash if password_present else None,
+        False,
+    )
+    previous_token = live_client.cookies.get(google_settings.auth_session_cookie_name)
+    assert live_client.get("/api/v1/auth/registration").status_code == 200
+    with Session(concurrent_engine) as database, database.begin():
+        database.add(
+            IdentityModel(
+                user_id=user_id,
+                provider="google",
+                provider_subject="prior-identity",
+                provider_email="prior@example.com",
+            )
+        )
+    sender = FakeEmailSender()
+    cast(FastAPI, live_client.app).dependency_overrides[get_email_sender] = lambda: sender
+    assert (
+        live_client.post(
+            "/api/v1/auth/password-reset/request",
+            headers=csrf_headers(live_client),
+            json={"email": "student@example.com"},
+        ).status_code
+        == 202
+    )
+    token = sender.messages[-1].token.get_secret_value()
+    new_password = "new-password-after-recovery"
+    assert (
+        live_client.post(
+            "/api/v1/auth/password-reset/confirm",
+            headers=csrf_headers(live_client),
+            json={"token": token, "new_password": new_password},
+        ).status_code
+        == 204
+    )
+    with Session(concurrent_engine) as database:
+        credential = database.get(CredentialModel, user_id)
+        user = database.get(UserModel, user_id)
+        assert credential and Argon2PasswordHasher().verify(new_password, credential.password_hash)
+        assert user and user.email_verified_at is not None
+        assert (
+            database.scalar(select(IdentityModel).where(IdentityModel.user_id == user_id)) is None
+        )
+        assert all(row.revoked_at is not None for row in database.scalars(select(SessionModel)))
+    assert previous_token
+    live_client.cookies.set(google_settings.auth_session_cookie_name, previous_token)
+    assert live_client.get("/api/v1/auth/registration").status_code == 401
+    assert (
+        live_client.post(
+            "/api/v1/auth/login",
+            headers=csrf_headers(live_client),
+            json={"email": "student@example.com", "password": new_password},
+        ).status_code
+        == 200
+    )
+    assert live_client.get("/api/v1/users/me").status_code == 200

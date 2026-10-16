@@ -35,7 +35,11 @@ from app.modules.auth.domain.errors import InvalidOneTimeToken
 from app.modules.auth.infrastructure.orm import OneTimeTokenModel, SessionModel
 from app.modules.auth.infrastructure.request_protection import RedisRateLimiter
 from app.modules.auth.infrastructure.token_service import generate_token, hash_token
-from app.modules.auth.presentation.dependencies import get_current_session, get_email_verification
+from app.modules.auth.presentation.dependencies import (
+    get_current_session,
+    get_email_verification,
+    get_registration_session,
+)
 from app.modules.auth.presentation.schemas import EmailVerificationRequest
 from app.modules.users.infrastructure.orm import UserModel
 from app.modules.users.infrastructure.repository import SqlAlchemyEmailVerifier
@@ -55,6 +59,7 @@ def verification_client(
 ) -> TestClient:
     application.dependency_overrides[get_email_verification] = lambda: verification_service
     application.dependency_overrides.pop(get_current_session)
+    application.dependency_overrides.pop(get_registration_session, None)
     return client
 
 

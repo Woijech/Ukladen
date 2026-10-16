@@ -20,8 +20,10 @@ from app.core.config import Settings
 from app.modules.auth.application.password_recovery import PasswordRecoveryService
 from app.modules.auth.application.ports import (
     CredentialRepository,
+    GoogleIdentityRepository,
     PasswordHasher,
     PasswordResetRepository,
+    RegistrationRepository,
     SessionCache,
     SessionCacheUnavailable,
 )
@@ -32,14 +34,20 @@ from app.modules.auth.infrastructure.orm import CredentialModel, OneTimeTokenMod
 from app.modules.auth.infrastructure.password_hasher import Argon2PasswordHasher
 from app.modules.auth.infrastructure.repository import (
     SqlAlchemyCredentialRepository,
+    SqlAlchemyGoogleIdentityRepository,
     SqlAlchemyPasswordResetRepository,
+    SqlAlchemyRegistrationRepository,
     SqlAlchemySessionRepository,
 )
 from app.modules.auth.infrastructure.session_cache import RedisSessionCache
 from app.modules.auth.infrastructure.token_service import generate_token, hash_token
-from app.modules.users.application.ports import UserAuthentication
+from app.modules.users.application.ports import EmailVerifier, ProfileRepository, UserAuthentication
 from app.modules.users.infrastructure.orm import UserModel
-from app.modules.users.infrastructure.repository import SqlAlchemyUserAuthentication
+from app.modules.users.infrastructure.repository import (
+    SqlAlchemyEmailVerifier,
+    SqlAlchemyProfileRepository,
+    SqlAlchemyUserAuthentication,
+)
 
 NOW = datetime.now(UTC)
 TOKEN = generate_token()
@@ -72,6 +80,10 @@ def recovery_service(settings: Settings) -> PasswordRecoveryService:
         passwords,
         create_autospec(SessionService, instance=True),
         settings,
+        profiles=create_autospec(ProfileRepository, instance=True),
+        verifier=create_autospec(EmailVerifier, instance=True),
+        identities=create_autospec(GoogleIdentityRepository, instance=True),
+        registration=create_autospec(RegistrationRepository, instance=True),
         generate_token=lambda: TOKEN,
         hash_token=hash_token,
         now=lambda: NOW,
@@ -94,6 +106,10 @@ def recovery(database: Session, settings: Settings, cache: SessionCache) -> Pass
         Argon2PasswordHasher(),
         sessions,
         settings,
+        profiles=SqlAlchemyProfileRepository(database),
+        verifier=SqlAlchemyEmailVerifier(database),
+        identities=SqlAlchemyGoogleIdentityRepository(database),
+        registration=SqlAlchemyRegistrationRepository(database),
         generate_token=generate_token,
         hash_token=hash_token,
         now=lambda: NOW,
@@ -136,7 +152,7 @@ def test_request_returns_hidden_delivery_and_hash_only_storage(
     assert result and result.expires_at == NOW + timedelta(seconds=120)
 
 
-@pytest.mark.parametrize("state", ["invalid", "unknown", "no_credential"])
+@pytest.mark.parametrize("state", ["invalid", "unknown"])
 def test_ineligible_requests_do_not_issue_tokens(
     recovery_service: PasswordRecoveryService, state: str
 ) -> None:
@@ -187,7 +203,7 @@ def test_new_password_policy_precedes_io(
 
 
 @pytest.mark.parametrize(
-    "state", ["unknown", "expired", "future", "used", "wrong_type", "disabled", "no_credential"]
+    "state", ["unknown", "expired", "future", "used", "wrong_type", "disabled"]
 )
 def test_invalid_confirmation_does_not_update_or_revoke(
     recovery_service: PasswordRecoveryService, state: str
@@ -267,9 +283,7 @@ def test_success_consumes_once_and_preserves_password(
     )
 
 
-@pytest.mark.parametrize(
-    "state", ["disabled", "no_credential", "expired", "used", "future", "wrong_type"]
-)
+@pytest.mark.parametrize("state", ["disabled", "expired", "used", "future", "wrong_type"])
 def test_database_rejections_preserve_credentials_and_token(
     database_connection: Connection, settings: Settings, password_hash: str, state: str
 ) -> None:

@@ -62,6 +62,12 @@ class RegistrationState:
         return self.email_verified and not self.password_required
 
 
+@dataclass(frozen=True)
+class GoogleEmailDelivery:
+    email: str = field(repr=False)
+    token: str = field(repr=False)
+
+
 type OAuthToken = Annotated[
     str, Field(strict=True, min_length=43, max_length=43, pattern=r"^[A-Za-z0-9_-]+$")
 ]

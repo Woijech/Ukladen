@@ -31,7 +31,7 @@ from app.modules.academics.application.profile import AcademicService
 from app.modules.academics.domain.profile import AcademicProfile
 from app.modules.academics.presentation.routes import get_academics
 from app.modules.auth.application.dto import IssuedSession
-from app.modules.auth.presentation.dependencies import get_current_session
+from app.modules.auth.presentation.dependencies import get_current_session, get_registration_session
 from app.modules.users.application.ports import UserAuthentication
 from app.modules.users.infrastructure.orm import UserModel
 
@@ -101,6 +101,7 @@ def test_all_read_routes_require_authentication(
     client: TestClient, application: FastAPI, path: str
 ) -> None:
     application.dependency_overrides.pop(get_current_session)
+    application.dependency_overrides.pop(get_registration_session, None)
     response = client.get(path)
     assert response.status_code == 401
     assert response.headers["cache-control"] == "no-store"
