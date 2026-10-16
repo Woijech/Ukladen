@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { QueryCache, QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import "./workspace.css";
 
 type CalendarEvent = {
@@ -146,13 +146,15 @@ function scheduleStatusMessage(status: ScheduleSyncStatus) {
   return unsupported[status.error_code ?? ""] ?? "IIS вернул запись расписания, которую текущий импортёр не может безопасно преобразовать в занятие.";
 }
 
+class SessionExpiredError extends Error {}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { ...init, credentials: "same-origin", cache: "no-store" });
   if (!response.ok) {
     const payload = await response.json().catch(() => null) as { detail?: string } | null;
     if (path === "/api/v1/auth/login" && response.status === 401) throw new Error("Неверная почта или пароль.");
     if (path === "/api/v1/auth/register" && response.status === 409) throw new Error("Аккаунт с такой почтой уже существует.");
-    if (response.status === 401) throw new Error("Войдите в аккаунт, чтобы открыть личное пространство.");
+    if (response.status === 401) throw new SessionExpiredError("Войдите в аккаунт, чтобы открыть личное пространство.");
     if (response.status === 409) throw new Error("Данные изменились. Обновите страницу и попробуйте ещё раз.");
     if (response.status === 403) throw new Error("Сессия защиты устарела. Обновите страницу и повторите действие.");
     if (response.status === 422) throw new Error(payload?.detail === "Invalid academic selection." ? "Выбери группу и подгруппу из списка." : "Проверь заполненные данные.");
@@ -318,12 +320,46 @@ function GroupPicker({ profile, onClose, onSaved }: { profile: AcademicProfile |
   </main>;
 }
 
+type SessionUser = { id: string; timezone: string };
+
 export function Workspace() {
+  const [onboarding, setOnboarding] = useState(false);
+  const session = useQuery({
+    queryKey: ["workspace-session"],
+    queryFn: async ({ signal }) => {
+      try { return await requestJson<SessionUser>("/api/v1/users/me", { signal }); }
+      catch (error) { if (error instanceof SessionExpiredError) return null; throw error; }
+    },
+    staleTime: 0,
+    gcTime: 0,
+  });
+  const client = useQueryClient();
+  function endSession() {
+    setOnboarding(false);
+    client.setQueryData(["workspace-session"], null);
+  }
+  if (session.isPending) return <main className="workspace-auth" role="status">Проверяем сессию…</main>;
+  if (session.isError) return <main className="workspace-auth"><p role="alert">Не удалось проверить сессию.</p><button onClick={() => void session.refetch()}>Повторить</button></main>;
+  if (!session.data) return <main className="workspace-auth"><AuthPanel onSuccess={async () => { setOnboarding(true); await session.refetch({ throwOnError: true }); }} /></main>;
+  return <SessionWorkspace key={session.data.id} checkingSession={session.isFetching} onSessionEnd={endSession} onboarding={onboarding} />;
+}
+
+function SessionWorkspace({ checkingSession, onSessionEnd, onboarding }: { checkingSession: boolean; onSessionEnd: () => void; onboarding: boolean }) {
+  // A session owns both its cache and mounted forms; neither survives an account switch.
+  const [client] = useState(() => new QueryClient({
+    queryCache: new QueryCache({ onError: error => { if (error instanceof SessionExpiredError) onSessionEnd(); } }),
+    defaultOptions: { queries: { staleTime: 30_000, retry: false } },
+  }));
+  useEffect(() => () => { void client.cancelQueries(); client.clear(); }, [client]);
+  return <div hidden={checkingSession}><QueryClientProvider client={client}><CalendarWorkspace onSessionEnd={onSessionEnd} onboarding={onboarding} /></QueryClientProvider></div>;
+}
+
+function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => void; onboarding: boolean }) {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState(() => new Date());
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
-  const [showGroupPicker, setShowGroupPicker] = useState(false);
+  const [showGroupPicker, setShowGroupPicker] = useState(onboarding);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [topAccountMenuOpen, setTopAccountMenuOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -332,7 +368,6 @@ export function Workspace() {
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
-  const [loadingAuth, setLoadingAuth] = useState(false);
   const [syncPending, setSyncPending] = useState(false);
   const [syncFinished, setSyncFinished] = useState(false);
   const [syncWaiting, setSyncWaiting] = useState(false);
@@ -347,13 +382,13 @@ export function Workspace() {
   const range = { from: localDate(days[0]), to: localDate(days[6]) };
   const calendarQuery = useQuery({
     queryKey: ["workspace-calendar", range.from, range.to],
-    queryFn: () => requestJson<CalendarPayload>(`/api/v1/calendar/events?date_from=${range.from}&date_to=${range.to}`),
+    queryFn: ({ signal }) => requestJson<CalendarPayload>(`/api/v1/calendar/events?date_from=${range.from}&date_to=${range.to}`, { signal }),
     retry: false,
   });
-  const meQuery = useQuery({ queryKey: ["workspace-profile"], queryFn: () => requestJson<AcademicProfile | null>("/api/v1/academics/me"), retry: false });
+  const meQuery = useQuery({ queryKey: ["workspace-profile"], queryFn: ({ signal }) => requestJson<AcademicProfile | null>("/api/v1/academics/me", { signal }), retry: false });
   const syncStatusQuery = useQuery({
     queryKey: ["schedule-sync-status", meQuery.data?.group.id],
-    queryFn: () => requestJson<ScheduleSyncStatus>("/api/v1/schedule/me/sync-status"),
+    queryFn: ({ signal }) => requestJson<ScheduleSyncStatus>("/api/v1/schedule/me/sync-status", { signal }),
     enabled: Boolean(meQuery.data?.group.id),
     refetchInterval: syncPending ? 3000 : false,
     retry: false,
@@ -381,7 +416,7 @@ export function Workspace() {
       void queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] }).then(async () => {
         const latest = await queryClient.fetchQuery({
           queryKey: ["workspace-calendar", range.from, range.to],
-          queryFn: () => requestJson<CalendarPayload>(`/api/v1/calendar/events?date_from=${range.from}&date_to=${range.to}`),
+          queryFn: ({ signal }) => requestJson<CalendarPayload>(`/api/v1/calendar/events?date_from=${range.from}&date_to=${range.to}`, { signal }),
         });
         const lessonCount = latest.events.filter(item => item.source === "official").length;
         const message = lessonCount ? `Расписание загружено: ${lessonCount} занятий на этой неделе.` : "Расписание синхронизировано. На этой неделе занятий нет.";
@@ -460,28 +495,6 @@ export function Workspace() {
       setSyncFinished(false);
       setSyncWaiting(false);
       setSyncNotice(error instanceof Error ? error.message : "Не удалось запустить синхронизацию IIS.");
-    }
-  }
-
-  async function reload() {
-    setLoadingAuth(true);
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] }),
-      queryClient.invalidateQueries({ queryKey: ["workspace-profile"] }),
-    ]);
-    setLoadingAuth(false);
-  }
-
-  async function afterAuthentication() {
-    await reload();
-    try {
-      const profile = await queryClient.fetchQuery({
-        queryKey: ["workspace-profile"],
-        queryFn: () => requestJson<AcademicProfile | null>("/api/v1/academics/me"),
-      });
-      if (!profile) setShowGroupPicker(true);
-    } catch (error) {
-      throw error instanceof Error ? error : new Error("Не удалось загрузить профиль.");
     }
   }
 
@@ -567,11 +580,10 @@ export function Workspace() {
       setTopAccountMenuOpen(false);
       const token = await csrfToken();
       await requestJson<void>("/api/v1/auth/logout", { method: "POST", headers: { "X-CSRF-Token": token } });
-      await reload();
+      onSessionEnd();
     } catch (error) { setToast(error instanceof Error ? error.message : "Не удалось завершить сессию."); }
   }
 
-  if (needsAuth) return <main className="workspace-auth"><AuthPanel onSuccess={afterAuthentication} /></main>;
   if (showGroupPicker) return <GroupPicker profile={meQuery.data ?? null} onClose={() => setShowGroupPicker(false)} onSaved={accepted => void afterGroupSaved(accepted)} />;
 
   return <main className="workspace-shell">
@@ -589,7 +601,7 @@ export function Workspace() {
     </aside>
 
     <section className="main-panel">
-        <header className="topbar"><button className="mobile-menu" aria-label="Меню профиля" aria-expanded={topAccountMenuOpen} onClick={() => setTopAccountMenuOpen(open => !open)}><Icon name="menu"/></button><div className="breadcrumb">Моё пространство <Icon name="chevron"/> <strong>Календарь</strong></div><div className="topbar-actions"><span className={`connection-dot ${calendarQuery.isError ? "offline" : ""}`}/><span className="connection-label">{syncPending ? "Загрузка расписания" : calendarQuery.isFetching || loadingAuth ? "Синхронизация" : calendarQuery.isError ? "Нет соединения" : "Синхронизировано"}</span><button className="avatar top-avatar" aria-label="Меню профиля" aria-expanded={topAccountMenuOpen} onClick={() => setTopAccountMenuOpen(open => !open)}>U</button></div>
+        <header className="topbar"><button className="mobile-menu" aria-label="Меню профиля" aria-expanded={topAccountMenuOpen} onClick={() => setTopAccountMenuOpen(open => !open)}><Icon name="menu"/></button><div className="breadcrumb">Моё пространство <Icon name="chevron"/> <strong>Календарь</strong></div><div className="topbar-actions"><span className={`connection-dot ${calendarQuery.isError ? "offline" : ""}`}/><span className="connection-label">{syncPending ? "Загрузка расписания" : calendarQuery.isFetching ? "Синхронизация" : calendarQuery.isError ? "Нет соединения" : "Синхронизировано"}</span><button className="avatar top-avatar" aria-label="Меню профиля" aria-expanded={topAccountMenuOpen} onClick={() => setTopAccountMenuOpen(open => !open)}>U</button></div>
           {topAccountMenuOpen && <div className="top-account-popover"><div className="popover-heading">Профиль и расписание</div><button onClick={() => { setTopAccountMenuOpen(false); setShowGroupPicker(true); }}><Icon name="cap"/><span>{meQuery.data ? "Сменить учебную группу" : "Выбрать учебную группу"}</span></button><button onClick={() => void logout()}><Icon name="logout"/><span>Выйти из аккаунта</span></button></div>}
         </header>
 

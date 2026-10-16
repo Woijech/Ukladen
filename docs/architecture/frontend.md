@@ -31,6 +31,11 @@ user's resolved week and supports personal-event creation/deletion. Profile acti
 open the group selector or revoke the current session. It does not implement tasks,
 page editing, password reset or saved views.
 
+The workspace checks `/api/v1/users/me` before mounting private data. Each authenticated
+identity owns a separate query client and mounted forms; logout, session expiry and
+identity changes discard that client and cancel its reads. Session revalidation hides
+private content until identity is checked. No private data is persisted in browser storage.
+
 `src/app` contains routing and the shell. `src/shared` contains the query provider
 and connection indicator. Feature/entity/widget directories will be introduced
 with real UI slices rather than empty scaffolding.
