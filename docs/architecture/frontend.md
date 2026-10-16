@@ -14,6 +14,12 @@ provides browser/Apple touch icons. PNG sources and reuse instructions are in
 imports under `src/shared/assets/`, optimized by Next.js and included in standalone
 and Docker output through the existing static-asset copy.
 
+All frontend routes set CSP `frame-ancestors 'none'; base-uri 'self'; form-action 'self'`,
+`X-Frame-Options: DENY` and `X-Content-Type-Options: nosniff`. This blocks external
+framing and form/base destination replacement without disabling Next.js scripts.
+The existing auth no-store/no-referrer/noindex policies remain. In Compose API
+requests bypass Next.js through Traefik, so these are frontend response headers.
+
 The only frontend route handler is `GET /health`, which returns `{ "status": "ok" }`.
 It checks the frontend process, not the backend. In Compose, Traefik routes API
 requests directly to FastAPI. For local development, Next.js rewrites `/api/*` to
@@ -28,7 +34,11 @@ The browser supplies Origin; FastAPI retains all validation, expiry and single-u
 business rules. A reused promise avoids duplicate confirmation when React repeats
 effects. The page uses no-referrer/no-store/noindex policies and does not retain
 tokens in browser storage. GET previews do not mutate user data. It renders Russian
-success, invalid/expired, rate-limit and temporary-failure states.
+success, invalid/expired, rate-limit and temporary-failure states. Confirmation
+requires the matching registration session. HTTP 401 explains how to use the
+registration browser or sign in before reopening the email; it also offers mailbox
+recovery for an unknown registration. Anonymous mail clicks cannot activate an
+existing credential.
 
 `/auth/reset-password` provides the email request and new-password forms. Login links
 to the request page; a valid email fragment opens the confirmation form. Fragment
@@ -49,7 +59,8 @@ configured minimum are required; passwords clear on completion or identity chang
 Authoritative Google registration needs no second email. Third-party Google users
 request our verification after password setup. Waiting sessions poll every five
 seconds, refetch on focus and offer manual refresh, resend with a 60-second UI
-cooldown and logout. Server rate limits remain authoritative. Completion navigates
+cooldown and logout. A failed identity refresh unmounts the password form and discards
+its secrets; retry mounts an empty form. Server rate limits remain authoritative. Completion navigates
 to a fresh workspace; expired sessions return to sign-in.
 
 `/auth/confirm-google-link` uses the shared fragment capture/privacy implementation

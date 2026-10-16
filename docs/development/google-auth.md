@@ -85,6 +85,13 @@ verification/password requirements and password minimum. The completion page pol
 while waiting for verification, supports bounded resend and logout, and accepts
 matching passwords through `POST /api/v1/auth/registration/password`. This creates
 only a missing credential, revokes other sessions and cannot overwrite a password.
+Email/password registration supports ordinary email providers, independently of
+Google. Our email-confirmation endpoint requires an active session for that same
+account, including its restricted registration session. Use the registration browser,
+or sign in to the same account before reopening the link. An anonymous/other-account
+mail click cannot activate a registration created by a third party; use password
+recovery for an unknown registration. Reset/change invalidates earlier reset links.
+
 Pending sessions get HTTP 403 with `code=registration_incomplete` from business APIs;
 their cookie stays available for completion. Expired sessions receive HTTP 401.
 
@@ -121,8 +128,9 @@ Previously verified accounts retain their linked identities during password reco
 Apply Alembic `0021_google_email_confirmations` before starting the updated API.
 It adds a separate challenge table, without storing provider tokens. Rebuild/recreate
 API, web and the existing Celery worker together: the worker must recognize the new
-`google_link` email kind. No new env settings or secrets are required. The existing
-SMTP settings and `AUTH_EMAIL_VERIFICATION_URL` supply delivery and the frontend origin.
+`google_link` email kind. No new env settings or secrets are required. Security fixes after this migration
+also require the matching registration session for ordinary email confirmation;
+see the [security review](auth-security-review-2026-10-17.md). The existing SMTP settings and `AUTH_EMAIL_VERIFICATION_URL` supply delivery and the frontend origin.
 Disabled/fake delivery cannot deliver real mailbox challenges; trusted Google login
 itself does not require SMTP.
 
@@ -265,3 +273,13 @@ The full non-auth backend suite was not rerun for this continuation slice.
 The final owner Google account selection/consent and real inbox confirmation still
 require the owner's browser. This record does not claim a completed human Google
 sign-in; no signature, state, browser-binding, CSRF or email-proof guard was weakened.
+
+
+## Security follow-up — 2026-10-17
+
+The matching-session email confirmation requirement, stale reset-link revocation,
+per-email throttling and frontend security headers are implemented. The final full
+backend suite passed 1509 tests; frontend lint/typecheck/build and 101 browser tests
+passed. See [the security review](auth-security-review-2026-10-17.md) for scope,
+local runtime checks, dependency findings and residual privacy/deployment limits.
+Earlier verification records above describe their own implementations and runs.

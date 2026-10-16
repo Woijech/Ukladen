@@ -136,7 +136,8 @@ Settings validation errors omit input values to avoid exposing credentials.
 path, query or fragment. An empty list denies authentication mutations. Prefer
 same-origin deployment; the API does not install CORS middleware.
 `AUTH_LOGIN_RATE_LIMIT` defaults to 10 and `AUTH_LOGIN_RATE_WINDOW_SECONDS` to 60;
-both must be positive.
+both must be positive. Each request checks the peer limit and then a separate
+normalized-email limit, using the same threshold/window across addresses.
 `AUTH_REGISTER_RATE_LIMIT` defaults to 5 and `AUTH_REGISTER_RATE_WINDOW_SECONDS`
 to 60; both must be positive. Registration uses the hashed ASGI peer address with
 a separate Redis key namespace.
@@ -158,7 +159,10 @@ Reset-confirmation limits also use the hashed ASGI peer address, with their own
 Redis key namespace.
 `AUTH_PASSWORD_RESET_REQUEST_RATE_LIMIT` defaults to 5 and
 `AUTH_PASSWORD_RESET_REQUEST_RATE_WINDOW_SECONDS` to 60; both must be positive.
-Request limits use the hashed ASGI peer address with a separate Redis key namespace.
+Request limits use both the hashed ASGI peer address and hashed normalized email
+with separate Redis namespaces. Login similarly applies both peer and normalized-email
+limits using its configured threshold/window. Source-address rotation cannot bypass
+a target's limit; normalization matches login and raw emails are not stored in keys.
 `AUTH_EMAIL_DELIVERY_MODE` accepts `disabled` (the default), `fake` or `smtp`.
 `.env.example` explicitly enables the development fake; existing `.env` files
 are not modified. Disabled mode refuses email queuing and worker delivery with
@@ -389,9 +393,10 @@ SMTP delivery is available through the worker. Verification and a password are
 mandatory for all protected application access under ADR 0008.
 
 `EmailVerificationService` accepts the generated 43-character URL-safe token format
-and looks up only its hash through `EmailVerificationRepository`. The SQLAlchemy
-adapter selects email-verification tokens with `FOR UPDATE` and refreshes their
-state. The service checks expiry and consumes the domain token after acquiring the
+and an expected user UUID taken from an active registration session. It locks that
+active user, looks up only the token hash through `EmailVerificationRepository`,
+and rejects a different token owner. The SQLAlchemy adapter selects the token
+with `FOR UPDATE` and refreshes its state. The service checks expiry and consumes the domain token after acquiring the
 lock, so time spent waiting cannot allow an expired token through. Unknown,
 expired, already-used, not-yet-valid and password-reset tokens are rejected.
 
@@ -407,7 +412,10 @@ returns only the user UUID and does not log or persist the raw token.
 `POST /api/v1/auth/email-verification/confirm` calls this existing service through
 `get_email_verification`, sharing one SQLAlchemy session between its adapters and
 the route's transaction. It requires CSRF validation and the peer-address Redis
-rate limiter; no authenticated session is required or validated. The DTO accepts
+rate limiter, plus an active `RegistrationSession` for the token's owner. Anonymous
+requests return 401; another account gets the generic 400 without consumption.
+This prevents an anonymous mail click from activating an attacker's registration.
+The DTO accepts
 only a `token` field, uses `SecretStr`, hides it from representations and requires
 43 characters. The service enforces the URL-safe format. Confirmation returns an
 empty 204 with `Cache-Control: no-store` only after commit; it does not set or clear
@@ -481,17 +489,20 @@ never be returned from HTTP or logged. No email is sent or queued in this step.
 
 `confirm_reset` accepts the generated 43-character URL-safe token format and applies
 the current registration password-length policy while preserving whitespace and
-Unicode. It hashes the new password before acquiring database locks. Token lookup
-selects only password-reset rows with `FOR UPDATE` and refreshes their state,
-reusing the email-verification adapter's private lookup and consumption helpers.
-The service then locks the active user and existing credential, checks expiry
+Unicode. It hashes the new password before acquiring database locks. A nonlocking,
+type-filtered hash lookup reads the candidate owner. It then locks the active user,
+re-reads/locks the token, checks its owner and locks the credential. This order
+serializes sibling reset links without locking one token while waiting for another
+confirmation's user lock. Token lookup refreshes canonical state. It checks expiry
 after all locks are acquired, and consumes the token through the domain method.
 It updates the credential's hash, `password_updated_at` and `updated_at`, preserving
 `created_at`, or creates the first credential for a passwordless account. Mailbox
 proof verifies an unverified canonical email and removes identities attached to
 that unverified registration; already verified accounts retain their identities.
-It marks the token used and revokes all sessions through `SessionService`, including
-cached sessions. It does not change user status or attach external identities. Invalid/expired/used/wrong-type tokens and ineligible
+It marks the token used, invalidates all other outstanding reset tokens for that
+user and revokes all sessions through `SessionService`, including cached sessions.
+Password change also invalidates all earlier outstanding reset tokens in its
+transaction, while retaining only the current session. It does not change user status or attach external identities. Invalid/expired/used/wrong-type tokens and ineligible
 accounts produce the same `Invalid or expired token.` error.
 
 All reset adapters share one SQLAlchemy session and caller-owned transaction.
@@ -839,7 +850,7 @@ an identity is attached only after the fresh verified Google callback.
 | `DELETE /api/v1/auth/sessions/{session_id}` | Revokes an owned session; returns 204 or a generic 404. |
 | `POST /api/v1/auth/password/change` | Requires the current password; changes it, retains the current session and revokes others. |
 | `POST /api/v1/auth/email-verification/request` | Requests verification mail for the authenticated user after token commit; returns 202 and retains the cookie. |
-| `POST /api/v1/auth/email-verification/confirm` | Consumes a valid verification token and verifies its user's email; returns 204 without requiring login. |
+| `POST /api/v1/auth/email-verification/confirm` | Requires a matching active registration session; consumes the email token and verifies that user's email after commit. |
 | `POST /api/v1/auth/password-reset/confirm` | Changes the password, consumes a reset token, revokes owned sessions and clears the browser session cookie; returns 204 without requiring login. |
 | `POST /api/v1/auth/password-reset/request` | Returns the same 202 for every account outcome; commits an eligible reset token before email queuing. |
 
@@ -1043,7 +1054,7 @@ revoked-session replay rejection, login with the new password, old-password
 rejection, cache-failure rollback/retry and disabled-account rejection. Generated
 rate keys and session cache entries are removed after the isolated tests.
 
-Email-verification HTTP tests cover confirmation without login, cookie retention,
+Email-verification HTTP tests cover registration-session ownership, cookie retention,
 hashed peer limits without trusting forwarded headers, CSRF ordering, secret-safe
 DTOs/validation/errors, positive rate settings and no success before commit.
 PostgreSQL/Redis checks cover single use, expired/future/unknown/malformed/wrong-type
@@ -1171,3 +1182,10 @@ configuration passed; local API/web/email worker and migration 0021 were updated
 See [the dated auth record](../development/google-auth.md#completed-registration-verification--2026-10-16)
 for coverage, runtime checks and live Google/inbox limitations. Earlier dated
 verification records above retain their original scope and counts.
+
+
+Authentication security follow-up (2026-10-17): Ruff/format/Pyright and 1509 full
+backend tests passed (664 dependency deprecation warnings). Frontend checks and
+101 browser tests passed. Local API/web were updated; no schema change was needed.
+See [the security review](../development/auth-security-review-2026-10-17.md) for
+reproduced defects, verification-session compatibility, runtime evidence and limits.

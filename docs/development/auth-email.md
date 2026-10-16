@@ -115,9 +115,16 @@ printf '%s\n%s\n' "$AUTH_EMAIL" "$AUTH_PASSWORD" |
 The worker should send a message with subject `Verify your Ukladen email`. When
 `AUTH_EMAIL_VERIFICATION_URL` is configured, open its confirmation link in a browser.
 The page automatically obtains the CSRF cookie/token and submits the existing
-POST confirmation endpoint. It displays `Почта подтверждена` on success; registration
-in the same browser is unnecessary. An expired, invalid or reused token displays
-an error; it does not authenticate the browser or create a session.
+POST confirmation endpoint. It requires an active session for that same account;
+a restricted registration session is sufficient. Anonymous links cannot activate
+credentials supplied by someone else. Use the registration browser, or sign in to
+the same account on the new device and reopen the link. The curl cookie jar above
+is separate from browser cookies: either confirm manually below with that jar, or
+sign in in the browser first. If you did not create the registration or do not know
+its password, use password recovery instead. The page displays `Почта подтверждена`
+on success, or clear sign-in/recovery instructions on 401. Invalid, expired, reused
+or other-account tokens fail without changing their user's email. Confirmation
+does not authenticate the browser or create a session.
 
 The email link carries its token in a URL fragment (`#token=...`), never a query
 parameter. Fragments are not sent in HTTP requests. The page removes the fragment
@@ -125,8 +132,8 @@ from the address bar immediately and sets no-referrer/no-store/noindex policies.
 Tokens are not persisted in local/session storage or included in rendered HTML.
 An ordinary GET preview or prefetch does not consume the token; confirmation
 requires executing the page's JavaScript and its CSRF-protected POST. A scanner
-that executes that complete browser flow can still consume a link, as with other
-automatic browser confirmation flows. Opening the page requires JavaScript.
+that executes the complete flow still needs the matching authenticated session.
+An anonymous scanner cannot activate the registration. Opening the page requires JavaScript.
 
 For token-only emails or a manual API check, copy the token from the private body
 and submit it using the existing API:
@@ -166,8 +173,9 @@ uses no-referrer/no-store/noindex policies and never stores the token in browser
 storage. Opening or previewing a link alone does not reset the password: the user
 must submit the form, which obtains CSRF protection and calls the existing API.
 
-Success consumes the one-time token, revokes all account sessions and offers a link
-back to sign-in. The old password stops working; the user signs in with the new one.
+Success consumes the one-time token, invalidates all outstanding sibling reset
+links, revokes all account sessions and offers a link back to sign-in. Changing the
+password while signed in also invalidates previously issued reset links. The old password stops working; the user signs in with the new one.
 Invalid, expired or reused links offer a new email request. Rate-limit, network and
 temporary-service failures preserve the form for retry. Active passwordless accounts
 can use this flow to create their first password too. For an unverified registration,

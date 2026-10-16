@@ -267,8 +267,9 @@ Set `AUTH_EMAIL_VERIFICATION_URL=http://localhost:8080/auth/verify-email` locall
 to include clickable verification and password-reset links in emails. Existing `.env`
 files need this new setting added explicitly. Deployment uses your frontend's
 public HTTPS URL with the same path and an origin in `AUTH_ALLOWED_ORIGINS`.
-Opening a verification link automatically confirms through the existing CSRF-protected POST
-API and displays the result. Its token stays in a fragment and is removed from
+Opening a verification link in the registration browser confirms through the
+CSRF-protected POST API. On another device, sign in to the same account before
+reopening the email link. Unknown registrations should use password recovery. Its token stays in a fragment and is removed from
 the address bar; GET previews do not consume it. Reset links use the same origin
 with `/auth/reset-password`. Choose **Забыли пароль?** on the sign-in page, request
 an email and enter the new password twice on its linked form. Success consumes the
@@ -350,13 +351,15 @@ network calls.
 Authenticated clients can change their password with
 `POST /api/v1/auth/password/change`, sending `current_password` and `new_password`
 in JSON with the same cookies, `Origin` and CSRF header. Success returns 204,
-keeps the current session and revokes other sessions. The default limit is five
+keeps the current session, revokes others and invalidates outstanding reset links. The default limit is five
 attempts per user per 60-second window. The new password must meet the configured
 registration length policy; the default minimum is 12 characters.
 
 Email-verification tokens can be confirmed with
 `POST /api/v1/auth/email-verification/confirm`, sending `token` in JSON with the
-CSRF cookie, allowed `Origin` and CSRF header. Login is unnecessary. Success
+CSRF cookie, allowed `Origin`, CSRF header and an active session for the same user
+(a restricted registration session is sufficient). Anonymous confirmation returns
+401; another account cannot consume the token. Success
 returns an empty 204, consumes the token and verifies its user's email without
 changing session cookies. Invalid, expired or used tokens return a generic 400;
 malformed request bodies return a generic 422. The default limit is five attempts
@@ -380,7 +383,8 @@ Password-reset tokens can be confirmed with
 `POST /api/v1/auth/password-reset/confirm`, sending `token` and `new_password` in
 JSON with the same CSRF protection. Login is unnecessary. Success returns an empty
 204 after updating the password, consuming the token and revoking all of the
-account's sessions; it clears the browser session cookie. Active passwordless accounts
+account's sessions; it clears the browser session cookie and invalidates all earlier
+outstanding reset links. Active passwordless accounts
 can create their first password this way. Recovery of an unverified registration
 also verifies its email and removes prior external identities; verified accounts
 retain their identities. The new password uses
