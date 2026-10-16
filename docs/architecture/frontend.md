@@ -48,7 +48,15 @@ The week grid covers 00:00–24:00 in a scrollable region, initially scrolled to
 Events are clipped into overlapping day segments, including continuations from the
 previous week; opening a segment edits the original interval. Lane placement uses
 the clipped intervals, and card height follows duration without a maximum cap.
-The selected-day agenda includes continuations.
+The selected-day agenda includes continuations. Civil dates, navigation, labels and
+`datetime-local` inputs use the resolved calendar timezone (the user profile supplies
+the initial timezone). Browser timezone does not select the calendar date.
+Day boundaries and durations follow actual instants: DST days can have 23/25 hours.
+On clock-change weeks each day shows local clock/UTC-offset ticks and the shared
+column shows elapsed hours from midnight. Repeated input times require an explicit
+offset selection; nonexistent local times are rejected. Editing preserves the original
+instant, including seconds, when its displayed local time is unchanged. These
+conversions use platform `Intl`; no timezone dependency was added.
 
 `src/app` contains routing and the shell. `src/shared` contains the query provider
 and connection indicator. Feature/entity/widget directories will be introduced

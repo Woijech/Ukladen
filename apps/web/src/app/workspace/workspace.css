@@ -353,3 +353,8 @@ button.day-heading { cursor: pointer; }
 .calendar-scroll .day-heading { position: sticky; top: 0; z-index: 3; }
 .calendar-scroll .event-card { padding-block: 0; }
 .event-card:focus-visible .event-delete,.event-delete:focus-visible { display: block; }
+
+.day-hour-label { position: absolute; right: 2px; top: 1px; color: #827a8e; background: #ffffffd9; font-size: 10px; white-space: nowrap; }
+.calendar-timezone { color: #827a8e; font-size: 14px; }
+
+.event-modal { max-height: calc(100dvh - 32px); overflow-y: auto; }
