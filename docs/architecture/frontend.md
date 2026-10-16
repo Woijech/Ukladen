@@ -22,6 +22,8 @@ effects. The page uses no-referrer/no-store/noindex policies and does not retain
 tokens in browser storage. GET previews do not mutate user data. It renders Russian
 success, invalid/expired, rate-limit and temporary-failure states.
 
+The root `/` page links to `/workspace` through “Открыть календарь”.
+
 `/workspace` provides email/password login and registration using the existing CSRF
 and session-cookie contracts. Password visibility lasts three seconds. After login,
 users without an academic profile can choose to connect a BSUIR group or continue

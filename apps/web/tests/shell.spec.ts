@@ -15,3 +15,13 @@ test("shell reports API failures", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("status")).toHaveText("Сервис временно недоступен");
 });
+
+
+test("the home page opens the workspace sign-in flow", async ({ page }) => {
+  await page.route("**/api/health/live", route => route.fulfill({ json: { status: "ok" } }));
+  await page.route("**/api/v1/users/me", route => route.fulfill({ status: 401, json: { detail: "Invalid session." } }));
+  await page.goto("/");
+  await page.getByRole("link", { name: "Открыть календарь" }).click();
+  await expect(page).toHaveURL("/workspace");
+  await expect(page.getByRole("heading", { name: "Войти в Ukladen" })).toBeVisible();
+});
