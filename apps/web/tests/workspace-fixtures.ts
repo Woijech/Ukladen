@@ -13,7 +13,7 @@ export async function mockWorkspace(page: Page) {
     profile: null as typeof profile | null, status: { ...ready },
     events: [] as ReturnType<typeof calendarEvent>[],
     holdCalendar: null as Promise<void> | null,
-    calendarCode: 200, syncStatusCode: 200, authCode: 200, syncCode: 202, onSync: null as (() => void) | null,
+    calendarCode: 200, groupSourceCode: 200, syncStatusCode: 200, authCode: 200, syncCode: 202, onSync: null as (() => void) | null,
     writes: [] as { method: string; path: string; body: Record<string, unknown> | null }[],
   };
   await page.clock.install({ time: new Date("2026-10-16T12:00:00Z") });
@@ -43,7 +43,7 @@ export async function mockWorkspace(page: Page) {
       return route.fulfill({ json: state.profile });
     }
     if (path === "/api/v1/schedule/me/sync-status") return route.fulfill({ status: state.syncStatusCode, json: { ...state.status } });
-    if (path === "/api/v1/schedule/groups/353501/events") return route.fulfill({ json: { events: [], source: { ...state.status } } });
+    if (path === "/api/v1/schedule/groups/353501/events") return route.fulfill({ status: state.groupSourceCode, json: state.groupSourceCode === 200 ? { events: [], source: { ...state.status } } : { detail: "Schedule event not found." } });
     if (path === "/api/v1/schedule/me/sync") { state.onSync?.(); return route.fulfill({ status: state.syncCode, json: { group_id: 1, status: "accepted" } }); }
     if (path === "/api/v1/calendar/events") {
       await state.holdCalendar;

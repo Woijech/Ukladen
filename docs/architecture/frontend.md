@@ -40,7 +40,9 @@ private content until identity is checked. No private data is persisted in brows
 
 Schedule refresh reads the stored source state before requesting work (the public
 group-events response before a profile change, or the owner sync-status endpoint
-before a retry). Completion requires an advanced attempt/success timestamp for the
+before a retry). A group-events 404 means there is no stored source yet and uses
+an empty `not_synced` baseline; other errors stop the save and remain visible.
+Completion requires an advanced attempt/success timestamp for the
 selected group, or completion of the attempt already running at that snapshot.
 An old `ready` state is not a new success. Polling continues after the three-minute
 waiting notice and recovers when the worker finishes. The queue response is acceptance

@@ -152,19 +152,23 @@ function scheduleStatusMessage(status: ScheduleSyncStatus) {
   return unsupported[status.error_code ?? ""] ?? "IIS вернул запись расписания, которую текущий импортёр не может безопасно преобразовать в занятие.";
 }
 
-class SessionExpiredError extends Error {}
+class RequestError extends Error {
+  constructor(readonly status: number, message: string) { super(message); }
+}
+
+class SessionExpiredError extends RequestError {}
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { ...init, credentials: "same-origin", cache: "no-store" });
   if (!response.ok) {
     const payload = await response.json().catch(() => null) as { detail?: string } | null;
-    if (path === "/api/v1/auth/login" && response.status === 401) throw new Error("Неверная почта или пароль.");
-    if (path === "/api/v1/auth/register" && response.status === 409) throw new Error("Аккаунт с такой почтой уже существует.");
-    if (response.status === 401) throw new SessionExpiredError("Войдите в аккаунт, чтобы открыть личное пространство.");
-    if (response.status === 409) throw new Error("Данные изменились. Обновите страницу и попробуйте ещё раз.");
-    if (response.status === 403) throw new Error("Сессия защиты устарела. Обновите страницу и повторите действие.");
-    if (response.status === 422) throw new Error(payload?.detail === "Invalid academic selection." ? "Выбери группу и подгруппу из списка." : "Проверь заполненные данные.");
-    throw new Error(response.status === 503 ? "Сервис временно недоступен." : "Не удалось выполнить запрос.");
+    if (path === "/api/v1/auth/login" && response.status === 401) throw new RequestError(response.status, "Неверная почта или пароль.");
+    if (path === "/api/v1/auth/register" && response.status === 409) throw new RequestError(response.status, "Аккаунт с такой почтой уже существует.");
+    if (response.status === 401) throw new SessionExpiredError(response.status, "Войдите в аккаунт, чтобы открыть личное пространство.");
+    if (response.status === 409) throw new RequestError(response.status, "Данные изменились. Обновите страницу и попробуйте ещё раз.");
+    if (response.status === 403) throw new RequestError(response.status, "Сессия защиты устарела. Обновите страницу и повторите действие.");
+    if (response.status === 422) throw new RequestError(response.status, payload?.detail === "Invalid academic selection." ? "Выбери группу и подгруппу из списка." : "Проверь заполненные данные.");
+    throw new RequestError(response.status, response.status === 503 ? "Сервис временно недоступен." : "Не удалось выполнить запрос.");
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
@@ -277,7 +281,13 @@ function GroupPicker({ profile, timeZone, onClose, onSaved }: { profile: Academi
     setSaving(true); setError("");
     try {
       const day = dateKey(new Date(), timeZone);
-      const { source: baseline } = await requestJson<{ source: ScheduleSyncStatus }>(`/api/v1/schedule/groups/${selectedGroup.name}/events?date_from=${day}&date_to=${day}`);
+      let baseline: ScheduleSyncStatus = { group_id: selectedGroup.id, group_number: selectedGroup.name, status: "not_synced", last_attempt_at: null, last_success_at: null, error_code: null };
+      try {
+        baseline = (await requestJson<{ source: ScheduleSyncStatus }>(`/api/v1/schedule/groups/${selectedGroup.name}/events?date_from=${day}&date_to=${day}`)).source;
+      } catch (error) {
+        // The stored group-events API returns 404 until the first import creates its source.
+        if (!(error instanceof RequestError && error.status === 404)) throw error;
+      }
       const startedAt = Date.now();
       const token = await csrfToken();
       await requestJson<AcademicProfile>("/api/v1/academics/me", {

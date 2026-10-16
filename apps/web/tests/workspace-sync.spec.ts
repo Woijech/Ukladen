@@ -66,3 +66,28 @@ test("a retained split rejection asks for a fresh import instead of claiming cur
   await expect(page.locator(".schedule-sync-notice")).not.toContainText("Импортёр пока не умеет");
   await expect(page.getByRole("button", { name: "Повторить синхронизацию" })).toBeEnabled();
 });
+
+
+test("a first-time group whose stored source is 404 can still be selected and imported", async ({ page }) => {
+  const state = await mockWorkspace(page);
+  state.groupSourceCode = 404;
+  state.status = { ...state.status, status: "not_synced", last_attempt_at: null, last_success_at: null };
+  state.onSync = () => { state.status = { ...state.status, status: "ready", last_attempt_at: "2026-10-16T12:00:00Z", last_success_at: "2026-10-16T12:00:01Z" }; };
+  await page.goto("/workspace");
+  await page.getByRole("button", { name: "Настроить учебную группу" }).click();
+  await page.getByRole("option", { name: /353501/ }).click();
+  await page.getByRole("button", { name: "Продолжить", exact: true }).click();
+  await expect(page.locator(".schedule-sync-notice")).toHaveClass(/is-success/);
+  expect(state.writes.filter(write => write.path === "/api/v1/academics/me")).toHaveLength(1);
+});
+
+test("a source-read outage is not mistaken for a never-imported group", async ({ page }) => {
+  const state = await mockWorkspace(page);
+  state.groupSourceCode = 503;
+  await page.goto("/workspace");
+  await page.getByRole("button", { name: "Настроить учебную группу" }).click();
+  await page.getByRole("option", { name: /353501/ }).click();
+  await page.getByRole("button", { name: "Продолжить", exact: true }).click();
+  await expect(page.locator(".group-page").getByRole("alert")).toContainText("временно недоступен");
+  expect(state.writes).toEqual([]);
+});
