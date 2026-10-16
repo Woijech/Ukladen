@@ -42,8 +42,8 @@ Calendar free slots/conflicts, tasks, semantic search and AI are not implemented
 Workspace organization exists;
 saved event views, user databases, table/calendar views and mixed date projection exist.
 Authenticated IIS is unverified/unimplemented.
-Frontend login/registration, browser email verification, optional academic-group
-selection and weekly calendar personal-event create/edit/delete are implemented.
+Frontend login/registration, browser email verification and password recovery,
+optional academic-group selection and weekly calendar personal-event create/edit/delete are implemented.
 Session isolation, sync-result freshness, full-day interval rendering and explicit
 timezone handling have deterministic browser regressions; see
 [frontend](../architecture/frontend.md). Pages, materials/search, reminders/inbox,

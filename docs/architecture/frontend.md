@@ -1,6 +1,6 @@
 # Ukladen Frontend Foundation
 
-Status: shell, browser email verification, login/registration, academic-group selection and a weekly calendar with personal-event create/edit/delete are implemented. Other business UI remains not implemented.
+Status: shell, browser email verification, login/registration, email password recovery, academic-group selection and a weekly calendar with personal-event create/edit/delete are implemented. Other business UI remains not implemented.
 
 `apps/web` uses Next.js App Router, React and strict TypeScript. The root layout
 provides a TanStack Query client created once per mounted provider. The frontend
@@ -22,6 +22,18 @@ effects. The page uses no-referrer/no-store/noindex policies and does not retain
 tokens in browser storage. GET previews do not mutate user data. It renders Russian
 success, invalid/expired, rate-limit and temporary-failure states.
 
+`/auth/reset-password` provides the email request and new-password forms. Login links
+to the request page; a valid email fragment opens the confirmation form. Fragment
+capture and removal happen once per mount, without an API mutation until explicit
+submission. The token stays only in mounted memory. Both forms obtain fresh CSRF
+protection and use the existing same-origin reset endpoints with cookies and Origin.
+Request acknowledgements do not reveal account eligibility. Confirmation requires
+matching passwords, handles server password-policy rejection, and clears the cached
+session identity on success. Invalid/reused/expired links offer another request;
+transient failures allow retry. Reloading returns to the request page, so the email
+link must be reopened. Another fragment navigates to a fresh form. The page shares
+verification's no-referrer/no-store/noindex policies and mutation-free GET previews.
+
 The root `/` page links to `/workspace` through “Открыть календарь”.
 
 `/workspace` provides email/password login and registration using the existing CSRF
@@ -31,7 +43,7 @@ without one. Group selection uses the existing group catalogue, group-context,
 profile PATCH and schedule-sync endpoints. The calendar displays the authenticated
 user's resolved week and supports personal-event create/edit/delete. Profile actions
 open the group selector or revoke the current session. It does not implement tasks,
-page editing, password reset or saved views.
+page editing or saved views.
 
 The workspace checks `/api/v1/users/me` before mounting private data. Each authenticated
 identity owns a separate query client and mounted forms; logout, session expiry and
@@ -87,19 +99,21 @@ The current calendar does not introduce an editor library or database-view syste
 
 ESLint uses Next.js's accessibility, React and TypeScript rules. `tsc --noEmit`
 provides type checking. Playwright runs Chromium tests against the built frontend:
-shell/connectivity success/failure, verification link handling and workspace flows.
+shell/connectivity success/failure, verification/reset link handling and workspace flows.
 Workspace tests cover account isolation/session expiry, registration/login and optional
 group onboarding, CSRF-protected personal CRUD, read-only official events, queued/fast
 IIS imports and recovery, interval continuations, calendar timezones and DST inputs.
 Verification
 tests check one POST with cookies/CSRF/Origin, fragment/history cleanup, privacy
 headers, invalid input, server/network failures and mutation-free GET previews.
+Password-reset tests also cover matching passwords, duplicate-submit prevention,
+policy correction, generic request acknowledgements, retry and opening another link.
 Browser tests mock API responses; backend tests cover real PostgreSQL/Redis/SMTP
 flows. Compose health verification checks the real backend separately.
 
 Rendering errors use App Router `error.tsx` and `global-error.tsx` fallbacks with
 a retry action and fixed JSON browser diagnostics. Failed health checks and email
-verification requests log safe event/status metadata; verification responses can
+verification/reset requests log safe event/status metadata; their responses can
 include the backend request ID. Error messages, stacks, URLs and token fragments
 are omitted from these diagnostics. Browser logs remain local to DevTools; no
 remote telemetry SDK is installed. See [logging](../development/logging.md).

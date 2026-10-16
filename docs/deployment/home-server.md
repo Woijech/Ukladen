@@ -3,8 +3,8 @@
 Status: deployment configuration implemented. Public activation requires a Cloudflare
 account, an active `ukladen.app` DNS zone and a remotely managed tunnel token.
 This publishes the existing Next.js shell, API, email-verification page and the
-current login/registration, academic-group selection and weekly calendar UI.
-Password-reset screens and other workspace features are not implemented.
+current login/registration, email password recovery, academic-group selection and
+weekly calendar UI. Other workspace features are not implemented in the UI.
 
 The PC runs the existing modular monolith and its data services. The only new
 component is the official `cloudflared` connector. Browser TLS terminates at
@@ -135,7 +135,8 @@ Open `https://ukladen.app`. For auth API tests, follow
 [the email end-to-end guide](../development/auth-email.md), changing `AUTH_BASE`
 and `Origin` to `https://ukladen.app`. Get a new CSRF token and cookies on this
 origin; localhost cookies do not transfer. Request a fresh verification email and
-open its link. Reset email still contains a token for the existing reset API.
+open its link. Test **Забыли пароль?** on sign-in as well: the reset email links to
+`https://ukladen.app/auth/reset-password`, using the same configured origin.
 Never put these tokens into query strings. Avoid Cloudflare cache-everything rules
 for `/api/*` or `/auth/*`; preserve the application's no-store responses.
 

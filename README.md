@@ -261,13 +261,16 @@ verify server certificates. No provider SDK is required. See
 [auth email setup and end-to-end checks](docs/development/auth-email.md).
 
 Set `AUTH_EMAIL_VERIFICATION_URL=http://localhost:8080/auth/verify-email` locally
-to include a clickable confirmation link in verification emails. Existing `.env`
+to include clickable verification and password-reset links in emails. Existing `.env`
 files need this new setting added explicitly. Deployment uses your frontend's
 public HTTPS URL with the same path and an origin in `AUTH_ALLOWED_ORIGINS`.
-Opening the link automatically confirms through the existing CSRF-protected POST
+Opening a verification link automatically confirms through the existing CSRF-protected POST
 API and displays the result. Its token stays in a fragment and is removed from
-the address bar; GET previews do not consume it. Password-reset email remains
-token-only. Request a new verification email to test the link after rebuilding.
+the address bar; GET previews do not consume it. Reset links use the same origin
+with `/auth/reset-password`. Choose **Забыли пароль?** on the sign-in page, request
+an email and enter the new password twice on its linked form. Success consumes the
+token and revokes all account sessions. Request fresh emails after rebuilding;
+previously sent token-only messages are unchanged.
 
 For browser password login, call `GET /api/v1/auth/csrf` with cookies enabled,
 retain its `csrf_token`, then send it as `X-CSRF-Token` together with cookies and

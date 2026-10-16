@@ -55,8 +55,8 @@ One-shot calendar reminders and durable in-app notifications are implemented, ba
 Private materials, bounded document extraction, page attachments and basic PostgreSQL
 full-text search are implemented; see [materials/search](docs/development/materials.md).
 Status: not implemented — tasks, availability, semantic search, AI/RAG and authenticated IIS.
-The frontend implements login/registration, browser email verification, academic-group
-selection and a weekly calendar with personal-event create/edit/delete. Other
+The frontend implements login/registration, browser email verification and password
+recovery, academic-group selection and a weekly calendar with personal-event create/edit/delete. Other
 workspace business UI remains unimplemented.
 
 Detailed behavior: [product overview](docs/product/overview.md) and
@@ -449,7 +449,7 @@ Status: backend authentication is implemented, including email/password flows,
 Google OIDC login and explicit linking with password re-authentication. Authentication
 email delivery uses the existing Celery worker and a configurable SMTP adapter;
 the deployment supplies its SMTP service. Browser email verification and email/password
-login/registration UI are implemented. See
+login/registration and email password recovery UI are implemented. See
 [backend architecture](docs/architecture/backend.md) for current runtime details.
 
 ## 5.2 users

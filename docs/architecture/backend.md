@@ -10,8 +10,8 @@ Celery email queuing, a development fake and configurable SMTP delivery are impl
 A Google OIDC identity adapter, account-resolution application service and
 browser-bound Redis OAuth state and Google browser login are implemented.
 Explicit Google linking is implemented. A deployment must supply its SMTP service;
-browser email verification and email/password login/registration UI are implemented.
-Password-reset UI and durable email publication recovery are not implemented.
+browser email verification, email/password login/registration and password-reset UI
+are implemented. Durable email publication recovery is not implemented.
 
 The backend users profile API is implemented. It reuses browser authentication and
 CSRF protection; see [profile contracts and API examples](../development/user-profile.md).
@@ -164,8 +164,9 @@ are not modified. Disabled mode refuses email queuing and worker delivery with
 `AUTH_EMAIL_VERIFICATION_URL` optionally enables email links to the frontend
 `/auth/verify-email` page. It must use an allowed origin, HTTPS except loopback
 development, and no credentials, query or fragment. The worker appends the token
-as `#token=...` to the configured URL. If unset, manual token-only verification
-emails remain available. `.env.example` sets the local frontend URL; existing
+as `#token=...` to the configured URL for verification, or uses the same origin
+with `/auth/reset-password` for reset emails. If unset, both email types retain
+manual token-only delivery. `.env.example` sets the local frontend URL; existing
 deployments must configure their public URL explicitly.
 
 SMTP mode requires `SMTP_HOST` and a bare `SMTP_FROM_EMAIL`. `SMTP_USERNAME` and
@@ -874,12 +875,13 @@ The SMTP adapter creates a plain-text verification/reset message with a fixed
 subject, sender, normalized recipient, Date and Message-ID. The raw single-use
 token appears only in the private email body and existing trusted broker payload,
 never in HTTP responses or logs. Messages describe the configured lifetime from
-the original request. Configured verification links appear in plain-text and HTML
+the original request. Configured verification/reset links appear in plain-text and HTML
 alternatives; the token is a fragment rather than a server-visible query string.
 The frontend reads and removes it, obtains CSRF protection and calls the existing
-POST confirmation API. GET previews do not confirm an address. The frontend does
-not persist tokens or change confirmation rules. Without a configured URL,
-verification emails remain token-only; password-reset email is always token-only.
+POST confirmation API. Verification submits automatically; password reset requires
+explicit new-password form submission. GET previews cannot perform either action.
+The frontend does not persist tokens or change confirmation rules. Without a
+configured URL, both email types remain token-only.
 
 Each job uses a new timeout-bounded SMTP connection, upgrades with STARTTLS before
 authentication or uses implicit TLS, and verifies certificates and hostnames using
