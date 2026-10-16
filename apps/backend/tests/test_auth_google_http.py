@@ -182,7 +182,12 @@ def test_callback_failures_preserve_session_and_hide_secrets(
     else:
         oauth.resolve_callback.side_effect = errors[failure]("private-code")
     response = client.get(CALLBACK, params={"state": generate_token(), "code": "private-code"})
-    assert response.status_code == 303 and response.headers["location"] == ORIGIN + "/error"
+    destination = ORIGIN + "/error"
+    if failure == "linking":
+        destination += "?reason=account_linking_required"
+    assert response.status_code == 303 and response.headers["location"] == destination
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["referrer-policy"] == "no-referrer"
     assert "private-code" not in response.text + str(response.headers)
     assert "set-cookie" not in response.headers
     assert client.cookies.get(google_settings.auth_session_cookie_name) == existing
@@ -401,7 +406,10 @@ def test_live_failure_never_creates_accounts_or_sessions(
         if failure != "denial"
         else {"state": state, "error": "access_denied"}
     )
-    assert live_client.get(CALLBACK, params=params).headers["location"] == ORIGIN + "/error"
+    destination = ORIGIN + "/error"
+    if failure == "collision":
+        destination += "?reason=account_linking_required"
+    assert live_client.get(CALLBACK, params=params).headers["location"] == destination
     assert not live_client.cookies.get(google_settings.auth_session_cookie_name)
     with Session(concurrent_engine) as database:
         assert database.scalar(select(func.count()).select_from(UserModel)) == (

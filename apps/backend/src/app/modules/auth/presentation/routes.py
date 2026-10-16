@@ -235,8 +235,11 @@ def google_callback(
             else logging.WARNING
         )
         log_failure(logger, "auth.google_callback_rejected", error, level=level)
+        destination = str(settings.frontend_auth_error_url)
+        if isinstance(error, AccountLinkingRequired):
+            destination += "?reason=account_linking_required"
         response = RedirectResponse(
-            str(settings.frontend_auth_error_url),
+            destination,
             status_code=303,
             headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
         )

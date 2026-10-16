@@ -102,7 +102,7 @@ def service(
 
 
 @pytest.mark.parametrize("json_response", [False, True])
-def test_live_explicit_link_preserves_password_account_and_supports_google_login(
+def test_live_login_collision_then_link_preserves_password_account_and_supports_google_login(
     live_client: TestClient,
     concurrent_engine: Engine,
     google_settings: Settings,
@@ -111,6 +111,14 @@ def test_live_explicit_link_preserves_password_account_and_supports_google_login
     json_response: bool,
 ) -> None:
     user_id = seed(concurrent_engine, password_hash)
+    response = live_client.get("/api/v1/auth/google/start")
+    state = parse_qs(urlsplit(response.headers["location"]).query)["state"][0]
+    response = live_client.get(CALLBACK, params={"state": state, "code": "test-code"})
+    assert response.headers["location"] == ORIGIN + "/error?reason=account_linking_required"
+    assert not live_client.cookies.get(google_settings.auth_session_cookie_name)
+    with Session(concurrent_engine) as database:
+        assert database.scalar(select(func.count()).select_from(IdentityModel)) == 0
+        assert database.scalar(select(func.count()).select_from(SessionModel)) == 0
     original = browser_login(live_client)
     state = start_link(live_client, json_response=json_response)
     response = live_client.get(CALLBACK, params={"state": state, "code": "test-code"})
@@ -134,7 +142,7 @@ def test_live_explicit_link_preserves_password_account_and_supports_google_login
         live_client.get(CALLBACK, params={"state": state, "code": "test-code"}).headers["location"]
         == ORIGIN + "/error"
     )
-    assert provider.resolve_callback.call_count == 1
+    assert provider.resolve_callback.call_count == 2
     assert browser_login(live_client)  # Existing password remains usable.
     response = live_client.get("/api/v1/auth/google/start")
     state = parse_qs(urlsplit(response.headers["location"]).query)["state"][0]
