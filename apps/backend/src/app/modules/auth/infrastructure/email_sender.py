@@ -142,16 +142,22 @@ class SmtpEmailSender:
                 f"It expires {lifetime} seconds after the request. "
                 "If you did not request this email, you can ignore it.\n"
             )
-            if verification and config.auth_email_verification_url is not None:
-                link = f"{config.auth_email_verification_url}#{urlencode({'token': token})}"
+            if config.auth_email_verification_url is not None:
+                destination = str(config.auth_email_verification_url)
+                if not verification:
+                    destination = (
+                        destination.removesuffix("/auth/verify-email") + "/auth/reset-password"
+                    )
+                link = f"{destination}#{urlencode({'token': token})}"
+                action = "Confirm email address" if verification else "Reset password"
                 message.set_content(
-                    f"Verify your Ukladen email by opening this link:\n\n{link}\n\n"
+                    f"{subject} by opening this link:\n\n{link}\n\n"
                     f"The link expires {lifetime} seconds after the request. "
                     "If you did not request this email, you can ignore it.\n"
                 )
                 message.add_alternative(
-                    "<html><body><p>Verify your Ukladen email:</p>"
-                    f'<p><a href="{escape(link, quote=True)}">Confirm email address</a></p>'
+                    f"<html><body><p>{subject}:</p>"
+                    f'<p><a href="{escape(link, quote=True)}">{action}</a></p>'
                     f"<p>The link expires {lifetime} seconds after the request. "
                     "If you did not request this email, you can ignore it.</p></body></html>",
                     subtype="html",

@@ -118,7 +118,7 @@ def test_verification_link_configuration_rejects_unsafe_destinations(
 
 @pytest.mark.parametrize("origin", ["https://app.example.com", "http://localhost:8080"])
 @pytest.mark.parametrize("kind", list(TokenType))
-def test_verification_email_has_clickable_fragment_link_but_reset_remains_token_only(
+def test_auth_emails_have_clickable_fragment_links_on_the_configured_origin(
     smtp_settings: Settings, monkeypatch: pytest.MonkeyPatch, origin: str, kind: TokenType
 ) -> None:
     configured = Settings.model_validate(
@@ -142,16 +142,14 @@ def test_verification_email_has_clickable_fragment_link_but_reset_remains_token_
     message = connection.send_message.call_args.args[0]
     plain = message.get_body(preferencelist=("plain",))
     assert plain and TOKEN in plain.get_content()
-    if kind == TokenType.EMAIL_VERIFICATION:
-        link = f"{origin}/auth/verify-email#token={TOKEN}"
-        html = message.get_body(preferencelist=("html",))
-        assert message.is_multipart() and html and f'href="{link}"' in html.get_content()
-        assert link in plain.get_content()
-        parsed = urlsplit(link)
-        assert not parsed.query and parse_qs(parsed.fragment) == {"token": [TOKEN]}
-        assert TOKEN not in str(message.items())
-    else:
-        assert not message.is_multipart() and "/auth/verify-email" not in plain.get_content()
+    path = "verify-email" if kind == TokenType.EMAIL_VERIFICATION else "reset-password"
+    link = f"{origin}/auth/{path}#token={TOKEN}"
+    html = message.get_body(preferencelist=("html",))
+    assert message.is_multipart() and html and f'href="{link}"' in html.get_content()
+    assert link in plain.get_content()
+    parsed = urlsplit(link)
+    assert not parsed.query and parse_qs(parsed.fragment) == {"token": [TOKEN]}
+    assert TOKEN not in str(message.items())
 
 
 @pytest.mark.parametrize("security", ["starttls", "tls", "none"])
@@ -416,11 +414,12 @@ def test_live_auth_flows_commit_then_queue_and_deliver_smtp(
                     assert isinstance(message, SmtpMessage)
                     plain = message.get_body(preferencelist=("plain",))
                     assert message["To"] == EMAIL and plain and token in plain.get_content()
-                    if expected_kind == TokenType.EMAIL_VERIFICATION:
-                        assert (
-                            f"https://testserver/auth/verify-email#token={token}"
-                            in plain.get_content()
-                        )
+                    path = (
+                        "verify-email"
+                        if expected_kind == TokenType.EMAIL_VERIFICATION
+                        else "reset-password"
+                    )
+                    assert f"https://testserver/auth/{path}#token={token}" in plain.get_content()
                     delivered_tokens.append(token)
                     return token
                 finally:
