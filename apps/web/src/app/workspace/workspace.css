@@ -79,7 +79,7 @@ button.day-heading { cursor: pointer; }
 .all-day-label { font-size: 11px; letter-spacing: .35px; }
 .all-day-cell { width: 100%; border-top: 0; border-left: 0; border-right: 0; background: #fff; }
 .all-day-cell:hover { background: #faf8fd; }
-.day-canvas { height: calc((21 - 8) * 54px); position: relative; }
+.day-canvas { height: calc(24 * 54px); position: relative; }
 .hour-line { position: absolute; left: 0; right: 0; height: 1px; border-top: 1px solid #f3f1f6; pointer-events: none; }
 .time-label { height: 54px; position: relative; top: -6px; text-align: center; color: #aaa5b2; font-size: 12px; }
 .event-card { position: absolute; left: 3px; right: 3px; z-index: 1; border: 0; border-left: 2px solid #a798ca; border-radius: 4px; padding: 6px 5px; overflow: hidden; text-align: left; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; color: #635783; background: #f0ebf8; font-size: 13px; line-height: 1.25; }
@@ -298,7 +298,7 @@ button.day-heading { cursor: pointer; }
 .week-grid { width: 100%; grid-template-columns: 72px repeat(7,minmax(0,1fr)); }
 .all-day-label { white-space: nowrap; font-size: 10px; letter-spacing: 0; }
 .time-label { height: 54px; }
-.day-canvas { height: calc((21 - 8) * 54px); }
+.day-canvas { height: calc(24 * 54px); }
 .agenda-row { width: 100%; padding: 0; border-right: 0; border-bottom: 0; border-left: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .agenda-row:hover { background: #faf8fd; }
 .event-modal textarea { width: 100%; min-height: 105px; padding: 12px 15px; border: 1px solid #eae7ef; border-radius: 8px; outline: none; resize: vertical; color: #484354; background: #fff; font: inherit; }
@@ -347,3 +347,9 @@ button.day-heading { cursor: pointer; }
 .calendar-controls .view-menu button strong { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: #8271a8; }
 .calendar-controls .view-menu button:disabled { color: #aaa5b2; cursor: default; }
 .view-menu p { margin: 7px 9px 5px; padding-top: 9px; border-top: 1px solid #f0edf4; color: #8e8999; font-size: 12px; line-height: 1.45; }
+
+.calendar-scroll { max-height: 720px; overflow: auto; scroll-padding-top: 64px; }
+.calendar-scroll .week-grid { overflow: visible; }
+.calendar-scroll .day-heading { position: sticky; top: 0; z-index: 3; }
+.calendar-scroll .event-card { padding-block: 0; }
+.event-card:focus-visible .event-delete,.event-delete:focus-visible { display: block; }

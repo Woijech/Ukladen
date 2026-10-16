@@ -71,8 +71,8 @@ type GroupContext = {
 
 const weekdays = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
 const shortWeekdays = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
-const startHour = 8;
-const endHour = 21;
+const startHour = 0;
+const endHour = 24;
 const hourHeight = 54;
 
 function localDate(date: Date) {
@@ -93,6 +93,16 @@ function shiftDate(date: Date, days: number) {
 
 function prettyDate(date: Date, options: Intl.DateTimeFormatOptions = {}) {
   return new Intl.DateTimeFormat("ru-RU", options).format(date);
+}
+
+function daySegments(events: CalendarEvent[], day: Date) {
+  const start = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+  const end = shiftDate(new Date(start), 1).getTime();
+  return events.filter(event => Date.parse(event.starts_at) < end && Date.parse(event.ends_at) > start)
+    .map(event => ({ ...event, originalEvent: event,
+      starts_at: new Date(Math.max(start, Date.parse(event.starts_at))).toISOString(),
+      ends_at: new Date(Math.min(end, Date.parse(event.ends_at))).toISOString(),
+    }));
 }
 
 function eventColumns(events: CalendarEvent[]) {
@@ -376,6 +386,7 @@ function SessionWorkspace({ checkingSession, onSessionEnd, onboarding }: { check
 
 function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => void; onboarding: boolean }) {
   const queryClient = useQueryClient();
+  const calendarScroll = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState(() => new Date());
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
@@ -417,7 +428,9 @@ function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => v
   const selectedKey = localDate(selected);
   const dateLabel = prettyDate(weekStart, { day: "numeric", month: "long" });
   const weekEndLabel = prettyDate(days[6], { day: "numeric", month: "long", year: "numeric" });
-  const selectedEvents = events.filter(event => localDate(new Date(event.starts_at)) === selectedKey).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+  const selectedEvents = daySegments(events, selected).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+
+  useEffect(() => { if (calendarScroll.current) calendarScroll.current.scrollTop = 8 * hourHeight; }, [range.from]);
 
   const syncStatus = syncStatusQuery.data?.group_id === meQuery.data?.group.id ? syncStatusQuery.data : undefined;
   const attemptTime = syncStatus?.last_attempt_at ? Date.parse(syncStatus.last_attempt_at) : 0;
@@ -487,7 +500,6 @@ function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => v
   }
 
   function openEvent(item: CalendarEvent) {
-    setSelected(new Date(item.starts_at));
     if (item.source === "official") {
       setOfficialEvent(item);
       return;
@@ -575,32 +587,33 @@ function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => v
         <section className="calendar-card" aria-label="Календарь на неделю">
           <div className="calendar-toolbar"><div className="week-title"><strong>{dateLabel} — {weekEndLabel}</strong><span>{prettyDate(selected, { weekday: "long", day: "numeric", month: "long" })}</span></div><div className="calendar-controls"><button className="today-button" onClick={() => setSelected(new Date())}>Сегодня</button><div className="arrow-group"><button aria-label="Предыдущая неделя" onClick={() => setSelected(shiftDate(selected, -7))}>‹</button><button aria-label="Следующая неделя" onClick={() => setSelected(shiftDate(selected, 7))}>›</button></div><div className="view-picker"><button type="button" className="view-select" aria-haspopup="menu" aria-expanded={viewMenuOpen} aria-controls="calendar-view-menu" onClick={() => setViewMenuOpen(open => !open)}><Icon name="calendar"/> Неделя <span>⌄</span></button>{viewMenuOpen && <div className="view-menu" id="calendar-view-menu" role="menu" aria-label="Вид календаря"><div className="view-menu-title">Вид календаря</div><button type="button" role="menuitemradio" aria-checked="true" onClick={() => setViewMenuOpen(false)}><span>Неделя</span><small>Текущий вид · 7 дней</small><strong aria-hidden="true">✓</strong></button><button type="button" role="menuitem" disabled><span>День</span><small>Пока недоступен</small></button><button type="button" role="menuitem" disabled><span>Месяц</span><small>Пока недоступен</small></button><p>Это настройка отображения календаря. Расписание IIS загружается отдельно и показывается здесь после успешного импорта.</p></div>}</div></div></div>
 
-          <div className="week-grid">
+          <div className="calendar-scroll" ref={calendarScroll} role="region" aria-label="Часы календаря" tabIndex={0}><div className="week-grid">
             <div className="time-column"><div className="day-heading spacer-heading"/><div className="all-day-label">ВЕСЬ ДЕНЬ</div>{Array.from({ length: endHour - startHour }, (_, index) => <div className="time-label" key={index}>{String(startHour + index).padStart(2, "0")}:00</div>)}</div>
             {days.map((day, dayIndex) => {
               const dayKey = localDate(day);
-              const dayEvents = events.filter(item => localDate(new Date(item.starts_at)) === dayKey);
+              const dayEvents = daySegments(events, day);
               const columns = eventColumns(dayEvents);
               return <div className={`day-column ${dayKey === today ? "is-today" : ""} ${dayKey === selectedKey ? "is-selected" : ""}`} key={dayKey}>
                 <button className="day-heading" onClick={() => setSelected(day)}><span>{shortWeekdays[dayIndex]}</span><strong>{day.getDate()}</strong></button>
                 <button className="all-day-cell" onClick={() => openCreate(day)} aria-label={`Добавить событие на ${weekdays[dayIndex]}`}/>
                 <div className="day-canvas">
                   {Array.from({ length: endHour - startHour }, (_, index) => <div className="hour-line" key={index} style={{ top: `${index * hourHeight}px` }} />)}
-                  {dayEvents.map(item => {
-                    const start = new Date(item.starts_at); const finish = new Date(item.ends_at);
+                  {dayEvents.map(segment => {
+                    const item = segment.originalEvent;
+                    const start = new Date(segment.starts_at); const finish = new Date(segment.ends_at);
                     const top = Math.max(0, (start.getHours() - startHour + start.getMinutes() / 60) * hourHeight);
-                    const height = Math.max(35, (finish.getTime() - start.getTime()) / 3_600_000 * hourHeight);
+                    const height = Math.max(1, (finish.getTime() - start.getTime()) / 3_600_000 * hourHeight);
                     const column = columns.get(item.id) ?? { lane: 0, count: 1 };
                     const left = `calc(${column.lane * 100 / column.count}% + 3px)`;
                     const right = `calc(${(column.count - column.lane - 1) * 100 / column.count}% + 3px)`;
-                    return <button type="button" key={item.id} className={`event-card ${item.source === "official" ? "official-event" : "personal-event"} ${item.skipped ? "skipped-event" : ""}`} style={{ top: `${top}px`, height: `${Math.min(height, 250)}px`, left, right }} onClick={() => openEvent(item)} title={`${item.title}${item.location ? ` · ${item.location}` : ""}`}>
-                      <span className="event-time">{prettyDate(start, { hour: "2-digit", minute: "2-digit" })} — {prettyDate(finish, { hour: "2-digit", minute: "2-digit" })}</span><strong>{item.title}</strong>{height >= 76 && (item.location || item.subject) && <span className="event-location">{item.location || item.subject}</span>}{item.source === "personal" && <span className="event-delete" onClick={event => { event.stopPropagation(); void removeEvent(item); }} role="button" tabIndex={0} aria-label="Удалить событие">×</span>}
+                    return <button type="button" key={item.id} className={`event-card ${item.source === "official" ? "official-event" : "personal-event"} ${item.skipped ? "skipped-event" : ""}`} style={{ top: `${top}px`, height: `${height}px`, left, right }} onClick={() => { setSelected(day); openEvent(item); }} aria-label={`${item.title}, ${prettyDate(new Date(item.starts_at), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })} — ${prettyDate(new Date(item.ends_at), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}`} title={`${item.title}${item.location ? ` · ${item.location}` : ""}`}>
+                      <span className="event-time">{Date.parse(segment.starts_at) > Date.parse(item.starts_at) && "↪ "}{prettyDate(start, { hour: "2-digit", minute: "2-digit" })} — {prettyDate(finish, { hour: "2-digit", minute: "2-digit" })}</span><strong>{item.title}</strong>{height >= 76 && (item.location || item.subject) && <span className="event-location">{item.location || item.subject}</span>}{item.source === "personal" && <span className="event-delete" onClick={event => { event.stopPropagation(); void removeEvent(item); }} role="button" tabIndex={0} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); void removeEvent(item); } }} aria-label="Удалить событие">×</span>}
                     </button>;
                   })}
                 </div>
               </div>;
             })}
-          </div>
+          </div></div>
           {calendarQuery.isPending && <div className="calendar-overlay"><span className="spinner"/>Загружаем расписание</div>}
           {!calendarQuery.isPending && !calendarQuery.isError && events.length === 0 && <div className="empty-note"><span className="empty-icon"><Icon name="calendar"/></span><div><strong>Неделя пока свободна</strong><span>Добавь личное событие или подключи учебную группу в профиле.</span></div><button onClick={() => openCreate()}>Добавить событие</button></div>}
           {apiError && !needsAuth && <div className="inline-error" role="alert">{apiError.message}<button onClick={() => void calendarQuery.refetch()}>Повторить</button></div>}
@@ -608,7 +621,7 @@ function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => v
           {syncNotice && <div className={`schedule-sync-notice ${syncPending ? "is-loading" : syncFinished ? "is-success" : syncWaiting ? "is-loading" : "is-error"}`} role="status">{syncPending && <span className="spinner"/>}<span>{syncNotice}</span>{!syncPending && meQuery.data && <button type="button" className="sync-retry-button" onClick={() => void retryScheduleSync()}>Повторить синхронизацию</button>}</div>}
         </section>
 
-        <div className="below-grid"><section className="selected-day-card"><div className="section-title"><div><span className="greeting">ВЫБРАННЫЙ ДЕНЬ</span><h2>{prettyDate(selected, { weekday: "long", day: "numeric", month: "long" })}</h2></div><button className="text-action" onClick={() => openCreate()}>+ Событие</button></div>{selectedEvents.length ? <div className="agenda-list">{selectedEvents.map(item => <button type="button" className="agenda-row" key={item.id} onClick={() => openEvent(item)}><span className={`agenda-dot ${item.source === "official" ? "dot-official" : "dot-personal"}`}/><span className="agenda-time">{prettyDate(new Date(item.starts_at), { hour: "2-digit", minute: "2-digit" })}</span><span className="agenda-name">{item.title}</span><span className="agenda-place">{item.location ?? item.subject ?? ""}</span></button>)}</div> : <p className="agenda-empty">Здесь появятся события на выбранный день.</p>}</section>
+        <div className="below-grid"><section className="selected-day-card"><div className="section-title"><div><span className="greeting">ВЫБРАННЫЙ ДЕНЬ</span><h2>{prettyDate(selected, { weekday: "long", day: "numeric", month: "long" })}</h2></div><button className="text-action" onClick={() => openCreate()}>+ Событие</button></div>{selectedEvents.length ? <div className="agenda-list">{selectedEvents.map(item => <button type="button" className="agenda-row" key={item.id} onClick={() => openEvent(item.originalEvent)}><span className={`agenda-dot ${item.source === "official" ? "dot-official" : "dot-personal"}`}/><span className="agenda-time">{Date.parse(item.starts_at) > Date.parse(item.originalEvent.starts_at) && "↪ "}{prettyDate(new Date(item.starts_at), { hour: "2-digit", minute: "2-digit" })}</span><span className="agenda-name">{item.title}</span><span className="agenda-place">{item.location ?? item.subject ?? ""}</span></button>)}</div> : <p className="agenda-empty">Здесь появятся события на выбранный день.</p>}</section>
           <section className="schedule-source-card"><div className="source-icon"><Icon name="cap"/></div><div className="source-copy"><span className="greeting">УЧЕБНОЕ РАСПИСАНИЕ</span><strong>{meQuery.data ? `Группа ${meQuery.data.group.name}` : "Добавь свою группу"}</strong><p>{meQuery.data ? `Подгруппа: ${meQuery.data.subgroup ?? "все"}. Официальные занятия отображаются вместе с личными планами.` : "Выбери группу, чтобы видеть пары в личном календаре."}</p></div><button aria-label="Настроить учебную группу" className="source-chevron" onClick={() => setShowGroupPicker(true)}><Icon name="chevron"/></button></section></div>
         {toast && <div className="toast" role="status">{toast}</div>}
       </div>

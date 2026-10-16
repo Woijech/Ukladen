@@ -27,7 +27,7 @@ and session-cookie contracts. Password visibility lasts three seconds. After log
 users without an academic profile can choose to connect a BSUIR group or continue
 without one. Group selection uses the existing group catalogue, group-context,
 profile PATCH and schedule-sync endpoints. The calendar displays the authenticated
-user's resolved week and supports personal-event creation/deletion. Profile actions
+user's resolved week and supports personal-event create/edit/delete. Profile actions
 open the group selector or revoke the current session. It does not implement tasks,
 page editing, password reset or saved views.
 
@@ -43,6 +43,12 @@ selected group, or completion of the attempt already running at that snapshot.
 An old `ready` state is not a new success. Polling continues after the three-minute
 waiting notice and recovers when the worker finishes. The queue response is acceptance
 only; no upstream task identifier is invented.
+
+The week grid covers 00:00–24:00 in a scrollable region, initially scrolled to 08:00.
+Events are clipped into overlapping day segments, including continuations from the
+previous week; opening a segment edits the original interval. Lane placement uses
+the clipped intervals, and card height follows duration without a maximum cap.
+The selected-day agenda includes continuations.
 
 `src/app` contains routing and the shell. `src/shared` contains the query provider
 and connection indicator. Feature/entity/widget directories will be introduced
