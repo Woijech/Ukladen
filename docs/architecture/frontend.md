@@ -1,6 +1,6 @@
 # Ukladen Frontend Foundation
 
-Status: shell, browser email verification, login/registration, academic-group selection and a weekly calendar with personal-event creation/deletion are implemented. Other business UI remains not implemented.
+Status: shell, browser email verification, login/registration, academic-group selection and a weekly calendar with personal-event create/edit/delete are implemented. Other business UI remains not implemented.
 
 `apps/web` uses Next.js App Router, React and strict TypeScript. The root layout
 provides a TanStack Query client created once per mounted provider. The frontend
