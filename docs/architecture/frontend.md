@@ -36,6 +36,14 @@ identity owns a separate query client and mounted forms; logout, session expiry 
 identity changes discard that client and cancel its reads. Session revalidation hides
 private content until identity is checked. No private data is persisted in browser storage.
 
+Schedule refresh reads the stored source state before requesting work (the public
+group-events response before a profile change, or the owner sync-status endpoint
+before a retry). Completion requires an advanced attempt/success timestamp for the
+selected group, or completion of the attempt already running at that snapshot.
+An old `ready` state is not a new success. Polling continues after the three-minute
+waiting notice and recovers when the worker finishes. The queue response is acceptance
+only; no upstream task identifier is invented.
+
 `src/app` contains routing and the shell. `src/shared` contains the query provider
 and connection indicator. Feature/entity/widget directories will be introduced
 with real UI slices rather than empty scaffolding.

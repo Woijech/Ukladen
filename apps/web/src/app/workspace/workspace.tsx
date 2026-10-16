@@ -126,11 +126,21 @@ function eventColumns(events: CalendarEvent[]) {
   return columns;
 }
 
-function isSyncComplete(status: ScheduleSyncStatus | undefined, startedAt = 0) {
+type SyncRequest = { baseline: ScheduleSyncStatus; startedAt: number; message: string };
+
+function isSyncComplete(status: ScheduleSyncStatus | undefined, request: SyncRequest | null = null) {
   if (!status) return false;
   const attemptTime = status.last_attempt_at ? Date.parse(status.last_attempt_at) : 0;
-  return status.status === "ready" ? Boolean(status.last_success_at) :
-    ["unpublished", "error", "unsupported"].includes(status.status) && (!startedAt || attemptTime >= startedAt - 5000);
+  if (request) {
+    if (status.group_id !== request.baseline.group_id) return false;
+    const previousAttempt = request.baseline.last_attempt_at ? Date.parse(request.baseline.last_attempt_at) : 0;
+    const previousSuccess = request.baseline.last_success_at ? Date.parse(request.baseline.last_success_at) : 0;
+    const successTime = status.last_success_at ? Date.parse(status.last_success_at) : 0;
+    if (!(attemptTime > previousAttempt || successTime > previousSuccess ||
+      (request.baseline.status === "syncing" && attemptTime === previousAttempt))) return false;
+  }
+  return status.status === "ready" ? Boolean(status.last_success_at && Date.parse(status.last_success_at) >= attemptTime) :
+    ["unpublished", "error", "unsupported"].includes(status.status);
 }
 
 function scheduleStatusMessage(status: ScheduleSyncStatus) {
@@ -252,7 +262,7 @@ function AuthPanel({ onSuccess }: { onSuccess: () => Promise<void> }) {
   </div>;
 }
 
-function GroupPicker({ profile, onClose, onSaved }: { profile: AcademicProfile | null; onClose: () => void; onSaved: (syncAccepted: boolean) => void }) {
+function GroupPicker({ profile, onClose, onSaved }: { profile: AcademicProfile | null; onClose: () => void; onSaved: (syncAccepted: boolean, baseline: ScheduleSyncStatus, startedAt: number) => void }) {
   const [search, setSearch] = useState("");
   const [groupId, setGroupId] = useState<number | null>(profile?.group.id ?? null);
   const [subgroup, setSubgroup] = useState(profile?.subgroup ? String(profile.subgroup) : "");
@@ -274,9 +284,12 @@ function GroupPicker({ profile, onClose, onSaved }: { profile: AcademicProfile |
 
   async function saveSelection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (groupId === null) return;
+    if (groupId === null || !selectedGroup) return;
     setSaving(true); setError("");
     try {
+      const day = localDate(new Date());
+      const { source: baseline } = await requestJson<{ source: ScheduleSyncStatus }>(`/api/v1/schedule/groups/${selectedGroup.name}/events?date_from=${day}&date_to=${day}`);
+      const startedAt = Date.now();
       const token = await csrfToken();
       await requestJson<AcademicProfile>("/api/v1/academics/me", {
         method: "PATCH",
@@ -290,7 +303,7 @@ function GroupPicker({ profile, onClose, onSaved }: { profile: AcademicProfile |
       } catch {
         syncAccepted = false;
       }
-      onSaved(syncAccepted);
+      onSaved(syncAccepted, baseline, startedAt);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Не удалось сохранить группу.");
     } finally { setSaving(false); }
@@ -375,7 +388,7 @@ function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => v
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
-  const [syncRequest, setSyncRequest] = useState<{ startedAt: number; message: string } | null>(null);
+  const [syncRequest, setSyncRequest] = useState<SyncRequest | null>(null);
   const [syncRequestError, setSyncRequestError] = useState("");
   const [syncCheckedAt, setSyncCheckedAt] = useState(0);
   const [officialEvent, setOfficialEvent] = useState<CalendarEvent | null>(null);
@@ -394,7 +407,7 @@ function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => v
     queryKey: ["schedule-sync-status", meQuery.data?.group.id],
     queryFn: ({ signal }) => requestJson<ScheduleSyncStatus>("/api/v1/schedule/me/sync-status", { signal }),
     enabled: Boolean(meQuery.data?.group.id),
-    refetchInterval: query => (syncRequest && !isSyncComplete(query.state.data, syncRequest.startedAt)) || query.state.data?.status === "syncing" ? 3000 : false,
+    refetchInterval: query => (syncRequest && !isSyncComplete(query.state.data, syncRequest)) || query.state.data?.status === "syncing" ? 3000 : false,
     retry: false,
   });
   const apiError = calendarQuery.error instanceof Error ? calendarQuery.error : null;
@@ -408,7 +421,7 @@ function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => v
 
   const syncStatus = syncStatusQuery.data?.group_id === meQuery.data?.group.id ? syncStatusQuery.data : undefined;
   const attemptTime = syncStatus?.last_attempt_at ? Date.parse(syncStatus.last_attempt_at) : 0;
-  const syncCompleted = isSyncComplete(syncStatus, syncRequest?.startedAt);
+  const syncCompleted = isSyncComplete(syncStatus, syncRequest);
   const syncStartedAt = syncRequest?.startedAt ?? (syncStatus?.status === "syncing" ? attemptTime : 0);
   const syncTimedOut = !syncCompleted && syncStartedAt > 0 && syncCheckedAt >= syncStartedAt + 180_000;
   const syncPending = !syncCompleted && !syncTimedOut && Boolean(syncRequest || syncStatus?.status === "syncing");
@@ -448,9 +461,11 @@ function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => v
   async function retryScheduleSync() {
     setSyncRequestError("");
     try {
+      const baseline = await requestJson<ScheduleSyncStatus>("/api/v1/schedule/me/sync-status");
+      const startedAt = Date.now();
       const token = await csrfToken();
       await requestJson<{ group_id: number }>("/api/v1/schedule/me/sync", { method: "POST", headers: { "X-CSRF-Token": token } });
-      setSyncRequest({ startedAt: Date.now(), message: "Запрос принят. Проверяем результат синхронизации IIS…" });
+      setSyncRequest({ baseline, startedAt, message: "Запрос принят. Проверяем результат синхронизации IIS…" });
       await queryClient.invalidateQueries({ queryKey: ["schedule-sync-status"] });
     } catch (error) {
       setSyncRequest(null);
@@ -458,12 +473,12 @@ function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => v
     }
   }
 
-  async function afterGroupSaved(syncAccepted: boolean) {
+  async function afterGroupSaved(syncAccepted: boolean, baseline: ScheduleSyncStatus, startedAt: number) {
     setShowGroupPicker(false);
     setAccountMenuOpen(false);
     setTopAccountMenuOpen(false);
     setSyncRequestError("");
-    setSyncRequest({ startedAt: Date.now(), message: syncAccepted ? "Группа выбрана. IIS загружает расписание…" : "Группа сохранена. Ждём фоновую синхронизацию расписания…" });
+    setSyncRequest({ baseline, startedAt, message: syncAccepted ? "Группа выбрана. IIS загружает расписание…" : "Группа сохранена. Ждём фоновую синхронизацию расписания…" });
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] }),
       queryClient.invalidateQueries({ queryKey: ["workspace-profile"] }),
@@ -533,7 +548,7 @@ function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => v
     } catch (error) { setToast(error instanceof Error ? error.message : "Не удалось завершить сессию."); }
   }
 
-  if (showGroupPicker) return <GroupPicker profile={meQuery.data ?? null} onClose={() => setShowGroupPicker(false)} onSaved={accepted => void afterGroupSaved(accepted)} />;
+  if (showGroupPicker) return <GroupPicker profile={meQuery.data ?? null} onClose={() => setShowGroupPicker(false)} onSaved={(accepted, baseline, startedAt) => void afterGroupSaved(accepted, baseline, startedAt)} />;
 
   return <main className="workspace-shell">
     <aside className="sidebar">

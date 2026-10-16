@@ -13,10 +13,10 @@ export async function mockWorkspace(page: Page) {
     profile: null as typeof profile | null, status: { ...ready },
     events: [] as ReturnType<typeof calendarEvent>[],
     holdCalendar: null as Promise<void> | null,
-    calendarCode: 200, syncCode: 202,
+    calendarCode: 200, syncCode: 202, onSync: null as (() => void) | null,
     writes: [] as { method: string; path: string; body: Record<string, unknown> | null }[],
   };
-  await page.clock.setFixedTime(new Date("2026-10-16T12:00:00Z"));
+  await page.clock.install({ time: new Date("2026-10-16T12:00:00Z") });
   await page.route("**/api/v1/**", async route => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -39,7 +39,8 @@ export async function mockWorkspace(page: Page) {
       return route.fulfill({ json: state.profile });
     }
     if (path === "/api/v1/schedule/me/sync-status") return route.fulfill({ json: state.status });
-    if (path === "/api/v1/schedule/me/sync") return route.fulfill({ status: state.syncCode, json: { group_id: 1, status: "accepted" } });
+    if (path === "/api/v1/schedule/groups/353501/events") return route.fulfill({ json: { events: [], source: { ...state.status } } });
+    if (path === "/api/v1/schedule/me/sync") { state.onSync?.(); return route.fulfill({ status: state.syncCode, json: { group_id: 1, status: "accepted" } }); }
     if (path === "/api/v1/calendar/events") {
       await state.holdCalendar;
       return route.fulfill({ status: state.calendarCode, json: { events: state.events, timezone: state.timezone, source: state.profile ? state.status : null, warnings: [] } });
