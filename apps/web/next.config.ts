@@ -4,14 +4,14 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   async headers() {
-    return [{
-      source: "/auth/verify-email",
+    return ["/auth/verify-email", "/auth/reset-password"].map(source => ({
+      source,
       headers: [
         { key: "Referrer-Policy", value: "no-referrer" },
         { key: "Cache-Control", value: "no-store" },
         { key: "X-Robots-Tag", value: "noindex, nofollow" },
       ],
-    }];
+    }));
   },
   async rewrites() {
     return [{

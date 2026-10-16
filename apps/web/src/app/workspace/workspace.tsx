@@ -248,6 +248,7 @@ function AuthPanel({ onSuccess }: { onSuccess: () => Promise<void> }) {
       <input id="email" type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.target.value)} placeholder="name@example.com" />
       <label htmlFor="password">Пароль</label>
       <PasswordField id="password" value={password} onChange={setPassword} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 12 : 1} placeholder={mode === "register" ? "Не менее 12 символов" : "Твой пароль"}/>
+      {mode === "login" && <a className="auth-recovery" href="/auth/reset-password">Забыли пароль?</a>}
       {message && <p className="form-error" role="alert">{message}</p>}
       <button className="primary-button auth-submit" disabled={busy}>{busy ? "Секунду…" : mode === "login" ? "Войти" : "Зарегистрироваться"}</button>
       <p className="auth-switch">{mode === "login" ? "Впервые здесь?" : "Уже есть аккаунт?"} <button type="button" onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(""); }}>{mode === "login" ? "Создать аккаунт" : "Войти"}</button></p>
