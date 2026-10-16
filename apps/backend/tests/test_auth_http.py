@@ -40,6 +40,7 @@ from app.modules.auth.presentation.dependencies import (
     get_current_session,
     get_database,
     get_login,
+    get_registration_session,
     get_sessions,
 )
 from app.modules.users.infrastructure.orm import UserModel
@@ -121,6 +122,7 @@ def application(
     application.dependency_overrides[get_login] = lambda: login_service
     application.dependency_overrides[get_sessions] = lambda: sessions
     application.dependency_overrides[get_current_session] = lambda: issued.session
+    application.dependency_overrides[get_registration_session] = lambda: issued.session
     return application
 
 

@@ -141,6 +141,7 @@ def get_google_login(database: Database, sessions: Sessions) -> GoogleLoginServi
         SqlAlchemyEmailVerifier(database),
         SqlAlchemyGoogleIdentityRepository(database),
         sessions,
+        profiles=SqlAlchemyProfileRepository(database),
     )
 
 

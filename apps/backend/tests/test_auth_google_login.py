@@ -40,18 +40,76 @@ from app.modules.auth.infrastructure.token_service import generate_token, hash_t
 from app.modules.users.application.ports import (
     EmailAlreadyExists,
     EmailVerifier,
+    ProfileRepository,
     UserAuthentication,
     UserRegistration,
 )
 from app.modules.users.infrastructure.orm import UserModel
 from app.modules.users.infrastructure.repository import (
     SqlAlchemyEmailVerifier,
+    SqlAlchemyProfileRepository,
     SqlAlchemyUserAuthentication,
     SqlAlchemyUserRegistration,
 )
 
 NOW = datetime.now(UTC)
-IDENTITY = VerifiedGoogleIdentity("google-subject", "student@example.com")
+IDENTITY = VerifiedGoogleIdentity("google-subject", "student@example.com", True)
+
+
+@pytest.mark.parametrize(
+    "verified,authoritative", [(True, True), (True, False), (False, True), (False, False)]
+)
+def test_live_automatic_link_requires_both_email_proofs(
+    concurrent_engine: Engine,
+    cache: Mock,
+    settings: Settings,
+    verified: bool,
+    authoritative: bool,
+) -> None:
+    user_id = uuid4()
+    with Session(concurrent_engine) as database, database.begin():
+        database.add(
+            UserModel(
+                id=user_id,
+                email=IDENTITY.email,
+                email_verified_at=NOW if verified else None,
+                display_name="Keep me",
+            )
+        )
+        database.flush()
+        database.add(CredentialModel(user_id=user_id, password_hash="original-credential"))
+    identity = VerifiedGoogleIdentity(IDENTITY.subject, IDENTITY.email, authoritative)
+    with Session(concurrent_engine) as database, database.begin():
+        if verified and authoritative:
+            issued = service(database, cache, settings).login(identity)
+            assert issued.session.user_id == user_id
+        else:
+            with pytest.raises(AccountLinkingRequired):
+                service(database, cache, settings).login(identity)
+    with Session(concurrent_engine) as database:
+        user = database.get(UserModel, user_id)
+        credential = database.get(CredentialModel, user_id)
+        assert user and user.display_name == "Keep me" and user.email == IDENTITY.email
+        assert credential and credential.password_hash == "original-credential"
+        assert database.scalar(select(func.count()).select_from(UserModel)) == 1
+        assert database.scalar(select(func.count()).select_from(IdentityModel)) == int(
+            verified and authoritative
+        )
+
+
+def test_live_third_party_google_registration_still_requires_our_email_proof(
+    concurrent_engine: Engine,
+    cache: Mock,
+    settings: Settings,
+) -> None:
+    with Session(concurrent_engine) as database, database.begin():
+        issued = service(database, cache, settings).login(
+            VerifiedGoogleIdentity("external", IDENTITY.email)
+        )
+    with Session(concurrent_engine) as database:
+        user = database.get(UserModel, issued.session.user_id)
+        assert user and user.email_verified_at is None
+        assert database.get(CredentialModel, user.id) is None
 
 
 def service(database: Session, cache: SessionCache, settings: Settings) -> GoogleLoginService:
@@ -67,6 +125,7 @@ def service(database: Session, cache: SessionCache, settings: Settings) -> Googl
             generate_token=generate_token,
             hash_token=hash_token,
         ),
+        profiles=SqlAlchemyProfileRepository(database),
         now=lambda: NOW,
     )
 
@@ -78,6 +137,8 @@ def test_resolution_policy(path: str) -> None:
     verifier = create_autospec(EmailVerifier, instance=True)
     identities = create_autospec(GoogleIdentityRepository, instance=True)
     sessions = create_autospec(SessionService, instance=True)
+    profiles = create_autospec(ProfileRepository, instance=True)
+    profiles.get_active.return_value = None
     user_id = uuid4()
     users.create.return_value = user_id
     authentication.lock_active.return_value = path != "disabled"
@@ -92,7 +153,7 @@ def test_resolution_policy(path: str) -> None:
     if path in {"concurrent", "collision"}:
         users.create.side_effect = EmailAlreadyExists("private details")
     login = GoogleLoginService(
-        users, authentication, verifier, identities, sessions, now=lambda: NOW
+        users, authentication, verifier, identities, sessions, profiles=profiles, now=lambda: NOW
     )
     if path in {"collision", "disabled"}:
         error = AccountLinkingRequired if path == "collision" else InvalidExternalIdentity
@@ -119,7 +180,7 @@ def test_live_new_account_and_normal_session(
 ) -> None:
     with Session(concurrent_engine) as database, database.begin():
         issued = service(database, cache, settings).login(
-            VerifiedGoogleIdentity(IDENTITY.subject, " Student@Example.COM "),
+            VerifiedGoogleIdentity(IDENTITY.subject, " Student@Example.COM ", True),
             user_agent="google-login-test",
             ip_address=ip_address("192.0.2.10"),
         )
@@ -150,9 +211,16 @@ def test_invalid_new_account_stops_before_identity_or_session(failure: str) -> N
     sessions = create_autospec(SessionService, instance=True)
     identities.get_user_id.return_value = None
     verifier.mark_verified.return_value = False
-    login = GoogleLoginService(users, authentication, verifier, identities, sessions)
+    login = GoogleLoginService(
+        users,
+        authentication,
+        verifier,
+        identities,
+        sessions,
+        profiles=create_autospec(ProfileRepository, instance=True),
+    )
     identity = VerifiedGoogleIdentity(
-        IDENTITY.subject, "bad email" if failure == "email" else IDENTITY.email
+        IDENTITY.subject, "bad email" if failure == "email" else IDENTITY.email, True
     )
     with pytest.raises(InvalidExternalIdentity):
         login.login(identity)
@@ -197,7 +265,7 @@ def test_live_linked_subject_preserves_canonical_account(
         )
 
 
-@pytest.mark.parametrize("account", ["password", "google", "disabled"])
+@pytest.mark.parametrize("account", ["google", "disabled"])
 def test_live_email_collision_requires_linking(
     concurrent_engine: Engine, cache: Mock, settings: Settings, account: str
 ) -> None:

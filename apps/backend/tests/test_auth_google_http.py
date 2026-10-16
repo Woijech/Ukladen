@@ -54,7 +54,7 @@ from app.modules.users.infrastructure.orm import UserModel
 ORIGIN = "https://testserver"
 START = "/api/v1/auth/google/start"
 CALLBACK = "/api/v1/auth/google/callback"
-IDENTITY = VerifiedGoogleIdentity("google-subject", "student@example.com")
+IDENTITY = VerifiedGoogleIdentity("google-subject", "student@example.com", True)
 
 
 @pytest.fixture
@@ -370,6 +370,16 @@ def test_live_login_replay_and_session_revocation(
         assert user and user.email_verified_at and identity and identity.user_id == user.id
         assert session and session.token_hash == hash_token(token)
         assert database.scalar(select(func.count()).select_from(CredentialModel)) == 0
+    assert live_client.get("/api/v1/auth/sessions").status_code == 403
+    csrf = live_client.get("/api/v1/auth/csrf").json()["csrf_token"]
+    assert (
+        live_client.post(
+            "/api/v1/auth/registration/password",
+            json={"password": "google-account-password"},
+            headers={"Origin": ORIGIN, "X-CSRF-Token": csrf},
+        ).status_code
+        == 204
+    )
     assert live_client.get("/api/v1/auth/sessions").status_code == 200
     assert (
         live_client.get(CALLBACK, params={"state": state, "code": "test-code"}).headers["location"]

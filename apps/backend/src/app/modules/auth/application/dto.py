@@ -48,6 +48,7 @@ class VerifiedGoogleIdentity:
 
     subject: str
     email: str
+    email_authoritative: bool = False
 
 
 @dataclass(frozen=True)

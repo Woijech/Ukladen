@@ -27,6 +27,14 @@ class SqlAlchemyGoogleIdentityRepository:
             )
         )
 
+    def has_for_user(self, user_id: UUID) -> bool:
+        return (
+            self.session.scalar(
+                select(IdentityModel.id).where(IdentityModel.user_id == user_id).limit(1)
+            )
+            is not None
+        )
+
     def create(self, user_id: UUID, subject: str, email: str, created_at: datetime) -> None:
         identity_id = self.session.scalar(
             insert(IdentityModel)

@@ -14,6 +14,7 @@ from app.modules.auth.domain.errors import (
 from app.modules.users.application.ports import (
     EmailAlreadyExists,
     EmailVerifier,
+    ProfileRepository,
     UserAuthentication,
     UserRegistration,
 )
@@ -34,6 +35,7 @@ class GoogleLoginService:
         identities: GoogleIdentityRepository,
         sessions: SessionService,
         *,
+        profiles: ProfileRepository,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.users = users
@@ -41,6 +43,7 @@ class GoogleLoginService:
         self.verifier = verifier
         self.identities = identities
         self.sessions = sessions
+        self.profiles = profiles
         self.now = now
 
     def login(
@@ -62,10 +65,20 @@ class GoogleLoginService:
                 # A concurrent first login may have committed this subject while we waited.
                 user_id = self.identities.get_user_id(identity.subject)
                 if user_id is None:
-                    raise AccountLinkingRequired("Account linking is required.") from None
+                    candidate = self.authentication.get_active_id_by_email(email)
+                    profile = self.profiles.get_active(candidate) if candidate is not None else None
+                    if (
+                        not identity.email_authoritative
+                        or profile is None
+                        or profile.email_verified_at is None
+                        or self.identities.has_for_user(profile.id)
+                    ):
+                        raise AccountLinkingRequired("Account linking is required.") from None
+                    user_id = profile.id
+                    self.identities.create(user_id, identity.subject, email, self.now())
             else:
                 now = self.now()
-                if not self.verifier.mark_verified(user_id, now):
+                if identity.email_authoritative and not self.verifier.mark_verified(user_id, now):
                     raise InvalidExternalIdentity("Google identity could not be resolved.")
                 self.identities.create(user_id, identity.subject, email, now)
         if not self.authentication.lock_active(user_id):

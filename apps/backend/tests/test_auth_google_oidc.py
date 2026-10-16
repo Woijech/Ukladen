@@ -135,6 +135,48 @@ def resolve(provider: ExternalIdentityProvider) -> VerifiedGoogleIdentity:
     return provider.resolve_callback(code=CODE, code_verifier=VERIFIER, nonce=NONCE)
 
 
+@pytest.mark.parametrize(
+    "email,domain,authoritative",
+    [
+        ("student@gmail.com", None, True),
+        ("student@example.com", "example.com", True),
+        ("student@example.com", None, False),
+        ("student@gmail.com.evil.example", None, False),
+    ],
+)
+def test_email_authority_comes_only_from_validated_google_claims(
+    provider: GoogleOidcProvider,
+    responses: dict[str, httpx.Response],
+    claims: dict[str, Any],
+    private_key: rsa.RSAPrivateKey,
+    email: str,
+    domain: str | None,
+    authoritative: bool,
+) -> None:
+    claims["email"] = email
+    if domain is not None:
+        claims["hd"] = domain
+    responses[TOKEN_URL] = httpx.Response(200, json={"id_token": signed_token(claims, private_key)})
+    identity = resolve(provider)
+    assert identity.email == email and identity.email_authoritative is authoritative
+
+
+@pytest.mark.parametrize(
+    "domain", [True, 12, "", "bad domain", "https://example.com", "x..example.com"]
+)
+def test_malformed_workspace_domain_cannot_establish_authority(
+    provider: GoogleOidcProvider,
+    responses: dict[str, httpx.Response],
+    claims: dict[str, Any],
+    private_key: rsa.RSAPrivateKey,
+    domain: object,
+) -> None:
+    claims["hd"] = domain
+    responses[TOKEN_URL] = httpx.Response(200, json={"id_token": signed_token(claims, private_key)})
+    with pytest.raises(InvalidExternalIdentity):
+        resolve(provider)
+
+
 def test_authorization_and_signed_identity_use_only_expected_transport(
     provider: GoogleOidcProvider,
     google_settings: Settings,

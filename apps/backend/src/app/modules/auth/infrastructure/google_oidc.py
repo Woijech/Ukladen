@@ -282,7 +282,21 @@ class GoogleOidcProvider:
                 or not 0 <= claims["iat"] < claims["exp"]
             ):
                 raise InvalidExternalIdentity("Invalid external identity.")
-            return VerifiedGoogleIdentity(subject=subject, email=normalize_email(email))
+            email = normalize_email(email)
+            hosted_domain = claims.get("hd")
+            if hosted_domain is not None and (
+                not isinstance(hosted_domain, str)
+                or not re.fullmatch(
+                    r"[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?", hosted_domain
+                )
+                or ".." in hosted_domain
+            ):
+                raise InvalidExternalIdentity("Invalid external identity.")
+            return VerifiedGoogleIdentity(
+                subject=subject,
+                email=email,
+                email_authoritative=email.endswith("@gmail.com") or hosted_domain is not None,
+            )
         except (jwt.PyJWTError, InvalidRegistration, ValueError, TypeError, KeyError) as error:
             log_failure(logger, "google.identity_rejected", error, level=logging.WARNING)
             raise InvalidExternalIdentity("Invalid external identity.") from None
