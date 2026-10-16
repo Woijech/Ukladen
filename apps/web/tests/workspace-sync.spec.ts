@@ -54,3 +54,15 @@ test("an import finishing before the sync POST returns is recognized without a l
   await expect(page.locator(".schedule-sync-notice")).toHaveClass(/is-success/);
   expect(state.writes.filter(write => write.path === "/api/v1/schedule/me/sync")).toHaveLength(1);
 });
+
+
+test("a retained split rejection asks for a fresh import instead of claiming current split support is missing", async ({ page }) => {
+  const state = await mockWorkspace(page);
+  state.profile = profile;
+  state.status.status = "unsupported";
+  state.status.error_code = "unsupported_split_precedence";
+  await page.goto("/workspace");
+  await expect(page.locator(".schedule-sync-notice")).toContainText("предыдущего импорта");
+  await expect(page.locator(".schedule-sync-notice")).not.toContainText("Импортёр пока не умеет");
+  await expect(page.getByRole("button", { name: "Повторить синхронизацию" })).toBeEnabled();
+});

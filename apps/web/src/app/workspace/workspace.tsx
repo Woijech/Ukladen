@@ -136,7 +136,7 @@ function scheduleStatusMessage(status: ScheduleSyncStatus) {
   if (status.status === "unpublished") return "Для этой группы IIS не публикует расписание.";
   if (status.status === "error") return "IIS не ответил или вернул неожиданный ответ. Проверьте подключение и повторите синхронизацию.";
   const unsupported: Record<string, string> = {
-    unsupported_split_precedence: "IIS пометил занятие как split. Импортёр пока не умеет надёжно распределять такие записи по неделям и подгруппам, поэтому остановил импорт, чтобы не показать неверное расписание.",
+    unsupported_split_precedence: "Сохранён отказ предыдущего импорта split-занятий. Повторите синхронизацию, чтобы заново загрузить расписание.",
     unsupported_undated_exception: "В ответе IIS есть исключение без даты; его нельзя безопасно поставить в календарь.",
     unsupported_invalid_period: "IIS вернул некорректные границы периода расписания.",
     unsupported_missing_week_numbers: "У повторяющегося занятия IIS не указал номера учебных недель.",
