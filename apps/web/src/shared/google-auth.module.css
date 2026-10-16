@@ -1,0 +1,9 @@
+.login { margin-top: 18px; }
+.button { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 44px; margin-top: 18px; padding: 10px 12px; border: 1px solid #747775; border-radius: 8px; background: #fff; color: #1f1f1f; font-family: "Google Sans", Arial, sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; }
+.button img { flex-shrink: 0; }
+.button:hover { background: #f8fafd; }
+.button:focus-visible { outline: 3px solid #8374ad; outline-offset: 3px; }
+.button:disabled { opacity: .65; cursor: wait; }
+.error { margin: 12px 0 0; color: #a35e64; font-size: 15px; line-height: 1.5; }
+.dialog { position: fixed; border: 0; margin: auto; }
+.dialog::backdrop { background: #2924386b; backdrop-filter: blur(3px); }

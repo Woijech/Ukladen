@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import { Brand } from "@/shared/brand";
+import { GoogleAuth } from "@/shared/google-auth";
+import { GoogleLinkDialog } from "@/shared/google-link-dialog";
 import logo from "@/shared/assets/ukladen-logo.png";
 import { QueryCache, QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { dateKey, dateTimeLocal, dayStart, localInstants, prettyDate as formatDate, resolveLocalTime, shiftDate, startOfWeek } from "./calendar-time";
@@ -254,6 +256,7 @@ function AuthPanel({ onSuccess }: { onSuccess: () => Promise<void> }) {
       {mode === "login" && <a className="auth-recovery" href="/auth/reset-password">Забыли пароль?</a>}
       {message && <p className="form-error" role="alert">{message}</p>}
       <button className="primary-button auth-submit" disabled={busy}>{busy ? "Секунду…" : mode === "login" ? "Войти" : "Зарегистрироваться"}</button>
+      <GoogleAuth />
       <p className="auth-switch">{mode === "login" ? "Впервые здесь?" : "Уже есть аккаунт?"} <button type="button" onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(""); }}>{mode === "login" ? "Создать аккаунт" : "Войти"}</button></p>
     </form>
   </div>;
@@ -384,6 +387,7 @@ function CalendarWorkspace({ userTimeZone, onSessionEnd, onboarding }: { userTim
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
   const [showGroupPicker, setShowGroupPicker] = useState(onboarding);
+  const [showGoogleLink, setShowGoogleLink] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [topAccountMenuOpen, setTopAccountMenuOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -579,13 +583,13 @@ function CalendarWorkspace({ userTimeZone, onSessionEnd, onboarding }: { userTim
       <div className="sidebar-spacer"/>
       <div className="sidebar-tip"><span className="tip-icon"><Icon name="sparkle"/></span><strong>В своём ритме</strong><p>Оставь место для того, что важно именно тебе.</p></div>
       <div className="account-area"><button className="account-button" aria-expanded={accountMenuOpen} onClick={() => setAccountMenuOpen(open => !open)}><span className="avatar">U</span><span className="account-copy"><strong>Моё пространство</strong><small>{meQuery.data?.group.name ?? "Личный календарь"}</small></span><span className="account-menu">···</span></button>
-        {accountMenuOpen && <div className="account-popover"><div className="popover-heading">Профиль и расписание</div><button onClick={() => { setAccountMenuOpen(false); setShowGroupPicker(true); }}><Icon name="cap"/><span>{meQuery.data ? "Сменить учебную группу" : "Выбрать учебную группу"}</span></button><button onClick={() => void logout()}><Icon name="logout"/><span>Выйти из аккаунта</span></button></div>}
+        {accountMenuOpen && <div className="account-popover"><div className="popover-heading">Профиль и расписание</div><button onClick={() => { setAccountMenuOpen(false); setShowGroupPicker(true); }}><Icon name="cap"/><span>{meQuery.data ? "Сменить учебную группу" : "Выбрать учебную группу"}</span></button><button onClick={() => { setAccountMenuOpen(false); setShowGoogleLink(true); }}>Связать с Google</button><button onClick={() => void logout()}><Icon name="logout"/><span>Выйти из аккаунта</span></button></div>}
       </div>
     </aside>
 
     <section className="main-panel">
         <header className="topbar"><button className="mobile-menu" aria-label="Меню профиля" aria-expanded={topAccountMenuOpen} onClick={() => setTopAccountMenuOpen(open => !open)}><Icon name="menu"/></button><div className="breadcrumb">Моё пространство <Icon name="chevron"/> <strong>Календарь</strong></div><div className="topbar-actions"><span className={`connection-dot ${calendarQuery.isError ? "offline" : ""}`}/><span className="connection-label">{syncPending ? "Загрузка расписания" : calendarQuery.isFetching ? "Синхронизация" : calendarQuery.isError ? "Нет соединения" : "Синхронизировано"}</span><button className="avatar top-avatar" aria-label="Меню профиля" aria-expanded={topAccountMenuOpen} onClick={() => setTopAccountMenuOpen(open => !open)}>U</button></div>
-          {topAccountMenuOpen && <div className="top-account-popover"><div className="popover-heading">Профиль и расписание</div><button onClick={() => { setTopAccountMenuOpen(false); setShowGroupPicker(true); }}><Icon name="cap"/><span>{meQuery.data ? "Сменить учебную группу" : "Выбрать учебную группу"}</span></button><button onClick={() => void logout()}><Icon name="logout"/><span>Выйти из аккаунта</span></button></div>}
+          {topAccountMenuOpen && <div className="top-account-popover"><div className="popover-heading">Профиль и расписание</div><button onClick={() => { setTopAccountMenuOpen(false); setShowGroupPicker(true); }}><Icon name="cap"/><span>{meQuery.data ? "Сменить учебную группу" : "Выбрать учебную группу"}</span></button><button onClick={() => { setTopAccountMenuOpen(false); setShowGoogleLink(true); }}>Связать с Google</button><button onClick={() => void logout()}><Icon name="logout"/><span>Выйти из аккаунта</span></button></div>}
         </header>
 
       <div className="content-wrap">
@@ -631,6 +635,7 @@ function CalendarWorkspace({ userTimeZone, onSessionEnd, onboarding }: { userTim
         <div className="below-grid"><section className="selected-day-card"><div className="section-title"><div><span className="greeting">ВЫБРАННЫЙ ДЕНЬ</span><h2>{prettyDate(selected, { weekday: "long", day: "numeric", month: "long" })}</h2></div><button className="text-action" onClick={() => openCreate()}>+ Событие</button></div>{selectedEvents.length ? <div className="agenda-list">{selectedEvents.map(item => <button type="button" className="agenda-row" key={item.id} onClick={() => openEvent(item.originalEvent)}><span className={`agenda-dot ${item.source === "official" ? "dot-official" : "dot-personal"}`}/><span className="agenda-time">{Date.parse(item.starts_at) > Date.parse(item.originalEvent.starts_at) && "↪ "}{prettyDate(new Date(item.starts_at), { hour: "2-digit", minute: "2-digit" })}</span><span className="agenda-name">{item.title}</span><span className="agenda-place">{item.location ?? item.subject ?? ""}</span></button>)}</div> : <p className="agenda-empty">Здесь появятся события на выбранный день.</p>}</section>
           <section className="schedule-source-card"><div className="source-icon"><Icon name="cap"/></div><div className="source-copy"><span className="greeting">УЧЕБНОЕ РАСПИСАНИЕ</span><strong>{meQuery.data ? `Группа ${meQuery.data.group.name}` : "Добавь свою группу"}</strong><p>{meQuery.data ? `Подгруппа: ${meQuery.data.subgroup ?? "все"}. Официальные занятия отображаются вместе с личными планами.` : "Выбери группу, чтобы видеть пары в личном календаре."}</p></div><button aria-label="Настроить учебную группу" className="source-chevron" onClick={() => setShowGroupPicker(true)}><Icon name="chevron"/></button></section></div>
         {toast && <div className="toast" role="status">{toast}</div>}
+        {showGoogleLink && <GoogleLinkDialog onClose={() => setShowGoogleLink(false)} onSessionEnd={onSessionEnd} />}
       </div>
     </section>
 
