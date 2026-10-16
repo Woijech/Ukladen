@@ -8,8 +8,10 @@ export function calendarEvent(overrides = {}) {
 }
 
 export async function mockWorkspace(page: Page) {
+  const csrf = "c".repeat(43);
   const state = {
     authenticated: true, userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", timezone: "UTC",
+    registrationComplete: true,
     profile: null as typeof profile | null, status: { ...ready },
     events: [] as ReturnType<typeof calendarEvent>[],
     holdCalendar: null as Promise<void> | null,
@@ -22,20 +24,24 @@ export async function mockWorkspace(page: Page) {
     const path = new URL(request.url()).pathname;
     const method = request.method();
     if (method !== "GET") {
-      expect(request.headers()["x-csrf-token"]).toBe("test-csrf");
-      expect(request.headers().cookie).toContain("ukladen_csrf=test-csrf");
+      expect(request.headers()["x-csrf-token"]).toBe(csrf);
+      expect(request.headers().cookie).toContain(`ukladen_csrf=${csrf}`);
       expect(request.headers().origin).toBe("http://127.0.0.1:3001");
       state.writes.push({ method, path, body: request.postData() ? request.postDataJSON() : null });
     }
-    if (path === "/api/v1/auth/csrf") return route.fulfill({ headers: { "Set-Cookie": "ukladen_csrf=test-csrf; Path=/; HttpOnly; SameSite=Lax" }, json: { csrf_token: "test-csrf" } });
+    if (path === "/api/v1/auth/csrf") return route.fulfill({ headers: { "Set-Cookie": `ukladen_csrf=${csrf}; Path=/; HttpOnly; SameSite=Lax` }, json: { csrf_token: csrf } });
     if (path === "/api/v1/auth/logout") { state.authenticated = false; return route.fulfill({ status: 204 }); }
     if (path === "/api/v1/auth/login" || path === "/api/v1/auth/register") {
       if (state.authCode !== 200) return route.fulfill({ status: state.authCode, json: { detail: "Invalid credentials." } });
       state.authenticated = true;
+      if (path.endsWith("register")) state.registrationComplete = false;
       return route.fulfill({ status: path.endsWith("register") ? 201 : 200, json: { user_id: state.userId, expires_at: "2026-11-16T12:00:00Z" } });
     }
     if (!state.authenticated) return route.fulfill({ status: 401, json: { detail: "Invalid session." } });
-    if (path === "/api/v1/users/me") return route.fulfill({ json: { id: state.userId, email: "test@example.com", status: "active", timezone: state.timezone, locale: "ru", display_name: null, email_verified_at: null, created_at: "2026-10-16T08:00:00Z", updated_at: "2026-10-16T08:00:00Z", avatar_url: null } });
+    if (path === "/api/v1/auth/registration") return route.fulfill({ json: { email: "test@example.com", email_verified: state.registrationComplete, password_required: false, complete: state.registrationComplete, password_min_length: 12 } });
+    if (path === "/api/v1/auth/email-verification/request") return route.fulfill({ status: 202, json: {} });
+    if (!state.registrationComplete) return route.fulfill({ status: 403, json: { code: "registration_incomplete", detail: "Registration is incomplete." } });
+    if (path === "/api/v1/users/me") return route.fulfill({ json: { id: state.userId, email: "test@example.com", status: "active", timezone: state.timezone, locale: "ru", display_name: null, email_verified_at: "2026-10-16T08:00:00Z", created_at: "2026-10-16T08:00:00Z", updated_at: "2026-10-16T08:00:00Z", avatar_url: null } });
     if (path === "/api/v1/academics/groups") return route.fulfill({ json: [group] });
     if (path === "/api/v1/academics/groups/1/context") return route.fulfill({ json: { group, schedule_available: true, subgroups: [1, 2], period: null } });
     if (path === "/api/v1/academics/me") {

@@ -166,7 +166,11 @@ class SessionExpiredError extends RequestError {}
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { ...init, credentials: "same-origin", cache: "no-store" });
   if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { detail?: string } | null;
+    const payload = await response.json().catch(() => null) as { detail?: string; code?: string } | null;
+    if (response.status === 403 && payload?.code === "registration_incomplete") {
+      window.location.replace("/auth/complete-registration");
+      throw new SessionExpiredError(403, "Завершите регистрацию.");
+    }
     if (path === "/api/v1/auth/login" && response.status === 401) throw new RequestError(response.status, "Неверная почта или пароль.");
     if (path === "/api/v1/auth/register" && response.status === 409) throw new RequestError(response.status, "Аккаунт с такой почтой уже существует.");
     if (response.status === 401) throw new SessionExpiredError(response.status, "Войдите в аккаунт, чтобы открыть личное пространство.");
@@ -235,6 +239,7 @@ function AuthPanel({ onSuccess }: { onSuccess: () => Promise<void> }) {
         headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
         body: JSON.stringify({ email, password }),
       });
+      if (mode === "register") { setPassword(""); window.location.replace("/auth/complete-registration"); return; }
       await onSuccess();
     } catch (error) {
       setMessage(error instanceof Error ? (error.message.includes("Войдите") ? "Не удалось войти. Проверьте почту и пароль." : error.message) : "Не удалось войти.");

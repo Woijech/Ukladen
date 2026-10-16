@@ -12,11 +12,18 @@ export const metadata: Metadata = {
 };
 
 export default async function AuthErrorPage({ searchParams }: { searchParams: Promise<{ reason?: string | string[] }> }) {
-  const linking = (await searchParams).reason === "account_linking_required";
+  const reason = (await searchParams).reason;
+  const linking = reason === "account_linking_required";
+  const emailConfirmation = reason === "google_email_confirmation_required";
   return <main className={styles.recovery}>
     <header><Brand /></header>
     <section aria-labelledby="google-error-title">
-      {linking ? <>
+      {emailConfirmation ? <>
+        <h1 id="google-error-title">Подтвердите вход по письму</h1>
+        <p>Мы отправили ссылку на почту Google-аккаунта. Откройте её в этом же браузере и подтвердите вход, чтобы связать аккаунты. Ссылка действует 10 минут.</p>
+        <p>Проверьте входящие и папку «Спам». Если письмо не пришло или ссылка устарела, начните вход через Google заново.</p>
+        <GoogleAuth />
+      </> : linking ? <>
         <h1 id="google-error-title">Свяжем Google с вашим аккаунтом</h1>
         <p>С этой почтой уже есть аккаунт Ukladen. Подтвердите его почту и пароль один раз, затем выберите аккаунт Google для привязки. Ваши данные сохранятся.</p>
         <GoogleAuth link signIn />

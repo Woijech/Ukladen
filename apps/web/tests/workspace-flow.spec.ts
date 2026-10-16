@@ -16,6 +16,13 @@ test("registration, group import, personal CRUD and returning-user login work to
   await page.getByLabel("Электронная почта").fill("test@example.com");
   await page.getByLabel("Пароль", { exact: true }).fill("a-test-password-123");
   await page.getByRole("button", { name: "Зарегистрироваться", exact: true }).click();
+  await expect(page).toHaveURL("/auth/complete-registration");
+  await expect(page.getByRole("status")).toContainText("Подтвердите почту");
+  await expect(page.locator(".workspace-shell")).toHaveCount(0);
+  state.registrationComplete = true;
+  await page.getByRole("button", { name: "Я подтвердил почту — проверить" }).click();
+  await expect(page.getByRole("heading", { name: "Календарь", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Настроить учебную группу" }).click();
   await expect(page.getByRole("heading", { name: "Добавь расписание учёбы" })).toBeVisible();
   await page.getByRole("option", { name: /353501/ }).click();
   await page.getByLabel("Подгруппа", { exact: true }).selectOption("2");

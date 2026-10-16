@@ -4,10 +4,11 @@ import Link from "next/link";
 import { Brand } from "@/shared/brand";
 import { useEffect, useRef, useState } from "react";
 
-type VerificationStatus = "pending" | "success" | "invalid" | "limited" | "error";
+type VerificationStatus = "pending" | "ready" | "success" | "invalid" | "limited" | "error";
 
 const messages: Record<VerificationStatus, string> = {
   pending: "Подтверждаем вашу почту…",
+  ready: "Подтвердите вход через Google. Откройте эту ссылку в том же браузере, в котором начали вход.",
   success: "Почта подтверждена. Теперь можно вернуться в Ukladen.",
   invalid: "Ссылка недействительна, уже использована или срок её действия истёк. Запросите новое письмо.",
   limited: "Слишком много попыток. Откройте ссылку из письма позже.",
@@ -23,7 +24,7 @@ function logFailure(stage: "csrf" | "confirmation" | "network", response?: Respo
   }));
 }
 
-async function confirmEmail(token: string | null): Promise<VerificationStatus> {
+async function confirmEmail(token: string | null, googleLink = false): Promise<VerificationStatus> {
   if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) return "invalid";
   try {
     const csrf = await fetch("/api/v1/auth/csrf", {
@@ -38,7 +39,7 @@ async function confirmEmail(token: string | null): Promise<VerificationStatus> {
       logFailure("csrf", csrf);
       return "error";
     }
-    const response = await fetch("/api/v1/auth/email-verification/confirm", {
+    const response = await fetch(googleLink ? "/api/v1/auth/google/email/confirm" : "/api/v1/auth/email-verification/confirm", {
       method: "POST",
       credentials: "same-origin",
       cache: "no-store",
@@ -57,9 +58,11 @@ async function confirmEmail(token: string | null): Promise<VerificationStatus> {
   }
 }
 
-export function VerifyEmail() {
+export function VerifyEmail({ googleLink = false }: { googleLink?: boolean }) {
   const [status, setStatus] = useState<VerificationStatus>("pending");
   const confirmation = useRef<Promise<VerificationStatus> | null>(null);
+  const linkToken = useRef<string | null>(null);
+  const inFlight = useRef(false);
 
   useEffect(() => {
     if (!confirmation.current) {
@@ -68,7 +71,10 @@ export function VerifyEmail() {
       const token = tokens.length === 1 ? tokens[0] : null;
       window.history.replaceState(window.history.state, "", window.location.pathname);
       // Reuse the promise when React repeats effects; one-time tokens must be submitted once.
-      confirmation.current = confirmEmail(token);
+      linkToken.current = googleLink ? token : null;
+      confirmation.current = googleLink
+        ? Promise.resolve(token && /^[A-Za-z0-9_-]{43}$/.test(token) ? "ready" : "invalid")
+        : confirmEmail(token);
     }
     let mounted = true;
     void confirmation.current.then(result => { if (mounted) setStatus(result); });
@@ -79,15 +85,26 @@ export function VerifyEmail() {
       mounted = false;
       window.removeEventListener("hashchange", openAnotherLink);
     };
-  }, []);
+  }, [googleLink]);
+
+  async function confirmGoogle() {
+    if (inFlight.current) return;
+    inFlight.current = true; setStatus("pending");
+    const result = await confirmEmail(linkToken.current, true);
+    if (result === "success") { linkToken.current = null; window.location.replace("/workspace"); }
+    if (result === "invalid") linkToken.current = null;
+    setStatus(result); inFlight.current = false;
+  }
 
   return (
     <main>
       <header><Brand /></header>
       <section aria-labelledby="verification-title">
-        <h1 id="verification-title">Подтверждение почты</h1>
+        <h1 id="verification-title">{googleLink ? "Подтверждение входа через Google" : "Подтверждение почты"}</h1>
         <p role="status" aria-live="polite">{messages[status]}</p>
-        <Link href="/">Вернуться на главную</Link>
+        {googleLink && ["ready", "error", "limited"].includes(status) && <button onClick={() => void confirmGoogle()}>Подтвердить вход через Google</button>}
+        <Link href="/auth/complete-registration">Продолжить регистрацию</Link>
+        <p><Link href="/workspace">Войти в Ukladen</Link></p>
       </section>
     </main>
   );

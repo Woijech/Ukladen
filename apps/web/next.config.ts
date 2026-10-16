@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   async headers() {
-    return ["/auth/verify-email", "/auth/reset-password", "/auth/error"].map(source => ({
+    return ["/auth/verify-email", "/auth/reset-password", "/auth/error", "/auth/complete-registration", "/auth/confirm-google-link"].map(source => ({
       source,
       headers: [
         { key: "Referrer-Policy", value: "no-referrer" },

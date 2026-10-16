@@ -55,6 +55,10 @@ export function GoogleAuth({ link = false, signIn = false, onSessionEnd }: { lin
         }
       } else response = await fetch("/api/v1/auth/google/start", options);
       if (!response.ok) {
+        if (link && response.status === 403) {
+          const failure = await response.clone().json().catch(() => null) as { code?: string } | null;
+          if (failure?.code === "registration_incomplete") { setPassword(""); window.location.replace("/auth/complete-registration"); navigating = true; return; }
+        }
         if (link && onSessionEnd && response.status === 401) {
           const failure = await response.json().catch(() => null) as { detail?: string } | null;
           if (failure?.detail !== "Invalid current password.") { setPassword(""); onSessionEnd(); return; }
