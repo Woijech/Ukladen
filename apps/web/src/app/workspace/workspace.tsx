@@ -126,6 +126,13 @@ function eventColumns(events: CalendarEvent[]) {
   return columns;
 }
 
+function isSyncComplete(status: ScheduleSyncStatus | undefined, startedAt = 0) {
+  if (!status) return false;
+  const attemptTime = status.last_attempt_at ? Date.parse(status.last_attempt_at) : 0;
+  return status.status === "ready" ? Boolean(status.last_success_at) :
+    ["unpublished", "error", "unsupported"].includes(status.status) && (!startedAt || attemptTime >= startedAt - 5000);
+}
+
 function scheduleStatusMessage(status: ScheduleSyncStatus) {
   if (status.status === "unpublished") return "Для этой группы IIS не публикует расписание.";
   if (status.status === "error") return "IIS не ответил или вернул неожиданный ответ. Проверьте подключение и повторите синхронизацию.";
@@ -368,14 +375,11 @@ function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => v
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
-  const [syncPending, setSyncPending] = useState(false);
-  const [syncFinished, setSyncFinished] = useState(false);
-  const [syncWaiting, setSyncWaiting] = useState(false);
-  const [syncStartedAt, setSyncStartedAt] = useState(0);
-  const [syncNotice, setSyncNotice] = useState("");
+  const [syncRequest, setSyncRequest] = useState<{ startedAt: number; message: string } | null>(null);
+  const [syncRequestError, setSyncRequestError] = useState("");
+  const [syncCheckedAt, setSyncCheckedAt] = useState(0);
   const [officialEvent, setOfficialEvent] = useState<CalendarEvent | null>(null);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
-  const syncTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const weekStart = useMemo(() => startOfWeek(selected), [selected]);
   const days = useMemo(() => Array.from({ length: 7 }, (_, index) => shiftDate(weekStart, index)), [weekStart]);
@@ -390,7 +394,7 @@ function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => v
     queryKey: ["schedule-sync-status", meQuery.data?.group.id],
     queryFn: ({ signal }) => requestJson<ScheduleSyncStatus>("/api/v1/schedule/me/sync-status", { signal }),
     enabled: Boolean(meQuery.data?.group.id),
-    refetchInterval: syncPending ? 3000 : false,
+    refetchInterval: query => (syncRequest && !isSyncComplete(query.state.data, syncRequest.startedAt)) || query.state.data?.status === "syncing" ? 3000 : false,
     retry: false,
   });
   const apiError = calendarQuery.error instanceof Error ? calendarQuery.error : null;
@@ -402,64 +406,31 @@ function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => v
   const weekEndLabel = prettyDate(days[6], { day: "numeric", month: "long", year: "numeric" });
   const selectedEvents = events.filter(event => localDate(new Date(event.starts_at)) === selectedKey).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
 
-  useEffect(() => {
-    const status = syncStatusQuery.data;
-    if (!syncPending || !status || status.group_id !== meQuery.data?.group.id) return;
-    const attemptTime = status.last_attempt_at ? Date.parse(status.last_attempt_at) : 0;
-    if (status.status === "ready" && !status.last_success_at) return;
-    if (status.status !== "ready" && (!attemptTime || attemptTime < syncStartedAt - 5000)) return;
-    if (status.status === "ready") {
-      setSyncPending(false);
-      setSyncNotice("");
-      setSyncWaiting(false);
-      if (syncTimeout.current) clearTimeout(syncTimeout.current);
-      void queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] }).then(async () => {
-        const latest = await queryClient.fetchQuery({
-          queryKey: ["workspace-calendar", range.from, range.to],
-          queryFn: ({ signal }) => requestJson<CalendarPayload>(`/api/v1/calendar/events?date_from=${range.from}&date_to=${range.to}`, { signal }),
-        });
-        const lessonCount = latest.events.filter(item => item.source === "official").length;
-        const message = lessonCount ? `Расписание загружено: ${lessonCount} занятий на этой неделе.` : "Расписание синхронизировано. На этой неделе занятий нет.";
-        setSyncFinished(true);
-        setSyncNotice(message);
-        setToast(message);
-        window.setTimeout(() => setToast(""), 5000);
-      }).catch(() => {
-        const message = "IIS завершил импорт, но календарь пока не удалось обновить. Обновите страницу позже.";
-        setSyncFinished(false);
-        setSyncWaiting(false);
-        setSyncNotice(message);
-        setToast(message);
-      });
-    } else if (["unpublished", "error", "unsupported"].includes(status.status)) {
-      setSyncPending(false);
-      setSyncFinished(false);
-      setSyncWaiting(status.status === "unpublished");
-      if (syncTimeout.current) clearTimeout(syncTimeout.current);
-      const message = scheduleStatusMessage(status);
-      setSyncNotice(message);
-      setToast(message);
-      window.setTimeout(() => setToast(""), 6000);
-    }
-  }, [syncPending, syncStartedAt, syncStatusQuery.data, meQuery.data?.group.id, queryClient, range.from, range.to]);
-
-  useEffect(() => () => { if (syncTimeout.current) clearTimeout(syncTimeout.current); }, []);
+  const syncStatus = syncStatusQuery.data?.group_id === meQuery.data?.group.id ? syncStatusQuery.data : undefined;
+  const attemptTime = syncStatus?.last_attempt_at ? Date.parse(syncStatus.last_attempt_at) : 0;
+  const syncCompleted = isSyncComplete(syncStatus, syncRequest?.startedAt);
+  const syncStartedAt = syncRequest?.startedAt ?? (syncStatus?.status === "syncing" ? attemptTime : 0);
+  const syncTimedOut = !syncCompleted && syncStartedAt > 0 && syncCheckedAt >= syncStartedAt + 180_000;
+  const syncPending = !syncCompleted && !syncTimedOut && Boolean(syncRequest || syncStatus?.status === "syncing");
+  const syncFinished = Boolean(syncRequest && syncCompleted && syncStatus?.status === "ready" && !calendarQuery.isError);
+  const syncWaiting = syncTimedOut || syncStatus?.status === "unpublished";
+  const syncNotice = syncRequestError || (syncStatusQuery.isError && (syncRequest || syncPending)
+    ? "Не удалось проверить статус IIS. Продолжаем проверять; можно повторить запрос позже."
+    : syncPending ? syncRequest?.message ?? "IIS синхронизирует расписание…"
+    : syncTimedOut ? "Импорт ещё выполняется. Продолжаем проверять статус; расписание появится после завершения синхронизации."
+    : syncFinished ? "Расписание синхронизировано."
+    : syncRequest && syncCompleted && syncStatus?.status === "ready" && calendarQuery.isError ? "IIS завершил импорт, но календарь пока не удалось обновить. Повторите загрузку календаря."
+    : syncStatus && ["unsupported", "error", "unpublished"].includes(syncStatus.status) ? scheduleStatusMessage(syncStatus) : "");
 
   useEffect(() => {
-    const status = syncStatusQuery.data;
-    if (syncPending || !status || status.group_id !== meQuery.data?.group.id) return;
-    if (status.status === "syncing") {
-      setSyncPending(true);
-      setSyncStartedAt(status.last_attempt_at ? Date.parse(status.last_attempt_at) : Date.now());
-      setSyncFinished(false);
-      setSyncWaiting(false);
-      setSyncNotice("IIS синхронизирует расписание…");
-    } else if (status.status === "unsupported" || status.status === "error" || status.status === "unpublished") {
-      setSyncFinished(false);
-      setSyncWaiting(status.status === "unpublished");
-      setSyncNotice(scheduleStatusMessage(status));
-    }
-  }, [syncPending, syncStatusQuery.data, meQuery.data?.group.id]);
+    if (!syncStartedAt || syncCompleted) return;
+    const timer = setTimeout(() => setSyncCheckedAt(Date.now()), Math.max(0, syncStartedAt + 180_000 - Date.now()));
+    return () => clearTimeout(timer);
+  }, [syncStartedAt, syncCompleted]);
+
+  useEffect(() => {
+    if (syncStatus?.status === "ready") void queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] });
+  }, [syncStatus?.group_id, syncStatus?.status, syncStatus?.last_success_at, queryClient]);
 
   function openCreate(date = selected) {
     setEditingEvent(null);
@@ -475,26 +446,15 @@ function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => v
   const [endValue, setEndValue] = useState("");
 
   async function retryScheduleSync() {
+    setSyncRequestError("");
     try {
       const token = await csrfToken();
       await requestJson<{ group_id: number }>("/api/v1/schedule/me/sync", { method: "POST", headers: { "X-CSRF-Token": token } });
-      setSyncPending(true);
-      setSyncFinished(false);
-      setSyncWaiting(false);
-      setSyncStartedAt(Date.now());
-      setSyncNotice("Запрос принят. Проверяем результат синхронизации IIS…");
-      if (syncTimeout.current) clearTimeout(syncTimeout.current);
-      syncTimeout.current = setTimeout(() => {
-        setSyncPending(false);
-        setSyncWaiting(true);
-        setSyncNotice("Импорт ещё выполняется. Статус можно проверить позже; расписание появится после завершения синхронизации.");
-      }, 180_000);
+      setSyncRequest({ startedAt: Date.now(), message: "Запрос принят. Проверяем результат синхронизации IIS…" });
       await queryClient.invalidateQueries({ queryKey: ["schedule-sync-status"] });
     } catch (error) {
-      setSyncPending(false);
-      setSyncFinished(false);
-      setSyncWaiting(false);
-      setSyncNotice(error instanceof Error ? error.message : "Не удалось запустить синхронизацию IIS.");
+      setSyncRequest(null);
+      setSyncRequestError(error instanceof Error ? error.message : "Не удалось запустить синхронизацию IIS.");
     }
   }
 
@@ -502,24 +462,13 @@ function CalendarWorkspace({ onSessionEnd, onboarding }: { onSessionEnd: () => v
     setShowGroupPicker(false);
     setAccountMenuOpen(false);
     setTopAccountMenuOpen(false);
-    setSyncPending(true);
-    setSyncFinished(false);
-    setSyncWaiting(false);
-    setSyncStartedAt(Date.now());
-    setSyncNotice(syncAccepted ? "Группа выбрана. IIS загружает расписание…" : "Группа сохранена. Ждём фоновую синхронизацию расписания…");
-    setToast(syncAccepted ? "Группа выбрана. Загружаем расписание IIS…" : "Группа сохранена. Ждём синхронизацию IIS…");
+    setSyncRequestError("");
+    setSyncRequest({ startedAt: Date.now(), message: syncAccepted ? "Группа выбрана. IIS загружает расписание…" : "Группа сохранена. Ждём фоновую синхронизацию расписания…" });
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] }),
       queryClient.invalidateQueries({ queryKey: ["workspace-profile"] }),
       queryClient.invalidateQueries({ queryKey: ["schedule-sync-status"] }),
     ]);
-    window.setTimeout(() => setToast(""), 5000);
-    if (syncTimeout.current) clearTimeout(syncTimeout.current);
-    syncTimeout.current = setTimeout(() => {
-      setSyncPending(false);
-      setSyncWaiting(true);
-      setSyncNotice("Импорт ещё выполняется. Статус можно проверить позже; расписание появится после завершения синхронизации.");
-    }, 180_000);
   }
 
   function openEvent(item: CalendarEvent) {
