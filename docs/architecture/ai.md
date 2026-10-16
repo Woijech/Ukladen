@@ -1,6 +1,6 @@
 # AI, Retrieval and Application Tools
 
-Updated: 2026-10-16.
+Updated: 2026-10-17.
 Status: AI/RAG not implemented. `ai`, LLM and embedding boundaries contain package
 markers. Materials/extraction and basic lexical search are implemented separately;
 see [P-08 contracts](../development/materials.md). They do not implement chunks,
@@ -33,9 +33,12 @@ AI does not receive SQL access, ORM models, a shell, raw storage credentials or
 an unrestricted IIS HTTP client. Tool adapters call application interfaces; normal
 services own validation, transactions, permissions and concurrency checks.
 
-LLM and embedding providers are separate adapters under `app/integrations`. No
-provider, model or budget has been selected. Domain/application contracts must
-not depend on one SDK's response types. Streaming/cancellation is a later transport
+LLM and embedding providers are separate adapters under `app/integrations`.
+The selected development plan uses Groq Free `openai/gpt-oss-120b` and local CPU
+`intfloat/multilingual-e5-small`, with fake execution before connecting a provider.
+These adapters are not implemented. Paid use, private-content sharing and automatic
+operation limits remain separately gated. Domain/application contracts must
+not depend on one SDK's response types. Streaming/cancellation is a staged transport
 decision, not an excuse to leak partially confirmed mutations.
 
 ## 3. Planned tool capabilities
@@ -155,3 +158,13 @@ Ordinary request/worker correlation reuses existing structured diagnostics.
 
 See [roadmap](../development/implementation-roadmap.md) and
 [open decisions](../product/open-questions.md) before starting this phase.
+
+## 8. Planned delivery and analytics
+
+The [AI product specification](../product/ai.md) owns the editable scenario catalog
+and owner-only usage page requirements. The [implementation plan](../development/ai-implementation-plan.md)
+defines staged ports, durable usage accounting, chat, indexing and confirmed/automatic
+actions; [the setup runbook](../development/ai-setup.md) defines connection gates.
+All remain planned. `ai` owns conversation/run/tool/action usage metadata;
+`search` owns derived retrieval/index jobs. Existing safe logs remain operator
+diagnostics, not a source of prompts or cross-user product analytics.

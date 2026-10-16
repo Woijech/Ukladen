@@ -1,6 +1,6 @@
 # Ukladen Documentation Index
 
-Updated: 2026-10-16.
+Updated: 2026-10-17.
 
 ## Contract and reading order
 
@@ -58,6 +58,15 @@ Planned contracts do not override the current implemented API silently.
 
 These guides document existing behavior. Dated verification is evidence of that
 implementation task, not a guarantee that its checks were rerun during a later edit.
+
+## Planned AI delivery
+
+- [AI scenarios and owner usage analytics](product/ai.md): editable scope and planned product behavior.
+- [AI implementation plan](development/ai-implementation-plan.md): AI-00 through AI-09, dependencies and acceptance gates.
+- [AI setup runbook](development/ai-setup.md): when/how to connect Groq Free, CPU embeddings and optional replacement providers.
+
+These are planning documents. AI integrations, retrieval, actions and analytics are
+not implemented; this plan does not authorize starting or deploying their stages.
 
 ## IIS evidence and future integration
 

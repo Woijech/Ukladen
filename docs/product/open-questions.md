@@ -1,6 +1,6 @@
 # Product Decisions and Open Questions
 
-Updated: 2026-10-16.
+Updated: 2026-10-17.
 Status: decision register. Owner-confirmed scope is distinguished from open design
 choices. Proposed defaults are not owner confirmation; resolve relevant unknowns
 before implementing incompatible schemas, integrations or behavior.
@@ -26,6 +26,11 @@ before implementing incompatible schemas, integrations or behavior.
   a 25 MiB file limit, 1 GiB file storage per user and no OCR. Implement locally;
   deployment may be requested later. No deployment or external processing provider
   is required by this slice.
+- On 2026-10-17 the owner chose free Groq calls for development and requested
+  interchangeable providers, local or free API embeddings, an editable scenario
+  catalog, staged connection instructions and usage analytics. The resulting
+  [AI plan](../development/ai-implementation-plan.md) selects local CPU E5-small
+  and an owner usage page. This is a planning request, not runtime/deployment authorization.
 
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md) records organization.
 [ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md) records AI authorization.
@@ -48,7 +53,7 @@ confirmed requirement for automatic actions.
 
 | ID | Question | Proposed default | What depends on it |
 | --- | --- | --- | --- |
-| Q-04a | Which actions may run automatically, on which objects, for how long and with what limits? Which AI provider, budget and content-sharing policy apply? | No automatic writes without an explicit scoped grant. Without a matching grant, preview and confirm. Provider-neutral adapters; no provider chosen. | Grant policy, revocation, execution records, costs and external content transfer |
+| Q-04a | Which actions may run automatically, on which objects, for how long and with what limits? What real-content sharing, retention and future paid budget apply? | Groq Free is selected for development; the plan selects local CPU E5-small. No automatic writes without an explicit scoped grant; otherwise preview and confirm. Synthetic content until the sharing policy is recorded. See [AI scope](ai.md). | Grant policy, revocation, execution records, costs, retention and external content transfer |
 | Q-05 | Beyond mandatory database calendar views, which calendar features are required first: all-day events, recurrence, multiple calendars or external providers? | Existing timed events plus date projections; dates/deadlines are nonblocking. Recurrence/all-day contracts are separate; no Google/Microsoft sync assumed. | Date DTOs, recurrence/exception model and availability |
 | Q-06 | Which history, purge and export features should follow recoverable trash? | Implemented branch trash restores its batch root and preserves previously trashed children; see [notes](../development/notes.md). No purge/history/export yet. | Future cleanup, history and export |
 | Q-07 | Are tasks typed planning objects, database records, or both with an explicit binding? | Typed tasks retain planning rules; ordinary records do not become tasks automatically. | Task API, date bindings and AI tools |

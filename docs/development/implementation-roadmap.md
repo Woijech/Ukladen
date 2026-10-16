@@ -1,6 +1,6 @@
 # Backend Implementation Roadmap
 
-Updated: 2026-10-16.
+Updated: 2026-10-17.
 Status: implementation roadmap; completed slices are marked below. This document does not authorize starting the
 next phase; request a concrete slice before implementing it. Pages/blocks/databases,
 mandatory table/calendar views, personal scope and AI execution modes are confirmed.
@@ -207,6 +207,11 @@ retrieval and AI/RAG remain not implemented. No deployment is performed by this 
 ## 11. P-09 AI help, recommendations, confirmed/automatic actions and RAG
 
 Status: not implemented. Dependencies: only the application tools actually used.
+The [detailed AI plan](ai-implementation-plan.md) splits this work into AI-00 through
+AI-09, with an [editable scenario/analytics specification](../product/ai.md) and
+[connection runbook](ai-setup.md). It selects Groq Free and CPU E5-small for
+development, records usage before real calls and adds an owner usage page with chat.
+This documentation does not implement or authorize executing the stages.
 AI calendar reads may be requested before P-08; RAG requires extraction/search.
 Execution modes are confirmed under Q-04; remaining permission/provider policy is Q-04a.
 
