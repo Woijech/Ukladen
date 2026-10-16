@@ -38,6 +38,7 @@ Planned contracts do not override the current implemented API silently.
 
 - [Local development](development/local-development.md).
 - [Auth email delivery](development/auth-email.md).
+- [Google sign-in and account linking](development/google-auth.md).
 - [User profile](development/user-profile.md) and [avatar](development/user-avatar.md).
 - [Academic profile](development/academic-profile.md).
 - [Public university reads](development/university-api.md).

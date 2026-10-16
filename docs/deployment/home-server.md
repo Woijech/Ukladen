@@ -107,6 +107,10 @@ including port/security and username/password. Cloudflare Tunnel does not send
 email. If Google login is enabled, register the public callback
 `https://ukladen.app/api/v1/auth/google/callback` with Google and configure all
 Google settings together; otherwise leave them commented out.
+Use `https://ukladen.app/workspace` as `FRONTEND_AUTH_SUCCESS_URL` and
+`https://ukladen.app/auth/error` as `FRONTEND_AUTH_ERROR_URL`. See
+[Google sign-in setup](../development/google-auth.md) for account linking,
+verification limits and Google Console troubleshooting.
 
 ## 4. Start and verify
 

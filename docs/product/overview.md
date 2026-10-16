@@ -156,7 +156,7 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 | Capability | Current status |
 | --- | --- |
 | Monolith, Compose, migrations, workers, CI, safe diagnostics | Implemented foundation |
-| Browser auth, Google login/linking, email delivery | Implemented backend; login/registration, email-verification and password-recovery UI |
+| Browser auth, Google login/linking, email delivery | Implemented backend; email/Google login/registration, explicit linking, email-verification and password-recovery UI |
 | User profile/avatar and academic profile | Implemented backend |
 | Public IIS directories and live reads | Implemented backend |
 | Official schedule storage, supported expansion and sync | Implemented backend with source limitations |

@@ -185,7 +185,7 @@ as a group: all must be unset or all supplied. The secret uses `SecretStr` and i
 omitted from settings representations. Callback URIs disallow credentials, query
 strings and fragments; HTTPS is required except for `localhost`, `127.0.0.1` and
 `[::1]` development URLs. Commented placeholders are provided in `.env.example`.
-The Google adapter consumes these settings; it is not wired into browser routes yet.
+The Google adapter consumes these settings through the implemented browser routes.
 
 ## Database
 
@@ -691,6 +691,12 @@ failures return 429 with Retry-After; unavailable configuration/protection retur
 together. Both require HTTPS except local loopback HTTP and prohibit credentials,
 query strings and fragments. They are fixed configuration, never request return URLs.
 Google browser login fails closed until provider and frontend settings are configured.
+The start and link/start endpoints retain 303 navigation responses by default.
+With exactly `Accept: application/json`, they return 200 and a Pydantic
+`authorization_url` response instead, setting the same HttpOnly browser-binding cookie.
+Both representations use no-store/no-referrer and `Vary: Accept`; all existing
+navigation, password, CSRF and rate-limit guards remain in force. The frontend
+uses JSON starts to display recoverable errors before navigating to Google.
 `AUTH_OAUTH_COOKIE_NAME` defaults to `__Host-ukladen_oauth`, distinct from session
 and CSRF cookies. Enabled OAuth cookies obey Secure prefix rules and always use
 SameSite=Lax, HttpOnly, Path=/, no Domain, and the state lifetime. Local HTTP must

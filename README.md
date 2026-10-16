@@ -318,6 +318,10 @@ Start/callback rate limits default to 10 attempts per 60 seconds and use
 Start redirects to Google; callback commits the ordinary session before setting
 its cookie and redirecting to the configured success page. Failures redirect to
 the configured error page and preserve existing sessions.
+Login/registration now include a Google button, `/auth/error` provides recovery,
+and profile menus support explicit linking with password confirmation.
+Use `/workspace` for the success destination and `/auth/error` for failures;
+see [Google setup and troubleshooting](docs/development/google-auth.md).
 
 To explicitly link Google to a password account, authenticate first, then call
 `POST /api/v1/auth/google/link/start` with `current_password`, the session cookie

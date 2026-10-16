@@ -1,6 +1,6 @@
 # Ukladen Frontend Foundation
 
-Status: shell, browser email verification, login/registration, email password recovery, academic-group selection and a weekly calendar with personal-event create/edit/delete are implemented. Other business UI remains not implemented.
+Status: shell, browser email verification, email/Google login and registration, explicit Google linking, email password recovery, academic-group selection and a weekly calendar with personal-event create/edit/delete are implemented. Other business UI remains not implemented.
 
 `apps/web` uses Next.js App Router, React and strict TypeScript. The root layout
 provides a TanStack Query client created once per mounted provider. The frontend
@@ -43,6 +43,18 @@ link must be reopened. Another fragment navigates to a fresh form. The page shar
 verification's no-referrer/no-store/noindex policies and mutation-free GET previews.
 
 The root `/` page links to `/workspace` through “Открыть календарь”.
+
+Login and registration offer `GoogleAuth`, using the existing server-side OIDC flow.
+It requests a JSON start response, accepts only the Google authorization endpoint
+and performs full-page navigation after the backend sets its binding cookie.
+Provider credentials stay in backend configuration. Rate-limit/service/network errors
+remain on the form and allow retry; browser-back navigation restores the button.
+Profile menus expose explicit linking in a native modal dialog with current-password
+confirmation and fresh CSRF protection. Closing it, session expiry or changing the
+workspace identity discards its private form. Wrong-password errors preserve the
+session; invalid-session responses remove the private workspace.
+`/auth/error` has no-referrer/no-store/noindex policies, a retry button and guidance
+for existing password accounts. See [Google setup and verification](../development/google-auth.md).
 
 `/workspace` provides email/password login and registration using the existing CSRF
 and session-cookie contracts. Password visibility lasts three seconds. After login,
@@ -116,6 +128,9 @@ tests check one POST with cookies/CSRF/Origin, fragment/history cleanup, privacy
 headers, invalid input, server/network failures and mutation-free GET previews.
 Password-reset tests also cover matching passwords, duplicate-submit prevention,
 policy correction, generic request acknowledgements, retry and opening another link.
+Google tests cover login/registration, cookie binding, duplicate starts, recovery,
+destination validation, explicit linking from desktop/mobile profiles, password/CSRF
+guards, native dialog dismissal and private-state cleanup on expiry.
 Browser tests mock API responses; backend tests cover real PostgreSQL/Redis/SMTP
 flows. Compose health verification checks the real backend separately.
 

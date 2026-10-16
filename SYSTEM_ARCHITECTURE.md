@@ -449,7 +449,7 @@ Status: backend authentication is implemented, including email/password flows,
 Google OIDC login and explicit linking with password re-authentication. Authentication
 email delivery uses the existing Celery worker and a configurable SMTP adapter;
 the deployment supplies its SMTP service. Browser email verification and email/password
-login/registration and email password recovery UI are implemented. See
+login/registration, Google login/linking and email password recovery UI are implemented. See
 [backend architecture](docs/architecture/backend.md) for current runtime details.
 
 ## 5.2 users
