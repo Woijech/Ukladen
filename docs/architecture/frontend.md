@@ -6,6 +6,14 @@ Status: shell, browser email verification, login/registration, email password re
 provides a TanStack Query client created once per mounted provider. The frontend
 uses the query client for same-origin API reads and writes. Product text is Russian.
 
+Approved A1 branding is implemented through `src/shared/brand.tsx`: the calendar/note
+symbol and a text wordmark. Home, auth, group-selection and calendar navigation reuse
+this component; desktop sign-in also displays the full logo image. Root metadata
+provides browser/Apple touch icons. PNG sources and reuse instructions are in
+[brand exports](../../assets/branding/README.md). Matching frontend copies are static
+imports under `src/shared/assets/`, optimized by Next.js and included in standalone
+and Docker output through the existing static-asset copy.
+
 The only frontend route handler is `GET /health`, which returns `{ "status": "ok" }`.
 It checks the frontend process, not the backend. In Compose, Traefik routes API
 requests directly to FastAPI. For local development, Next.js rewrites `/api/*` to

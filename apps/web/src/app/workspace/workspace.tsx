@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import Image from "next/image";
+import { Brand } from "@/shared/brand";
+import logo from "@/shared/assets/ukladen-logo.png";
 import { QueryCache, QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { dateKey, dateTimeLocal, dayStart, localInstants, prettyDate as formatDate, resolveLocalTime, shiftDate, startOfWeek } from "./calendar-time";
 import "./workspace.css";
@@ -239,9 +242,9 @@ function AuthPanel({ onSuccess }: { onSuccess: () => Promise<void> }) {
   }
 
   return <div className="auth-layout">
-    <div className="auth-art" aria-hidden="true"><div className="art-orbit orbit-one"/><div className="art-orbit orbit-two"/><div className="art-card"><span className="art-dot"/><span className="art-line line-long"/><span className="art-line"/><span className="art-event"/></div><span className="art-caption">Твоё спокойное место<br/>для важных планов</span></div>
+    <div className="auth-art" aria-hidden="true"><div className="art-orbit orbit-one"/><div className="art-orbit orbit-two"/><Image className="auth-art-logo" src={logo} alt="" width={340} height={340} sizes="(max-width: 760px) 1px, 340px"/><span className="art-caption">Твоё спокойное место<br/>для важных планов</span></div>
     <form className="auth-card" onSubmit={submit}>
-      <span className="auth-kicker">Личное пространство Ukladen</span>
+      <Brand />
       <h1>{mode === "login" ? "Войти в Ukladen" : "Создать аккаунт"}</h1>
       <p className="auth-description">Расписание и личные планы — в одном пространстве.</p>
       <label htmlFor="email">Электронная почта</label>
@@ -310,7 +313,7 @@ function GroupPicker({ profile, timeZone, onClose, onSaved }: { profile: Academi
   }
 
   return <main className="group-page">
-    <header className="group-header"><a className="brand-lockup" href="/workspace"><span className="brand-mark"><Icon name="sparkle"/></span><span>ukladen</span></a><button className="cancel-button" type="button" onClick={onClose}>Вернуться в календарь</button></header>
+    <header className="group-header"><a className="brand-lockup" href="/workspace"><Brand /></a><button className="cancel-button" type="button" onClick={onClose}>Вернуться в календарь</button></header>
     <div className="group-content">
       <div className="group-intro"><span className="group-icon"><Icon name="cap"/></span><span className="greeting">НАСТРОЙКА РАСПИСАНИЯ</span><h1>{profile ? "Изменить учебную группу" : "Добавь расписание учёбы"}</h1><p>Найди свою группу БГУИР — занятия появятся рядом с личными планами.</p></div>
       <div className="group-picker-layout">
@@ -568,7 +571,7 @@ function CalendarWorkspace({ userTimeZone, onSessionEnd, onboarding }: { userTim
 
   return <main className="workspace-shell">
     <aside className="sidebar">
-      <a className="brand-lockup" href="/workspace" aria-label="Ukladen — главная"><span className="brand-mark"><Icon name="sparkle" /></span><span>ukladen</span></a>
+      <a className="brand-lockup" href="/workspace" aria-label="Ukladen — главная"><Brand /></a>
       <div className="sidebar-section-label">ПРОСТРАНСТВО</div>
       <button className="nav-item active"><Icon name="calendar"/><span>Календарь</span><span className="nav-count">7</span></button>
       <button className="nav-item muted-nav" title="Заметки появятся в следующих версиях"><span className="nav-glyph">▤</span><span>Заметки</span><span className="soon-label">скоро</span></button>

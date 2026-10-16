@@ -23,6 +23,7 @@ Planned contracts do not override the current implemented API silently.
 - [Workspace](architecture/workspace.md): implemented pages, organization, user databases and table/calendar views.
 - [AI](architecture/ai.md): planned tools, confirmed actions, retrieval and provider boundaries.
 - [Frontend](architecture/frontend.md): authentication, weekly calendar, session isolation and timezone behavior.
+- [Brand exports](../assets/branding/README.md): approved Ukladen logo files and reuse in product screens.
 - [Frontend verification (2026-10-16)](development/frontend-verification-2026-10-16.md): review fixes, local commits and executed checks.
 - [Infrastructure](architecture/infrastructure.md): actual processes/storage/exposure.
 - [ADR 0001](adr/0001-use-seaweedfs.md): local object storage.

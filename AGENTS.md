@@ -3,6 +3,12 @@
 Product name: **Ukladen**. Use `ukladen` for the project/database identifier and
 `ukladen-backend` / `ukladen-web` for application packages and images.
 
+Approved visual identity: **A1**, the U-shaped calendar tiles with a note card.
+Reuse this logo by default when adding product branding to future screens.
+Source exports and usage notes are in `assets/branding/README.md`; the frontend
+uses `apps/web/src/shared/brand.tsx` and matching images under `src/shared/assets/`.
+Use the symbol-only export for avatars/icons and the full export for larger brand placements.
+
 ## 1. Architectural source of truth
 
 Before making any architecture-affecting changes, read:

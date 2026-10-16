@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Brand } from "@/shared/brand";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import "../../workspace/workspace.css";
@@ -116,7 +117,7 @@ export function ResetPassword() {
 
   return <main className="workspace-auth password-reset">
     <section className="auth-card password-reset-card" aria-labelledby="reset-title">
-      <span className="auth-kicker">Ukladen</span>
+      <Brand />
       <h1 id="reset-title">{mode === "confirm" ? "Новый пароль" : mode === "success" ? "Пароль изменён" : "Восстановление пароля"}</h1>
       {mode === "loading" && <p role="status">Проверяем ссылку…</p>}
       {mode === "request" && <p className="auth-description">Укажите почту аккаунта — отправим ссылку для установки нового пароля.</p>}

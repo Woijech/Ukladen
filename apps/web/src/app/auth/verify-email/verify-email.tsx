@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Brand } from "@/shared/brand";
 import { useEffect, useRef, useState } from "react";
 
 type VerificationStatus = "pending" | "success" | "invalid" | "limited" | "error";
@@ -82,7 +83,7 @@ export function VerifyEmail() {
 
   return (
     <main>
-      <header><span className="brand">Ukladen</span></header>
+      <header><Brand /></header>
       <section aria-labelledby="verification-title">
         <h1 id="verification-title">Подтверждение почты</h1>
         <p role="status" aria-live="polite">{messages[status]}</p>
