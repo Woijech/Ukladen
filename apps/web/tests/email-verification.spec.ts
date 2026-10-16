@@ -7,6 +7,7 @@ const path = "/auth/verify-email";
 for (const scenario of [
   { code: 204, text: "Почта подтверждена." },
   { code: 400, text: "Ссылка недействительна" },
+  { code: 401, text: "Откройте письмо в браузере регистрации" },
   { code: 429, text: "Слишком много попыток" },
   { code: 503, text: "Не удалось подтвердить почту" },
 ]) {
@@ -38,6 +39,10 @@ for (const scenario of [
     await page.goto(`${path}#token=${token}`);
     await expect(page.getByRole("status")).toContainText(scenario.text);
     await expect(page).toHaveURL(path);
+    if (scenario.code === 401) {
+      await expect(page.getByRole("link", { name: "Восстановить доступ по почте" })).toHaveAttribute("href", "/auth/reset-password");
+      await expect(page.getByRole("link", { name: "Войти в Ukladen" })).toHaveAttribute("href", "/workspace");
+    }
     expect(confirmations).toBe(1);
     expect(await page.evaluate(() => window.localStorage.length + window.sessionStorage.length)).toBe(0);
     if (scenario.code === 429 || scenario.code === 503) {

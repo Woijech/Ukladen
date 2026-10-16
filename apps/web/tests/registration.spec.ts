@@ -122,6 +122,30 @@ test("expiry and account changes discard the pending password form", async ({ pa
   expect(state.passwordWrites).toBe(0);
 });
 
+test("a failed identity refresh discards the password form and its secrets", async ({ page }) => {
+  const { state } = await pendingRegistration(page, true, true);
+  await page.goto("/auth/complete-registration");
+  await page.getByLabel("Новый пароль Ukladen").fill(password);
+  state.status = 503;
+  await page.clock.fastForward(5000);
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Не удалось проверить регистрацию");
+  await expect(page.getByLabel("Новый пароль Ukladen")).toHaveCount(0);
+  expect(state.passwordWrites).toBe(0);
+  state.status = 200;
+  await page.getByRole("button", { name: "Повторить", exact: true }).click();
+  await expect(page.getByLabel("Новый пароль Ukladen")).toHaveValue("");
+});
+
+test("authentication pages cannot be embedded or change their form destination", async ({ request }) => {
+  for (const path of ["/workspace", "/auth/verify-email", "/auth/reset-password", "/auth/complete-registration", "/auth/confirm-google-link", "/auth/error"]) {
+    const response = await request.get(path);
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-security-policy"]).toBe("frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    expect(response.headers()["x-frame-options"]).toBe("DENY");
+    expect(response.headers()["x-content-type-options"]).toBe("nosniff");
+  }
+});
+
 for (const status of [204, 400, 503]) {
   test(`Google email link is private, requires explicit confirmation and handles ${status}`, async ({ page }) => {
     await mockWorkspace(page);

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Brand } from "@/shared/brand";
 import { useEffect, useRef, useState } from "react";
 
-type VerificationStatus = "pending" | "ready" | "success" | "invalid" | "limited" | "error";
+type VerificationStatus = "pending" | "ready" | "success" | "invalid" | "limited" | "error" | "signin";
 
 const messages: Record<VerificationStatus, string> = {
   pending: "Подтверждаем вашу почту…",
@@ -13,6 +13,7 @@ const messages: Record<VerificationStatus, string> = {
   invalid: "Ссылка недействительна, уже использована или срок её действия истёк. Запросите новое письмо.",
   limited: "Слишком много попыток. Откройте ссылку из письма позже.",
   error: "Не удалось подтвердить почту. Попробуйте снова открыть ссылку из письма позже.",
+  signin: "Откройте письмо в браузере регистрации. На другом устройстве сначала войдите в свой аккаунт Ukladen, затем снова откройте ссылку из письма. Если вы не создавали аккаунт или не знаете пароль, восстановите доступ по почте.",
 };
 
 function logFailure(stage: "csrf" | "confirmation" | "network", response?: Response) {
@@ -50,6 +51,7 @@ async function confirmEmail(token: string | null, googleLink = false): Promise<V
     });
     if (response.status === 204) return "success";
     if (response.status === 400) return "invalid";
+    if (response.status === 401 && !googleLink) return "signin";
     logFailure("confirmation", response);
     return response.status === 429 ? "limited" : "error";
   } catch {
@@ -105,6 +107,7 @@ export function VerifyEmail({ googleLink = false }: { googleLink?: boolean }) {
         {googleLink && ["ready", "error", "limited"].includes(status) && <button onClick={() => void confirmGoogle()}>Подтвердить вход через Google</button>}
         <Link href="/auth/complete-registration">Продолжить регистрацию</Link>
         <p><Link href="/workspace">Войти в Ukladen</Link></p>
+        {["signin", "invalid"].includes(status) && <p><Link href="/auth/reset-password">Восстановить доступ по почте</Link></p>}
       </section>
     </main>
   );

@@ -112,7 +112,7 @@ export function CompleteRegistration() {
       {registration.isPending && <p role="status">Проверяем регистрацию…</p>}
       {registration.isError && <><p className="form-error" role="alert">Не удалось проверить регистрацию.</p><button onClick={() => void registration.refetch()}>Повторить</button></>}
       {registration.data === null && <p role="status">Сессия завершена. Войдите, чтобы продолжить регистрацию.</p>}
-      {registration.data && <>
+      {registration.data && !registration.isError && <>
         <p className="auth-description">Аккаунт: {registration.data.email}</p>
         {registration.data.complete ? <p role="status">Регистрация завершена. Открываем пространство…</p>
           : registration.data.password_required ? <PasswordSetup key={registration.data.email} state={registration.data} onSaved={async () => { if (!registration.data?.email_verified) await resend(); await registration.refetch(); }} />
