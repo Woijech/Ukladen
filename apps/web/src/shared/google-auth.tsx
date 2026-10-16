@@ -5,7 +5,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import google from "./assets/google-g.png";
 import styles from "./google-auth.module.css";
 
-export function GoogleAuth({ link = false, onSessionEnd }: { link?: boolean; onSessionEnd?: () => void }) {
+export function GoogleAuth({ link = false, signIn = false, onSessionEnd }: { link?: boolean; signIn?: boolean; onSessionEnd?: () => void }) {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -13,7 +14,7 @@ export function GoogleAuth({ link = false, onSessionEnd }: { link?: boolean; onS
 
   useEffect(() => {
     const restore = (event: PageTransitionEvent) => {
-      if (event.persisted) { inFlight.current = false; setBusy(false); }
+      if (event.persisted) { inFlight.current = false; setBusy(false); setPassword(""); }
     };
     window.addEventListener("pageshow", restore);
     return () => window.removeEventListener("pageshow", restore);
@@ -37,12 +38,20 @@ export function GoogleAuth({ link = false, onSessionEnd }: { link?: boolean; onS
         else {
           const data: { csrf_token?: unknown } = await csrf.json();
           if (typeof data.csrf_token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(data.csrf_token)) throw new Error("Invalid CSRF response.");
-          stage = "link";
-          response = await fetch("/api/v1/auth/google/link/start", {
-            ...options, method: "POST",
-            headers: { Accept: "application/json", "Content-Type": "application/json", "X-CSRF-Token": data.csrf_token },
-            body: JSON.stringify({ current_password: password }),
-          });
+          const headers = { Accept: "application/json", "Content-Type": "application/json", "X-CSRF-Token": data.csrf_token };
+          response = csrf;
+          if (signIn) {
+            stage = "password_login";
+            response = await fetch("/api/v1/auth/login", {
+              ...options, method: "POST", headers, body: JSON.stringify({ email, password }),
+            });
+          }
+          if (response.ok) {
+            stage = "link";
+            response = await fetch("/api/v1/auth/google/link/start", {
+              ...options, method: "POST", headers, body: JSON.stringify({ current_password: password }),
+            });
+          }
         }
       } else response = await fetch("/api/v1/auth/google/start", options);
       if (!response.ok) {
@@ -54,6 +63,7 @@ export function GoogleAuth({ link = false, onSessionEnd }: { link?: boolean; onS
         console.warn(JSON.stringify({ event: "web.google_auth_failed", stage, status_code: response.status,
           request_id: requestId && /^[0-9a-f]{32}$/.test(requestId) ? requestId : undefined }));
         setMessage(response.status === 429 ? "Слишком много попыток. Попробуйте позже."
+          : response.status === 401 && stage === "password_login" ? "Неверная почта или пароль Ukladen. Проверьте данные и попробуйте снова."
           : response.status === 401 ? "Проверьте текущий пароль. Для аккаунта без пароля привязка недоступна."
           : response.status === 403 ? "Не удалось подтвердить запрос. Обновите страницу и попробуйте снова."
           : "Вход через Google временно недоступен. Можно войти по почте и паролю.");
@@ -77,13 +87,18 @@ export function GoogleAuth({ link = false, onSessionEnd }: { link?: boolean; onS
   const button = <button className={styles.button} type={link ? "submit" : "button"} disabled={busy}
     onClick={link ? undefined : () => void start()}>
     <Image src={google} alt="" width={20} height={20} />
-    <span>{busy ? "Открываем Google…" : "Продолжить с Google"}</span>
+    <span>{busy ? "Открываем Google…" : signIn ? "Войти и связать Google" : "Продолжить с Google"}</span>
   </button>;
   const error = message && <p className={styles.error} role="alert">{message}</p>;
 
-  return link ? <form onSubmit={start} aria-busy={busy}>
+  return link ? <form onSubmit={start} aria-busy={busy} className={signIn ? styles.signIn : undefined}>
+    {signIn && <>
+      <label htmlFor="google-link-email">Почта аккаунта Ukladen</label>
+      <input id="google-link-email" type="email" autoComplete="username" required maxLength={320} disabled={busy}
+        value={email} onChange={event => setEmail(event.target.value)} />
+    </>}
     <label htmlFor="google-link-password">Текущий пароль Ukladen</label>
-    <input id="google-link-password" type="password" autoComplete="current-password" required maxLength={1024}
+    <input id="google-link-password" type="password" autoComplete="current-password" required maxLength={1024} disabled={busy}
       value={password} onChange={event => setPassword(event.target.value)} />
     {button}{error}
   </form> : <div className={styles.login} aria-busy={busy}>{button}{error}</div>;

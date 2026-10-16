@@ -7,3 +7,10 @@
 .error { margin: 12px 0 0; color: #a35e64; font-size: 15px; line-height: 1.5; }
 .dialog { position: fixed; border: 0; margin: auto; }
 .dialog::backdrop { background: #2924386b; backdrop-filter: blur(3px); }
+.recovery { max-width: 760px; }
+.recovery section { margin-top: clamp(32px, 8vw, 72px); }
+.recovery h1 { font-size: clamp(28px, 5vw, 40px); }
+.signIn { max-width: 440px; }
+.signIn label { display: block; margin: 18px 0 6px; font-size: 16px; font-weight: 600; }
+.signIn input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #747775; border-radius: 8px; font: inherit; background: #fff; color: inherit; }
+.signIn input:focus-visible { outline: 3px solid #8374ad; outline-offset: 3px; }
