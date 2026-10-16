@@ -70,10 +70,21 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "page_calendar_links",
         "workspace_organizations",
         "workspace_memberships",
+        "workspace_calendar_views",
+        "workspace_databases",
+        "workspace_database_properties",
+        "workspace_database_records",
+        "workspace_database_views",
         "auth_credentials",
         "auth_identities",
         "auth_sessions",
         "auth_one_time_tokens",
+        "reminders",
+        "notifications",
+        "materials",
+        "material_objects",
+        "page_material_links",
+        "search_material_documents",
     }
     assert set(inspect(database_connection).get_table_names()) == expected
     command.check(config)

@@ -19,6 +19,7 @@ from app.modules.notes.presentation.schemas import PageCreate
 from app.modules.relations.application.service import RelationService
 from app.modules.relations.domain.links import InvalidRelationInput, RelationNotFound
 from app.modules.relations.infrastructure.repository import SqlAlchemyCalendarPageLinks
+from app.modules.relations.presentation.materials import router as material_relations_router
 from app.modules.relations.presentation.schemas import (
     EventPagesResponse,
     LinkedEventResponse,
@@ -163,3 +164,4 @@ def install_relations(application: FastAPI) -> None:
     application.add_exception_handler(RelationNotFound, relation_error)
     application.add_exception_handler(InvalidRelationInput, relation_error)
     application.include_router(router)
+    application.include_router(material_relations_router)

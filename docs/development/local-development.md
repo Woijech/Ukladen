@@ -1,6 +1,7 @@
 # Ukladen Local Development
 
-Status: foundation only. Review it before starting business-feature work.
+Status: current local runtime and verification commands. Feature contracts are linked
+from the [documentation index](../README.md).
 
 ## Prerequisites
 
@@ -40,7 +41,7 @@ the connection URL. `S3_ACCESS_KEY`/`S3_SECRET_KEY` configure both the S3 accoun
 require signed requests; the readiness probe is unauthenticated.
 
 ```bash
-docker compose logs --follow api worker beat
+docker compose logs --follow api worker material-worker beat
 docker compose exec -T worker celery -A app.workers.celery_app:celery_app inspect ping --timeout 5
 docker compose exec -T api alembic current
 docker compose down
@@ -51,7 +52,8 @@ image rebuild; the full stack runs built applications rather than source mounts.
 Authentication endpoints are implemented. Real verification/reset email can use
 your SMTP service through the existing worker; see
 [auth email setup and end-to-end tests](auth-email.md). Source and configuration
-changes require refreshing the API and worker containers.
+changes require refreshing the API and worker containers. P-08 materials reuse the
+same S3/Redis configuration and add `material-worker`; see [contracts](materials.md).
 
 ## Project Name and Existing Data
 
@@ -94,10 +96,14 @@ To run background processes from `apps/backend` in separate terminals:
 
 ```bash
 uv run --env-file ../../.env celery -A app.workers.celery_app:celery_app worker --loglevel=INFO
+uv run --env-file ../../.env celery -A app.workers.celery_app:celery_app worker --loglevel=INFO --queues=materials --concurrency=1 --prefetch-multiplier=1 --hostname=materials@%h
 uv run --env-file ../../.env celery -A app.workers.celery_app:celery_app beat --loglevel=INFO --schedule=/tmp/ukladen-beat
 ```
 
-Do not run host Beat together with Compose Beat. There are no periodic business jobs.
+Do not run host Beat together with Compose Beat. Beat dispatches reminder and
+material-maintenance scans every 30 seconds and selected-group schedule refreshes
+every 60 seconds when enabled. The second worker consumes only material extraction.
+See [reminder recovery](reminders.md) and [material processing](materials.md).
 
 ## Checks
 
@@ -135,11 +141,11 @@ into Alembic metadata. Review every generated migration.
 
 ## Deferred contracts
 
-TODO: obtain verified IIS contracts before designing a schedule provider port or
-adapter. No IIS fields, response payloads or fake business records are defined.
-TODO: specify business schemas, HTTP contracts, authentication and AI tool contracts
-in their respective future phases. Private avatar upload/read/removal are implemented;
-general material upload APIs are not implemented. See [avatar API](user-avatar.md).
+Public IIS adapters/schedule synchronization and private avatar/material APIs are
+implemented; see [university reads](university-api.md), [schedule](schedule.md),
+[avatars](user-avatar.md) and [materials](materials.md). Private IIS, AI model/tools,
+semantic retrieval and other future business contracts remain unimplemented and
+require their requested slices and verified integration evidence.
 Structured application logs and container rotation are implemented; see
 [logging and debugging](logging.md). Remote observability services and managed
 production deployment are not implemented.

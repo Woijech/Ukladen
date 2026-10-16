@@ -37,9 +37,12 @@ The original personal-event API remains compatible alongside the versioned
 ## Workspace and planned AI boundaries
 
 Standalone nested pages, flat typed block documents, page/calendar links and
-collections/tags with membership are implemented; see [notes](../development/notes.md),
-[relations](../development/relations.md) and [workspace](../development/workspace.md).
-Other workspace/AI capabilities are not implemented. The [workspace design](workspace.md) extends typed events
+collections/tags with membership and saved calendar views are implemented; see [notes](../development/notes.md),
+[relations](../development/relations.md), [workspace](../development/workspace.md)
+and [calendar views](../development/calendar-views.md). Database/property/page-backed
+record APIs are implemented; see [the database guide](../development/databases.md).
+Saved table/calendar database views, date moves and mixed date projection are
+implemented. Typed tasks, rich blocks and AI remain not implemented. The [workspace design](workspace.md) extends typed events
 with independent pages, optional links, user organization, properties and saved views.
 `notes` owns page bodies; the `workspace` boundary owns organization/property/view
 definitions; calendar retains scheduling truth. Subjects are optional; lecture/lab
@@ -54,7 +57,38 @@ Read the [roadmap](../development/implementation-roadmap.md) and
 [open decisions](../product/open-questions.md) before starting a slice. The sections
 below describe current backend behavior, not the full target feature set.
 
+## Materials and basic search
+
+P-08 is implemented, backend only; [materials/search contracts](../development/materials.md)
+define the HTTP surface, limits, parser coverage and recovery rules. `materials`
+owns file/link metadata, quota reservations, processing leases and an object cleanup
+ledger. S3 contains private immutable originals; PostgreSQL never stores binaries.
+`relations` owns optional owner-constrained page/material associations.
+
+`search` owns derived extracted text and query orchestration. Source adapters remain
+inside `notes`/`materials`; SQL filters canonical owner, trash and processing state.
+Page block text uses transactional expression indexes; file text is published
+atomically with successful processing. No LLM, embedding or remote URL fetch is used.
+PDF parsing adds the locked `pypdf` dependency; Office ZIP/XML parsing uses the
+standard library. Child processes enforce time/memory/text/archive budgets.
+
+Migrations `0019_materials` and `0020_basic_search` preserve existing workspace data.
+The first refuses a downgrade that would discard retained materials/object ledger;
+the second owns derived search structures. Quotas reserve 25 MiB/file and 1 GiB/user
+under the shared owner lock. Trash and unfinished uploads retain their reservation
+until S3 deletion and database cleanup succeed. No deployment is performed by P-08.
+
 ## Current runtime
+
+Calendar reminders and durable in-app notifications are implemented, backend only.
+The `reminders` application service authorizes existing calendar targets and owns
+versioned trigger state. `notifications` owns historical inbox records and first-read
+state. Worker delivery uses both services in one transaction after taking the shared
+owner lock; a PostgreSQL delivery key prevents replay duplicates. Migration
+`0018_reminders_notifications` adds typed target associations and the inbox.
+Beat scans due state every 30 seconds independently of schedule synchronization.
+Task/deadline targets and additional channels remain not implemented.
+See [reminder contracts and recovery](../development/reminders.md).
 
 The package is `apps/backend/src/app`, installed with uv on Python 3.14. FastAPI's
 entrypoint is `app.main:app`. `create_app` accepts explicit settings for testing.
@@ -790,8 +824,12 @@ Beat scheduling.
 result backend. `foundation.ping` is an idempotent diagnostic task returning `pong`.
 Beat runs the same app and dispatches due selected-group schedule imports every
 60 seconds. The schedule worker uses fenced PostgreSQL leases and atomic imports;
-see [schedule contracts](../development/schedule.md). Other business jobs are not
-implemented. Redis does not hold authoritative user data.
+see [schedule contracts](../development/schedule.md). Reminder delivery and material
+maintenance scans run every 30 seconds. Material extraction uses a separate
+`materials` queue and `material-worker` with concurrency/prefetch 1; its fenced leases
+recover broker loss and interrupted processing. Cleanup retries remain in PostgreSQL.
+See [reminders](../development/reminders.md) and [materials](../development/materials.md).
+Redis does not hold authoritative user data.
 
 The auth application owns an `EmailSender` port with `send_email_verification`
 and `send_password_reset` methods. Both accept internal recipient/token data and
@@ -1055,3 +1093,11 @@ pytest command therefore runs native integration/concurrency checks rather than
 skipping them. CI credentials belong only to the disposable test database; tests
 still create/drop isolated schemas and clean generated Redis keys/queues. Google
 calls remain fake or mocked.
+
+P-05 verification (2026-10-15): Ruff, format, Pyright and Compose configuration
+passed. The full backend suite with disposable PostgreSQL/pgvector and Redis passed
+(1345 passed, 1 optional native S3 avatar test skipped), including typed schemas,
+retained trash/conversions, table queries, bound-date calendar reads/moves, mixed
+source permissions, migration preservation and snapshot compatibility. See the
+[database guide](../development/databases.md) for incremental verification history.
+The running application database was not migrated; frontend code was not changed.

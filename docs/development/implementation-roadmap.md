@@ -1,6 +1,6 @@
 # Backend Implementation Roadmap
 
-Updated: 2026-10-12.
+Updated: 2026-10-16.
 Status: implementation roadmap; completed slices are marked below. This document does not authorize starting the
 next phase; request a concrete slice before implementing it. Pages/blocks/databases,
 mandatory table/calendar views, personal scope and AI execution modes are confirmed.
@@ -31,14 +31,17 @@ existing services just to match target vocabulary. A package marker is not a fea
 | University reads | Verified public directory/schedule/announcement reads | [University API](university-api.md) |
 | Schedule | Supported expansion, official storage, historical identities, background refresh | [Schedule](schedule.md) |
 | Calendar | Personal events, official overrides, resolved range queries | [Calendar](calendar.md) |
+| Reminders/notifications | One-shot calendar reminders, durable inbox and replay-safe periodic delivery | [Reminders](reminders.md) |
+| Materials/search | Private quota-limited files/bookmarks, page attachments, bounded extraction and PostgreSQL full-text search | [Materials/search](materials.md) |
 | Notes | Standalone pages, typed block documents, Markdown compatibility, nested hierarchy, versions and branch trash | [Notes](notes.md) |
 | Relations | Typed page/calendar links, backlinks, atomic linked page creation | [Relations](relations.md) |
-| Workspace | Collections, tags, typed membership and forward/reverse lists | [Workspace](workspace.md) |
+| Workspace | Collections/tags, typed membership, event views and recoverable page-backed databases with table/calendar views | [Workspace](workspace.md), [calendar views](calendar-views.md), [databases](databases.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
-Calendar free slots/conflicts, tasks, reminders, general materials,
-search, notifications and AI are not implemented. Workspace organization exists;
-user databases and saved views do not exist. Authenticated IIS is unverified/unimplemented.
+Calendar free slots/conflicts, tasks, semantic search and AI are not implemented.
+Workspace organization exists;
+saved event views, user databases, table/calendar views and mixed date projection exist.
+Authenticated IIS is unverified/unimplemented.
 Frontend business flows remain unimplemented apart from browser email verification.
 
 ## 3. P-01 standalone pages
@@ -81,22 +84,26 @@ Do not implement task/material relations before those endpoint services exist.
 
 ## 5. P-03 user organization and saved calendar views
 
-Status: collections, tags and typed memberships implemented, backend only; see
-[workspace](workspace.md). Saved views remain not implemented. Dependencies: P-01/02 and current calendar.
+Status: implemented, backend only — collections, tags, typed memberships and saved
+calendar views; see [workspace](workspace.md) and [calendar views](calendar-views.md).
+Dependencies: P-01/02 and current calendar. Database views are delivered under P-05.
 
 The `workspace` module provides real user-owned tags, collections/membership,
-metadata versions, bounded member-type filters and reverse queries. Next implement
-saved view definitions. Define bounded sources/filters, sorting, names/colors and
-supported layout settings. Initial views can operate on existing events/pages;
-database property filters arrive with P-05.
+metadata versions, bounded member-type filters and reverse queries. Saved calendar
+definitions add versioned name/color, per-source collection/tag filters, layout,
+sort direction and hidden-event settings. Event queries reuse authorized resolved
+calendar reads with warnings in one database snapshot. Deleted filter references
+require explicit repair; view deletion preserves data. Database sources/property
+filters and date bindings are delivered separately under P-05.
 
 Official event membership stores a per-user reference, never shared-source preferences.
 Filtering and hiding must not remove busy intervals from planning truth. Deleting
 collections/views or removing members must preserve pages and events.
 
-Done when WS-05/08 and permissions/filter validation/lifecycle checks pass. A backend
-view API is not a working calendar UI. Do not create a generic query language or
-user-executable SQL for the first view slice.
+Verification covers WS-05, the display/hidden/busy-flag invariants of WS-08 and
+permissions/filter validation/lifecycle checks. Availability queries remain P-06.
+A backend view API is not a working calendar UI. No generic query language or
+user-executable SQL is provided.
 
 ## 6. P-04 page hierarchy and block content
 
@@ -111,23 +118,27 @@ Hierarchy moves remain cycle-safe and branch trash retains documents and links.
 Nesting and collection membership stay distinct.
 
 Q-08 remains open only for future rich inline formatting, nested blocks and editor
-choices. Materials references depend on P-08; export/history/collaboration remain
+choices. Material references are implemented in P-08; export/history/collaboration remain
 separate requested slices. This backend API does not implement an editor UI.
 
 ## 7. P-05 user databases, properties and calendar projection
 
-Status: not implemented. Dependencies: P-01/03/04; remaining decisions Q-05/07/12.
+Status: implemented, backend only. Database/property/page-backed record APIs, trash/restore,
+typed value/schema conversion, saved table/calendar views, date moves and additive
+mixed calendar display are implemented; see [database delivery status](databases.md).
+Dependencies: P-01/03/04.
 Pages/blocks/databases and table/calendar views are confirmed under Q-01.
 
-Implement database/property/record CRUD, page-backed rows, stable property identities
+Delivered database/property/record CRUD, page-backed rows, stable property identities
 and type-validated values. Table and calendar views over the same records are required;
-list/board views are optional and formulas are deferred. Start with a bounded set of property types and view filters.
-Finalize whether a page may participate in several databases and document deletion
-and schema-conversion behavior before designing tables.
+list/board views remain optional and formulas are deferred. The initial property
+types, query limits and filters are bounded in the database guide.
+Multiple-database membership, recoverable deletion and preserving schema conversion
+are defined in [ADR 0007](../adr/0007-use-page-backed-database-records.md).
 
-Add explicit date-property view binding and a discriminated calendar display contract.
+Implemented explicit date-property view binding and a discriminated calendar display contract.
 Projected entries reference their owning record/property; moving them updates that
-property via `workspace`. Preserve existing calendar HTTP contracts.
+property via `workspace`. Existing calendar HTTP contracts are preserved.
 
 Done when WS-06/07, property/schema version checks, data-preserving type conversion,
 permission-filtered query and date/time edge cases pass. Dates/deadlines are nonblocking
@@ -160,31 +171,33 @@ Do not force subjects into task creation or reject all intentional event overlap
 
 ## 9. P-07 reminders and notifications
 
-Status: not implemented. Dependencies: relevant calendar/task target, existing workers.
+Status: implemented, backend only, for existing personal and official calendar targets.
+See [reminder/inbox contracts and recovery](reminders.md). Task/deadline targets remain
+not implemented because P-06 is not implemented; requesting P-07 does not start P-06.
 
-Implement owner-scoped reminder CRUD and durable in-app notification records. Define
-timezone/trigger rules, deduplication, cancellation and retries. Celery/Beat dispatch
-due work from PostgreSQL; broker contents are not authoritative reminder storage.
-
-Done when retried jobs do not duplicate notifications, edits/deletions cancel obsolete
-deliveries, owner isolation holds and broker interruption has a documented recovery path.
-Additional channels need separate adapters/contracts, not guessed integrations.
+Delivered owner-scoped versioned CRUD/cancellation, elapsed-UTC-minute triggers,
+durable in-app notifications, idempotent read marking and typed target foreign keys.
+Celery/Beat scans PostgreSQL every 30 seconds in bounded batches, revalidates targets
+and atomically persists one notification per reminder. Edits/deletions cancel obsolete
+work; retries, concurrent sweeps, rollback and broker-gap recovery are covered.
+Additional channels/UI/recurrence require separate requested slices and contracts.
 
 ## 10. P-08 materials and basic search
 
-Status: not implemented. Dependencies: auth, S3/worker foundation; page relations optional.
+Status: implemented, backend only. See [materials/search contracts](materials.md)
+for limits, DTOs, migration/recovery rules and dated verification.
 
-General material upload/read/link/delete APIs reuse the storage boundary. Define
-formats/size limits, ownership, upload-finalization/orphan cleanup and safe URL fetch
-rules. Store binaries in S3 and metadata in PostgreSQL. Add processing states and
-idempotent extraction jobs for explicitly supported formats.
+Private file reservation/upload/download, bookmarks, optional page attachments,
+versioned edits, 30-day trash and periodic S3 cleanup reuse the existing storage
+boundary. Owner limits are 25 MiB/file and 1 GiB retained originals/user, with no OCR.
+PDF text, DOCX, PPTX, TXT and Markdown use bounded child-process extraction through
+the dedicated materials queue/worker. Failed parsing preserves original downloads.
 
-Add structured/full-text retrieval of authorized pages/material text. Keep permissions
-and trash/deletion effective even while derived indexes lag. Make processing failures
-visible without deleting the source file. Do not claim arbitrary PDF/OCR support.
-
-Done when native storage and rollback/cleanup/ownership checks plus bounded search
-checks pass. Existing avatar APIs must keep working.
+Filtered PostgreSQL full-text retrieval covers canonical page blocks, material titles
+and derived file text with immediate owner/trash checks. Native S3, Redis task payloads,
+quota races, rollback/cleanup, fenced retries and existing avatar compatibility are
+tested. UI, legacy Office conversion, remote fetching, chunking, embeddings, semantic
+retrieval and AI/RAG remain not implemented. No deployment is performed by this slice.
 
 ## 11. P-09 AI help, recommendations, confirmed/automatic actions and RAG
 

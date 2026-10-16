@@ -47,7 +47,8 @@ The Markdown projection is derived and is never independently persisted or edite
 on a structured page. Concurrent writers must reload after a version conflict.
 
 Nested blocks, rich inline marks, embeds, files/material references, revision history,
-export APIs, collaborative editing and user databases remain future requested slices.
+export APIs and collaborative editing remain future requested slices. User databases
+now reference these shared pages under [ADR 0007](0007-use-page-backed-database-records.md).
 A Markdown projection is not the planned export subsystem or HTML sanitization policy.
 
 References: [notes](../development/notes.md),

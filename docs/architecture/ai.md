@@ -1,8 +1,10 @@
 # AI, Retrieval and Application Tools
 
-Updated: 2026-10-12.
-Status: not implemented. `ai`, `search`, `materials`, LLM and embedding boundaries
-currently contain package markers; pgvector infrastructure is available, not RAG.
+Updated: 2026-10-16.
+Status: AI/RAG not implemented. `ai`, LLM and embedding boundaries contain package
+markers. Materials/extraction and basic lexical search are implemented separately;
+see [P-08 contracts](../development/materials.md). They do not implement chunks,
+embeddings, model tools or RAG. pgvector infrastructure alone is not retrieval.
 
 ## 1. Product responsibilities
 

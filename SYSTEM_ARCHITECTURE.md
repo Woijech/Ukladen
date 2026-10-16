@@ -8,7 +8,7 @@
 >
 > **Important:** This document intentionally does **not** define concrete BSUIR IIS response fields, exact external API payloads, full SQL schema, or detailed endpoint DTOs. Those contracts are separate documents.
 
-Updated: 2026-10-12. Target features are not implemented unless explicitly marked.
+Updated: 2026-10-16. Target features are not implemented unless explicitly marked.
 Read the [documentation index](docs/README.md), [open decisions](docs/product/open-questions.md)
 and [implementation roadmap](docs/development/implementation-roadmap.md) for a concrete slice.
 [ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md) records optional organization.
@@ -47,12 +47,17 @@ an explicit later phase and verified contracts; do not implement it in current s
 Current backend: authentication, profiles, public IIS reads, official schedule
 storage/sync, personal events, official overrides, resolved calendar reads, standalone
 nested pages with versioned blocks and Markdown compatibility, branch trash and
-optional page/calendar links.
-Status: not implemented — user organization/databases/views, tasks,
-availability, reminders, general materials, search, AI/RAG and authenticated IIS.
-The frontend currently implements login/registration, browser email verification,
-academic-group selection and a weekly calendar with personal-event creation/deletion.
-Other workspace business UI remains unimplemented.
+optional page/calendar links, collections/tags with typed memberships and saved
+calendar views and recoverable user databases/properties/page-backed records.
+Saved table/calendar database views, date projection and date moves are implemented.
+Additive mixed calendar display is implemented through application query ports.
+One-shot calendar reminders and durable in-app notifications are implemented, backend only.
+Private materials, bounded document extraction, page attachments and basic PostgreSQL
+full-text search are implemented; see [materials/search](docs/development/materials.md).
+Status: not implemented — tasks, availability, semantic search, AI/RAG and authenticated IIS.
+The frontend implements login/registration, browser email verification, academic-group
+selection and a weekly calendar with personal-event create/edit/delete. Other
+workspace business UI remains unimplemented.
 
 Detailed behavior: [product overview](docs/product/overview.md) and
 [workspace requirements](docs/product/workspace.md).
@@ -202,7 +207,7 @@ Responsibilities:
 - authentication;
 - users;
 - academic profile;
-- user organization and saved views (planned);
+- user organization and saved calendar views;
 - optional subjects;
 - schedule;
 - personal calendar;
@@ -235,8 +240,9 @@ users
 academic profiles
 groups
 optional subjects
-pages, versioned documents, collections, tags and typed memberships
-planned databases, property values and saved views
+pages, versioned documents, collections, tags, typed memberships and saved calendar views
+database/property definitions and page-backed records with typed values
+saved table/calendar view settings and nonblocking database date projections
 official schedule
 personal schedule overrides
 personal calendar events
@@ -421,7 +427,7 @@ relations
 search
 ai
 notifications
-workspace (user organization; database/view schemas planned)
+workspace (user organization; database/property/record/view schemas)
 integrations
 ```
 
@@ -507,11 +513,14 @@ resolved personal calendar
 ```
 
 Status: backend personal events, per-user overrides and resolved calendar reads are
-implemented; see [calendar contracts](docs/development/calendar.md). The weekly
-calendar supports resolved reads and personal-event create/delete. Free-slot/conflict
-queries and task blocks are not implemented. User tags and
-collections are implemented in workspace. Saved views, all-day/recurring personal
-events and database-date projections are not implemented.
+implemented; see [calendar contracts](docs/development/calendar.md). Free-slot/conflict
+queries and task blocks are not implemented. The frontend supports weekly resolved
+reads and personal-event create/edit/delete. User tags and
+collections and saved calendar views are implemented in workspace. All-day/recurring
+personal events remain not implemented. Nonblocking database-date projections and
+`GET /api/v1/calendar/display` are implemented; see [database contracts](docs/development/databases.md).
+Saved views filter authorized resolved events without changing this module's HTTP
+contracts or busy flags; see [saved calendar views](docs/development/calendar-views.md).
 
 Calendar composition is presentation over independently owned typed data. Page dates
 and task deadlines do not automatically block time. Availability must use the complete
@@ -532,6 +541,11 @@ task scheduling
 ```
 
 ## 5.7 reminders
+
+Status: one-shot reminders for personal and authorized official calendar events are
+implemented, backend only. PostgreSQL owns triggers/state; Celery/Beat performs
+replay-safe due scans and target revalidation. See [reminder contracts](docs/development/reminders.md).
+Task/deadline targets remain not implemented pending P-06. Target capabilities:
 
 ```text
 task reminders
@@ -560,25 +574,25 @@ and [ADR 0006](docs/adr/0006-use-versioned-page-block-documents.md).
 Editor UI is not implemented; search indexes are derived and owned by search.
 
 Page links are optional. Collections/property schemas/views belong to the
-workspace boundary; property schemas/views remain planned. Event time belongs to calendar. See
+workspace boundary, including implemented typed properties and table/calendar database
+views. Event time belongs to calendar. See
 [workspace architecture](docs/architecture/workspace.md).
 
 ## 5.10 materials
 
-```text
-file metadata
-upload workflow
-external links
-processing state
-text extraction
-document indexing
-```
+Status: implemented, backend only. Private S3 originals, owner-scoped metadata and
+bookmarks, quota reservations, recoverable trash, fenced background extraction and
+orphan cleanup. Limits: 25 MiB/file and 1 GiB retained originals/user. PDF text,
+DOCX, PPTX, TXT and Markdown are supported within parser budgets; OCR, legacy
+DOC/PPT conversion and remote-page fetching are not implemented. See
+[materials/search contracts](docs/development/materials.md).
 
 ## 5.11 relations
 
 Status: implemented, backend only: optional page links/backlinks to personal events
-and official occurrences, including retained historical references. See the
-[relations API](docs/development/relations.md). Page-page, task and material links
+and official occurrences, including retained historical references, plus owner-scoped
+page/material attachments. See the [calendar relations API](docs/development/relations.md)
+and [material relations API](docs/development/materials.md). Page-page and task links
 are not implemented. Unlinking does not delete either endpoint.
 Validate both endpoint ownership/access through application interfaces; a generic
 type-plus-UUID reference does not by itself provide foreign-key integrity.
@@ -588,13 +602,12 @@ workspace; dependency graphs by tasks. Do not infer these rules from arbitrary l
 
 ## 5.12 search
 
-```text
-structured search
-PostgreSQL Full Text Search
-semantic search
-pgvector
-RAG retrieval
-```
+Status: basic filtered PostgreSQL full-text search is implemented, backend only,
+over authorized untrashed page text and material titles/extracted text. Canonical
+ownership, trash and processing state gate results; derived indexes do not own content.
+Russian, English and simple configurations are combined with title weighting.
+See [search contracts](docs/development/materials.md). Semantic search, embedding
+generation, pgvector retrieval and RAG remain not implemented.
 
 ## 5.13 ai
 
@@ -609,6 +622,10 @@ scoped owner-issued automatic-action permissions
 ```
 
 ## 5.14 notifications
+
+Status: durable owner-scoped in-app inbox, first-read marking and atomic reminder
+delivery are implemented, backend only; see [reminder/inbox contracts](docs/development/reminders.md).
+Additional channels remain not implemented. Target capabilities:
 
 ```text
 in-app notifications
@@ -645,10 +662,20 @@ verified contracts. See [IIS roadmap](docs/integrations/bsuir-iis-roadmap.md).
 
 ## 5.16 workspace
 
-Status: collections, tags, typed memberships and forward/reverse lists implemented,
+Status: collections, tags, typed memberships, forward/reverse lists and saved calendar views implemented,
 backend only; see [workspace API](docs/development/workspace.md). Own user-controlled
-organization and its references. Database/property schemas and values and saved view
-configuration remain not implemented. It does not own page bodies, event time or official facts.
+organization, references, saved calendar-view configuration and recoverable databases,
+property schemas/values, page-backed records and saved table/calendar views with
+nonblocking date projection. Mixed display uses the calendar application composition
+service and a workspace query port implementation. It does not own
+page bodies, event time or official facts.
+
+Saved calendar views store bounded per-source collection/tag filters, layout,
+sorting and hidden-event preferences in PostgreSQL. Application queries compose
+through `CalendarService` and workspace membership persistence in one read snapshot;
+they preserve calendar permissions, overrides and source warnings. Filter references
+are checked on writes and reads; a deleted reference requires repair rather than
+silently broadening results. See the [implemented contract](docs/development/calendar-views.md).
 
 The organization slice adds real owner-scoped services and foreign-key associations.
 [ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md) explains the addition.
@@ -818,7 +845,7 @@ Reminder
 Page (implemented, notes-owned)
 PageDocument / Block (implemented flat typed content, notes-owned)
 Collection / Tag / TypedMembership (implemented, workspace-owned)
-Database / PropertyDefinition / DatabaseRecord / SavedView (planned, workspace-owned)
+Database / PropertyDefinition / DatabaseRecord / SavedView (implemented, workspace-owned)
 Material
 MaterialChunk
 
@@ -1045,6 +1072,7 @@ docker compose
 +-- web
 +-- api
 +-- worker
++-- material-worker
 +-- beat
 +-- postgres
 +-- redis
@@ -1057,6 +1085,7 @@ The backend application code is shared by:
 ```text
 api
 worker
+material-worker
 beat
 ```
 
@@ -1072,6 +1101,7 @@ but they run as separate processes.
 web x1
 api x1
 worker x1
+material-worker x1 (materials queue, concurrency 1)
 beat x1
 postgres
 redis
@@ -1190,19 +1220,28 @@ Login/registration, academic-group selection and weekly calendar UI are implemen
 
 Implemented, backend only: standalone pages, optional nesting, recoverable trash,
 typed block documents, page/calendar links, collections/tags and typed memberships.
-Saved views remain not implemented.
+Saved calendar views over resolved events are implemented, backend only.
+Table/calendar database views are implemented under Phase 3.
 `subjects` is not a prerequisite.
 
 ## Phase 3 — user databases and planning
 
-Status: not implemented. Typed properties/records and date-bound views; typed tasks,
-availability/conflicts and explicit work blocks; reminders/in-app notifications.
+Implemented, backend only, for user databases: recoverable database/property/page-backed
+record APIs, saved table/calendar views, date projection, versioned date moves and
+additive mixed calendar display. One-shot calendar reminders and durable in-app
+notifications are also implemented; see [reminders](docs/development/reminders.md).
+See [database delivery status](docs/development/databases.md) and
+[ADR 0007](docs/adr/0007-use-page-backed-database-records.md). Typed tasks,
+availability/conflicts, explicit work blocks and task/deadline reminders
+remain not implemented.
 Planning can be requested independently of database features.
 
 ## Phase 4 — knowledge and retrieval
 
-Status: not implemented. General materials, extraction, structured/full-text search,
-then embeddings/semantic retrieval. Preserve permissions and content versions.
+Status: general materials, bounded extraction and filtered/full-text search are
+implemented, backend only; see [P-08 contracts](docs/development/materials.md).
+Embeddings/semantic retrieval remain not implemented. Preserve permissions and
+content versions in later retrieval work.
 
 ## Phase 5 — AI tools and grounded actions
 

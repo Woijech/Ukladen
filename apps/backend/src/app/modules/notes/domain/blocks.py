@@ -2,8 +2,9 @@ import json
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, replace
 from typing import Literal
-from urllib.parse import urlsplit
 from uuid import UUID, uuid4
+
+from app.core.urls import http_url
 
 MAX_DOCUMENT_BYTES = 1048576
 MAX_BLOCKS = 1000
@@ -77,31 +78,10 @@ def _text(value: object, *, single_line: bool = False) -> str:
 
 
 def _url(value: object) -> str:
-    if not isinstance(value, str) or not 1 <= len(value) <= 2048:
-        raise InvalidDocumentInput()
-    _text(value)
-    if (
-        any(
-            character.isspace() or ord(character) < 32 or ord(character) == 127
-            for character in value
-        )
-        or "\\" in value
-    ):
-        raise InvalidDocumentInput()
     try:
-        parts = urlsplit(value)
-        if (
-            parts.scheme not in {"http", "https"}
-            or not parts.hostname
-            or parts.username is not None
-            or parts.password is not None
-        ):
-            raise InvalidDocumentInput()
-        if parts.port is not None and not 1 <= parts.port <= 65535:
-            raise InvalidDocumentInput()
+        return http_url(value)
     except ValueError:
         raise InvalidDocumentInput() from None
-    return value
 
 
 def _block(value: object) -> Block:

@@ -11,7 +11,7 @@ assert edge["subnet"] == "172.30.0.0/24"
 for address in ("172.30.0.2", "172.30.0.3"):
     assert ip_address(address) not in ip_network(edge["ip_range"]), "Proxy address not reserved"
 assert all(not service.get("ports") for service in services.values()), "Host port exposed"
-for name in ("api", "worker", "beat", "migrate"):
+for name in ("api", "worker", "material-worker", "beat", "migrate"):
     env = services[name]["environment"]
     assert env["CLOUDFLARE_TUNNEL_TOKEN"] == ""
     assert env["AUTH_COOKIE_SECURE"] == "true"

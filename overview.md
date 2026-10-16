@@ -15,5 +15,11 @@ organization: standalone pages and events work without a subject or collection.
 
 Status: the complete target product is not implemented. Existing backend calendar,
 authentication, profiles and public IIS integration are described in the linked
-implementation guides. Nested Markdown pages and page/calendar links are implemented,
-backend only; blocks, user databases, AI and authenticated IIS remain not implemented.
+implementation guides. Nested pages with typed blocks, page/calendar links,
+collections/tags and saved calendar views are implemented, backend only;
+Database/property/record APIs, table/calendar views and nonblocking date projections
+with mixed calendar display are implemented. AI and authenticated IIS remain not implemented.
+One-shot calendar reminders and the durable in-app inbox are implemented, backend only;
+see [reminder contracts](docs/development/reminders.md).
+Private materials, optional page attachments and basic full-text search are
+implemented, backend only; see [P-08 contracts](docs/development/materials.md).

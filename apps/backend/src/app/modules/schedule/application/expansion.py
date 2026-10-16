@@ -30,9 +30,7 @@ def expand_schedule(schedule: Schedule) -> list[OfficialEvent]:
     def expand(
         lesson: Lesson, weekday: int | None, *, next_period: bool = False, exam: bool = False
     ) -> None:
-        if lesson.split:
-            # TODO: obtain an authoritative split/exception precedence contract from IIS.
-            raise UnsupportedSchedule("split_precedence")
+        # IIS renders split rows using the same explicit dates, weeks and subgroup.
         if lesson.starts_at.tzinfo is not None or lesson.ends_at.tzinfo is not None:
             raise UnsupportedSchedule("nonlocal_source_time")
         if lesson.ends_at <= lesson.starts_at:

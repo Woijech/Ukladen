@@ -1,6 +1,6 @@
 # Ukladen Documentation Index
 
-Updated: 2026-10-12.
+Updated: 2026-10-16.
 
 ## Contract and reading order
 
@@ -20,7 +20,7 @@ Planned contracts do not override the current implemented API silently.
 
 - [Architecture overview](architecture/overview.md): actual module/runtime baseline.
 - [Backend](architecture/backend.md): current backend contracts and verification.
-- [Workspace](architecture/workspace.md): implemented pages/organization and planned databases/views.
+- [Workspace](architecture/workspace.md): implemented pages, organization, user databases and table/calendar views.
 - [AI](architecture/ai.md): planned tools, confirmed actions, retrieval and provider boundaries.
 - [Frontend](architecture/frontend.md): existing shell and target responsibilities.
 - [Infrastructure](architecture/infrastructure.md): actual processes/storage/exposure.
@@ -30,6 +30,7 @@ Planned contracts do not override the current implemented API silently.
 - [ADR 0004](adr/0004-keep-workspace-organization-optional.md): optional user organization.
 - [ADR 0005](adr/0005-support-scoped-ai-action-permissions.md): confirmed/scoped automatic AI actions.
 - [ADR 0006](adr/0006-use-versioned-page-block-documents.md): notes block document schema and preserving migration.
+- [ADR 0007](adr/0007-use-page-backed-database-records.md): database record ownership, schema versions and recovery.
 
 ## Current implementation guides
 
@@ -40,8 +41,12 @@ Planned contracts do not override the current implemented API silently.
 - [Public university reads](development/university-api.md).
 - [Official schedule](development/schedule.md).
 - [Personal calendar](development/calendar.md).
+- [Reminders and in-app notifications](development/reminders.md).
+- [Materials, page attachments and basic search](development/materials.md).
 - [Notes and page hierarchy](development/notes.md).
 - [Workspace collections and tags](development/workspace.md).
+- [Saved calendar views](development/calendar-views.md).
+- [User databases delivery status](development/databases.md).
 - [Page and calendar links](development/relations.md).
 - [Diagnostics](development/logging.md).
 - [Home-server deployment](deployment/home-server.md).

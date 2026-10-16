@@ -104,9 +104,13 @@ Main backend modules:
 - `notifications`
 - `integrations`
 
-`workspace` implements collections, tags and typed membership under ADR 0004;
-see `docs/development/workspace.md`. Database properties and saved views remain
-not implemented. A package marker does not count as a feature.
+`workspace` implements collections, tags, typed membership, saved calendar views
+and recoverable databases/properties/page-backed records
+under ADR 0004; see `docs/development/workspace.md` and
+`docs/development/calendar-views.md` and `docs/development/databases.md`.
+Saved table/calendar database views, date projection, versioned date moves and
+additive mixed calendar display are implemented; see ADR 0007 and the database guide.
+A package marker does not count as a feature.
 
 ### Workspace product invariants
 

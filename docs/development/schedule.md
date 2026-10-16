@@ -108,18 +108,24 @@ events per import. Recurring rows require valid week numbers and increasing time
 Cross-midnight source rows, unrepresentable boundary dates and source times with
 unexpected timezone offsets are unsupported rather than assigned guessed times.
 
-Authoritative split/exception/cancellation precedence is still unavailable. A split
-row, undated announcement, undated exam or incomplete next-period bounds fails the
-whole import as `unsupported` while retaining the last valid data. TODO obtain the
-missing IIS contract before enabling those cases. Text notes are preserved, never
-parsed as commands. Holiday colors do not suppress lessons. See the verified
-[upstream contract](../integrations/bsuir-iis-public-api.md).
+Rows marked `split=true` use the same explicit date/week/subgroup expansion as other
+rows, matching the observed official IIS renderer verified on 2026-10-16. The flag
+is retained in the source snapshot; it does not cancel, merge or shift occurrences.
+Each row keeps its own date bounds, time slots and subgroup. See the dated
+[upstream evidence](../integrations/bsuir-iis-public-api.md#split-row-verification-2026-10-16).
+
+Exception/cancellation precedence remains unverified. Undated announcements, undated
+exams or incomplete next-period bounds still fail the whole import as `unsupported`
+while retaining the last valid data. TODO obtain the missing contract before enabling
+those cases. Split rows remain subject to all existing time/date/week/count checks.
+Text notes are preserved, never parsed as commands. Holiday colors do not suppress
+lessons.
 
 Teacher schedules and standalone announcements retain their existing live GET
 endpoints. They are not independently imported into the group event store, avoiding
 duplicate official lessons. Calendar resolution and personal overrides are implemented
-in the separate calendar module. Free slots, notifications and frontend UI remain
-unimplemented.
+in the separate calendar module. Free-slot queries and calendar UI remain unimplemented.
+Implemented calendar reminders/in-app notifications are described in [reminders](reminders.md).
 
 ## Verification (2026-10-07)
 
@@ -134,6 +140,31 @@ A cookie-free live smoke expanded group 353501 into 313 official events covering
 2026-09-01 through 2026-12-28. Group 310101 contains split rows and correctly
 returned the unsupported outcome; its raw GET remains available. Live IIS calls
 are a separate manual smoke and are not part of ordinary pytest runs.
+
+## Split support verification (2026-10-16)
+
+The split rejection in the dated verification above describes the original behavior,
+superseded by this fix. The official IIS table displays the sampled labs on their
+explicit weeks/subgroups, and its day-list renderer uses date/week fields without a
+separate split rule. Four sanitized rows now have offline recurrence regressions;
+native PostgreSQL coverage checks complete imports, subgroup filtering, replay-stable
+UUIDs and preservation of the last valid import when a split row has invalid weeks.
+
+A cookie-free live adapter/application-service smoke used a separate disposable
+PostgreSQL database. Group 553501 finished `ready` with 365 events (18 Wednesday
+split-lab occurrences), 353501 with 313 events, and 310101 with 333 events. Authenticated
+resolved-calendar HTTP reads for 553501 returned two Wednesday split labs for
+subgroup 1/week 1 and subgroup 2/week 3, and none for the opposite combinations.
+No live IIS calls are required by pytest. No real user data or deployment was changed.
+
+Executed checks: Ruff, Ruff format, Pyright, `docker compose config --quiet`,
+`git diff --check` and the complete backend pytest suite against disposable PostgreSQL,
+Redis and SeaweedFS: **1456 passed, no skips**. Frontend checks and production
+deployment were not part of this backend-only fix.
+
+No schema migration or new dependency is required for this fix. Update the running
+backend/worker code and request synchronization again for affected groups; stored
+`unsupported` sources are not rewritten merely by committing the code.
 
 ## Running the new backend version
 

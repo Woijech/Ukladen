@@ -18,6 +18,7 @@ dependencies = [
   "pyjwt[crypto]>=2.13,<3",
   "boto3>=1.43,<2",
   "pillow>=12.3,<13",
+  "pypdf>=6.20,<7",
 ]
 
 [dependency-groups]

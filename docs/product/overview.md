@@ -1,6 +1,6 @@
 # Ukladen Product Overview
 
-Updated: 2026-10-12.
+Updated: 2026-10-16.
 Status: target product specification; only capabilities listed as implemented
 below exist. Product references describe intent, not feature parity with another app.
 
@@ -19,8 +19,10 @@ The target includes blocks, user-defined databases/properties and saved views.
 The owner confirmed pages, blocks and user-defined databases, with mandatory table
 and calendar views. Formulas are deferred. Remaining schema/editor details are in
 [open decisions](open-questions.md). Standalone nested pages with flat typed blocks
-and Markdown compatibility are implemented, backend only. Databases remain not
-implemented and are delivered in a separate requested slice.
+and Markdown compatibility are implemented, backend only. Database/property/page-backed
+record APIs, saved table/calendar views, nonblocking date projection and mixed
+calendar display are implemented.
+See [database delivery status](../development/databases.md).
 
 ## 2. Non-negotiable organization rules
 
@@ -41,14 +43,14 @@ See [workspace requirements](workspace.md) for examples and acceptance cases.
 ## 3. Pages and knowledge
 
 Implemented, backend only: standalone nested pages, flat typed blocks, versions and recoverable
-branch trash, optional personal/official calendar links and user collections/tags; see
+branch trash, optional personal/official calendar links, user collections/tags and saved calendar views; see
 [notes](../development/notes.md), [relations](../development/relations.md) and
-[workspace](../development/workspace.md).
+[workspace](../development/workspace.md) and [calendar views](../development/calendar-views.md).
 
 Users can create standalone pages, nest pages, edit text/headings/lists/checkboxes/links
 and optionally link pages to events. Block IDs remain stable through edits and order
-changes; legacy Markdown is preserved without parsing. Materials, task/page-page
-links, rich formatting and editor UI are future requested slices.
+changes; legacy Markdown is preserved without parsing. Optional material attachments
+are implemented; task/page-page links, rich formatting and editor UI remain future work.
 
 User-defined databases organize page-backed records with typed properties. Table
 and calendar views are mandatory. List/board views are optional later work; formulas
@@ -66,9 +68,12 @@ page links/backlinks.
 See [current calendar API](../development/calendar.md).
 
 Collection/tag names, colors and explicit memberships are implemented in workspace.
-The weekly calendar UI and basic academic-group selection are implemented. Status:
-not implemented — saved views, per-event colors, all-day and recurring personal
-events, database-record projections, occupied/free intervals,
+Saved calendar views over authorized official/personal events are implemented,
+with per-source collection/tag filters and saved layout/sorting preferences.
+Database table/calendar views, date projection and versioned date moves are implemented.
+The weekly calendar UI and academic-group selection are implemented.
+Status: not implemented — per-event colors, all-day and
+recurring personal events, occupied/free intervals,
 conflict checks and task scheduling blocks.
 
 The target supports day/week/month views, direct editing, moving/resizing, optional
@@ -109,9 +114,10 @@ External labels remain metadata, not authoritative grouping identities.
 
 ## 7. Tasks, planning and reminders
 
-Status: not implemented.
+Tasks and availability: status not implemented. Calendar reminders and durable
+in-app notifications are implemented, backend only; see [reminder contracts](../development/reminders.md).
 
-Tasks exist independently of subjects and pages. Targets include status, priority,
+Planned tasks exist independently of subjects and pages. Targets include status, priority,
 optional deadline, effort, dependencies, optional links and explicit calendar blocks.
 A deadline and a work block are separate concepts.
 
@@ -119,16 +125,20 @@ Availability considers resolved official occurrences, personal busy events and t
 blocks. Skipped lessons and nonblocking entries do not occupy time; hidden busy
 entries still do. Missing source coverage remains visible in planning results.
 
-Reminders first produce durable in-app notifications. Additional email, Telegram
+Implemented one-shot reminders target personal or authorized official calendar events,
+revalidate their current state and produce durable in-app notifications without duplicates
+on job replay. Task/deadline targets depend on P-06. Additional email, Telegram
 and push channels require their own contracts and delivery decisions.
 
 ## 8. Materials, search and AI
 
-Status: not implemented, except private avatars using the existing S3 adapter.
-
-Material files belong in S3-compatible storage, with ownership and processing
-metadata in PostgreSQL. Processing extracts text, chunks and indexes supported
-formats asynchronously. Structured/full-text search precedes semantic search/RAG.
+Status: private materials, page attachments and basic search are implemented,
+backend only. Files use S3-compatible storage, with ownership and processing metadata
+in PostgreSQL. Limits are 25 MiB/file and 1 GiB retained file storage/user. Text PDF,
+DOCX, PPTX, TXT and Markdown extraction runs asynchronously without OCR. Bookmarks
+store URLs without fetching them. Filtered full-text search covers authorized pages,
+material titles and extracted text; see [contracts](../development/materials.md).
+Chunking, embeddings, semantic search, AI and RAG remain not implemented.
 
 AI answers questions about the user's calendar and workspace, searches content,
 explains imported information and proposes edits/plans. It accesses data only
@@ -153,19 +163,27 @@ and durable idempotency. See [AI architecture](../architecture/ai.md).
 | Personal events, official overrides and resolved calendar | Implemented backend |
 | Nested pages, flat typed blocks, Markdown compatibility, recoverable trash, page/calendar links and backlinks | Implemented backend |
 | Collections, tags, typed membership and forward/reverse lists | Implemented backend |
-| Rich/nested blocks, page-page knowledge links, databases, saved views | Status: not implemented. |
-| Tasks, availability, reminders and notifications | Status: not implemented. |
-| General materials, search, AI and RAG | Status: not implemented. |
+| Saved calendar views, source/membership filters and resolved event queries | Implemented backend |
+| Database/property/page-backed record APIs with recoverable trash | Implemented backend |
+| Saved table views, typed filters/sorts and column selection | Implemented backend |
+| Date-bound calendar views, date moves and mixed calendar display | Implemented backend |
+| Rich/nested blocks and page-page knowledge links | Status: not implemented. |
+| One-shot calendar reminders and durable in-app notifications | Implemented backend |
+| Tasks, availability and task/deadline reminders | Status: not implemented. |
+| Private materials, page attachments and bounded document extraction | Implemented backend; no OCR |
+| Filtered PostgreSQL full-text search over pages/materials | Implemented backend |
+| Semantic search, AI and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
-| Weekly calendar, personal-event create/delete, login/registration and group selection UI | Implemented |
+| Weekly calendar, personal-event create/edit/delete, login/registration and group selection UI | Implemented |
 | Workspace pages, tasks, saved views, databases and remaining business UI | Status: not implemented. |
 
 ## 10. Development approach
 
 Implement backend vertical slices with acceptance criteria before UI work is requested.
 Pages, hierarchy and page/calendar links were delivered together at the owner's request.
-Block content and user organization are also implemented. Saved views and user
-databases are possible next slices; each needs an explicit request.
+Block content, user organization and saved calendar views are also implemented.
+The requested P-05 backend slice is implemented: database/property/record APIs,
+saved table/calendar views, typed filters/sorts, versioned date moves and mixed display.
 `subjects` is no longer a prerequisite. The [roadmap](../development/implementation-roadmap.md)
 defines dependencies; [open decisions](open-questions.md) record unknowns.
 

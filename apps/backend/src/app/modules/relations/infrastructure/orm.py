@@ -25,6 +25,7 @@ class CalendarPageLinkModel(Base):
     official_event_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("official_schedule_events.id")
     )
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
@@ -61,4 +62,29 @@ class CalendarPageLinkModel(Base):
             "created_at",
             "id",
         ),
+    )
+
+
+class PageMaterialLinkModel(Base):
+    __tablename__ = "page_material_links"
+
+    page_id: Mapped[UUID] = mapped_column(primary_key=True)
+    material_id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["page_id", "user_id"],
+            ["note_pages.id", "note_pages.user_id"],
+            ondelete="CASCADE",
+            name="fk_page_material_links_page_owner",
+        ),
+        ForeignKeyConstraint(
+            ["material_id", "user_id"],
+            ["materials.id", "materials.user_id"],
+            ondelete="CASCADE",
+            name="fk_page_material_links_material_owner",
+        ),
+        Index("ix_page_material_links_reverse", "user_id", "material_id", "page_id"),
     )

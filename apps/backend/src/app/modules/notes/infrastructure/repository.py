@@ -73,6 +73,17 @@ class SqlAlchemyPageRepository:
             )
         ]
 
+    def summaries(self, user_id: UUID, page_ids: tuple[UUID, ...]) -> list[PageMetadata]:
+        return [
+            page_metadata(row)
+            for row in self.session.scalars(
+                select(PageModel)
+                .options(defer(PageModel.document))
+                .where(PageModel.user_id == user_id, PageModel.id.in_(page_ids))
+                .execution_options(populate_existing=True)
+            )
+        ]
+
     def create(self, page: Page) -> None:
         self.session.add(PageModel(**page_values(page)))
         self.session.flush()

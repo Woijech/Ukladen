@@ -49,6 +49,18 @@ Expected import failures are stored as source state, so `task.finished` can have
 `SUCCESS` while `schedule.sync_finished` has `error` or `unsupported`. Inspect
 the latter or the authenticated `GET /api/v1/schedule/me/sync-status` endpoint.
 
+Reminder dispatch uses the known task name `reminders.dispatch_due` and normal task
+start/finish/retry diagnostics. Fixed `reminders.delivery_failed` and
+`reminders.dispatch_failed` events record safe failure locations without exception
+messages, reminder payloads or event titles. Retried batches may already contain
+successfully committed deliveries; inbox deduplication prevents repeats.
+
+Material jobs use the known task names `materials.dispatch` and `materials.process`.
+Fixed `materials.cleanup_failed`, `materials.dispatch_failed` and `materials.task_failed`
+events record sanitized failure locations without document text, filenames, URLs,
+storage keys or raw parser messages. Processing outcomes remain in material metadata;
+a successful task can record a terminal parser failure rather than indexing text.
+
 The browser console records fixed JSON events for failed health checks, email
 verification network/API failures, and rendering boundaries. Failed API responses
 include a validated request ID when available. Browser messages, stacks, token
@@ -62,9 +74,9 @@ API request summaries provide safe access diagnostics. Proxy/tunnel process logs
 remain available through Compose.
 
 ```bash
-docker compose logs -f --tail=100 --timestamps api worker beat
-docker compose logs --since=30m api worker | rg '"level": "(ERROR|WARNING)"'
-docker compose logs --since=30m api worker | rg '<request-id-from-response>'
+docker compose logs -f --tail=100 --timestamps api worker material-worker beat
+docker compose logs --since=30m api worker material-worker | rg '"level": "(ERROR|WARNING)"'
+docker compose logs --since=30m api worker material-worker | rg '<request-id-from-response>'
 ```
 
 For the home deployment, use the same `--env-file .env.home -f docker-compose.yml
@@ -79,7 +91,7 @@ For an existing running local stack:
 ```bash
 docker compose build api web
 docker compose run --rm --no-deps migrate
-docker compose up -d --no-deps api worker beat web traefik
+docker compose up -d --no-deps api worker material-worker beat web traefik
 ```
 
 For the home stack, add `--env-file .env.home -f docker-compose.yml

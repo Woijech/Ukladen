@@ -2,9 +2,10 @@
 
 Status: implemented — backend personal-event CRUD, official-event overrides,
 resolved date-range reads, ownership/CSRF protection and safe structured diagnostics;
-frontend weekly calendar with personal-event create/delete and schedule group selection.
+frontend weekly calendar with personal-event create/edit/delete and schedule group selection.
 Free slots, conflict checking, task blocks, recurring/all-day personal events,
-subject templates and reminders are not implemented.
+subject templates are not implemented. One-shot calendar
+reminders and the durable inbox are implemented; see [reminder contracts](reminders.md).
 Standalone nested pages and optional calendar links are implemented; see
 [notes](notes.md) and [relations](relations.md).
 
@@ -13,8 +14,11 @@ Standalone nested pages and optional calendar links are implemented; see
 Standalone events do not require a subject or page. Official subject labels are
 source metadata; equal labels never merge lecture/lab occurrences. Page links are
 optional and implemented through relations. Collections/tags and their page/event
-memberships are implemented in [workspace](workspace.md). Saved views and date
-projections remain not implemented.
+memberships are implemented in [workspace](workspace.md). [Saved calendar views](calendar-views.md)
+reuse this resolved calendar through an additive workspace API. Nonblocking database
+date projections and mixed `GET /api/v1/calendar/display` are implemented through
+application query ports; see [database contracts](databases.md). The existing event
+endpoint still returns only personal/official events.
 Preserve current identities/routes. A visual filter must not determine occupied-time truth.
 See [requirements](../product/workspace.md), [architecture](../architecture/workspace.md)
 and [roadmap](implementation-roadmap.md).

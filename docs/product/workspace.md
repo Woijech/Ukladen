@@ -1,11 +1,14 @@
 # Workspace and Calendar Requirements
 
-Updated: 2026-10-12.
+Updated: 2026-10-16.
 Status: target requirements. Calendar, nested pages with flat typed blocks and page/calendar
-links and collections/tags are implemented, backend only; see [notes](../development/notes.md),
-[relations](../development/relations.md) and [workspace](../development/workspace.md).
+links, collections/tags and saved calendar views are implemented, backend only; see [notes](../development/notes.md),
+[relations](../development/relations.md), [workspace](../development/workspace.md)
+and [calendar views](../development/calendar-views.md).
 Other capabilities remain planned. See [open decisions](open-questions.md) before selecting
 remaining editor, membership or calendar details; personal scope is confirmed.
+Private materials, optional page attachments and basic full-text search are also
+implemented, backend only; see [materials/search](../development/materials.md).
 
 ## 1. Vocabulary
 
@@ -35,7 +38,7 @@ ordinary links and collection membership.
 The user creates "Ideas" with text and no date, group, subject or collection.
 
 - Create, read and edit work without an academic profile.
-- The page is discoverable in the user's page list and later search.
+- The page is discoverable in the user's page list and basic full-text search.
 - Linking it to an event later does not move ownership or change its content.
 - A new page does not silently create a calendar event or busy interval.
 - Another user cannot list, fetch, modify or link this private page.
@@ -88,7 +91,8 @@ An event appears in "Study" and "This week", with a linked standalone page.
 - Tags and collections are personal; they do not alter official schedule labels.
 
 Collections/tags and membership/reverse APIs are implemented, including safe
-deletion and duplicate handling. Saved views remain not implemented. Membership
+deletion and duplicate handling. Saved event views and database table/calendar
+views are implemented, backend only. Membership
 does not implicitly include nested pages, linked events or other organization.
 
 ### WS-06: User-defined databases
@@ -121,8 +125,9 @@ The user shows the database's "Planned date" property in a calendar view.
 - Display identities distinguish personal events, official occurrences, record-date
   projections and deadlines. No copied event is manufactured just for rendering.
 
-Personal all-day events and this projection are not implemented. Date/time and
-recurrence scope must be finalized under Q-05 before their API slice.
+Database-record date projection and versioned moves are implemented, backend only;
+see [database contracts](../development/databases.md). Personal all-day events, task
+deadlines and recurrence remain not implemented; their scope stays under Q-05/07.
 
 ### WS-08: Independent visibility and availability
 

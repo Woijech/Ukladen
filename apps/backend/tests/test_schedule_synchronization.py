@@ -9,7 +9,7 @@ from sqlalchemy import Engine, event
 from test_auth_sessions import concurrent_engine as concurrent_engine
 from test_auth_sessions import settings as settings
 from test_bsuir_academics import group_fixture
-from test_schedule_expansion import schedule_fixture
+from test_schedule_expansion import schedule_fixture, split_schedule_fixture
 from test_schedule_storage import store as store
 
 from app.core import config
@@ -93,7 +93,7 @@ def test_source_states_are_explicit(store: SqlAlchemyScheduleStore, failure: str
         )
     elif failure == "unsupported":
         assert snapshot.schedules
-        lesson = snapshot.schedules["Понедельник"][0].model_copy(update={"split": True})
+        lesson = snapshot.schedules["Понедельник"][0].model_copy(update={"announcement": True})
         snapshot = snapshot.model_copy(update={"schedules": {"Понедельник": [lesson]}})
     provider = Mock(spec=ScheduleProvider)
     provider.get_group_schedule.return_value = None if failure == "unpublished" else snapshot
@@ -104,6 +104,42 @@ def test_source_states_are_explicit(store: SqlAlchemyScheduleStore, failure: str
             failure
         ]
     )
+
+
+def test_split_import_is_complete_replay_safe_and_keeps_last_valid_data(
+    store: SqlAlchemyScheduleStore,
+) -> None:
+    snapshot = split_schedule_fixture()
+    provider = Mock(spec=ScheduleProvider)
+    provider.get_group_schedule.return_value = snapshot
+    now = datetime.now(UTC)
+    service = ScheduleSyncService(provider, store, lambda: now)
+    start, end = datetime(2026, 9, 1, tzinfo=UTC), datetime(2027, 1, 1, tzinfo=UTC)
+
+    assert service.sync(24066, "353501").status == "ready"
+    saved = store.events(24066, start, end, None)
+    assert len(saved) == 20
+    for subgroup, count in [(1, 12), (2, 10)]:
+        selected = store.events(24066, start, end, subgroup)
+        assert len(selected) == count
+        assert {event.subgroup for event in selected} == {0, subgroup}
+
+    now += timedelta(hours=2)
+    assert service.sync(24066, "353501").status == "ready"
+    assert [event.id for event in store.events(24066, start, end, None)] == [
+        event.id for event in saved
+    ]
+
+    assert snapshot.schedules
+    invalid = snapshot.schedules["Среда"][0].model_copy(update={"week_numbers": []})
+    provider.get_group_schedule.return_value = snapshot.model_copy(
+        update={"schedules": {"Среда": [invalid]}}
+    )
+    now += timedelta(hours=2)
+    assert service.sync(24066, "353501").status == "unsupported"
+    assert [event.id for event in store.events(24066, start, end, None)] == [
+        event.id for event in saved
+    ]
 
 
 def test_refresh_only_queues_due_selected_groups() -> None:

@@ -2,14 +2,16 @@
 
 Status: foundation, backend authentication, user profiles, academic profiles and
 public university reads, persisted official schedule synchronization and the backend
-personal calendar, pages/block documents, relations and collection/tag organization implemented.
+personal calendar, pages/block documents, relations, collection/tag organization
+and saved calendar views, calendar reminders, durable in-app notifications, private
+materials and basic full-text search implemented.
 
 The product name is **Ukladen**. Technical identifiers use lowercase `ukladen`:
 the Compose project, Celery application and default PostgreSQL database. Package
 and image names are `ukladen-backend` and `ukladen-web`.
 
 `SYSTEM_ARCHITECTURE.md` remains the primary architecture contract. The repository
-contains one Python backend and one Next.js frontend. The API, Celery worker and
+contains one Python backend and one Next.js frontend. The API, Celery workers and
 Celery Beat use the same backend image and codebase. They are processes of a modular
 monolith, not independent services with separate business data.
 
@@ -49,8 +51,9 @@ search, ai, notifications and workspace. The integrations boundary lives at
 `app/integrations`, following the architecture document's repository tree.
 Its adapter packages are bsuir, llm, embeddings and storage.
 
-The `workspace` boundary implements collections, tags and typed membership;
-properties and saved views remain planned.
+The `workspace` boundary implements collections, tags, typed membership and saved
+calendar views and database/property/record APIs with saved table/calendar views,
+nonblocking date projection, versioned moves and mixed calendar display.
 
 Unused boundaries contain only package markers. No speculative entities, DTOs or
 repositories are generated. When a vertical slice is implemented, its dependencies
@@ -60,16 +63,22 @@ external clients. Inter-module access must use application services or interface
 
 ## Scope
 
-Status: not implemented — free slots, conflict checks, task blocks, tasks, reminders, materials, search,
-notifications, AI and RAG. Structured diagnostics, request/task correlation and
+Status: not implemented — free slots, conflict checks, task blocks,
+tasks, task/deadline reminders, semantic search, AI and RAG.
+Private materials, bounded document extraction, optional page attachments and lexical
+search are implemented, backend only; see [materials/search](../development/materials.md).
+One-shot calendar reminders and the durable inbox are implemented,
+backend only; see [reminder contracts](../development/reminders.md).
+Structured diagnostics, request/task correlation and
 container log rotation are implemented; see [logging](../development/logging.md).
 Remote observability services, metrics, tracing, production
 TLS, production credentials and deployment automation are not implemented.
 
 Standalone nested pages, flat typed blocks, page/calendar links and collections/tags
 are implemented; see [notes](../development/notes.md), [relations](../development/relations.md)
-and [workspace](../development/workspace.md). Rich/nested blocks, custom databases/properties, saved views
-and date projections are not implemented. Authenticated IIS capabilities remain
+and [workspace](../development/workspace.md), plus [saved calendar views](../development/calendar-views.md).
+Database/property/record APIs, table/calendar views and mixed date projection are
+also implemented, backend only. Rich/nested blocks are not implemented. Authenticated IIS capabilities remain
 unverified/unimplemented; see the [IIS roadmap](../integrations/bsuir-iis-roadmap.md).
 
 The storage provider replacement is recorded in [ADR 0001](../adr/0001-use-seaweedfs.md).

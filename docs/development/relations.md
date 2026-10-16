@@ -1,8 +1,9 @@
 # Page and Calendar Links
 
-Updated: 2026-10-12.
-Status: implemented, backend only. Page-page knowledge links, task/material links,
-and database relations are not implemented. Collections/tags and their typed
+Updated: 2026-10-16.
+Status: page/calendar links implemented, backend only. Optional page/material links
+are implemented separately in [materials](materials.md). Page-page knowledge links,
+task links and database relations are not implemented. Collections/tags and their typed
 membership are implemented separately in [workspace](workspace.md).
 
 ## Behavior and ownership

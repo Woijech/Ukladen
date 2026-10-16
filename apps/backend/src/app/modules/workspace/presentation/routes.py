@@ -29,6 +29,11 @@ from app.modules.workspace.infrastructure.repository import (
     SqlAlchemyMemberships,
     SqlAlchemyOrganizations,
 )
+from app.modules.workspace.presentation.calendar_views import router as calendar_view_router
+from app.modules.workspace.presentation.database_content import page_router as database_page_router
+from app.modules.workspace.presentation.database_content import router as database_content_router
+from app.modules.workspace.presentation.database_views import router as database_view_router
+from app.modules.workspace.presentation.databases import router as database_router
 from app.modules.workspace.presentation.schemas import (
     MemberListResponse,
     MemberResponse,
@@ -294,4 +299,9 @@ def install_workspace(application: FastAPI) -> None:
 
     for error_type in (WorkspaceNotFound, WorkspaceConflict, InvalidWorkspaceInput):
         application.add_exception_handler(error_type, workspace_error)
+    application.include_router(calendar_view_router)
+    application.include_router(database_router)
+    application.include_router(database_content_router)
+    application.include_router(database_page_router)
+    application.include_router(database_view_router)
     application.include_router(router)

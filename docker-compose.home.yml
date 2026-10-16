@@ -15,6 +15,8 @@ services:
     <<: *home-backend
   worker:
     <<: *home-backend
+  material-worker:
+    <<: *home-backend
   beat:
     <<: *home-backend
   api:

@@ -74,6 +74,14 @@ class NoteService:
             self.summary(user_id, parent_id)
         return self.repository.list_pages(user_id, parent_id, roots_only, trashed, limit, offset)
 
+    def summaries(self, user_id: UUID, page_ids: tuple[UUID, ...]) -> dict[UUID, PageMetadata]:
+        self.require_user(user_id)
+        if len(page_ids) > 10000 or any(
+            not isinstance(identifier, UUID) for identifier in page_ids
+        ):
+            raise InvalidPageInput()
+        return {page.id: page for page in self.repository.summaries(user_id, page_ids)}
+
     def _parent(self, user_id: UUID, parent_id: UUID | None, page_id: UUID | None = None) -> None:
         seen: set[UUID] = set()
         while parent_id is not None:
