@@ -83,7 +83,11 @@ The current calendar does not introduce an editor library or database-view syste
 
 ESLint uses Next.js's accessibility, React and TypeScript rules. `tsc --noEmit`
 provides type checking. Playwright runs Chromium tests against the built frontend:
-shell/connectivity success/failure and verification link handling. Verification
+shell/connectivity success/failure, verification link handling and workspace flows.
+Workspace tests cover account isolation/session expiry, registration/login and optional
+group onboarding, CSRF-protected personal CRUD, read-only official events, queued/fast
+IIS imports and recovery, interval continuations, calendar timezones and DST inputs.
+Verification
 tests check one POST with cookies/CSRF/Origin, fragment/history cleanup, privacy
 headers, invalid input, server/network failures and mutation-free GET previews.
 Browser tests mock API responses; backend tests cover real PostgreSQL/Redis/SMTP

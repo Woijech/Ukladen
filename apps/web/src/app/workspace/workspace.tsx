@@ -349,7 +349,7 @@ export function Workspace() {
   }
   if (session.isPending) return <main className="workspace-auth" role="status">Проверяем сессию…</main>;
   if (session.isError) return <main className="workspace-auth"><p role="alert">Не удалось проверить сессию.</p><button onClick={() => void session.refetch()}>Повторить</button></main>;
-  if (!session.data) return <main className="workspace-auth"><AuthPanel onSuccess={async () => { setOnboarding(true); await session.refetch({ throwOnError: true }); }} /></main>;
+  if (!session.data) return <main className="workspace-auth"><AuthPanel onSuccess={async () => { const profile = await requestJson<AcademicProfile | null>("/api/v1/academics/me"); setOnboarding(!profile); await session.refetch({ throwOnError: true }); }} /></main>;
   return <SessionWorkspace key={`${session.data.id}:${session.data.timezone}`} userTimeZone={session.data.timezone} checkingSession={session.isFetching} onSessionEnd={endSession} onboarding={onboarding} />;
 }
 
@@ -415,7 +415,7 @@ function CalendarWorkspace({ userTimeZone, onSessionEnd, onboarding }: { userTim
   const weekEndLabel = prettyDate(days[6], { day: "numeric", month: "long", year: "numeric" });
   const selectedEvents = daySegments(events, boundaries[days.indexOf(selected)], boundaries[days.indexOf(selected) + 1]).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
 
-  useEffect(() => { if (calendarScroll.current) calendarScroll.current.scrollTop = 8 * hourHeight; }, [range.from]);
+  useEffect(() => { if (calendarScroll.current) calendarScroll.current.scrollTop = 8 * hourHeight; }, [range.from, showGroupPicker]);
 
   const syncStatus = syncStatusQuery.data?.group_id === meQuery.data?.group.id ? syncStatusQuery.data : undefined;
   const attemptTime = syncStatus?.last_attempt_at ? Date.parse(syncStatus.last_attempt_at) : 0;
