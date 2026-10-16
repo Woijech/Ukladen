@@ -505,12 +505,13 @@ def change_password(
 )
 def confirm_email_verification(
     payload: EmailVerificationRequest,
+    current: RegistrationSession,
     database: Database,
     service: Annotated[EmailVerificationService, Depends(get_email_verification)],
 ) -> Response:
     try:
         with database.begin():
-            service.confirm(payload.token.get_secret_value())
+            service.confirm(payload.token.get_secret_value(), current.user_id)
     except InvalidOneTimeToken:
         raise HTTPException(
             400, "Invalid or expired token.", headers={"Cache-Control": "no-store"}

@@ -38,7 +38,6 @@ from app.modules.auth.infrastructure.token_service import generate_token, hash_t
 from app.modules.auth.presentation.dependencies import (
     get_current_session,
     get_email_verification,
-    get_registration_session,
 )
 from app.modules.auth.presentation.schemas import EmailVerificationRequest
 from app.modules.users.infrastructure.orm import UserModel
@@ -59,11 +58,10 @@ def verification_client(
 ) -> TestClient:
     application.dependency_overrides[get_email_verification] = lambda: verification_service
     application.dependency_overrides.pop(get_current_session)
-    application.dependency_overrides.pop(get_registration_session, None)
     return client
 
 
-def test_confirmation_needs_no_login_and_retains_cookies(
+def test_confirmation_uses_registration_owner_and_retains_cookies(
     verification_client: TestClient,
     verification_service: Mock,
     limiter: Mock,
@@ -71,7 +69,7 @@ def test_confirmation_needs_no_login_and_retains_cookies(
     issued: IssuedSession,
 ) -> None:
     headers = csrf_headers(verification_client) | {"X-Forwarded-For": "203.0.113.99"}
-    for session_token in (None, issued.token):
+    for session_token in (issued.token,):
         if session_token:
             verification_client.cookies.set(SESSION_COOKIE, session_token)
         response = verification_client.post(PATH, json={"token": TOKEN}, headers=headers)
@@ -79,8 +77,8 @@ def test_confirmation_needs_no_login_and_retains_cookies(
         assert response.headers["cache-control"] == "no-store"
         assert "set-cookie" not in response.headers
         assert verification_client.cookies.get(SESSION_COOKIE) == session_token
-    assert verification_service.confirm.call_count == 2
-    verification_service.confirm.assert_called_with(TOKEN)
+    assert verification_service.confirm.call_count == 1
+    verification_service.confirm.assert_called_with(TOKEN, issued.session.user_id)
     limiter.check.assert_called_with(
         f"email-verification-confirm:{hash_token('192.0.2.10')}", 5, 60
     )
@@ -199,6 +197,18 @@ def seed_token(database: Session, user_id: UUID) -> tuple[UUID, str]:
     return token.id, raw_token
 
 
+def seed_registration_session(database: Session, user_id: UUID) -> str:
+    token = generate_token()
+    database.add(
+        SessionModel(
+            user_id=user_id,
+            token_hash=hash_token(token),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+    )
+    return token
+
+
 @pytest.mark.parametrize("already_verified", [False, True])
 def test_live_confirmation_retains_session_and_prior_verification(
     live_client: TestClient, concurrent_engine: Engine, password_hash: str, already_verified: bool
@@ -210,7 +220,7 @@ def test_live_confirmation_retains_session_and_prior_verification(
         user = database.scalar(select(UserModel))
         assert user
         user.email_verified_at = previous
-        user.status = "disabled" if already_verified else "active"
+        user.status = "active"
         token_id, raw_token = seed_token(database, user.id)
     headers = csrf_headers(live_client)
     response = live_client.post(PATH, json={"token": raw_token}, headers=headers)
@@ -223,7 +233,7 @@ def test_live_confirmation_retains_session_and_prior_verification(
         session = database.scalar(select(SessionModel))
         assert stored and stored.used_at
         assert user and user.email_verified_at == (previous or stored.used_at)
-        assert user.status == ("disabled" if already_verified else "active")
+        assert user.status == "active"
         assert (
             session
             and session.revoked_at is None
@@ -246,6 +256,7 @@ def test_live_invalid_tokens_leave_user_and_token_unchanged(
         database.add(user)
         database.flush()
         token_id, raw_token = seed_token(database, user.id)
+        live_client.cookies.set(SESSION_COOKIE, seed_registration_session(database, user.id))
         token = database.get(OneTimeTokenModel, token_id)
         assert token
         if state == "unknown":
@@ -280,6 +291,7 @@ def test_live_late_user_update_failure_rolls_back_and_allows_retry(
         database.add(user)
         database.flush()
         token_id, raw_token = seed_token(database, user.id)
+        live_client.cookies.set(SESSION_COOKIE, seed_registration_session(database, user.id))
     original = SqlAlchemyEmailVerifier.mark_verified
 
     def fail_after_update(
@@ -320,10 +332,12 @@ def test_live_confirmation_native_rate_window(
         database.add(user)
         database.flush()
         _, raw_token = seed_token(database, user.id)
+        session_token = seed_registration_session(database, user.id)
     app.state.rate_limiter = RedisRateLimiter(redis)
     # Reuse the running app with a unique peer so this test owns its Redis rate key.
     peer_client = TestClient(app, base_url=ORIGIN, client=(peer, 50000))
     try:
+        peer_client.cookies.set(SESSION_COOKIE, session_token)
         headers = csrf_headers(peer_client)
         for expected in (204, 400, 400, 400, 400, 429):
             response = peer_client.post(PATH, json={"token": raw_token}, headers=headers)

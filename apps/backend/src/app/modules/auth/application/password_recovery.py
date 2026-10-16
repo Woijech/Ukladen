@@ -83,10 +83,15 @@ class PasswordRecoveryService:
             raise InvalidOneTimeToken("Invalid or expired token.")
         # Hash before acquiring database locks; check expiry only after acquiring them.
         password_hash = self._hash_new_password(new_password)
-        stored = self.repository.get_by_token_hash(self.hash_token(token))
-        if stored is None or stored.token_type != TokenType.PASSWORD_RESET:
+        user_id = self.repository.get_user_id(self.hash_token(token))
+        if user_id is None or not self.users.lock_active(user_id):
             raise InvalidOneTimeToken("Invalid or expired token.")
-        if not self.users.lock_active(stored.user_id):
+        stored = self.repository.get_by_token_hash(self.hash_token(token))
+        if (
+            stored is None
+            or stored.user_id != user_id
+            or stored.token_type != TokenType.PASSWORD_RESET
+        ):
             raise InvalidOneTimeToken("Invalid or expired token.")
         previous_hash = self.credentials.get_password_hash(stored.user_id)
         profile = self.profiles.get_active(stored.user_id)
@@ -103,6 +108,7 @@ class PasswordRecoveryService:
             if not self.verifier.mark_verified(stored.user_id, now):
                 raise InvalidOneTimeToken("Invalid or expired token.")
         self.repository.mark_used(stored.id, now)
+        self.repository.invalidate_for_user(stored.user_id, now)
         self.sessions.revoke_all_for_user(stored.user_id)
         return stored.user_id
 
@@ -117,8 +123,10 @@ class PasswordRecoveryService:
         stored_hash = self.credentials.get_password_hash(user_id)
         if stored_hash is None or not self.passwords.verify(current_password, stored_hash):
             raise InvalidCredentials("Invalid current password.")
-        if not self.credentials.update_password_hash(user_id, password_hash, self.now()):
+        now = self.now()
+        if not self.credentials.update_password_hash(user_id, password_hash, now):
             raise InvalidCredentials("Invalid current password.")
+        self.repository.invalidate_for_user(user_id, now)
         self.sessions.revoke_others_for_user(user_id, current_session_id)
 
     def _hash_new_password(self, new_password: str) -> str:

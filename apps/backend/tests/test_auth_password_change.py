@@ -50,7 +50,9 @@ def test_change_verifies_current_password_and_keeps_current_session(
     credentials.update_password_hash.assert_called_once_with(user_id, "new-hash", NOW)
     sessions.revoke_others_for_user.assert_called_once_with(user_id, session_id)
     sessions.revoke_all_for_user.assert_not_called()
-    assert not cast(Mock, recovery_service.repository).mock_calls
+    cast(Mock, recovery_service.repository).invalidate_for_user.assert_called_once_with(
+        user_id, NOW
+    )
 
 
 @pytest.mark.parametrize("state", ["disabled", "no_credential", "wrong_password", "update_failed"])

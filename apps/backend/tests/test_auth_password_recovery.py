@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from test_auth_login import PASSWORD
 from test_auth_login import password_hash as password_hash
 from test_auth_persistence import database_connection as database_connection
+from test_auth_sessions import cache as cache
 from test_auth_sessions import concurrent_engine as concurrent_engine
 from test_auth_sessions import settings as settings
 
@@ -63,6 +64,7 @@ def recovery_service(settings: Settings) -> PasswordRecoveryService:
     credentials.get_password_hash.return_value = "old-hash"
     credentials.update_password_hash.return_value = True
     repository = create_autospec(PasswordResetRepository, instance=True)
+    repository.get_user_id.return_value = users.get_active_id_by_email.return_value
     repository.get_by_token_hash.return_value = OneTimeToken(
         id=uuid4(),
         user_id=users.get_active_id_by_email.return_value,
@@ -234,7 +236,10 @@ def test_invalid_confirmation_does_not_update_or_revoke(
     with pytest.raises(InvalidOneTimeToken) as error:
         recovery_service.confirm_reset(TOKEN, NEW_PASSWORD)
     assert str(error.value) == "Invalid or expired token." and TOKEN not in str(error.value)
-    repository.get_by_token_hash.assert_called_once_with(hash_token(TOKEN))
+    if state == "disabled":
+        repository.get_by_token_hash.assert_not_called()
+    else:
+        repository.get_by_token_hash.assert_called_once_with(hash_token(TOKEN))
     repository.mark_used.assert_not_called()
     credentials.update_password_hash.assert_not_called()
     sessions.revoke_all_for_user.assert_not_called()
@@ -281,6 +286,30 @@ def test_success_consumes_once_and_preserves_password(
     assert (
         credentials.update_password_hash.call_count == sessions.revoke_all_for_user.call_count == 1
     )
+
+
+@pytest.mark.parametrize("commit", [False, True])
+def test_sibling_reset_links_serialize_and_cannot_restore_a_previous_password(
+    concurrent_engine: Engine, settings: Settings, password_hash: str, cache: Mock, commit: bool
+) -> None:
+    with Session(concurrent_engine) as database, database.begin():
+        seed(database, password_hash)
+        first = recovery(database, settings, cache).request_reset("student@example.com")
+        second = recovery(database, settings, cache).request_reset("student@example.com")
+        assert first and second
+    with Session(concurrent_engine) as winner, Session(concurrent_engine) as contender:
+        recovery(winner, settings, cache).confirm_reset(first.token, NEW_PASSWORD)
+        with pytest.raises(OperationalError, match="lock timeout"), contender.begin():
+            contender.execute(text("SET LOCAL lock_timeout = '100ms'"))
+            recovery(contender, settings, cache).confirm_reset(second.token, NEW_PASSWORD)
+        if commit:
+            winner.commit()
+            with pytest.raises(InvalidOneTimeToken), contender.begin():
+                recovery(contender, settings, cache).confirm_reset(second.token, NEW_PASSWORD)
+        else:
+            winner.rollback()
+            with contender.begin():
+                recovery(contender, settings, cache).confirm_reset(second.token, NEW_PASSWORD)
 
 
 @pytest.mark.parametrize("state", ["disabled", "expired", "used", "future", "wrong_type"])

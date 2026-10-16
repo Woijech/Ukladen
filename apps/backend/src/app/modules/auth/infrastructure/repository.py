@@ -236,11 +236,30 @@ class SqlAlchemyPasswordResetRepository:
     def create(self, token: OneTimeToken) -> None:
         SqlAlchemyRegistrationRepository(self.session).create_one_time_token(token)
 
+    def get_user_id(self, token_hash: str) -> UUID | None:
+        return self.session.scalar(
+            select(OneTimeTokenModel.user_id).where(
+                OneTimeTokenModel.token_hash == token_hash,
+                OneTimeTokenModel.token_type == TokenType.PASSWORD_RESET,
+            )
+        )
+
     def get_by_token_hash(self, token_hash: str) -> OneTimeToken | None:
         return _get_one_time_token(self.session, token_hash, TokenType.PASSWORD_RESET)
 
     def mark_used(self, token_id: UUID, used_at: datetime) -> None:
         _mark_token_used(self.session, token_id, used_at)
+
+    def invalidate_for_user(self, user_id: UUID, used_at: datetime) -> None:
+        self.session.execute(
+            update(OneTimeTokenModel)
+            .where(
+                OneTimeTokenModel.user_id == user_id,
+                OneTimeTokenModel.token_type == TokenType.PASSWORD_RESET,
+                OneTimeTokenModel.used_at.is_(None),
+            )
+            .values(used_at=used_at)
+        )
 
 
 class SqlAlchemySessionRepository:

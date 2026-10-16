@@ -1,7 +1,7 @@
 import logging
 from ipaddress import IPv6Address
 from typing import cast
-from unittest.mock import Mock, create_autospec
+from unittest.mock import Mock, call, create_autospec
 from uuid import uuid4
 
 import pytest
@@ -118,9 +118,10 @@ def test_request_acknowledges_without_login_and_queues_only_after_commit(
     else:
         email_sender.send_password_reset.assert_not_called()
     sessions.validate.assert_not_called()
-    limiter.check.assert_called_once_with(
-        f"password-reset-request:{hash_token('192.0.2.10')}", 5, 60
-    )
+    assert limiter.check.call_args_list == [
+        call(f"password-reset-request:{hash_token('192.0.2.10')}", 5, 60),
+        call(f"password-reset-email:{hash_token(EMAIL.strip().lower())}", 5, 60),
+    ]
     assert EMAIL not in response.text and TOKEN not in response.text
     assert (
         "202" in request_client.get("/api/openapi.json").json()["paths"][PATH]["post"]["responses"]

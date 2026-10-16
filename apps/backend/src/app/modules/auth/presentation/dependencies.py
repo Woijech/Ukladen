@@ -41,6 +41,7 @@ from app.modules.auth.infrastructure.repository import (
 )
 from app.modules.auth.infrastructure.session_cache import RedisSessionCache
 from app.modules.auth.infrastructure.token_service import generate_token, hash_token
+from app.modules.auth.presentation.schemas import LoginRequest, PasswordResetRequest
 from app.modules.users.infrastructure.repository import (
     SqlAlchemyEmailVerifier,
     SqlAlchemyProfileRepository,
@@ -225,6 +226,7 @@ def get_email_verification(database: Database) -> EmailVerificationService:
     return EmailVerificationService(
         SqlAlchemyEmailVerificationRepository(database),
         SqlAlchemyEmailVerifier(database),
+        authentication=SqlAlchemyUserAuthentication(database),
         hash_token=hash_token,
     )
 
@@ -311,18 +313,27 @@ def limit_registration(
 
 
 def limit_login(
-    request: Request, settings: Config, limiter: Annotated[RateLimiter, Depends(get_rate_limiter)]
+    request: Request,
+    settings: Config,
+    limiter: Annotated[RateLimiter, Depends(get_rate_limiter)],
+    payload: LoginRequest,
 ) -> None:
     peer = request.client.host if request.client else "unknown"
-    allowed, retry_after = limiter.check(
+    for key in (
         f"login:{hash_token(peer)}",
-        settings.auth_login_rate_limit,
-        settings.auth_login_rate_window_seconds,
-    )
-    if not allowed:
-        raise HTTPException(
-            429, "Too many login attempts.", headers={"Retry-After": str(retry_after)}
+        f"login-email:{hash_token(payload.email.strip().lower())}",
+    ):
+        allowed, retry_after = limiter.check(
+            key,
+            settings.auth_login_rate_limit,
+            settings.auth_login_rate_window_seconds,
         )
+        if not allowed:
+            raise HTTPException(
+                429,
+                "Too many login attempts.",
+                headers={"Retry-After": str(retry_after), "Cache-Control": "no-store"},
+            )
 
 
 def limit_email_verification_confirm(
@@ -360,20 +371,27 @@ def limit_password_reset_confirm(
 
 
 def limit_password_reset_request(
-    request: Request, settings: Config, limiter: Annotated[RateLimiter, Depends(get_rate_limiter)]
+    request: Request,
+    settings: Config,
+    limiter: Annotated[RateLimiter, Depends(get_rate_limiter)],
+    payload: PasswordResetRequest,
 ) -> None:
     peer = request.client.host if request.client else "unknown"
-    allowed, retry_after = limiter.check(
+    for key in (
         f"password-reset-request:{hash_token(peer)}",
-        settings.auth_password_reset_request_rate_limit,
-        settings.auth_password_reset_request_rate_window_seconds,
-    )
-    if not allowed:
-        raise HTTPException(
-            429,
-            "Too many password reset requests.",
-            headers={"Retry-After": str(retry_after), "Cache-Control": "no-store"},
+        f"password-reset-email:{hash_token(payload.email.strip().lower())}",
+    ):
+        allowed, retry_after = limiter.check(
+            key,
+            settings.auth_password_reset_request_rate_limit,
+            settings.auth_password_reset_request_rate_window_seconds,
         )
+        if not allowed:
+            raise HTTPException(
+                429,
+                "Too many password reset requests.",
+                headers={"Retry-After": str(retry_after), "Cache-Control": "no-store"},
+            )
 
 
 def get_registration_session(

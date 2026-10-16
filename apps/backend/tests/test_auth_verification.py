@@ -16,9 +16,12 @@ from app.modules.auth.domain.errors import InvalidOneTimeToken
 from app.modules.auth.infrastructure.orm import OneTimeTokenModel
 from app.modules.auth.infrastructure.repository import SqlAlchemyEmailVerificationRepository
 from app.modules.auth.infrastructure.token_service import generate_token, hash_token
-from app.modules.users.application.ports import EmailVerifier
+from app.modules.users.application.ports import EmailVerifier, UserAuthentication
 from app.modules.users.infrastructure.orm import UserModel
-from app.modules.users.infrastructure.repository import SqlAlchemyEmailVerifier
+from app.modules.users.infrastructure.repository import (
+    SqlAlchemyEmailVerifier,
+    SqlAlchemyUserAuthentication,
+)
 
 NOW = datetime(2026, 10, 3, tzinfo=UTC)
 
@@ -27,6 +30,7 @@ def verification(database: Session) -> EmailVerificationService:
     return EmailVerificationService(
         SqlAlchemyEmailVerificationRepository(database),
         SqlAlchemyEmailVerifier(database),
+        authentication=SqlAlchemyUserAuthentication(database),
         hash_token=hash_token,
         now=lambda: NOW,
     )
@@ -53,25 +57,36 @@ def seed(database: Session) -> tuple[UserModel, OneTimeTokenModel, str]:
 def test_malformed_verification_token_has_no_side_effects(token: str) -> None:
     repository = create_autospec(EmailVerificationRepository, instance=True)
     users = create_autospec(EmailVerifier, instance=True)
-    service = EmailVerificationService(repository, users, hash_token=hash_token)
+    service = EmailVerificationService(
+        repository,
+        users,
+        authentication=create_autospec(UserAuthentication, instance=True),
+        hash_token=hash_token,
+    )
     with pytest.raises(InvalidOneTimeToken, match="Invalid or expired token"):
-        service.confirm(token)
+        service.confirm(token, uuid4())
     assert not repository.mock_calls and not users.mock_calls
 
 
 def test_verification_uses_hash_and_sanitized_errors() -> None:
     repository = create_autospec(EmailVerificationRepository, instance=True)
     users = create_autospec(EmailVerifier, instance=True)
-    service = EmailVerificationService(repository, users, hash_token=hash_token, now=lambda: NOW)
+    service = EmailVerificationService(
+        repository,
+        users,
+        authentication=create_autospec(UserAuthentication, instance=True),
+        hash_token=hash_token,
+        now=lambda: NOW,
+    )
+    user_id = uuid4()
     token = generate_token()
     repository.get_by_token_hash.return_value = None
     with pytest.raises(InvalidOneTimeToken) as error:
-        service.confirm(token)
+        service.confirm(token, user_id)
     assert token not in str(error.value)
     repository.get_by_token_hash.assert_called_once_with(hash_token(token))
     repository.mark_used.assert_not_called()
     users.mark_verified.assert_not_called()
-    user_id = uuid4()
     stored = OneTimeToken(
         id=uuid4(),
         user_id=user_id,
@@ -82,7 +97,7 @@ def test_verification_uses_hash_and_sanitized_errors() -> None:
     )
     repository.get_by_token_hash.return_value = stored
     users.mark_verified.return_value = True
-    assert service.confirm(token) == user_id
+    assert service.confirm(token, user_id) == user_id
     repository.mark_used.assert_called_once_with(stored.id, NOW)
     users.mark_verified.assert_called_once_with(user_id, NOW)
     stored.used_at = None
@@ -90,7 +105,7 @@ def test_verification_uses_hash_and_sanitized_errors() -> None:
     repository.reset_mock()
     users.reset_mock()
     with pytest.raises(ValueError, match="timezone-aware"):
-        service.confirm(token)
+        service.confirm(token, user_id)
     repository.mark_used.assert_not_called()
     assert not users.mock_calls
 
@@ -116,9 +131,15 @@ def test_expiry_is_checked_after_acquiring_token_lock() -> None:
         return stored
 
     repository.get_by_token_hash.side_effect = acquire_lock
-    service = EmailVerificationService(repository, users, hash_token=hash_token, now=clock)
+    service = EmailVerificationService(
+        repository,
+        users,
+        authentication=create_autospec(UserAuthentication, instance=True),
+        hash_token=hash_token,
+        now=clock,
+    )
     with pytest.raises(InvalidOneTimeToken):
-        service.confirm(token)
+        service.confirm(token, stored.user_id)
     repository.mark_used.assert_not_called()
     users.mark_verified.assert_not_called()
 
@@ -130,17 +151,17 @@ def test_confirmation_and_replay(database_connection: Connection, already_verifi
             user, token, raw_token = seed(database)
             first_verification = NOW - timedelta(days=1) if already_verified else None
             user.email_verified_at = first_verification
-            user.status = "disabled" if already_verified else "active"
+            user.status = "active"
             database.flush()
-            assert verification(database).confirm(raw_token) == user.id
+            assert verification(database).confirm(raw_token, user.id) == user.id
         with database.begin():
             database.refresh(user)
             database.refresh(token)
             assert user.email_verified_at == (first_verification or NOW)
-            assert user.status == ("disabled" if already_verified else "active")
+            assert user.status == "active"
             assert token.used_at == NOW
         with pytest.raises(InvalidOneTimeToken), database.begin():
-            verification(database).confirm(raw_token)
+            verification(database).confirm(raw_token, user.id)
 
 
 @pytest.mark.parametrize("state", ["unknown", "expired", "future", "used", "password_reset"])
@@ -161,7 +182,7 @@ def test_invalid_verification_tokens_do_not_verify_user(
             else:
                 token.token_type = TokenType.PASSWORD_RESET
         with pytest.raises(InvalidOneTimeToken), database.begin():
-            verification(database).confirm(raw_token)
+            verification(database).confirm(raw_token, user.id)
         database.refresh(user)
         database.refresh(token)
         assert user.email_verified_at is None
@@ -186,12 +207,12 @@ def test_failed_user_update_rolls_back_consumption(
             pytest.raises(RuntimeError if raises else InvalidOneTimeToken),
             database.begin(),
         ):
-            service.confirm(raw_token)
+            service.confirm(raw_token, user.id)
         with database.begin():
             database.refresh(user)
             database.refresh(token)
             assert token.used_at is None and user.email_verified_at is None
-            assert service.confirm(raw_token) == user.id
+            assert service.confirm(raw_token, user.id) == user.id
 
 
 @pytest.mark.parametrize("commit", [False, True])
@@ -200,18 +221,18 @@ def test_concurrent_confirmation_has_one_winner(concurrent_engine: Engine, commi
         user, token, raw_token = seed(database)
         user_id, token_id = user.id, token.id
     with Session(concurrent_engine) as winner, Session(concurrent_engine) as contender:
-        assert verification(winner).confirm(raw_token) == user_id
+        assert verification(winner).confirm(raw_token, user_id) == user_id
         with pytest.raises(OperationalError, match="lock timeout"), contender.begin():
             contender.execute(text("SET LOCAL lock_timeout = '100ms'"))
-            verification(contender).confirm(raw_token)
+            verification(contender).confirm(raw_token, user_id)
         if commit:
             winner.commit()
             with pytest.raises(InvalidOneTimeToken), contender.begin():
-                verification(contender).confirm(raw_token)
+                verification(contender).confirm(raw_token, user_id)
         else:
             winner.rollback()
             with contender.begin():
-                assert verification(contender).confirm(raw_token) == user_id
+                assert verification(contender).confirm(raw_token, user_id) == user_id
     with Session(concurrent_engine) as database:
         stored_user = database.get(UserModel, user_id)
         stored_token = database.get(OneTimeTokenModel, token_id)
