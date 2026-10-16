@@ -53,8 +53,14 @@ Profile menus expose explicit linking in a native modal dialog with current-pass
 confirmation and fresh CSRF protection. Closing it, session expiry or changing the
 workspace identity discards its private form. Wrong-password errors preserve the
 session; invalid-session responses remove the private workspace.
-`/auth/error` has no-referrer/no-store/noindex policies, a retry button and guidance
-for existing password accounts. See [Google setup and verification](../development/google-auth.md).
+`/auth/error` has no-referrer/no-store/noindex policies and a retry button. The exact,
+single `reason=account_linking_required` query selects a password-login/link form.
+Its explicit submission authenticates the existing Ukladen account, then initiates
+the existing password-confirmed linking API without requiring profile navigation
+or entering the password twice. Unknown/repeated reasons show the generic recovery
+page. The reason contains no authority or identity data; credential and OAuth guards
+remain server-side. Passwords clear before navigation and on restored browser history.
+See [Google setup and verification](../development/google-auth.md).
 
 `/workspace` provides email/password login and registration using the existing CSRF
 and session-cookie contracts. Password visibility lasts three seconds. After login,
@@ -131,6 +137,8 @@ policy correction, generic request acknowledgements, retry and opening another l
 Google tests cover login/registration, cookie binding, duplicate starts, recovery,
 destination validation, explicit linking from desktop/mobile profiles, password/CSRF
 guards, native dialog dismissal and private-state cleanup on expiry.
+Continuation tests cover existing-account password confirmation, login before link
+initiation, desktop/mobile UI, retries, duplicate submits and untrusted error markers.
 Browser tests mock API responses; backend tests cover real PostgreSQL/Redis/SMTP
 flows. Compose health verification checks the real backend separately.
 

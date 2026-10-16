@@ -34,6 +34,13 @@ failures, Redis session/cache/state/limiter failures (including cache fallback),
 SMTP delivery and S3 failures. S3 error codes are allowlisted; SDK error payloads
 are omitted. Avatar cleanup/recovery failures are visible without object keys.
 Authentication redirects log rejection categories without OAuth query data.
+For Google callbacks, `auth.google_callback_rejected` with
+`error_type=AccountLinkingRequired` means identity verification succeeded but the
+email belongs to an existing unlinked account. The frontend provides password-confirmed
+continuation; this category does not mean the Google client configuration is broken.
+Use `docker compose logs --since 15m api` or
+`docker compose logs -f --tail 100 api` to inspect the API container's stderr.
+See [Google troubleshooting](google-auth.md) for the continuation and other categories.
 
 Calendar reads record resolved event counts and schedule source state. Personal-event
 creation/update/deletion and override writes/deletion are logged only after commit.

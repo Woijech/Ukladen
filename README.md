@@ -319,7 +319,9 @@ Start redirects to Google; callback commits the ordinary session before setting
 its cookie and redirecting to the configured success page. Failures redirect to
 the configured error page and preserve existing sessions.
 Login/registration now include a Google button, `/auth/error` provides recovery,
-and profile menus support explicit linking with password confirmation.
+and profile menus support explicit linking with password confirmation. An existing
+unlinked email now opens **Войти и связать Google** directly: enter Ukladen credentials
+once and select Google again to complete linking, preserving the original account.
 Use `/workspace` for the success destination and `/auth/error` for failures;
 see [Google setup and troubleshooting](docs/development/google-auth.md).
 

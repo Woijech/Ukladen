@@ -687,6 +687,12 @@ existing session cookies and leave the binding cookie to expire or be replaced
 by the next initiation. They do not expose provider/error input. Rate-limit
 failures return 429 with Retry-After; unavailable configuration/protection returns 503.
 
+Account-resolution `AccountLinkingRequired` uses the configured error URL with the
+single fixed marker `?reason=account_linking_required`. Other failures keep the
+unmodified configured URL. Provider input, identity data and exception messages
+never enter either destination. This marker selects password-confirmed frontend
+continuation; it carries no authority and cannot link an account by itself.
+
 `FRONTEND_AUTH_SUCCESS_URL` and `FRONTEND_AUTH_ERROR_URL` must be configured
 together. Both require HTTPS except local loopback HTTP and prohibit credentials,
 query strings and fragments. They are fixed configuration, never request return URLs.
@@ -753,6 +759,11 @@ Strict-cookie configurations fail closed before link initiation.
 Wrong passwords return a fixed 401; invalid sessions, CSRF and rate limits use
 existing auth errors. Linking failure at callback uses the fixed frontend error
 redirect, preserving the existing session cookie without exposing private details.
+After an ordinary Google login email collision, the frontend can obtain CSRF,
+authenticate through the existing password-login endpoint, and immediately initiate
+this same linking flow with the entered password. No pre-existing session or profile
+menu action is required. All password, session, state and provider checks still apply;
+an identity is attached only after the fresh verified Google callback.
 
 ## HTTP
 
