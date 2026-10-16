@@ -38,5 +38,9 @@ class AccountLinkingRequired(AuthError):
     """An existing email requires explicit account linking and re-authentication."""
 
 
+class RegistrationIncomplete(AuthError):
+    """The active browser must finish email verification or password setup."""
+
+
 class InvalidOAuthState(AuthError):
     """OAuth state is invalid, expired, consumed or belongs to another browser."""

@@ -35,6 +35,19 @@ class RegistrationRequest(BaseModel):
     password: SecretStr = Field(min_length=1, max_length=1024, repr=False)
 
 
+class RegistrationStateResponse(BaseModel):
+    email: str
+    email_verified: bool
+    password_required: bool
+    complete: bool
+    password_min_length: int
+
+
+class PasswordSetupRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    password: SecretStr = Field(min_length=1, max_length=1024, repr=False)
+
+
 class PasswordChangeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

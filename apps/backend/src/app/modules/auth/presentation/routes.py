@@ -24,6 +24,7 @@ from app.modules.auth.application.ports import (
     SessionCacheUnavailable,
 )
 from app.modules.auth.application.registration import RegistrationService
+from app.modules.auth.application.registration_access import RegistrationAccessService
 from app.modules.auth.application.verification import EmailVerificationService
 from app.modules.auth.application.verification_request import EmailVerificationRequestService
 from app.modules.auth.domain.errors import (
@@ -36,6 +37,7 @@ from app.modules.auth.domain.errors import (
     InvalidRegistration,
     InvalidSession,
     RegistrationConflict,
+    RegistrationIncomplete,
     SessionNotFound,
 )
 from app.modules.auth.infrastructure.request_protection import auth_access_log_filter
@@ -44,6 +46,7 @@ from app.modules.auth.presentation.dependencies import (
     Config,
     CurrentSession,
     Database,
+    RegistrationSession,
     Sessions,
     client_ip,
     get_email_sender,
@@ -55,6 +58,7 @@ from app.modules.auth.presentation.dependencies import (
     get_login,
     get_password_recovery,
     get_registration,
+    get_registration_access,
     is_token,
     limit_email_verification_confirm,
     limit_email_verification_request,
@@ -65,6 +69,7 @@ from app.modules.auth.presentation.dependencies import (
     limit_password_change,
     limit_password_reset_confirm,
     limit_password_reset_request,
+    limit_password_setup,
     limit_registration,
     require_csrf,
     require_google_navigation,
@@ -83,7 +88,9 @@ from app.modules.auth.presentation.schemas import (
     PasswordResetConfirmationRequest,
     PasswordResetRequest,
     PasswordResetRequestResponse,
+    PasswordSetupRequest,
     RegistrationRequest,
+    RegistrationStateResponse,
     SessionResponse,
 )
 
@@ -353,7 +360,7 @@ def register(
 
 @router.post("/logout", status_code=204, dependencies=[Depends(require_csrf)])
 def logout(
-    current: CurrentSession, database: Database, sessions: Sessions, settings: Config
+    current: RegistrationSession, database: Database, sessions: Sessions, settings: Config
 ) -> Response:
     with database.begin():
         sessions.revoke(current.id)
@@ -364,7 +371,7 @@ def logout(
 
 @router.post("/logout-all", status_code=204, dependencies=[Depends(require_csrf)])
 def logout_all(
-    current: CurrentSession, database: Database, sessions: Sessions, settings: Config
+    current: RegistrationSession, database: Database, sessions: Sessions, settings: Config
 ) -> Response:
     with database.begin():
         sessions.revoke_all_for_user(current.user_id)
@@ -470,7 +477,7 @@ def confirm_email_verification(
 )
 def request_email_verification(
     payload: EmailVerificationResendRequest,
-    current: CurrentSession,
+    current: RegistrationSession,
     response: Response,
     database: Database,
     sender: Annotated[EmailSender, Depends(get_email_sender)],
@@ -492,6 +499,51 @@ def request_email_verification(
             )
     response.headers["Cache-Control"] = "no-store"
     return EmailVerificationRequestResponse()
+
+
+@router.get("/registration", response_model=RegistrationStateResponse)
+def registration_state(
+    current: RegistrationSession,
+    database: Database,
+    settings: Config,
+    response: Response,
+    service: Annotated[RegistrationAccessService, Depends(get_registration_access)],
+) -> RegistrationStateResponse:
+    with database.begin():
+        state = service.state(current)
+    response.headers["Cache-Control"] = "no-store"
+    return RegistrationStateResponse(
+        email=state.email,
+        email_verified=state.email_verified,
+        password_required=state.password_required,
+        complete=state.complete,
+        password_min_length=settings.auth_password_min_length,
+    )
+
+
+@router.post(
+    "/registration/password",
+    status_code=204,
+    dependencies=[Depends(require_csrf), Depends(limit_password_setup)],
+)
+def set_registration_password(
+    payload: PasswordSetupRequest,
+    current: RegistrationSession,
+    database: Database,
+    service: Annotated[RegistrationAccessService, Depends(get_registration_access)],
+) -> Response:
+    try:
+        with database.begin():
+            service.set_password(current, payload.password.get_secret_value())
+    except InvalidPassword:
+        raise HTTPException(
+            400, "Invalid password.", headers={"Cache-Control": "no-store"}
+        ) from None
+    except RegistrationConflict:
+        raise HTTPException(
+            409, "A password is already configured.", headers={"Cache-Control": "no-store"}
+        ) from None
+    return Response(status_code=204, headers={"Cache-Control": "no-store"})
 
 
 @router.post(
@@ -571,6 +623,13 @@ def install_auth(application: FastAPI) -> None:
             headers={"Cache-Control": "no-store"},
         )
 
+    def registration_required(request: Request, error: Exception) -> JSONResponse:
+        return JSONResponse(
+            {"detail": "Registration is incomplete.", "code": "registration_incomplete"},
+            status_code=403,
+            headers={"Cache-Control": "no-store"},
+        )
+
     def invalid_session(request: Request, error: Exception) -> JSONResponse:
         response = JSONResponse(
             {"detail": "Invalid or expired session."},
@@ -597,6 +656,7 @@ def install_auth(application: FastAPI) -> None:
 
     application.add_exception_handler(RequestValidationError, invalid_request)
     application.add_exception_handler(InvalidCredentials, invalid_credentials)
+    application.add_exception_handler(RegistrationIncomplete, registration_required)
     application.add_exception_handler(InvalidSession, invalid_session)
     application.add_exception_handler(SessionNotFound, session_not_found)
     for error_type in (

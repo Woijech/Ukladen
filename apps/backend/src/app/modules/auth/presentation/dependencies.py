@@ -21,6 +21,7 @@ from app.modules.auth.application.ports import (
     RateLimiter,
 )
 from app.modules.auth.application.registration import RegistrationService
+from app.modules.auth.application.registration_access import RegistrationAccessService
 from app.modules.auth.application.service import SessionService
 from app.modules.auth.application.verification import EmailVerificationService
 from app.modules.auth.application.verification_request import EmailVerificationRequestService
@@ -39,6 +40,7 @@ from app.modules.auth.infrastructure.session_cache import RedisSessionCache
 from app.modules.auth.infrastructure.token_service import generate_token, hash_token
 from app.modules.users.infrastructure.repository import (
     SqlAlchemyEmailVerifier,
+    SqlAlchemyProfileRepository,
     SqlAlchemyUserAuthentication,
     SqlAlchemyUserRegistration,
 )
@@ -87,6 +89,19 @@ def get_registration(
         settings,
         generate_token=generate_token,
         hash_token=hash_token,
+    )
+
+
+def get_registration_access(
+    request: Request, database: Database, sessions: Sessions, settings: Config
+) -> RegistrationAccessService:
+    return RegistrationAccessService(
+        SqlAlchemyProfileRepository(database),
+        SqlAlchemyCredentialRepository(database),
+        SqlAlchemyRegistrationRepository(database),
+        request.app.state.passwords,
+        sessions,
+        settings,
     )
 
 
@@ -320,7 +335,7 @@ def limit_password_reset_request(
         )
 
 
-def get_current_session(
+def get_registration_session(
     request: Request, database: Database, sessions: Sessions, settings: Config
 ) -> AuthSession:
     token = request.cookies.get(settings.auth_session_cookie_name)
@@ -331,6 +346,19 @@ def get_current_session(
         if not SqlAlchemyUserAuthentication(database).is_active(session.user_id):
             raise InvalidSession("Invalid or expired session.")
     return session
+
+
+RegistrationSession = Annotated[AuthSession, Depends(get_registration_session)]
+
+
+def get_current_session(
+    current: RegistrationSession,
+    database: Database,
+    service: Annotated[RegistrationAccessService, Depends(get_registration_access)],
+) -> AuthSession:
+    with database.begin():
+        service.require_complete(current)
+    return current
 
 
 CurrentSession = Annotated[AuthSession, Depends(get_current_session)]
@@ -355,7 +383,7 @@ def limit_google_link(
 
 
 def limit_email_verification_request(
-    current: CurrentSession,
+    current: RegistrationSession,
     settings: Config,
     limiter: Annotated[RateLimiter, Depends(get_rate_limiter)],
 ) -> None:
@@ -368,6 +396,24 @@ def limit_email_verification_request(
         raise HTTPException(
             429,
             "Too many email verification requests.",
+            headers={"Retry-After": str(retry_after), "Cache-Control": "no-store"},
+        )
+
+
+def limit_password_setup(
+    current: RegistrationSession,
+    settings: Config,
+    limiter: Annotated[RateLimiter, Depends(get_rate_limiter)],
+) -> None:
+    allowed, retry_after = limiter.check(
+        f"password-setup:{current.user_id}",
+        settings.auth_password_change_rate_limit,
+        settings.auth_password_change_rate_window_seconds,
+    )
+    if not allowed:
+        raise HTTPException(
+            429,
+            "Too many authentication attempts.",
             headers={"Retry-After": str(retry_after), "Cache-Control": "no-store"},
         )
 

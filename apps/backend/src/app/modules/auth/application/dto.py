@@ -50,6 +50,17 @@ class VerifiedGoogleIdentity:
     email: str
 
 
+@dataclass(frozen=True)
+class RegistrationState:
+    email: str
+    email_verified: bool
+    password_required: bool
+
+    @property
+    def complete(self) -> bool:
+        return self.email_verified and not self.password_required
+
+
 type OAuthToken = Annotated[
     str, Field(strict=True, min_length=43, max_length=43, pattern=r"^[A-Za-z0-9_-]+$")
 ]
