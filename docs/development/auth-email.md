@@ -1,13 +1,18 @@
 # Authentication Email Delivery
 
 Status: SMTP delivery, fake delivery and disabled mode are implemented.
-The browser email-verification, login, registration and password-reset pages are implemented.
+The browser email-verification, registration-completion, Google mailbox-challenge,
+login, registration and password-reset pages are implemented.
 Automatic delivery retries and durable publication recovery are not implemented.
 
-Registration, verification resend and password-reset requests commit their
+Registration, verification resend, Google mailbox-challenge and password-reset
+requests commit their
 single-use token hashes to PostgreSQL, then enqueue `auth.send_email` through the
-existing `EmailSender` port. The Celery worker sends the message. No schema change,
-external vendor SDK or new Python dependency is required.
+existing `EmailSender` port. The Celery worker sends the message. Google mailbox
+challenges use the separate table added by migration `0021_google_email_confirmations`.
+No external vendor SDK or new Python dependency is required. API and worker must
+both be updated to recognize the `google_link` email kind. See the
+[registration decision table and upgrade guide](google-auth.md).
 
 ## SMTP Setup
 
@@ -32,13 +37,15 @@ Both encrypted modes verify certificates and hostnames. There is no insecure TLS
 fallback. Username/password are optional only for a relay that does not require
 authentication; otherwise provide both. Never commit `.env` or credentials.
 
-`AUTH_EMAIL_VERIFICATION_URL` enables clickable verification and password-reset links in both the
+`AUTH_EMAIL_VERIFICATION_URL` enables clickable verification, reset and Google
+mailbox-challenge links in the
 plain-text and HTML email bodies. Set it to the frontend's public URL ending in
 `/auth/verify-email`. Its origin must appear in `AUTH_ALLOWED_ORIGINS`, with HTTPS
 except for loopback development. Credentials, query strings and existing fragments
 are rejected. Reset emails use the same origin with `/auth/reset-password` in place
-of `/auth/verify-email`; no separate reset URL setting is needed. Existing `.env`
-files need this setting added explicitly. If unset, both email types retain the
+of `/auth/verify-email`; Google challenges use `/auth/confirm-google-link`. No extra
+frontend URL setting is needed. Existing `.env` files need this setting added
+explicitly. If unset, messages retain the
 manual token-only format.
 
 For local HTTP, retain these settings from `.env.example`. Quote the complete JSON
@@ -99,7 +106,7 @@ auth_post() {
     --data-binary @- "$AUTH_BASE/api/v1/auth/$1"
 }
 
-# Expected: HTTP 201. Registration also creates a session.
+# Expected: HTTP 201. The registration session cannot access business APIs yet.
 printf '%s\n%s\n' "$AUTH_EMAIL" "$AUTH_PASSWORD" |
   python3 -c 'import json,sys; print(json.dumps(dict(zip(("email","password"), sys.stdin.read().splitlines()))))' |
   auth_post register
@@ -135,7 +142,8 @@ unset AUTH_VERIFY_TOKEN
 
 Expected: HTTP 204. Repeating confirmation with the same token returns HTTP 400.
 Verification expiry defaults to 24 hours from issuance, including time waiting in
-the queue. The current session remains valid. Before confirming, test resend with:
+the queue. The current session remains valid. Email/password users can then access the app;
+Google users also need their first Ukladen password. Before confirming, test resend with:
 
 ```bash
 printf '{}' | auth_post email-verification/request
@@ -148,8 +156,8 @@ token-only emails are unchanged; request a fresh message before testing links.
 
 ## End-to-End Password Reset
 
-Open `/workspace`, choose **Забыли пароль?**, enter an existing password account's
-email and submit. The same acknowledgement appears for unknown or ineligible accounts.
+Open `/workspace`, choose **Забыли пароль?**, enter your account email and submit.
+The same acknowledgement appears for unknown or ineligible accounts.
 With SMTP and `AUTH_EMAIL_VERIFICATION_URL` configured, the worker sends a link to
 `/auth/reset-password#token=...`. Open it and enter the new password twice (at least
 12 characters by default). The token is removed from the address bar and retained
@@ -161,8 +169,11 @@ must submit the form, which obtains CSRF protection and calls the existing API.
 Success consumes the one-time token, revokes all account sessions and offers a link
 back to sign-in. The old password stops working; the user signs in with the new one.
 Invalid, expired or reused links offer a new email request. Rate-limit, network and
-temporary-service failures preserve the form for retry. Google-only accounts have
-no password to reset and receive no reset message. Previously sent token-only
+temporary-service failures preserve the form for retry. Active passwordless accounts
+can use this flow to create their first password too. For an unverified registration,
+mailbox proof also verifies email and removes prior external identities; all earlier
+sessions are revoked. Already verified accounts retain their linked identities.
+Previously sent token-only
 messages are unchanged; request a fresh message after rebuilding API, worker and web.
 
 For a manual API check, continue in the same Bash session:
@@ -174,7 +185,7 @@ printf '%s' "$AUTH_EMAIL" |
 ```
 
 Expected: HTTP 202. The response is identical for unknown or ineligible accounts;
-only eligible password accounts receive `Reset your Ukladen password` email.
+only active eligible accounts receive `Reset your Ukladen password` email.
 Request and confirmation need CSRF protection but do not require login.
 
 ```bash

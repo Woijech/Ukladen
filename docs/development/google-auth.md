@@ -2,7 +2,8 @@
 
 Status: implemented. Google OIDC uses the backend's opaque sessions, browser-bound
 single-use state, nonce and S256 PKCE. No Google client secret or provider tokens
-are stored in frontend code or browser storage. No new dependency or migration was added.
+are stored in frontend code or browser storage. Registration completion follows
+[ADR 0008](../adr/0008-require-completed-registration.md). No new dependency is required.
 
 ## Configuration
 
@@ -56,37 +57,82 @@ redirects to `/workspace`; cancellation or callback failure redirects to `/auth/
 That page offers retry and password sign-in without exposing provider error data.
 Initial rate-limit, network and service errors stay on the current form for retry.
 
-A verified Google identity creates a new account only when its email is unused.
-An existing password account is never merged automatically based on an email match.
-When account resolution raises `AccountLinkingRequired`, the backend appends only
-the fixed `?reason=account_linking_required` marker to the configured error URL.
-The page displays **Войти и связать Google**, asking for the existing Ukladen email
-and password. One explicit submission obtains CSRF protection, signs in through
-`POST /api/v1/auth/login`, then calls `POST /api/v1/auth/google/link/start` using
-the same entered password and the newly issued session cookie. It navigates to a
-fresh Google flow, where the owner selects the identity to link. Password entry
-happens once; the existing password check runs at both protected endpoints.
-No new endpoint, temporary identity store or database schema was introduced.
+Application access requires an active account, verified canonical email and an
+Ukladen password. A successful authentication may issue a restricted registration
+session; `/workspace` redirects it to `/auth/complete-registration` before displaying
+private data. The backend enforces the same rule on every protected business API,
+including cached sessions. This applies to existing sessions and accounts too.
 
-The marker only selects a form; a forged or repeated query cannot authorize any
-write. No email, provider error, code or state is included in the redirect. Failed
-password login cannot initiate linking. Closing the page, navigation or browser-back
-restoration discards the entered password; browser storage is never used.
-If linking fails after password login, that ordinary Ukladen session remains active;
-the page offers retry, password recovery and return to the workspace.
+| Google sign-in case | Result |
+| --- | --- |
+| Previously linked subject | Authenticate that account; complete missing email proof/password before application access. |
+| New Gmail or validated Workspace identity, unused email | Create the account with verified email; require an Ukladen password, without another email. |
+| New third-party Google email, unused email | Create a restricted account; require an Ukladen password and our own email confirmation. |
+| Unlinked Gmail/Workspace identity, matching active verified account, no prior Google identity | Attach to that account and sign in automatically; preserve password and profile. |
+| Unlinked third-party Google email, matching active verified password account, no prior Google identity | Send a fresh mailbox challenge; attach and sign in only after confirmation in the original browser. |
+| Matching unverified/disabled account, or another Google identity already attached | Do not merge or overwrite; offer password sign-in, completion/recovery or explicit profile linking. |
 
-Already signed-in users can still open the profile menu and choose **Связать с Google**.
-The modal requires the current Ukladen password, obtains fresh CSRF protection and
-POSTs to `/api/v1/auth/google/link/start` with the same JSON response option.
-Select the Google account to link. The callback requires the original active session
-and unchanged password. Existing password/profile data is preserved, and later Google
-login resolves the linked account. An identity owned by another account cannot transfer.
-Passwordless Google-only accounts cannot use this password-confirmed linking flow.
+Authority comes from the validated signed ID token: `@gmail.com`, or boolean true
+`email_verified` with a valid `hd` hosted-domain claim. A Google account registered
+with an external mailbox and no hosted-domain claim needs fresh mailbox proof;
+`email_verified` alone is insufficient. See Google's
+[server-side verification guidance](https://developers.google.com/identity/gsi/web/guides/verify-google-id-token).
+Subject remains the external identity key. Matching uses the normalized canonical
+email; Gmail dot/plus aliases are not merged. Identities never transfer between users.
 
-Modal dismissal, session expiry and identity changes discard the password form.
-Wrong-password failures preserve the session; invalid-session failures return to sign-in.
-Browser diagnostics record only stage/status and a validated request ID, never URLs,
-provider responses, tokens, email or passwords.
+`GET /api/v1/auth/registration` returns only the current session owner's email,
+verification/password requirements and password minimum. The completion page polls
+while waiting for verification, supports bounded resend and logout, and accepts
+matching passwords through `POST /api/v1/auth/registration/password`. This creates
+only a missing credential, revokes other sessions and cannot overwrite a password.
+Pending sessions get HTTP 403 with `code=registration_incomplete` from business APIs;
+their cookie stays available for completion. Expired sessions receive HTTP 401.
+
+For first linking of a third-party Google mailbox, the callback commits a hashed,
+single-use challenge before queuing email. It redirects to the fixed marker
+`?reason=google_email_confirmation_required`. The email opens
+`/auth/confirm-google-link#token=...`; the user explicitly confirms and the page POSTs
+to `/api/v1/auth/google/email/confirm` with CSRF protection. Opening/previewing the
+page cannot link an account. The token is removed from the address bar and kept only
+in mounted memory. The challenge lasts `AUTH_OAUTH_STATE_TTL_SECONDS` (600 by default)
+and requires the original HttpOnly OAuth browser cookie, unchanged canonical email
+and password, and an active account. Replays and wrong browsers fail without linking.
+
+The `?reason=account_linking_required` page retains **Войти и связать Google** as a
+fallback. It authenticates the existing Ukladen password account, then starts a fresh
+explicit Google flow. An incomplete account is first redirected to registration
+completion. Query markers contain no authority, identity, code or state.
+
+Signed-in users can choose **Связать с Google** in the profile menu. The modal requires
+the current password and fresh CSRF protection. The callback checks the original
+active session and unchanged password. A first link to a third-party Google mailbox
+also needs the email challenge, bound to that original session. Password, profile
+and canonical email are preserved even when the explicitly selected Google email
+differs. Closing the form or changing sessions discards its password. Passwordless
+legacy Google users must first complete password setup. Unlinking remains unimplemented.
+
+If someone registered an unverified account with your email, password recovery proves
+mailbox ownership, sets your password, verifies the email and revokes all old sessions.
+It also removes external identities attached while that account was unverified.
+Previously verified accounts retain their linked identities during password recovery.
+
+## Upgrade and runtime
+
+Apply Alembic `0021_google_email_confirmations` before starting the updated API.
+It adds a separate challenge table, without storing provider tokens. Rebuild/recreate
+API, web and the existing Celery worker together: the worker must recognize the new
+`google_link` email kind. No new env settings or secrets are required. The existing
+SMTP settings and `AUTH_EMAIL_VERIFICATION_URL` supply delivery and the frontend origin.
+Disabled/fake delivery cannot deliver real mailbox challenges; trusted Google login
+itself does not require SMTP.
+
+The migration conservatively rechecks legacy passwordless, non-Gmail Google accounts
+whose verification timestamp came directly from initial identity creation and which
+have no consumed Ukladen verification token. It preserves the account and all data;
+a fresh authoritative Workspace callback can prove ownership, otherwise use email
+confirmation/recovery. The downgrade drops the challenge table and does not restore
+unproven email ownership. Existing unverified users need verification; existing
+passwordless users need a password. Deployment does not delete accounts.
 
 ## Troubleshooting
 
@@ -97,10 +143,12 @@ provider responses, tokens, email or passwords.
 - Google testing/audience restrictions: check the project's Audience configuration
   and which users can authorize it. Organization-only clients cannot accept outsiders.
 - `disallowed_useragent`: retry in a normal supported browser instead of an embedded view.
-- A successful Google step followed by `/auth/error`: retry with fresh state and
-  cookies on the original hostname. A pre-existing email leads to
-  `/auth/error?reason=account_linking_required`; enter the Ukladen credentials and
-  use **Войти и связать Google**. This is account confirmation, not a provider outage.
+- `/auth/error?reason=google_email_confirmation_required`: check the Google mailbox
+  and open the fresh link in the same browser before expiry. Starting another Google
+  flow replaces its browser binding; request a fresh challenge if needed.
+- `/auth/error?reason=account_linking_required`: the account is ineligible for safe
+  automatic linking. Use Ukladen sign-in/completion or recovery, then explicit linking.
+- A generic `/auth/error`: retry with fresh state and cookies on the original hostname.
   Inspect safe API diagnostics for provider, state or database failures; never copy
   callback query strings or credentials into logs or support messages.
 - A 503 before Google opens: confirm all five settings are loaded in the running
@@ -117,8 +165,8 @@ docker compose logs --since 15m api | rg 'auth.google_callback_rejected'
 ```
 
 Look at `event`, `error_type` and `request_id`. `AccountLinkingRequired` means the
-Google identity passed validation and its email belongs to an existing unlinked
-account. `InvalidOAuthState` means the browser binding, single-use state or expiry
+Google identity passed validation, but the existing account is ineligible for
+safe automatic linking (for example, unverified or already linked to another subject). `InvalidOAuthState` means the browser binding, single-use state or expiry
 check failed. `ExternalIdentityUnavailable` indicates provider configuration or
 communication failure. See [logging](logging.md) for home-stack options and safe
 diagnostic fields. Do not enable raw HTTP, token or cookie dumps.
@@ -183,3 +231,37 @@ mocked Google identities and never weaken signature, cookie or state checks.
   the owner to enter their credentials and complete Google selection in their browser.
 
 The full non-auth backend suite was not rerun for this continuation slice.
+
+
+## Completed registration verification — 2026-10-16
+
+- Ruff lint and formatting, Pyright and the full backend suite passed:
+  **1498 tests**, with 653 dependency deprecation warnings. Disposable PostgreSQL,
+  Redis and SeaweedFS were enabled; user/application storage was not used by tests.
+- Coverage includes the global business-API registration gate, cached sessions,
+  authoritative/untrusted Google email decisions, verified-account automatic linking,
+  browser-bound mailbox proof, replay/expiry/password/session changes, safe recovery
+  of unverified accounts and conservative legacy migration upgrade/downgrade.
+  All three email kinds pass queue serialization, worker dispatch and redaction checks;
+  the new Google message also checks the private fragment URL and OAuth lifetime.
+- Frontend lint, typecheck, production build and **98 browser tests passed**.
+  Added cases cover desktop/mobile password setup, email gating/resend, completion
+  polling, account/session changes, error recovery and explicit Google mail confirmation.
+  Browser APIs and Google destinations are mocked; backend provider claims are
+  validated with generated signing keys and mocked provider responses.
+- Base and home Compose configurations validate. Only the selected local base API,
+  web and email worker were rebuilt/recreated; migration `0021_google_email_confirmations`
+  was applied before startup. All three services are healthy. The existing local
+  ports/network and account data were retained; the home profile was not activated.
+- Live local checks passed for health/readiness, workspace/new auth pages, privacy
+  headers, anonymous denial, Google JSON start/browser-cookie flags and safe
+  cancellation. Both fixed recovery reasons render their intended screens. The
+  completion and mailbox-challenge pages were visually inspected in the browser.
+- The configured SMTP service accepted a TLS connection and authentication. The
+  probe sent no email; real recipient inbox delivery was not checked in this slice.
+  No new secret, env setting or dependency is needed. Temporary test containers were
+  stopped after verification.
+
+The final owner Google account selection/consent and real inbox confirmation still
+require the owner's browser. This record does not claim a completed human Google
+sign-in; no signature, state, browser-binding, CSRF or email-proof guard was weakened.

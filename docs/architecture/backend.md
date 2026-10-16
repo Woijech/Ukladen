@@ -9,7 +9,10 @@ bootstrap are implemented.
 Celery email queuing, a development fake and configurable SMTP delivery are implemented.
 A Google OIDC identity adapter, account-resolution application service and
 browser-bound Redis OAuth state and Google browser login are implemented.
-Explicit Google linking is implemented. A deployment must supply its SMTP service;
+Safe automatic Google linking, explicit linking and browser-bound mailbox challenges
+are implemented under [ADR 0008](../adr/0008-require-completed-registration.md).
+Verified canonical email and an Ukladen password are mandatory for business access.
+A deployment must supply its SMTP service;
 browser email verification, email/password login/registration and password-reset UI
 are implemented. Durable email publication recovery is not implemented.
 
@@ -165,7 +168,8 @@ are not modified. Disabled mode refuses email queuing and worker delivery with
 `/auth/verify-email` page. It must use an allowed origin, HTTPS except loopback
 development, and no credentials, query or fragment. The worker appends the token
 as `#token=...` to the configured URL for verification, or uses the same origin
-with `/auth/reset-password` for reset emails. If unset, both email types retain
+with `/auth/reset-password` for reset emails and `/auth/confirm-google-link` for
+Google mailbox challenges. If unset, messages retain
 manual token-only delivery. `.env.example` sets the local frontend URL; existing
 deployments must configure their public URL explicitly.
 
@@ -201,6 +205,10 @@ and token hashes are unique. Session and one-time-token hash columns accept only
 64 lowercase hexadecimal characters; expiry must be later than creation.
 Timestamp columns are timezone-aware.
 The initial identity provider is Google; the schema permits only `google` for now.
+Migration `0021_google_email_confirmations` adds separate hashed, expiring Google
+mailbox challenges with canonical email/password/browser binding and an optional
+original session. It conservatively rechecks unproven legacy third-party Google-only
+emails without deleting users or data; see the [upgrade guide](../development/google-auth.md#upgrade-and-runtime).
 
 Alembic gets its URL from application settings. `0001_enable_vector` enables the
 `vector` extension. `0002_auth_persistence` creates users and the four auth tables.
@@ -365,7 +373,8 @@ It returns 201 with only user UUID, session UUID and expiry, plus `Cache-Control
 no-store`; raw tokens and hashes never appear in response JSON. User agents are
 capped at 1024 characters and IP addresses come from the ASGI peer. Registration
 does not require or validate an existing session cookie. New users remain active
-and can log in before email verification.
+and can log in to a restricted registration session before email verification;
+business APIs remain unavailable until registration is complete.
 
 Invalid registration input returns a fixed 400, duplicate accounts a fixed 409,
 and invalid transport a generic 422. Database or commit failure returns a sanitized
@@ -376,8 +385,8 @@ and the route retains 201/cookie delivery. The warning contains only a fixed mes
 user UUID and event, without recipient, token or exception traceback. There is no
 transactional outbox; a failed publication can leave an unverified account without
 delivered verification mail. The authenticated resend endpoint permits a new request.
-SMTP delivery is available through the worker. Configurable verification requirements
-for sensitive features remain unimplemented.
+SMTP delivery is available through the worker. Verification and a password are
+mandatory for all protected application access under ADR 0008.
 
 `EmailVerificationService` accepts the generated 43-character URL-safe token format
 and looks up only its hash through `EmailVerificationRepository`. The SQLAlchemy
@@ -451,7 +460,8 @@ Login verifies a supplied dummy Argon2 hash when no active user/password credent
 is found, reducing the timing difference from skipping password verification.
 HTTP startup generates that hash once with the same password hasher.
 Matching the dummy hash cannot authenticate
-an account without a real credential. Unverified active users can log in.
+an account without a real credential. Unverified active users can log in only to
+complete registration; protected business access returns `registration_incomplete`.
 Successful login returns the existing `IssuedSession` DTO and stores only the
 opaque token hash. It does not publish the new session to Redis.
 
@@ -462,9 +472,9 @@ clear the cookie only after successful revocation and commit. Failed cache
 invalidation rolls back revocation and retains the browser cookie for retry.
 
 `PasswordRecoveryService.request_reset` reuses email normalization and locks the
-active user and existing credential in that order. Malformed/unknown emails,
-disabled users and accounts without password credentials return no delivery data
-and create no token. Eligible accounts receive a new password-reset token with
+active user. Malformed/unknown emails and disabled users return no delivery data
+and create no token. Active passwordless and unverified accounts are eligible too,
+so the mailbox owner can recover an incomplete registration. Eligible accounts receive a new password-reset token with
 only its SHA-256 hash persisted. The service returns `PasswordResetDelivery` for
 internal delivery after commit; its representation hides the raw token. It must
 never be returned from HTTP or logged. No email is sent or queued in this step.
@@ -476,10 +486,12 @@ selects only password-reset rows with `FOR UPDATE` and refreshes their state,
 reusing the email-verification adapter's private lookup and consumption helpers.
 The service then locks the active user and existing credential, checks expiry
 after all locks are acquired, and consumes the token through the domain method.
-It updates the credential's hash, `password_updated_at` and `updated_at`, preserves
-`created_at`, marks the token used and revokes all of that user's sessions through
-`SessionService`. It does not create credentials, verify email, change user status
-or link external identities. Invalid/expired/used/wrong-type tokens and ineligible
+It updates the credential's hash, `password_updated_at` and `updated_at`, preserving
+`created_at`, or creates the first credential for a passwordless account. Mailbox
+proof verifies an unverified canonical email and removes identities attached to
+that unverified registration; already verified accounts retain their identities.
+It marks the token used and revokes all sessions through `SessionService`, including
+cached sessions. It does not change user status or attach external identities. Invalid/expired/used/wrong-type tokens and ineligible
 accounts produce the same `Invalid or expired token.` error.
 
 All reset adapters share one SQLAlchemy session and caller-owned transaction.
@@ -609,7 +621,10 @@ when present, constant-time nonce equality and a strictly boolean true
 library helper. Invalid claims/signatures become a fixed `InvalidExternalIdentity`
 without exposing provider content or chained exception text.
 
-`VerifiedGoogleIdentity` contains only subject and normalized email. Provider access,
+`VerifiedGoogleIdentity` contains subject, normalized email and an authority flag.
+The flag requires `@gmail.com`, or validated `email_verified=true` and a valid `hd`
+claim. Third-party Google emails without `hd` require our own fresh email proof;
+the default flag is false. Provider access,
 refresh and ID tokens are neither returned nor persisted/logged. Public discovery and
 JWKS documents are cached per adapter using monotonic expiry, respecting max-age,
 Age, no-store and no-cache, with a one-hour ceiling. Expired data is refetched and
@@ -646,24 +661,43 @@ cookie (Secure may be disabled for local development), consume state before
 provider exchange/account mutation, and require restarting login after a
 consumed-state provider failure.
 
+## Completed registration
+
+[ADR 0008](../adr/0008-require-completed-registration.md) requires an active account,
+verified canonical email and an Ukladen password for application access. The shared
+`CurrentSession` dependency reads canonical readiness even on Redis cache hits.
+Incomplete registration returns 403 with `code=registration_incomplete`, retaining
+the cookie. `RegistrationSession` permits only state, missing-password setup,
+verification resend and logout. `GET /api/v1/auth/registration` exposes that owner's
+state and configured password minimum. CSRF-protected
+`POST /api/v1/auth/registration/password` locks the user and original session,
+creates only a missing credential and revokes other sessions; existing passwords
+cannot be replaced through this route. Password setup uses the existing per-user
+password-change rate limit. See [registration/Google flows](../development/google-auth.md)
+for the decision table, recovery, migration and deployment requirements.
+
 ## Google account resolution
 
-`GoogleLoginService` accepts only `VerifiedGoogleIdentity`, after provider and
-browser-state validation. It uses the Google subject to resolve an existing
-identity through `GoogleIdentityRepository`; linked users must be active under
-the canonical users-module row lock. The Google email cannot replace their
-Ukladen email, verification status, credentials or profile.
+`GoogleLoginService` accepts only a validated `VerifiedGoogleIdentity`. Existing
+linked subjects resolve their active canonical user under a row lock; they cannot
+replace email, password or profile. A fresh authoritative claim may verify a matching
+legacy passwordless account whose ownership the migration rechecked.
 
-For an unlinked subject with an unused normalized email, the service creates a
-user through the users-module registration port, marks the email verified,
-inserts a Google identity and creates an ordinary opaque session. No password
-credential or email-verification token is created. All adapters share one caller-owned
-transaction; callers must roll back on any failure and commit before delivering
-the returned `IssuedSession`. Session creation does not publish Redis data.
+An unused normalized email creates an account, Google identity and opaque session
+in one transaction. Only authoritative Gmail/Workspace claims verify its email.
+No credential is created; the session remains restricted until password setup and,
+for third-party Google email, our own email proof.
 
-An existing email raises `AccountLinkingRequired`, including password, Google-only
-and disabled accounts. Explicit password re-authentication and linking use the
-separate flow below; normal Google login never implicitly links.
+An unlinked authoritative identity can attach to an active, already verified account
+with the same normalized canonical email and no prior Google identity. Unverified,
+disabled or already differently linked accounts raise `AccountLinkingRequired`.
+`GoogleSignInService` handles a non-authoritative collision through a fresh mailbox
+challenge for an eligible verified password account. The hashed challenge is stored
+in `auth_google_email_confirmations`; confirmation is single-use, browser-bound,
+expiry-limited and rechecks the canonical account and credential fingerprint.
+Only confirmation attaches the identity and creates a session. Original explicit
+link contexts also revalidate their original session. SMTP publication follows commit;
+a publication failure does not create a linked identity/session.
 The existing email and provider/subject uniqueness constraints arbitrate concurrent
 creation. After an email conflict, the service rechecks the subject so two first
 logins for the same identity can authenticate the winning account. A subject conflict
@@ -688,7 +722,9 @@ by the next initiation. They do not expose provider/error input. Rate-limit
 failures return 429 with Retry-After; unavailable configuration/protection returns 503.
 
 Account-resolution `AccountLinkingRequired` uses the configured error URL with the
-single fixed marker `?reason=account_linking_required`. Other failures keep the
+fixed marker `?reason=account_linking_required`. A prepared mailbox challenge uses
+`?reason=google_email_confirmation_required`, refreshes the OAuth browser cookie for
+the challenge lifetime and queues email after commit. Other failures keep the
 unmodified configured URL. Provider input, identity data and exception messages
 never enter either destination. This marker selects password-confirmed frontend
 continuation; it carries no authority and cannot link an account by itself.
@@ -747,8 +783,9 @@ preserved, including when the explicitly selected Google email differs.
 Logout/revocation, expiry, switching sessions, disabling the user or changing/resetting
 the password invalidates the pending link. Callback checks PostgreSQL even if Redis
 still contains a cached session. State is single-use; failures require fresh initiation.
-Google-only users cannot use this password re-authentication flow. Attaching other
-identities to Google-only accounts and unlinking are outside the current scope.
+Passwordless users must first complete registration. A first non-authoritative
+Google link also requires fresh mailbox proof while retaining the original session
+and password binding. Unlinking is outside the current scope.
 
 `GoogleLinkRequest` accepts only `current_password` as a redacted SecretStr;
 caller-supplied user/identity IDs are rejected. Linking requires session cookies
@@ -785,7 +822,10 @@ an identity is attached only after the fresh verified Google callback.
 | `DELETE /api/v1/calendar/events/{event_id}` | Deletes an owned event; returns 204 or 404. |
 | `POST /api/v1/auth/google/link/start` | Re-authenticate a password account and initiate explicit Google linking. |
 | `GET /api/v1/auth/google/start` | Start Google login with browser-bound state. |
-| `GET /api/v1/auth/google/callback` | Verify Google identity and commit an ordinary session, then redirect. |
+| `GET /api/v1/auth/google/callback` | Verify Google identity; commit a session or mailbox challenge, then redirect. |
+| `POST /api/v1/auth/google/email/confirm` | Confirm a browser-bound mailbox challenge, attach Google and issue a session after commit. |
+| `GET /api/v1/auth/registration` | Read the restricted session owner's completion state and password minimum. |
+| `POST /api/v1/auth/registration/password` | Set only a missing password with CSRF and per-user rate limiting; revoke other sessions. |
 | `GET /api/health/live` | Always returns 200 while the API can serve requests. |
 | `GET /api/health/ready` | Checks PostgreSQL, Redis and SeaweedFS; returns 200 or 503. |
 | `GET /api/docs` | Interactive Swagger UI. |
@@ -849,8 +889,8 @@ recover broker loss and interrupted processing. Cleanup retries remain in Postgr
 See [reminders](../development/reminders.md) and [materials](../development/materials.md).
 Redis does not hold authoritative user data.
 
-The auth application owns an `EmailSender` port with `send_email_verification`
-and `send_password_reset` methods. Both accept internal recipient/token data and
+The auth application owns an `EmailSender` port with `send_email_verification`,
+`send_password_reset` and `send_google_link_confirmation` methods. They accept internal recipient/token data and
 return no message content. Callers must commit token creation before sending.
 `CeleryEmailSender` validates the recipient with existing email normalization and
 the 43-character URL-safe token format, then queues `auth.send_email`. It refuses
@@ -896,9 +936,11 @@ the original request. Configured verification/reset links appear in plain-text a
 alternatives; the token is a fragment rather than a server-visible query string.
 The frontend reads and removes it, obtains CSRF protection and calls the existing
 POST confirmation API. Verification submits automatically; password reset requires
-explicit new-password form submission. GET previews cannot perform either action.
+explicit new-password form submission. Google mailbox challenges also require an
+explicit confirmation click, original OAuth browser binding and CSRF. Their lifetime
+uses `AUTH_OAUTH_STATE_TTL_SECONDS`. GET previews cannot perform these actions.
 The frontend does not persist tokens or change confirmation rules. Without a
-configured URL, both email types remain token-only.
+configured URL, messages remain token-only.
 
 Each job uses a new timeout-bounded SMTP connection, upgrades with STARTTLS before
 authentication or uses implicit TLS, and verifies certificates and hostnames using
@@ -1019,12 +1061,12 @@ or weak passwords. Cache-failure rollback preserves the password, token, session
 and cookie; confirmation succeeds on retry without login. Native Redis checks
 verify the configured limit and window using a unique peer key removed afterward.
 
-Email-delivery tests cover both message types, recipient normalization, explicit
+Email-delivery tests cover all three message kinds, recipient normalization, explicit
 fake/disabled modes, refusal of protocol 1, safe queue options, bounded fake
 recording/deduplication, registration of the Celery task and ignored results.
 Eager task execution checks fixed settings/validation/sender errors and redaction
 of malformed jobs in Celery failure logs and tracebacks. With `AUTH_TEST_REDIS_URL`
-set, the integration test publishes both message types through native Celery/Kombu,
+set, the integration test publishes all three message kinds through native Celery/Kombu,
 reads them from a real Redis queue and executes the registered task against the
 fake. A unique Redis key prefix isolates all broker state; the test acknowledges
 messages and deletes its queue and prefixed keys afterward. Tests send no external
@@ -1120,3 +1162,12 @@ retained trash/conversions, table queries, bound-date calendar reads/moves, mixe
 source permissions, migration preservation and snapshot compatibility. See the
 [database guide](../development/databases.md) for incremental verification history.
 The running application database was not migrated; frontend code was not changed.
+
+
+Completed-registration verification (2026-10-16): Ruff, formatting, Pyright and the
+full PostgreSQL/Redis/S3-enabled suite passed (**1498 tests**, 653 dependency warnings).
+The frontend passed lint/typecheck/build and 98 browser tests. Base/home Compose
+configuration passed; local API/web/email worker and migration 0021 were updated.
+See [the dated auth record](../development/google-auth.md#completed-registration-verification--2026-10-16)
+for coverage, runtime checks and live Google/inbox limitations. Earlier dated
+verification records above retain their original scope and counts.

@@ -1,7 +1,7 @@
 # ADR 0008: Require Completed Registration
 
 Date: 2026-10-16
-Status: accepted by the repository owner. Implementation in progress.
+Status: accepted by the repository owner and implemented.
 
 ## Decision
 

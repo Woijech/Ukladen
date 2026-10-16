@@ -110,7 +110,10 @@ Google settings together; otherwise leave them commented out.
 Use `https://ukladen.app/workspace` as `FRONTEND_AUTH_SUCCESS_URL` and
 `https://ukladen.app/auth/error` as `FRONTEND_AUTH_ERROR_URL`. See
 [Google sign-in setup](../development/google-auth.md) for account linking,
-verification limits and Google Console troubleshooting.
+verification limits and Google Console troubleshooting. Registration completion
+requires verified email and an Ukladen password. Apply migration
+`0021_google_email_confirmations` and update API/web/worker together; the existing
+SMTP and verification URL settings also deliver Google mailbox challenges.
 
 ## 4. Start and verify
 

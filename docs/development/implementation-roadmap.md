@@ -25,7 +25,7 @@ existing services just to match target vocabulary. A package marker is not a fea
 | Area | Current implementation | Contract |
 | --- | --- | --- |
 | Foundation | FastAPI/Next.js shell, Compose, CI, PostgreSQL/pgvector, Redis, Celery, S3 | [Architecture overview](../architecture/overview.md) |
-| Auth | Browser sessions, password/email flows, Google login/linking, SMTP/fake delivery | [Backend](../architecture/backend.md), [email](auth-email.md) |
+| Auth | Browser sessions, mandatory verified email/password completion, safe Google linking/mailbox challenges, SMTP/fake delivery | [Backend](../architecture/backend.md), [email](auth-email.md) |
 | User | Profile/timezone/locale and private avatar operations | [Profile](user-profile.md), [avatar](user-avatar.md) |
 | Academics | Group/subgroup selection and public catalogues/context | [Academic profile](academic-profile.md) |
 | University reads | Verified public directory/schedule/announcement reads | [University API](university-api.md) |

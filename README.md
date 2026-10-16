@@ -209,7 +209,10 @@ monolith, Next.js shell, PostgreSQL 18/pgvector, Redis, Celery worker and Beat,
 SeaweedFS object storage, Traefik, Docker Compose and GitHub Actions CI.
 The backend authentication module is implemented: email/password registration,
 verification, login/logout/logout-all, password reset/change, session management,
-Google OIDC browser login and explicit account linking with password re-authentication.
+Google OIDC browser login, safe automatic linking to verified matching accounts,
+and explicit linking with password re-authentication. Verified email and an Ukladen
+password are mandatory before protected application access; see
+[registration policy](docs/adr/0008-require-completed-registration.md).
 Browser authentication uses opaque HttpOnly sessions, PostgreSQL storage, Redis
 caching/rate limiting and CSRF protection. Celery queues email after commit using
 a development fake or a configurable SMTP adapter. Login, registration and browser
@@ -291,7 +294,9 @@ returns 400, duplicate emails 409, invalid transport 422 and database failures 5
 none issues a session cookie. Disabled email delivery returns 503 before creation.
 A queue failure after commit retains 201 and the session, with safe metadata-only
 logging; the account remains unverified. There is no durable publication recovery.
-Users may log in before verification and request another verification message.
+Users may log in only to complete verification and request another message until
+registration is complete. `/auth/complete-registration` guides password setup and
+verification; business APIs reject incomplete accounts with `registration_incomplete`.
 
 The Google adapter is configured with `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 and `GOOGLE_REDIRECT_URI`; leave all three unset to disable it, or configure all
@@ -299,10 +304,15 @@ three together. Redirect URIs require HTTPS except for local loopback developmen
 and cannot contain credentials, query strings or fragments. `.env.example` provides
 commented placeholders; existing `.env` files are not changed. The adapter uses
 Google discovery/JWKS data, PKCE and signed ID-token validation, returning only the
-verified Google subject and normalized email. `PyJWT[crypto]` supplies RSA validation;
+verified Google subject, normalized email and email-authority flag.
+`PyJWT[crypto]` supplies RSA validation;
 Ukladen browser authentication continues to use opaque server-side sessions.
-Account resolution authenticates linked subjects, creates verified Google-only
-users for unused emails, and requires explicit linking when an email already exists.
+Account resolution authenticates linked subjects and creates restricted registrations
+for unused emails. Gmail/validated Workspace proves email; external Google mailboxes
+require our own email proof. New Google users must set an Ukladen password.
+An unlinked authoritative identity signs into the matching active verified account
+automatically if no other Google identity is attached. Other eligible first links
+require fresh mailbox proof or explicit password-confirmed linking.
 It preserves existing accounts and commits user, identity and session together.
 Browser-bound Redis OAuth state is implemented with single-use consumption, nonce
 and S256 PKCE. `AUTH_OAUTH_STATE_TTL_SECONDS` defaults to 600; state and browser
@@ -319,9 +329,10 @@ Start redirects to Google; callback commits the ordinary session before setting
 its cookie and redirecting to the configured success page. Failures redirect to
 the configured error page and preserve existing sessions.
 Login/registration now include a Google button, `/auth/error` provides recovery,
-and profile menus support explicit linking with password confirmation. An existing
-unlinked email now opens **Войти и связать Google** directly: enter Ukladen credentials
-once and select Google again to complete linking, preserving the original account.
+and profile menus support explicit linking with password confirmation. The fallback
+**Войти и связать Google** form remains available for accounts ineligible for automatic
+linking. Third-party mailbox challenges use a single-use, browser-bound email link
+and an explicit confirmation click. Existing profiles/passwords are preserved.
 Use `/workspace` for the success destination and `/auth/error` for failures;
 see [Google setup and troubleshooting](docs/development/google-auth.md).
 
@@ -369,7 +380,10 @@ Password-reset tokens can be confirmed with
 `POST /api/v1/auth/password-reset/confirm`, sending `token` and `new_password` in
 JSON with the same CSRF protection. Login is unnecessary. Success returns an empty
 204 after updating the password, consuming the token and revoking all of the
-account's sessions; it clears the browser session cookie. The new password uses
+account's sessions; it clears the browser session cookie. Active passwordless accounts
+can create their first password this way. Recovery of an unverified registration
+also verifies its email and removes prior external identities; verified accounts
+retain their identities. The new password uses
 the configured registration length policy. Invalid tokens and policy failures
 return fixed 400 errors; malformed request bodies return a generic 422. The
 default limit is five attempts per client address per 60-second window.

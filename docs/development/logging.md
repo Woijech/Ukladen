@@ -36,8 +36,11 @@ are omitted. Avatar cleanup/recovery failures are visible without object keys.
 Authentication redirects log rejection categories without OAuth query data.
 For Google callbacks, `auth.google_callback_rejected` with
 `error_type=AccountLinkingRequired` means identity verification succeeded but the
-email belongs to an existing unlinked account. The frontend provides password-confirmed
-continuation; this category does not mean the Google client configuration is broken.
+existing account is ineligible for safe automatic linking. The frontend offers
+password sign-in/completion/recovery; this does not mean the Google client is broken.
+Mailbox-challenge queue failures use `auth.google_email_queue_failed` without
+recipient/token payloads. HTTP 403 `registration_incomplete` means email/password
+completion is required; it preserves the registration cookie.
 Use `docker compose logs --since 15m api` or
 `docker compose logs -f --tail 100 api` to inspect the API container's stderr.
 See [Google troubleshooting](google-auth.md) for the continuation and other categories.

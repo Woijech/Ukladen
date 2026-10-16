@@ -446,7 +446,11 @@ Browser authentication uses HttpOnly cookies, PostgreSQL as the canonical sessio
 store and Redis as a session cache. Only session token hashes are persisted.
 [ADR 0002](docs/adr/0002-use-opaque-browser-sessions.md) records this decision.
 Status: backend authentication is implemented, including email/password flows,
-Google OIDC login and explicit linking with password re-authentication. Authentication
+Google OIDC login, safe automatic linking and explicit password-confirmed linking.
+[ADR 0008](docs/adr/0008-require-completed-registration.md) requires verified canonical
+email and an Ukladen password before application access. Google Gmail/Workspace
+proof replaces our verification email; third-party Google email requires fresh
+mailbox proof. Existing unverified accounts are never silently claimed. Authentication
 email delivery uses the existing Celery worker and a configurable SMTP adapter;
 the deployment supplies its SMTP service. Browser email verification and email/password
 login/registration, Google login/linking and email password recovery UI are implemented. See
