@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.logging import log_failure
-from app.modules.auth.application.dto import IssuedSession
+from app.modules.auth.application.dto import GoogleAuthorization, IssuedSession
 from app.modules.auth.application.google_link import GoogleLinkService
 from app.modules.auth.application.google_login import GoogleLoginService
 from app.modules.auth.application.google_oauth import GoogleOAuthService
@@ -74,6 +74,7 @@ from app.modules.auth.presentation.schemas import (
     EmailVerificationRequest,
     EmailVerificationRequestResponse,
     EmailVerificationResendRequest,
+    GoogleAuthorizationResponse,
     GoogleCallbackRequest,
     GoogleLinkRequest,
     LoginRequest,
@@ -135,31 +136,42 @@ def clear_oauth_cookie(response: Response, settings: Config) -> None:
     )
 
 
-@router.get(
-    "/google/start", dependencies=[Depends(require_google_navigation), Depends(limit_google_start)]
-)
-def google_start(
-    settings: Config, service: Annotated[GoogleOAuthService, Depends(get_google_oauth)]
-) -> RedirectResponse:
-    authorization = service.start()
-    response = RedirectResponse(
-        authorization.url,
-        status_code=303,
-        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
-    )
+def google_authorization_response(
+    request: Request, authorization: GoogleAuthorization, settings: Config
+) -> Response:
+    headers = {"Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "Vary": "Accept"}
+    if request.headers.get("accept") == "application/json":
+        response = JSONResponse(
+            GoogleAuthorizationResponse(authorization_url=authorization.url).model_dump(),
+            headers=headers,
+        )
+    else:
+        response = RedirectResponse(authorization.url, status_code=303, headers=headers)
     set_oauth_cookie(response, authorization.browser_token, settings)
     return response
 
 
+@router.get(
+    "/google/start", dependencies=[Depends(require_google_navigation), Depends(limit_google_start)]
+)
+def google_start(
+    request: Request,
+    settings: Config,
+    service: Annotated[GoogleOAuthService, Depends(get_google_oauth)],
+) -> Response:
+    return google_authorization_response(request, service.start(), settings)
+
+
 @router.post("/google/link/start", dependencies=[Depends(require_csrf), Depends(limit_google_link)])
 def google_link_start(
+    request: Request,
     payload: GoogleLinkRequest,
     current: CurrentSession,
     database: Database,
     settings: Config,
     oauth: Annotated[GoogleOAuthService, Depends(get_google_oauth)],
     links: Annotated[GoogleLinkService, Depends(get_google_link)],
-) -> RedirectResponse:
+) -> Response:
     if settings.auth_cookie_samesite != "lax":
         raise ExternalIdentityUnavailable("External identity provider is unavailable.")
     try:
@@ -169,14 +181,7 @@ def google_link_start(
         raise HTTPException(
             401, "Invalid current password.", headers={"Cache-Control": "no-store"}
         ) from None
-    authorization = oauth.start(context)
-    response = RedirectResponse(
-        authorization.url,
-        status_code=303,
-        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
-    )
-    set_oauth_cookie(response, authorization.browser_token, settings)
-    return response
+    return google_authorization_response(request, oauth.start(context), settings)
 
 
 @router.get("/google/callback", dependencies=[Depends(limit_google_callback)])

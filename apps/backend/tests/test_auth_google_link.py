@@ -63,10 +63,21 @@ def seed(engine: Engine, password_hash: str, email: str = IDENTITY.email):
     return user_id
 
 
-def start_link(client: TestClient, password: str = PASSWORD) -> str:
-    response = client.post(PATH, headers=csrf_headers(client), json={"current_password": password})
-    assert response.status_code == 303
-    return parse_qs(urlsplit(response.headers["location"]).query)["state"][0]
+def start_link(client: TestClient, password: str = PASSWORD, *, json_response: bool = False) -> str:
+    headers = csrf_headers(client)
+    if json_response:
+        headers["Accept"] = "application/json"
+    response = client.post(PATH, headers=headers, json={"current_password": password})
+    if json_response:
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == "no-store"
+        assert response.headers["referrer-policy"] == "no-referrer"
+        assert "location" not in response.headers and password not in response.text
+        url = response.json()["authorization_url"]
+    else:
+        assert response.status_code == 303
+        url = response.headers["location"]
+    return parse_qs(urlsplit(url).query)["state"][0]
 
 
 def service(
@@ -90,16 +101,18 @@ def service(
     )
 
 
+@pytest.mark.parametrize("json_response", [False, True])
 def test_live_explicit_link_preserves_password_account_and_supports_google_login(
     live_client: TestClient,
     concurrent_engine: Engine,
     google_settings: Settings,
     password_hash: str,
     provider: Mock,
+    json_response: bool,
 ) -> None:
     user_id = seed(concurrent_engine, password_hash)
     original = browser_login(live_client)
-    state = start_link(live_client)
+    state = start_link(live_client, json_response=json_response)
     response = live_client.get(CALLBACK, params={"state": state, "code": "test-code"})
     assert response.headers["location"] == ORIGIN + "/success"
     new_token = live_client.cookies.get(google_settings.auth_session_cookie_name)

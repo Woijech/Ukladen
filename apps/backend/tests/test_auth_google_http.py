@@ -104,6 +104,7 @@ def client(
         yield client
 
 
+@pytest.mark.parametrize("json_response", [False, True])
 def test_start_and_committed_callback_cookie_flags(
     client: TestClient,
     google_settings: Settings,
@@ -111,11 +112,21 @@ def test_start_and_committed_callback_cookie_flags(
     issued: IssuedSession,
     accounts: Mock,
     database: Mock,
+    json_response: bool,
 ) -> None:
-    response = client.get(START)
-    assert response.status_code == 303 and response.headers["location"].startswith(
-        "https://accounts.google.com/"
-    )
+    response = client.get(START, headers={"Accept": "application/json"} if json_response else {})
+    if json_response:
+        assert response.status_code == 200
+        assert response.json() == {"authorization_url": oauth.start.return_value.url}
+        assert "location" not in response.headers
+        assert oauth.start.return_value.browser_token not in response.text
+    else:
+        assert response.status_code == 303 and response.headers["location"].startswith(
+            "https://accounts.google.com/"
+        )
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["referrer-policy"] == "no-referrer"
+    assert response.headers["vary"] == "Accept"
     cookie = SimpleCookie(response.headers["set-cookie"])[google_settings.auth_oauth_cookie_name]
     assert cookie["secure"] and cookie["httponly"] and cookie["samesite"] == "lax"
     assert cookie["path"] == "/" and not cookie["domain"] and cookie["max-age"] == "600"
@@ -199,7 +210,7 @@ def test_invalid_queries_stop_before_oauth(client: TestClient, oauth: Mock, quer
 def test_start_rejects_cross_site_navigation(
     client: TestClient, oauth: Mock, headers: dict[str, str]
 ) -> None:
-    assert client.get(START, headers=headers).status_code == 403
+    assert client.get(START, headers=headers | {"Accept": "application/json"}).status_code == 403
     oauth.start.assert_not_called()
 
 

@@ -24,6 +24,10 @@ class GoogleLinkRequest(BaseModel):
     current_password: SecretStr = Field(min_length=1, max_length=1024, repr=False)
 
 
+class GoogleAuthorizationResponse(BaseModel):
+    authorization_url: str = Field(repr=False)
+
+
 class RegistrationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
