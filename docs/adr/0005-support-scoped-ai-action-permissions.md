@@ -34,3 +34,13 @@ this documentation change. Private IIS remains future-only and outside current A
 References: [AI architecture](../architecture/ai.md),
 [decision register](../product/open-questions.md),
 [implementation roadmap](../development/implementation-roadmap.md).
+
+## Policy clarification (2026-10-21)
+
+Under owner delegation, the initial automatic-write policy is new-page/new-task
+creation in selected scopes, still requiring actual operation/target/parameter/count/
+expiry/trigger grants. Existing edits and event/session moves/deletes stay confirmed.
+The policy is not a grant. Confirmed multi-action plans must apply atomically after
+revalidation; changed preconditions apply nothing and require a new preview.
+See [ADR 0009](0009-specify-provider-neutral-ai-orchestration.md) and the current
+[product specification](../product/ai.md). No runtime is implemented by this clarification.

@@ -1,6 +1,6 @@
 # Workspace and Calendar Requirements
 
-Updated: 2026-10-16.
+Updated: 2026-10-21.
 Status: target requirements. Calendar, nested pages with flat typed blocks and page/calendar
 links, collections/tags and saved calendar views are implemented, backend only; see [notes](../development/notes.md),
 [relations](../development/relations.md), [workspace](../development/workspace.md)
@@ -173,8 +173,12 @@ The user asks about tomorrow, searches a lab note or requests a planning change.
 - Retrieved page/material text cannot grant tool permissions or override instructions.
 - AI reports unimplemented tools, stale sources and unsupported IIS capabilities.
 
-AI is not implemented. Execution modes are confirmed; remaining policy is Q-04a.
-See [AI architecture](../architecture/ai.md).
+AI runtime is not implemented. The [AI specification](ai.md) records the 2026-10-21
+decisions: independent tasks, labeled effort estimates, explicit work windows,
+protected personal events and all-or-nothing confirmed plans. Knowledge fallback
+distinguishes missing local evidence from general/web information. Owner instructions
+do not grant permissions; proactive work is opt-in. Q-04a now covers concrete account
+and grant activation inputs. See [AI architecture](../architecture/ai.md).
 
 ## 3. Data lifecycle and editing
 

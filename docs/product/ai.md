@@ -1,140 +1,252 @@
-# AI Assistant Scenarios and Usage Analytics
+# AI Assistant Product Specification
 
-Updated: 2026-10-17.
-Status: planned; no AI runtime, AI UI, semantic index or usage dashboard is implemented.
-This is the detailed AI product specification linked from [the product overview](overview.md).
-Delivery order belongs to [the implementation plan](../development/ai-implementation-plan.md);
-connection instructions belong to [the setup runbook](../development/ai-setup.md).
-Preserve [WS-10](workspace.md#ws-10-ai-understands-and-acts-on-the-workspace) and
-[ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md).
+Updated: 2026-10-21.
+Status: agreed target specification; AI runtime, tools, chat UI, semantic retrieval,
+planning and usage analytics are not implemented. AI-00 specifies the work; it does
+not enable integrations. This is the single AI specification linked from
+[the overview](overview.md). See [delivery](../development/ai-implementation-plan.md),
+[architecture](../architecture/ai.md), [tool contracts](../development/ai-tool-contracts.md)
+and [setup](../development/ai-setup.md).
 
-## 1. Selected development baseline
+## 1. Goal and confirmed scope
 
-The owner requested free Groq calls, interchangeable providers, local or free API
-embeddings, an editable scenario catalog, staged setup instructions and AI usage analytics.
-The host is the owner's laptop in Switzerland with 16 GiB RAM and a laptop RTX 4060.
+Connect the user's knowledge, unfinished work and available time through one assistant:
+ordinary chat, grounded answers, note editing, task extraction, feasible schedules,
+confirmed actions, scoped automatic creates, personal instructions and opt-in proactive
+work. Academic examples never make an academic profile mandatory for personal use.
 
-The plan selects Groq `openai/gpt-oss-120b`, with `openai/gpt-oss-20b` for explicit
-comparison, and local CPU `intfloat/multilingual-e5-small` embeddings. These are
-development choices, not implemented integrations or paid-service authorization.
-Use synthetic content until the external-content policy has been recorded.
-Scoped automatic actions remain a confirmed future capability with unresolved limits.
+The owner's draft and decisions on 2026-10-21 select the full target below. Stages
+express dependencies, not permission to omit selected features. DeepSeek, GLM and
+other model families are examples of operator offerings, not mandatory providers,
+verified model IDs or authorization to create accounts/spend money. The earlier
+Groq-only baseline is superseded. LLM, embeddings and web search are separate adapters.
 
 ## 2. Editable scenario catalog
 
-Every row below is **not implemented**. "Selected" means included in this delivery
-plan, not enabled in today's application. IDs remain stable when names/examples change.
+Every row is not implemented. Existing IDs are preserved. Selected means target
+scope, not a currently enabled tool. Database querying remains separately optional.
 
-| ID | Selection / stage | User request | Expected result and boundary |
+| ID | Selection / dependency | Request | Expected result and boundary |
 | --- | --- | --- | --- |
-| AI-UC-01 | Selected / AI-03 | What is on my calendar tomorrow? | Resolved events in the owner's timezone, with source freshness; no mutation |
-| AI-UC-02 | Selected / AI-03 | Find my note about database normalization | Authorized lexical results and usable source references |
-| AI-UC-03 | Selected / AI-03 | Summarize this selected page | Bounded current page content, citations and an explicit partial-content warning when needed |
-| AI-UC-04 | Selected / AI-06 | Explain this topic using these materials | Cited retrieval from selected ready sources; unsupported answers are identified |
-| AI-UC-05 | Optional / after AI-06 | Compare two complete documents | Coverage-aware processing of both documents; retrieved snippets alone do not establish complete coverage |
-| AI-UC-06 | Optional / after AI-06 | Ask me questions about this lecture | Questions and feedback in chat; saving a page is a separate confirmed action |
-| AI-UC-07 | Selected / AI-07 | Create a personal event tomorrow at 18:00 | Exact dated proposal, timezone, confirmation and normal event validation; no free-time claim |
-| AI-UC-08 | Selected / AI-07 | Save this outline as a new page | Preview exact title/blocks, confirm, create one independent page |
-| AI-UC-09 | Selected / AI-07 | Remind me before this event | Resolve an accessible event, show exact trigger, confirm one reminder |
-| AI-UC-10 | Optional / after AI-07 | Move this event or replace this page section | Before/after preview and expected versions; whole-document block limits still apply |
-| AI-UC-11 | Optional / after AI-03 | Show matching records in this database | Existing typed property/filter/view contracts; no arbitrary SQL or schema mutation |
-| AI-UC-12 | Deferred / requires P-06 | Find free time and schedule my tasks | Availability/conflict/task services must exist before advertising this scenario |
-| AI-UC-13 | Deferred / AI-08 | Automatically create pages in a selected collection | A separately chosen grant, operation scope, limits, expiry/revocation and explicit trigger |
-| AI-UC-14 | Selected / AI-04 | Show how I use AI | Owner-only usage page, run details and honest cost/usage completeness |
+| AI-UC-01 | Selected / AI-03 | What is on my calendar tomorrow? | Resolved events, profile timezone, overrides and freshness |
+| AI-UC-02 | Selected / AI-03, AI-06 | Find my note about normalization | Authorized lexical/hybrid results and real source references |
+| AI-UC-03 | Selected / AI-03 | Summarize this page | Current content, citations and explicit read coverage |
+| AI-UC-04 | Selected / AI-06 | Explain this lab using my materials | Retrieved evidence; distinguish explanations and unsupported claims |
+| AI-UC-05 | Selected / AI-06 | Compare these complete documents | Coverage-aware processing; top-k snippets do not prove completeness |
+| AI-UC-06 | Selected / AI-06 | Ask me questions about this lecture | Questions/feedback; saving results is a separate action |
+| AI-UC-07 | Selected / AI-07 | Create an event tomorrow at 18:00 | Exact date/time, preview and confirmed personal event |
+| AI-UC-08 | Selected / AI-07 | Save this outline as a page | Exact title/blocks and one confirmed independent page |
+| AI-UC-09 | Selected / AI-07 | Remind me before this event | Authorized target, exact trigger and confirmed reminder |
+| AI-UC-10 | Selected / AI-07 | Improve this note or explicitly move this personal event | Before/after preview, current versions and exact confirmation |
+| AI-UC-11 | Optional / existing workspace services | Show matching database records | Typed filters/properties; no SQL or schema mutation |
+| AI-UC-12 | Selected / P-06, AI-10 | Fit my preparation before Friday | Deterministic feasible sessions and confirmed atomic application |
+| AI-UC-13 | Selected, opt-in / AI-08 | Automatically create pages or tasks here | Scoped grant, trigger, limits and durable outcome; tasks also need AI-10 |
+| AI-UC-14 | Selected / AI-04 | Show how I use AI | Owner-only usage, model comparison and honest completeness/cost status |
+| AI-UC-15 | Selected / AI-10 | Extract assignments from my notes | Independent task proposals, source locations, deadlines and editable estimates |
+| AI-UC-16 | Selected / P-06, AI-10 | Replan unfinished preparation | Move eligible task sessions only; protect other events and minimize changes |
+| AI-UC-17 | Selected / AI-04, P-06 | Set my assistant instructions and work preferences | Editable instructions plus structured hard planning settings |
+| AI-UC-18 | Selected, opt-in / AI-12 | Prepare a daily/weekly briefing | Bounded scheduled review, relevant notes and in-app warnings |
+| AI-UC-19 | Selected / AI-11 | Explain this when my materials have no answer | State missing local evidence; use labeled model knowledge/web search as needed |
+| AI-UC-20 | Selected / AI-02, AI-04 | Choose a model or connect my API | Operator offerings and owner-only personal credentials; no silent switching |
 
-To change scope, edit a row's selection and its acceptance example, then update the
-corresponding stage and tool allowlist. Removing a scenario does not delete pages,
-events, reminders, chats or execution history. Editing this Markdown file does not
-change a running deployment.
+Removing a shortcut does not delete created objects. Check the server capability
+allowlist during tool advertisement, dispatch and pending-action execution. Editing
+this catalog does not change a deployment. Several scenarios may share a capability.
 
-Use a small server-side capability allowlist, not a user-programmable workflow engine:
-`calendar_read`, `workspace_search`, `page_read`, `material_read`, `database_read`,
-`event_create`, `page_create`, `reminder_create`. Introduce each value only when its
-stage exists. Scenario selection can narrow this list; it cannot grant permissions.
-Several scenarios can share a capability, so removing a shortcut is distinct from
-revoking its underlying tool. Check current capabilities when advertising tools,
-dispatching them and confirming/automatically executing pending actions.
+## 3. Chat and interaction
 
-## 3. Interaction requirements
+- Separate owner-scoped chats with ordered history, continuation and multi-tool requests.
+- Planned entry points: /workspace/ai, contextual calendar panel and /workspace/ai/usage.
+- Stream visible output/safe progress; support cancellation, stored state and reconnect
+  without resubmission. Never expose private model reasoning.
+- Distinguish answers, proposals, approvals and committed results. Explain useful
+  reasons, assumptions and constraints rather than hidden reasoning.
+- Show sources/action results. Use a bounded read-only source viewer until canonical
+  page/material UI exists; no nonexistent links or arbitrary HTML.
+- Errors are sanitized/actionable. Empty search, incomplete indexing and unavailable
+  tools are distinct. Cancellation stops new work; it does not undo committed changes.
 
-- Planned entry points: `/workspace/ai` and a contextual panel beside the calendar.
-- Explain the selected source scope before submission. Start with selected sources;
-  any broader search is explicit and remains owner-filtered.
-- Show sources in a read-only detail panel until canonical page/material UI exists.
-  Do not link to nonexistent routes or require a full rich editor for this slice.
-- Show useful progress states and cancellation; do not expose private model reasoning.
-- Distinguish answer generation, an unconfirmed proposal and a committed change.
-- Ambiguous dates/targets require clarification. Never merge lectures/labs by label.
-- Questions and recommendations do not change business data. Conversation/usage
-  persistence is disclosed separately from business actions.
-- Cancellation prevents further work; it does not undo an already committed action.
-- General explanations and workspace-derived facts must be distinguishable.
+## 4. Retrieval and knowledge fallback
 
-## 4. Usage page
+For workspace/material questions, search available relevant user sources first. The
+assistant chooses registered tools within the request. An explicit instruction to
+use only a selected document prevents silent expansion. General questions need not
+scan unrelated private records.
 
-Selected design: a dedicated `/workspace/ai/usage` page, linked from the assistant,
-plus a compact per-run summary in chat. All routes here are planned, not existing.
-No external analytics service or new administrator role is required.
+Use semantic/full-text retrieval with deterministic rank fusion; add reranking only
+for measured benefit. Support extractable PDF, DOCX, PPTX, TXT and Markdown, selected
+sources, multiple documents, definitions, requirements, comparisons, summaries and
+study explanations. OCR and arbitrary bookmark fetching remain excluded.
 
-| Page area | Required information |
+Source-backed claims cite real source IDs/versions and available block/fragment
+locations. Never invent PDF pages. Full-source summaries/comparisons require recorded
+coverage, bounded incremental reads or a partial-result warning. Top-k retrieval
+cannot prove that every mention or requirement was found.
+
+If local evidence is insufficient, say so before using general model knowledge and
+public web search as needed. Distinguish local evidence, external evidence and
+suggestions; cite retrieved web pages and never fabricate references for model
+knowledge. External knowledge cannot establish private completion, deadline or
+availability facts. Web search is a bounded application tool behind its own adapter:
+minimal search terms, not whole private notes/history, and untrusted results.
+
+A permission denial, unavailable index or failed read is not a successful empty
+search. Report what could not be checked. Knowledge fallback never silently changes
+LLM providers, credentials or billing sources.
+
+## 5. Notes, tasks and relations
+
+Support note creation/titles, spelling/grammar, rewriting, shortening/expansion,
+structured outlines/lists, key ideas, summaries, related-source suggestions and study
+questions. Persist edits through existing block/version contracts after authorization.
+Relations remain explicit choices; equal subject labels never merge notes/lectures/labs.
+Page-page/task links require application support before a tool can create them.
+
+Tasks are independent typed objects with status, priority, optional deadline/effort,
+subtasks/dependencies and optional source links. Checkboxes/database rows are not
+automatically tasks and do not synchronize completion. Extraction proposes tasks,
+possible duplicates, subtasks, priorities and durations before confirmed creation.
+Source-stated values and AI estimates are distinct. Unknown duration may be estimated,
+visibly labeled and edited in the plan preview. Passing a session does not prove work
+completion. Use real task status/user input, not absence of a report, as completion evidence.
+
+Ambiguous dates/targets require clarification or an unresolved value. Interpret relative
+dates using source context/timezone; Friday in an old note is not automatically next Friday.
+
+## 6. Calendar and deterministic planning
+
+Calendar reads preserve official facts, personal overrides and freshness/coverage.
+Hidden busy events remain occupied; skipped/nonblocking events do not. Deadlines are
+nonblocking until work is scheduled. Official occurrences are not personal editable events.
+
+Calendar services compute occupied/free intervals and conflicts. Tasks owns a planning
+application service using deadlines, dependencies, priorities, effort, allowed hours
+and breaks. LLMs interpret requests/explain results; algorithms establish feasibility.
+
+Users set allowed work windows; ask when absent. Initial session/break defaults are
+45/15 minutes, editable. Exact deadlines/protected time/restrictions are hard constraints.
+Offer alternatives and explain unmet work when infeasible; never silently violate them.
+Among feasible plans, respect deadlines/priorities and minimize existing-session changes.
+
+Normal replanning moves only eligible unprotected task sessions. Personal appointments
+and training stay fixed unless directly requested; official events stay fixed. A
+passed/missed session does not silently complete its task.
+
+Under owner-delegated policy, stale/missing official coverage permits only conditional
+previews with warnings. Applying affected plans requires successful freshness/coverage
+revalidation; unknown coverage is never confirmed free time. This does not invent an IIS API.
+Only configured/expected sources require such coverage; a user without an academic
+profile can plan around personal data without needing university schedule coverage.
+
+## 7. Proposals, confirmation and automatic actions
+
+Support read-only help, recommendations, exact confirmed actions and scoped automatic
+actions under [ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md).
+Confirmation binds immutable targets, parameters, versions, constraints, effects and
+expiry to the owner. Edits invalidate previous confirmation. Pending state survives
+restart; rights, versions, source state and current capabilities are checked again.
+
+A multi-action plan and its execution outcome commit atomically in one database
+transaction. Any changed target, constraint or relevant calendar state means apply
+nothing, report conflict and request approval of a new preview. Availability/version
+serialization is required; graph checkpoints do not provide business atomicity.
+
+Under owner delegation, initial automatic writes are new-page/new-task creation in
+selected scopes. Task tools need AI-10. Existing-content edits, event/session moves
+and deletes remain confirmed actions. This allowlist is not a real grant. Each actual
+grant needs authenticated owner configuration: operation, target/parameter limits,
+count limits, expiry and explicit trigger. Revoked/expired/out-of-scope grants fail.
+Content/model arguments/instructions cannot create or broaden permissions.
+
+## 8. Instructions, preferences and proactive work
+
+Provide a personal assistant-instructions field in settings for tone, detail and
+preferences. It cannot replace server authorization, identity, tool validation,
+source restrictions or confirmation. Settings are saved by explicit user action;
+ordinary messages are not automatically permanent memory.
+
+Hard planning preferences remain structured/versioned: timezone, work windows,
+session/break lengths and protected time. Free text may propose a setting change;
+unresolved/conflicting instructions cannot override constraints. Users view/edit/delete
+preferences independently of chats.
+
+Proactive daily/weekly reviews, deadline/overload/conflict warnings and source suggestions
+are off by default. Users choose timing/frequency. Reuse in-app notifications and
+workers; other channels need a separate slice. Bound candidates/model calls, deduplicate
+and skip unchanged non-actionable work. Disabling stops future runs. Read-only briefings
+do not authorize writes; grants alone do not create recurring schedules.
+
+## 9. Providers, credentials and usage page
+
+Support both operator-offered models and user-owned API connections. Show the selected
+provider/account before submission. Operators offer multiple supported adapters/models;
+users select an offering or their own supported connection, including free models where
+available. This specification guarantees neither a particular model nor a free quota.
+
+Keys are server-side secrets. Operator keys are consumer-scoped deployment secrets;
+personal keys require owner-only encrypted persistence and a deployment-managed
+encryption key. Submit them through authenticated/CSRF-protected settings, never return
+plaintext. No secrets in prompts, checkpoints, analytics, logs or bundles. Disconnect
+blocks new/queued dispatch through that connection.
+
+Interchangeability preserves tools, not identical provider features. Validate tool,
+structured-output and streaming support before activation. Reject incompatible models
+or explicitly limit modes; do not silently weaken behavior or switch credentials.
+LLM, embedding and search credentials/billing are independent. SDK/framework types do
+not enter domain/application contracts.
+
+The planned /workspace/ai/usage page and per-run summary show owner-only 7/30-day
+summaries, daily series/accessible tables, model comparisons, recent runs, safe tool/action
+outcomes and index state. No new administrator role/global analytics is required.
+
+- A submission is one run; genuine retries are distinct provider attempts.
+- Reported usage is authoritative; missing usage is unknown, not zero. Preserve failed
+  and cancelled attempt usage; avoid reasoning/output and cached/input double counting.
+- Record provider/model, credential source (not key), price date/currency and historical
+  estimates. Free-plan expectations, estimates and invoices are different.
+- Shared provider quotas may include outside traffic; local usage is not global balance.
+- Require bounded request/token admission and configured account spending policy before
+  activation. Actual models, prices, monetary caps and quotas are activation settings,
+  not spending authorization in this documentation task. No automatic paid fallback.
+- Use existing safe diagnostics. OpenTelemetry/Langfuse are later observability candidates,
+  not installed requirements or default destinations for private content.
+
+## 10. Privacy and retention
+
+Using AI is the product's default agreement to send messages and necessary relevant
+source fragments to the selected provider, without per-read transfer dialogs. Explain
+processing and source scope in the UI. This does not grant writes, other-user access,
+whole-workspace export or unsolicited background execution. Provider retention is
+separate from local deletion.
+
+Revalidate source access/current versions before reusing tool bodies or derived
+summaries. Trash/deletion/access loss cannot be bypassed through chat/checkpoints.
+User content/secrets are excluded from diagnostics/usage by default.
+
+| Data | Retention / deletion |
 | --- | --- |
-| Summary | Runs, successful/failed/cancelled/interrupted runs, provider attempts, input/output tokens, cost status |
-| Daily chart | Runs and tokens for 7/30-day presets, grouped in the user's timezone; accessible table equivalent |
-| Model comparison | Provider/model, attempt count, reported tokens, median/p95 completed duration and sample count |
-| Tool/action results | Read calls, rejected calls, proposals, confirmed/committed/failed/stale actions; separate denominators |
-| Recent runs | Time, safe scenario ID, model, duration, token completeness, outcome, sanitized error category |
-| Index state, after AI-06 | Owner's ready/pending/failed sources, last indexed version and retry guidance |
+| Chats/messages and content-bearing checkpoints, tool context, summaries | 30 days after last user message; new user messages renew; viewing/background work does not |
+| Manual chat deletion | Immediately deny access/resume and remove chat content/derived context; no chat trash |
+| Content-free usage/tool/action activity | 30 days from each event, independent of chat activity |
+| Explicit instructions/planning preferences | Separate settings until user edits/deletes; never reconstructed from deleted chats |
+| Created pages/tasks/events/reminders | Their own module lifecycle; chat expiry/deletion preserves them |
+| Minimal replay/idempotency/revocation records | Retain only what rejects duplicate/revoked actions independently of chat expiry; no prompts/document bodies |
 
-Run details show safe tool names/status/duration and action outcomes. Titles, prompts,
-arguments and excerpts are not analytics fields. Opening a conversation or source
-uses its separate ownership checks. Mark fake-provider traffic explicitly and exclude
-it from the default real-provider totals.
+Expired/deleted chats must be immediately inaccessible to reads/runs. Cleanup erases
+all chat-owned copies and prevents queued work resurrecting content. Define backup/restore
+handling before production. Finalize minimal replay-record purge with AI-07; analytics
+cleanup must not make an old confirmation executable again.
 
-Metric rules:
+## 11. Acceptance and exclusions
 
-- A run is one user submission; an invocation is one provider attempt. Retries add
-  invocations without inflating the number of user submissions.
-- Provider-reported usage is authoritative for tokens. Missing usage is `unknown`,
-  never zero. Display known totals together with the number of incomplete attempts.
-- Reasoning tokens may already be part of output; cached tokens may be part of input.
-  Preserve components without double counting and document provider mappings.
-- Display free-plan expected spend separately from optional list-price estimates.
-  Neither is an invoice. No provider invoice integration is planned initially.
-- Estimated prices carry currency, effective date and the price snapshot used at
-  invocation time. Current prices do not rewrite historical estimates.
-- Quota limits belong to the shared provider account. A user's local usage cannot
-  establish global remaining quota. Keep account-wide headers/limits in operator
-  diagnostics; do not expose other users' consumption or credentials.
-- Success means the relevant operation completed. A fluent answer does not prove
-  factual correctness; quality comes from evaluations and optional user feedback.
+End-to-end example: find requirements for two Friday labs, read real unfinished-task
+state, label effort estimates and suggest a feasible plan without moving training.
+Show sources/effects, ask about ambiguity and explain infeasibility. Apply the whole
+plan only after authorization/revalidation. Test owner isolation, injection, citations,
+coverage/fallback, dates, disabled tools, cancellation, restart/replay, grants, credentials,
+retention and usage. See [synthetic contracts](../development/ai-tool-contracts.md).
 
-## 5. Privacy, lifecycle and exclusions
-
-All conversation, usage and action data is owner-scoped. Analytics responses use the
-existing authenticated/no-store contracts. User content is excluded from diagnostics.
-Recheck access to sources before reusing older tool results in a new turn.
-
-Selected prototype retention defaults: 30 days for conversations/messages and 90 days
-for content-free run/invocation/tool metadata. Explicit chat deletion removes its
-content directly; recoverable chat trash is not selected. Do not silently store
-deleted chat text in summaries.
-Execution audit/grant retention must be decided before AI-07/08; cleaning a chat must
-not erase an active idempotency record or enable a duplicate action. Confirm the
-real-content policy and retention behavior before enabling private-content testing.
-
-Not selected initially: paid fallback, public web fetching/search, hosted code tools,
-voice, OCR, private IIS, collaboration, fine-tuning, automatic event moves/deletes,
-bulk destructive actions, global user analytics and a general plugin marketplace.
-These exclusions do not remove the owner's confirmed future automatic-action scope.
-
-## 6. Product acceptance
-
-- The selected scenarios work without an academic profile except where a request
-  explicitly needs official schedule data.
-- Every displayed source opens authorized current content or an honest unavailable state.
-- An ownership change, trash or stale version cannot be bypassed through chat history.
-- Disabling a capability blocks pending execution as well as new tool advertisement.
-- Usage totals remain honest through retries, missing final stream usage and crashes.
-- Another user cannot read any conversation, analytics aggregate or index status.
-- The owner can adjust the catalog without a schema change unless the requested
-  behavior genuinely introduces a new data or authorization contract.
+Not selected: private IIS/grades/write-back, OCR/audio/voice, collaboration, automatic
+event moves/deletes, bulk destructive actions, arbitrary SQL/shell, hosted code tools,
+unrestricted URL fetching and a plugin marketplace. Web search is selected through
+its bounded adapter only. New features require a separate request.

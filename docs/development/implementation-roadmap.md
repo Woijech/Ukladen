@@ -1,6 +1,6 @@
 # Backend Implementation Roadmap
 
-Updated: 2026-10-17.
+Updated: 2026-10-21.
 Status: implementation roadmap; completed slices are marked below. This document does not authorize starting the
 next phase; request a concrete slice before implementing it. Pages/blocks/databases,
 mandatory table/calendar views, personal scope and AI execution modes are confirmed.
@@ -152,7 +152,9 @@ until explicitly scheduled. Formulas, rollups and automatic arbitrary workflows 
 ## 8. P-06 typed tasks and availability
 
 Status: not implemented. Dependencies: existing calendar; optional page links after P-02.
-Can be requested earlier independently of databases. Decisions: Q-05/07.
+Can be requested earlier independently of databases. Q-07 is resolved: independent
+typed tasks with optional source links and no automatic checkbox/record synchronization.
+Future calendar contracts remain Q-05. See [AI planning requirements](../product/ai.md#6-calendar-and-deterministic-planning).
 
 Tasks support standalone CRUD, status/priority, optional deadline/effort and optional
 links. Define transition/dependency rules and prevent dependency cycles. Keep typed
@@ -170,6 +172,13 @@ Add calendar operations:
 
 Use half-open intervals consistently; touching endpoints do not overlap. Never infer
 free time from the currently filtered view or silently treat a missing source as free.
+
+The selected planning target includes a deterministic task application service,
+subtasks/dependencies, structured work windows and editable 45/15-minute session/break
+defaults. General replanning protects ordinary personal/official events. Stale/missing
+official coverage permits conditional previews only; affected application needs
+revalidation. Multi-session plans require atomic all-or-nothing commit/outcomes and
+serialization against new busy events. These are requirements, not implemented APIs.
 
 Done when WS-08 and meaningful boundary/DST/ownership/concurrent scheduling checks pass.
 Do not force subjects into task creation or reject all intentional event overlaps.
@@ -206,14 +215,18 @@ retrieval and AI/RAG remain not implemented. No deployment is performed by this 
 
 ## 11. P-09 AI help, recommendations, confirmed/automatic actions and RAG
 
-Status: not implemented. Dependencies: only the application tools actually used.
-The [detailed AI plan](ai-implementation-plan.md) splits this work into AI-00 through
-AI-09, with an [editable scenario/analytics specification](../product/ai.md) and
-[connection runbook](ai-setup.md). It selects Groq Free and CPU E5-small for
-development, records usage before real calls and adds an owner usage page with chat.
-This documentation does not implement or authorize executing the stages.
+Status: runtime not implemented; AI-00 specification/contracts delivered on 2026-10-21.
+Dependencies: only the application tools actually used; task planning requires P-06.
+The [detailed AI plan](ai-implementation-plan.md) splits work into AI-00 through AI-12,
+with the [owner-agreed product specification](../product/ai.md),
+[tool/fixture contracts](ai-tool-contracts.md) and [connection runbook](ai-setup.md).
+Provider-neutral operator models and personal API connections replace the old Groq
+baseline. Selected scope includes chat/usage, RAG, note editing, task extraction,
+deterministic planning/replanning, labeled model/web fallback, instructions and
+opt-in proactive work. No runtime stage, external call or deployment is performed here.
 AI calendar reads may be requested before P-08; RAG requires extraction/search.
-Execution modes are confirmed under Q-04; remaining permission/provider policy is Q-04a.
+Execution policies are confirmed under Q-04 and the 2026-10-21 decision table; Q-04a
+retains concrete account/grant activation parameters, not unresolved core functionality.
 
 Follow [AI architecture](../architecture/ai.md): provider-neutral adapters and typed
 owner-scoped tools. Deliver read/help/recommendations first, exact confirmed writes

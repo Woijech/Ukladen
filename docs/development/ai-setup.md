@@ -1,261 +1,199 @@
-# AI Development Setup and Switching Runbook
+# AI Setup and Provider Switching Runbook
 
-Updated: 2026-10-17.
-Status: instructions for the **planned** [AI stages](ai-implementation-plan.md).
-No AI environment setting, application route, embedding worker or CLI is implemented
-by this document. Do not paste future settings into today's app expecting AI to work.
-Provider console steps and the optional direct vendor probe are independent of Ukladen.
-No account was created, model downloaded, key read or provider request executed for this plan.
+Updated: 2026-10-21.
+Status: planned runtime instructions. AI-00 documentation/fixtures exist; AI routes,
+settings, credentials, model adapters, checkpoints and embedding workers do not.
+Do not paste proposed settings into today's app expecting AI to work. No account,
+key, dependency, model download, provider request or deployment was performed here.
 
-The selected configuration is Groq Free / `openai/gpt-oss-120b`, CPU
-`intfloat/multilingual-e5-small`, PostgreSQL FTS/pgvector and existing Celery.
-[Scenarios and analytics](../product/ai.md) remain editable and not implemented.
+Use [product scope](../product/ai.md), [stages](ai-implementation-plan.md),
+[contracts](ai-tool-contracts.md) and [ADR 0009](../adr/0009-specify-provider-neutral-ai-orchestration.md).
+LLM, embeddings and web search have independent adapters. The operator may offer
+several supported models and users may connect personal supported API accounts.
+DeepSeek/GLM are owner examples, not verified endpoints/model identifiers. No default
+provider, current price or universal OpenAI-compatible contract is assumed.
 
-## A. AI-00/01: prepare the project without external calls
+## A. AI-00/01: stay offline first
 
-1. Select the scenario rows and source/data policy in the product specification.
-2. Use the existing [local development guide](local-development.md), or the already
-   configured [home profile](../deployment/home-server.md). Do not overwrite a working
-   `.env`/`.env.home`, replace credentials or delete volumes to add AI.
-3. Implement AI-01 and apply its reviewed migrations to disposable data first.
-4. Only after AI-01 supports these settings, edit the private active environment:
+1. Use the agreed specification, fixture and existing [local guide](local-development.md)
+   or [home profile](../deployment/home-server.md). Preserve working env files,
+   credentials and volumes. Ordinary CI uses fake providers and synthetic content.
+2. Prove LangGraph/checkpointer compatibility with the repository Python 3.14/runtime
+   before dependency installation. Keep domain/application contracts framework-neutral.
+3. Implement AI-01 with preserving Alembic migrations and disposable PostgreSQL/Redis.
+   Verify conversation ownership, checkpoints, cancellation/restart, attempts/unknown
+   usage, duplicate submission and complete content cleanup before real integration.
+4. Only after AI-01 implements the settings, its proposed offline configuration is:
 
-```dotenv
+~~~dotenv
 AI_ENABLED=true
 AI_LLM_PROVIDER=fake
+AI_LLM_MODEL=fake-v1
 AI_EMBEDDING_PROVIDER=disabled
 AI_ENABLED_CAPABILITIES='[]'
 AI_AUTOMATIC_ACTIONS_ENABLED=false
-```
+~~~
 
-5. Run fake-provider backend tests. Check that a synthetic run produces one run,
-   the expected provider attempts and honest usage fields. No key should be required.
-6. Keep ordinary CI on fake mode; network/provider tests remain explicit opt-in checks.
+Validate the existing base stack without printing expanded secrets:
 
-The current stack can be validated without printing expanded secrets:
-
-```bash
+~~~bash
 docker compose config --quiet
-```
+~~~
 
-For the home profile, use the `home_compose` function from the deployment guide and
-`home_compose config --quiet`. These existing commands do not implement or enable AI.
+For home configuration use the deployment guide's home_compose helper and its quiet
+config check. These checks do not implement or enable AI. Fake/non-AI installations
+must not require a new secret file or access to model networks.
 
-## B. AI-02: connect Groq Free
+## B. AI-02: verify one supported adapter before activation
 
-### B1. Account and key
+1. Choose an operator-supported provider, exact model and credential source. Verify
+   official request/response/tool/streaming/structured-output contracts and account
+   model access at implementation time. Never invent DeepSeek/GLM model IDs or assume
+   another provider's wire format is identical.
+2. Record feature profile, account/organization quotas, timeout/retry behavior, data
+   processing/retention terms, prices if known and configured request/token/budget
+   admission. Free offerings still have quotas; missing price/usage is unknown.
+3. Implement/test the normalized adapter behind LlmProvider. Explicitly reject modes
+   it cannot support; use separate validated steps when its structured/tool/streaming
+   features cannot be combined. No implicit fallback to another provider or payer.
+4. Perform one intentionally activated synthetic application smoke, recording actual
+   attempts/usage and safe outcomes. Simulate 429/timeouts/refusals in fake tests;
+   do not cause unnecessary real rate-limit requests. Private files are not probes.
+5. Activate real source processing only after ownership, secret handling, feature
+   profile and admission tests pass. AI use provides the product data-processing
+   agreement; there is no extra confirmation dialog for each source read. The UI
+   identifies the selected connection/provider and relevant source scope.
 
-1. Open [Groq Console](https://console.groq.com/) and create/sign in to an account.
-2. Check the account plan and leave it on Free. Do not activate Developer billing
-   or a paid fallback as part of this zero-API-spend setup.
-3. Open [API Keys](https://console.groq.com/keys), create a development key and store
-   it privately. Never put the key in browser code, source control, screenshots or chat.
-4. Open [Limits](https://console.groq.com/settings/limits), select the actual model
-   and record the account's RPM/RPD/TPM/TPD and date. Published values may differ.
-5. Review [Data Controls](https://console.groq.com/docs/your-data). Enable Zero Data
-   Retention where available and record the setting before using private excerpts.
-   The laptop being in Switzerland does not mean provider processing stays there.
+No vendor setup command is authoritative until the corresponding adapter is delivered.
+Connection validation itself is a bounded external request and must be explicitly
+initiated by the account owner/operator, not automatically run during app startup.
 
-As checked on 2026-10-17, the published Free table lists 30 RPM, 1,000 RPD, 8,000 TPM
-and 200,000 TPD for both GPT-OSS models. These are shared account/organization limits,
-not per-Ukladen-user allowances. Use [the live table](https://console.groq.com/docs/rate-limits)
-and actual response headers at activation; the model's context capacity is not a free quota.
+### Operator offerings
 
-### B2. Wire only the intended process
+Add a versioned supported connection/model entry and configure its secret only for
+processes that actually dispatch through it. Existing shared env-file anchors must
+not distribute LLM/search secrets to extraction, migration or unrelated workers.
+A private optional secret file can be introduced with tested ignore/loading rules;
+verify it is ignored before creation. Never print resolved secret configuration.
 
-AI-02 must first add `.env.ai` to `.gitignore` and explicit API-only secret loading
-in both local and home Compose configurations. The existing shared backend env-file
-anchor otherwise distributes added secrets to workers and migrations too.
-Keep the secret file optional while AI is disabled or fake; require a key only when
-Groq is enabled. A non-AI installation must not need a new secret file to start.
+The catalog exposes safe model/provider/capability metadata, never operator keys.
+Multiple offerings do not require multiple agents or model routing heuristics.
+Catalog changes do not retroactively change a pending action's authorization.
 
-After that wiring exists, verify the path is ignored **before** creating the file:
+### Personal API connections
 
-```bash
-git check-ignore .env.ai
-```
+Implement authenticated/CSRF-protected add, masked metadata/list, choose and disconnect.
+Persist encrypted owner-only credentials server-side with a deployment-managed master
+key outside PostgreSQL; never put plaintext keys into prompts/checkpoints/logs or GET
+responses. Test encryption failure, rotation, account isolation and backup handling.
+Do not accept arbitrary user-provided base URLs to internal networks.
 
-If the command does not report `.env.ai`, stop and fix the ignore rule. Create the
-file in an editor with private permissions and enter `GROQ_API_KEY` there. Keep it
-out of the normal shared `.env`/`.env.home`. The implementation must document/test
-the actual file loading and keep the key out of resolved configuration output.
+Disconnect immediately prevents new/queued dispatch via that connection; do not retry
+using another user's or the operator's key. Explain incomplete/in-flight outcomes
+honestly. Using a personal free model does not grant unlimited application quotas.
+The API process and any future generation worker need explicitly scoped access;
+embedding/extraction workers do not inherit unrelated credentials.
 
-For host development, inject the key into the API terminal environment; never
-`source` an unreviewed env file as shell code. Normal workers, embedding workers,
-material extraction children, web and migration processes do not need the Groq key.
-If later AI background generation needs it, add an explicit narrowly scoped consumer.
+## C. AI-03/04: tools, chats, instructions and usage
 
-After the adapter/configuration exists, set these nonsecret values in the active profile:
+Register only delivered application capabilities. Start with calendar/search/page
+reads; material text needs the new bounded excerpt contract, not original-byte download.
+Use synthetic cases first. Actual source reads must revalidate ownership/trash/version
+before each context build, including old tool results and source-derived summaries.
 
-```dotenv
-AI_ENABLED=true
-AI_LLM_PROVIDER=groq
-AI_LLM_MODEL=openai/gpt-oss-120b
-AI_EMBEDDING_PROVIDER=disabled
-AI_ENABLED_CAPABILITIES='[]'
-AI_AUTOMATIC_ACTIONS_ENABLED=false
-```
+Deliver planned /workspace/ai and /workspace/ai/usage with separate chats, streaming,
+cancellation/reconnect, source viewer, model/BYOK settings and personal instructions.
+The instruction field guides responses; it never grants tools or bypasses confirmation.
+Verify logout/session change discards all private state and masks every credential.
 
-Rebuild/recreate the affected application processes using the existing development
-guide. Public deployment still requires its own request, backup and home-profile checks.
-Do not add arbitrary provider base URLs supplied by a browser request.
+Test 7/30-day owner-only usage, known vs unknown tokens, attempt/run arithmetic and
+price snapshots. Chats expire 30 days after last user message; merely viewing them
+or running a background job does not renew retention. Content-free activity expires
+30 days from each event. Manual deletion/expiry covers historical checkpoints and
+chat-derived context, preserving created business objects and minimal replay protection.
 
-### B3. Optional direct vendor connectivity probe
+## D. AI-05/06: prove embeddings, then build the index
 
-This Bash example sends one short **synthetic** request to Groq, independently of
-Ukladen. Run it only after intentionally choosing to test the Free account. It is
-not a test of Ukladen ownership, tools, accounting or UI and is not recorded in the
-application usage page. The provider console can therefore show more calls than the app.
+1. Local CPU E5-small is a candidate from the earlier plan, not a mandatory LLM
+   dependency. Prove Python 3.14 CPU packages and container compatibility before
+   selecting/pinning a model runtime. No silent Python downgrade or CUDA install.
+2. Record model/tokenizer revision, dimensions, normalization and document/query
+   prefixes from official sources. Bound tokens with the real tokenizer.
+3. Measure combined API query-model and indexing-worker copies under full-stack
+   load, cold/warm latency, throughput, RSS/swap and unrelated API responsiveness.
+   Two separate processes have two model copies; normal workers load neither.
+4. If local inference is unsuitable, select a supported API embedding adapter with
+   its own privacy/price/quota gate. No silent remote transfer for indexing.
+5. Deliver preserving chunk/index migrations, fenced/recoverable jobs and dedicated
+   bounded queue/worker wiring in local/home profiles. These workers do not exist yet.
+6. Fuse lexical/vector results, track full-source coverage and keep lexical mode
+   available on semantic failure. Test edits/trash/access loss before cleanup runs.
+7. Model/dimension changes require a new generation/rebuild, quality checks and
+   explicit activation. Preserve canonical sources and previous valid generation.
 
-```bash
-read -r -s -p 'Groq development API key: ' GROQ_API_KEY
-printf '\n'
-export GROQ_API_KEY
-curl --silent --show-error --fail-with-body --max-time 30 \
-  https://api.groq.com/openai/v1/chat/completions \
-  -H "Authorization: Bearer ${GROQ_API_KEY}" \
-  -H 'Content-Type: application/json' \
-  --data '{"model":"openai/gpt-oss-120b","messages":[{"role":"user","content":"Reply with one short greeting. This is a synthetic connectivity test."}],"max_completion_tokens":1024}'
-unset GROQ_API_KEY
-```
+Do not add a serving microservice, reranker or ANN index without measured need.
+Record executed hardware results rather than claiming a target was met.
 
-Inspect HTTP success, completion/finish status and reported usage. A truncated
-completion is not a successful answer-quality check. Keep any saved fixture sanitized.
-Use the documented [API quickstart](https://console.groq.com/docs/quickstart) if
-the vendor changes this contract.
+## E. AI-07/08: confirmed writes and scoped automatic creates
 
-Then run the AI-02 smoke through the application using a synthetic conversation.
-Verify the usage ledger, safe errors and one deliberately simulated 429 in tests.
-Never use a private document as the first connectivity test.
+Enable each write capability only after normal-service previews, version checks,
+exact confirmation, transaction/idempotency and lost-response tests pass. Start on
+disposable data. Requested note edits preserve block IDs/schema and source versions.
+All-or-nothing multi-action application requires an actual shared transaction and
+availability serialization; checkpoints alone cannot provide it.
 
-## C. AI-03/04: add tools, chat and the usage page
+Automatic dispatch stays off until AI-08 and a real owner grant exist. Initial
+allowlist: new-page/new-task creation in selected scopes; tasks require AI-10.
+Each grant specifies operation, targets, parameter/count limits, expiry and trigger.
+Moves/edits/deletes remain confirmed operations. Test revocation against queued work.
 
-1. Enable `calendar_read`, `workspace_search` and `page_read` only after their
-   application adapters, ownership tests and source rendering exist.
-2. Add `material_read` only after the new authorized excerpt boundary exists.
-   The current original-file download endpoint is not a text retrieval tool.
-3. Start with synthetic sources. Record the real-content data policy before private testing.
-4. After AI-04, open the planned `/workspace/ai` page and submit the catalog examples.
-   The planned `/workspace/ai/usage` page must show your own run and provider attempts.
-5. Open a citation in the read-only source drawer; confirm it does not expose trash,
-   foreign content or an invented PDF page number. Test an expired session/account change.
-6. Check 7/30-day summaries, unknown token usage and fake traffic separation.
-   "Free-plan expected cost" is not a provider invoice; list-price estimates have a date.
+## F. P-06/AI-10: task planning
 
-Do not enable Groq hosted search/code/MCP tools to make these scenarios work.
-The selected tools execute through Ukladen's existing application services.
-Groq currently excludes tool use/streaming from Structured Outputs; see
-[current limitations](https://console.groq.com/docs/structured-outputs).
+Deliver typed tasks, explicit source links/subtasks/dependencies, task sessions,
+calendar occupied/free/conflict interfaces and structured work preferences first.
+Ask for allowed work windows; use editable 45/15-minute session/break defaults.
+Label unknown effort estimates and preserve source/uncertainty information.
 
-## D. AI-05: download and measure CPU embeddings
+Planner computation is deterministic. General replanning protects personal appointments
+and official events and moves eligible task sessions only. Stale/missing official
+coverage permits a conditional preview, not application of affected changes. Recheck
+freshness, complete busy set, task/preferences versions and conflicts before a single
+atomic plan commit. Any changed precondition requires a new preview/confirmation.
 
-1. Prove compatible CPU dependency wheels under the repository's Python 3.14 and
-   container image. Pin tested packages in the backend lockfile/optional embedding
-   dependency group; the API embedding runtime and embedding worker need that group,
-   normal workers do not. Use the official package/model sources.
-2. Pin a resolved revision of [E5-small](https://huggingface.co/intfloat/multilingual-e5-small/tree/main).
-   Download weights/tokenizer into a persistent private cache before serving requests;
-   a first request must not unexpectedly download a model. Mount the tested cache
-   read-only where feasible. Loading cached weights must work offline.
-3. After the adapter supports them, configure:
+## G. AI-11/12: fallback and proactive reviews
 
-```dotenv
-AI_EMBEDDING_MODEL=intfloat/multilingual-e5-small
-AI_EMBEDDING_DEVICE=cpu
-AI_EMBEDDING_THREADS=2
-AI_EMBEDDING_BATCH_SIZE=4
-```
+Use an explicitly supported web-search adapter, not unrestricted HTTP or hosted code.
+For workspace questions retrieve local sources first, disclose insufficiency and
+label general knowledge/public citations. Bound/minimize external queries and treat
+results as untrusted. No API key/private note dumps, internal URL access or invented
+private deadlines/completion. Unavailable retrieval is not a confirmed no-match.
 
-The implementation must add and validate `AI_EMBEDDING_DEVICE=cpu`; it must not
-silently select the RTX 4060 or install CUDA as the default. Keep the provider disabled
-for real retrieval until AI-06 publishes a valid index.
+Proactive reviews start disabled. User-selected schedules/frequency feed existing
+Celery/Beat/in-app delivery; no external notification channel is implicitly selected.
+Deduplicate and skip unchanged/non-actionable work. Recheck settings/connection/grants
+when queued work executes. A briefing cannot grant automatic writes.
 
-4. Measure cold/warm queries and 100/1,000 synthetic fragments. Record RSS, CPU,
-   p50/p95 query time, throughput and swap with the whole Ukladen stack running.
-5. Measure both the API query-model copy and the indexing-worker copy together.
-   Verify ordinary Celery workers do not load model weights. Do not multiply API
-   worker processes without revisiting the memory budget.
-6. Compare with the AI-05 targets. If the host cannot meet them, keep lexical mode
-   available and choose the free API alternative before publishing embeddings.
+## H. Switch, disable and recover
 
-No new cloud key is needed for local embeddings. Source indexing must not call Groq.
-Thread/runtime optimization follows [Sentence Transformers](https://sbert.net/docs/sentence_transformer/usage/efficiency.html).
-
-## E. AI-06: activate indexing and semantic retrieval
-
-1. Back up source data before applying reviewed migrations to an existing deployment.
-   Test migration upgrade/downgrade and rebuild behavior with disposable PostgreSQL first.
-2. AI-06 must ship the `embeddings` queue, recoverable job scanner, model-cache mount,
-   optional CPU dependency installation and `embedding-worker` in both Compose profiles.
-   This service does not exist today. Add exact tested startup/health commands when delivered.
-3. Start one indexing consumer and the existing single Beat process. Keep normal and
-   material queues on their existing workers. Do not run two Beat instances.
-4. Index a small selected synthetic collection. Verify canonical version/location,
-   expected E5 prefixes, vector dimensions and owner filters.
-5. Set `AI_EMBEDDING_PROVIDER=local` only when a compatible active generation exists.
-   Add `material_read`/retrieval capabilities only for delivered scenarios.
-6. Search using different wording, open actual source fragments, edit/trash a source
-   and verify stale content stops appearing before asynchronous cleanup finishes.
-7. Test worker/broker restarts and retries without repeated source ingestion or lost jobs.
-8. Index private sources only under the recorded policy; observe owner index status
-   and operator memory diagnostics before increasing the batch size.
-
-To pause semantic retrieval, select `AI_EMBEDDING_PROVIDER=disabled` and stop new
-index-job dispatch through the implemented control. Preserve source documents and
-the last index generation. Lexical search continues with an explicit semantic status.
-
-## F. AI-07 and optional AI-08: connect write operations last
-
-1. AI-07 adds exact proposal/confirmation/execution storage and the planned confirmation
-   endpoint. Keep automatic actions disabled.
-2. Enable `event_create`, then `page_create`, then `reminder_create` only after each
-   preview, normal-service integration, source viewer and duplicate-confirmation test passes.
-3. Use disposable content for the first real confirmed create. Check the committed
-   object, analytics outcome and retry result after a simulated lost HTTP response.
-4. Verify a changed/expired/disabled proposal is rejected. Editing a scenario does
-   not authorize a write; the current server capability list is checked at execution.
-5. AI-08 requires a separately specified owner-issued grant and trigger. Do not set
-   its enable flag merely because AI-07 works. Confirm revocation against queued jobs.
-
-## G. Switch models/providers without losing content
-
-| Change | Required work |
+| Change / failure | Required response |
 | --- | --- |
-| Groq 120B -> 20B | Change `AI_LLM_MODEL`, restart API as needed, rerun selected fixture scenarios and inspect usage |
-| Groq -> another LLM API | Implement/test another `LlmProvider`, record privacy/billing policy, configure its secret only for its consumer |
-| Local E5 -> same verified E5 API runtime | Prove revision/tokenization/prefix/normalization equivalence before reusing vectors |
-| E5 -> another embedding model | New index generation and dimensions if different, complete rebuild/quality checks, then explicit activation |
-| Remove an optional scenario | Update catalog, server capability mapping where applicable and UI shortcuts; retain created objects/audit |
+| Switch offered/personal LLM | Explicit supported connection/model choice, feature validation and fixed-fixture evals; never implicit billing fallback |
+| Add another API | Implement/test its adapter and credential/price/data contract; preserve tools/domain semantics |
+| Change embedding model | New validated index generation; never mix incompatible query/document spaces |
+| 401/403 or disconnect | Safe unavailable-connection status, stop new dispatch and preserve honest attempt outcomes |
+| 429 or provider timeout | Bounded retry/admission; no infinite wait or alternate key |
+| Missing/truncated usage | Unknown/incomplete accounting; no fabricated zero or automatic replay of writes |
+| Memory/CPU pressure | Count model copies, reduce threads/batch/concurrency or pause indexing; preserve sources |
+| Dashboard vs vendor console | Other traffic/shared keys, unknown usage and reporting windows; app totals are not invoices |
+| Disable AI/capability/grant | Stop future dispatch/pending execution as applicable; preserve committed objects/outcomes |
 
-Optional free API replacement: [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/get-started/rest-api/)
-with `@cf/baai/bge-m3`. Create the documented Workers AI token restricted to the intended
-account, record current free quota/data policy, add its adapter/secret/configuration
-and test a synthetic embedding. Free allocation is shared with other Workers AI use;
-check [current prices and model eligibility](https://developers.cloudflare.com/workers-ai/platform/pricing/).
-The token and this adapter are not needed for the selected local baseline.
-Changing to BGE requires reindexing; never embed queries with BGE against E5 vectors.
+## I. Handoff and historical context
 
-## H. Troubleshooting and zero-spend operation
+For each delivered stage record: local commit, implemented settings/routes, exact
+local/home commands, checks, adapter/model revisions, real-call count, usage completeness,
+hardware results, rollback and remaining activation gates. Push/deployment require a request.
 
-| Symptom | Check / response |
-| --- | --- |
-| 401/403 from provider | Key/permissions/model access/account availability; keep details out of user responses and logs |
-| 429 | Account/model quota and `Retry-After`; bounded retry or explicit waiting state |
-| Empty/truncated output | Finish reason and completion budget; do not blindly repeat a write |
-| Poor retrieval | Correct query/document prefixes, tokenizer limits, revision and active generation; compare lexical results |
-| Memory pressure | Count API/worker copies, batch size and CPU package selection; pause indexing before adding capacity |
-| Slow calendar/API during indexing | Measure contention; reduce threads/batch/concurrency; preserve query responsiveness |
-| Dashboard differs from console | Direct probes/other apps/shared keys, unknown usage or reporting windows; app totals are owner-scoped |
-| Free spend says zero but tokens are missing | Show incomplete usage explicitly; free-plan status does not make token counts known |
-
-Keep only selected Free accounts configured. Bound context/tool results, count attempts,
-cache unchanged indexes, and disable unneeded scenarios. Do not use automatic paid
-fallback, unlimited retries, or random providers receiving private context. Model
-catalog size is not an evaluation result; compare fixed scenarios before switching.
-
-## I. Stage handoff record
-
-For each delivered stage record: commit, implemented settings/routes, exact startup
-commands for local/home profiles, executed checks, provider/model revisions, real-call
-count, usage completeness, host measurements, rollback action and remaining decisions.
-Update this runbook from planned instructions to verified commands only with evidence.
+The 2026-10-17 plan used Groq Free/GPT-OSS and CPU E5-small examples. It did not execute
+provider probes or prove packages/hardware. Its dated documentation verification is
+preserved in [the plan](ai-implementation-plan.md#18-historical-planning-document-verification-2026-10-17).
+That historical baseline does not constrain today's operator/BYOK model selection.

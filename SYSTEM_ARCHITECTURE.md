@@ -8,7 +8,7 @@
 >
 > **Important:** This document intentionally does **not** define concrete BSUIR IIS response fields, exact external API payloads, full SQL schema, or detailed endpoint DTOs. Those contracts are separate documents.
 
-Updated: 2026-10-16. Target features are not implemented unless explicitly marked.
+Updated: 2026-10-21. Target features are not implemented unless explicitly marked.
 Read the [documentation index](docs/README.md), [open decisions](docs/product/open-questions.md)
 and [implementation roadmap](docs/development/implementation-roadmap.md) for a concrete slice.
 [ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md) records optional organization.
@@ -383,8 +383,15 @@ application tools. Read-only help/recommendations precede writes. Writes require
 exact confirmation or an explicit matching owner-issued automatic-action grant,
 version checks and durable idempotency. Retrieved content cannot grant authorization.
 [ADR 0005](docs/adr/0005-support-scoped-ai-action-permissions.md) records these paths.
-Provider choice/data policy and concrete grant scopes remain open; see
-[AI architecture](docs/architecture/ai.md). Status: AI and RAG are not implemented.
+The owner-confirmed [AI specification](docs/product/ai.md) selects provider-neutral
+operator offerings and personal API connections, local-source-first answers with
+labeled model/web fallback, editable personal instructions and opt-in proactive work.
+[ADR 0009](docs/adr/0009-specify-provider-neutral-ai-orchestration.md) records one
+logical LangGraph agent with PostgreSQL checkpoints behind neutral ports. Calendar
+services own interval truth; tasks owns deterministic planning. A stale confirmed
+multi-action plan applies nothing and needs a new preview. Per-account activation
+settings and actual per-owner grants remain required. See [AI architecture](docs/architecture/ai.md).
+Status: AI-00 specification is delivered; AI/RAG/planning runtime is not implemented.
 
 Architecture:
 
@@ -533,6 +540,10 @@ See [workspace architecture](docs/architecture/workspace.md).
 
 ## 5.6 tasks
 
+Status: not implemented. Tasks are independent typed objects; ordinary note
+checkboxes/database rows do not synchronize them. Deterministic planning is a task
+application service using calendar-owned availability, not business logic in an LLM.
+
 ```text
 tasks
 deadlines
@@ -614,6 +625,10 @@ See [search contracts](docs/development/materials.md). Semantic search, embeddin
 generation, pgvector retrieval and RAG remain not implemented.
 
 ## 5.13 ai
+
+Status: AI-00 contracts are specified; runtime is not implemented. Own conversations,
+personal instructions, proposals/grants and usage; keep SDK/framework types behind
+application interfaces. Checkpoint continuity never replaces authorization or commit truth.
 
 ```text
 LLM provider abstraction
@@ -1023,6 +1038,7 @@ S3-compatible API
 
 ```text
 LLM provider abstraction
+LangGraph + PostgreSQL checkpoints (target; compatibility not yet verified)
 Tool Calling
 Embeddings
 RAG
@@ -1063,7 +1079,7 @@ Playwright
 
 ```text
 structured logging (implemented)
-Sentry / Prometheus / Grafana / OpenTelemetry (not implemented; separate future scope)
+Sentry / Prometheus / Grafana / OpenTelemetry / Langfuse (not implemented; optional later scope)
 ```
 
 ---

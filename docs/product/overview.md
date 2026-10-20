@@ -1,6 +1,6 @@
 # Ukladen Product Overview
 
-Updated: 2026-10-17.
+Updated: 2026-10-21.
 Status: target product specification; only capabilities listed as implemented
 below exist. Product references describe intent, not feature parity with another app.
 
@@ -147,12 +147,16 @@ supporting records and relevant source freshness.
 
 AI supports reading/help, recommendations, execution after exact confirmation and
 explicitly permitted automatic actions. Automatic writes require an owner-issued
-scoped permission; otherwise preview and confirmation apply. The specific allowlist,
-limits and real-content provider policy remain open. Both paths use normal services,
+scoped permission; otherwise preview and confirmation apply. The 2026-10-21 policy
+selects automatic new-page/task creates only through real scoped grants; concrete
+per-grant/account limits remain activation inputs. Both paths use normal services,
 version checks and durable idempotency. The editable scenario catalog and planned
-owner usage page are specified in [AI product requirements](ai.md); the free-first
-development baseline and connection gates are in [the implementation plan](../development/ai-implementation-plan.md).
-AI and analytics remain not implemented. See [AI architecture](../architecture/ai.md).
+owner usage page are specified in [AI product requirements](ai.md), including note
+editing, extraction, deterministic planning/replanning, model/web fallback, personal
+instructions and opt-in proactive reviews. Provider-neutral operator offerings and
+user-owned API connections replace the old single-provider baseline. Delivery and
+connection gates are in [the implementation plan](../development/ai-implementation-plan.md).
+AI-00 is specified; AI and analytics runtime remain not implemented. See [AI architecture](../architecture/ai.md).
 
 ## 9. Implementation status
 

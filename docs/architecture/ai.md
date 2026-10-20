@@ -1,6 +1,6 @@
 # AI, Retrieval and Application Tools
 
-Updated: 2026-10-17.
+Updated: 2026-10-21.
 Status: AI/RAG not implemented. `ai`, LLM and embedding boundaries contain package
 markers. Materials/extraction and basic lexical search are implemented separately;
 see [P-08 contracts](../development/materials.md). They do not implement chunks,
@@ -33,13 +33,19 @@ AI does not receive SQL access, ORM models, a shell, raw storage credentials or
 an unrestricted IIS HTTP client. Tool adapters call application interfaces; normal
 services own validation, transactions, permissions and concurrency checks.
 
-LLM and embedding providers are separate adapters under `app/integrations`.
-The selected development plan uses Groq Free `openai/gpt-oss-120b` and local CPU
-`intfloat/multilingual-e5-small`, with fake execution before connecting a provider.
-These adapters are not implemented. Paid use, private-content sharing and automatic
-operation limits remain separately gated. Domain/application contracts must
-not depend on one SDK's response types. Streaming/cancellation is a staged transport
-decision, not an excuse to leak partially confirmed mutations.
+LLM, embedding and web-search providers are separate adapters under `app/integrations`.
+The owner selected provider-neutral tools, an operator model catalog and user-owned
+API connections. No particular LLM provider/model is required; the old Groq baseline
+is superseded. CPU E5-small remains an embedding implementation candidate pending
+runtime proof. All adapters are not implemented. Domain/application contracts must
+not depend on SDK/framework response types. Streaming/cancellation is required target
+behavior, never permission to execute incomplete or unconfirmed tool arguments.
+
+[ADR 0009](../adr/0009-specify-provider-neutral-ai-orchestration.md) selects one logical
+LangGraph agent with PostgreSQL checkpoints behind framework-neutral ports. Checkpoints
+support pause/resume; normal services and execution records own authorization/commits.
+Prove Python 3.14 compatibility before installing packages. No multi-agent subsystem
+or separate AI/planning microservice is selected.
 
 ## 3. Planned tool capabilities
 
@@ -51,10 +57,11 @@ Names are illustrative application capabilities, not implemented APIs.
 | Read/search authorized pages and backlinks | Notes/relations/search | None |
 | Query records/views/properties | Workspace | None |
 | Read tasks and deadlines | Tasks | None |
-| Query free slots/conflicts | Calendar availability | None |
+| Query free slots/conflicts and propose feasible task sessions | P-06 calendar/task planning | None |
 | Read permitted IIS context/sync state | Verified public integration; private account tools deferred | None |
 | Retrieve cited material chunks | Materials/search | None |
-| Propose page/task/event/property changes | Implemented target service and action policy | Proposal only |
+| Search public web after insufficient local evidence | Bounded search adapter; AI-11 | External read only |
+| Propose page/task/event/reminder changes | Implemented target service and action policy | Proposal only |
 | Apply confirmed change | Same service as manual editing | Explicit, version-checked mutation |
 | Apply an explicitly permitted automatic change | Implemented target service and scoped owner grant | Bounded, version-checked and recorded mutation |
 
@@ -67,7 +74,9 @@ another user. Business errors are structured, sanitized outcomes.
 
 [ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md) records two write
 paths: exact confirmation or an explicit matching automatic-action permission.
-Automatic capability is confirmed; the allowed operation list/limits remain Q-04a.
+The delegated initial automatic allowlist is new-page and new-task creation in
+selected scopes; task tools require implemented task services. Concrete per-grant
+limits/expiry/triggers remain mandatory execution inputs under Q-04a.
 The model cannot select unrestricted execution as a mode on its own.
 
 ### Confirmed execution
@@ -88,10 +97,10 @@ validity, revocation state and applicable limits. Grant creation/change/revocati
 requires normal user authentication and CSRF; a model/tool/content cannot grant it.
 Store authoritative grants and execution records in PostgreSQL, not only Redis.
 
-An example policy could allow creating pages in a selected collection while event
-moves still require confirmation. This is an illustration, not an owner-approved
-allowlist. Define the concrete tools, parameter constraints and limits before coding.
-A grant alone does not create a recurring job or authorize an unspecified trigger.
+The selected policy permits new-page/task creates only through a matching owner grant;
+existing edits, event/session moves and deletes remain confirmed operations. The
+policy itself is not an actual grant. A grant alone does not create a recurring job
+or authorize an unspecified trigger. Personal instructions cannot create a grant.
 
 Before each automatic execution, validate the active owner, matching nonexpired grant,
 operation/target/parameter limits and expected versions. Out-of-scope writes require
@@ -102,9 +111,11 @@ revocation with the mutation so a queued job cannot reuse a revoked permission.
 
 Use a persisted owner-scoped idempotency key
 so retries do not create duplicate events/tasks. Redis alone cannot retain the
-canonical execution record. Multi-action plans must declare transactional scope
-and partial-failure behavior; do not pretend unrelated services form one atomic
-operation without an actual transaction strategy.
+canonical execution record. Multi-action plans and their outcomes commit atomically
+in one shared database transaction. Revalidate current sources, target/preference
+versions and full availability under serialization against concurrent busy-event
+changes. Any stale/conflicting precondition applies nothing and requires a new
+preview/confirmation. Do not claim atomicity without that implemented transaction.
 
 IIS write-back is outside the verified integration and initial AI scope. A proposed
 workspace event is a local change, not a university timetable edit.
@@ -129,6 +140,13 @@ and bounded retry policies. A failed job retains source content and reports stat
 External links need a separately constrained fetch contract; arbitrary user URLs
 must not give the worker access to internal service endpoints.
 
+For workspace questions retrieve local evidence first. If insufficient, disclose it
+and distinguish general model knowledge from cited public web results. The web-search
+port is search-owned; its adapter accepts minimal query terms and returns bounded
+public results. Failed/unauthorized reads are not empty searches. External fallback
+cannot invent private task/calendar facts, broaden explicit source-only scope or
+silently switch model credentials. Retrieved pages remain untrusted content.
+
 ## 6. Trust, privacy and observability
 
 Page text, retrieved files, IIS notes and model-generated tool arguments are data,
@@ -136,8 +154,13 @@ not authorization. Instructions embedded in those sources cannot grant tool acce
 change owner identity or bypass confirmation. Validate every tool invocation.
 
 Do not send auth/IIS credentials, cookies or unrelated private records to providers.
-Resolve provider data sharing, content retention, supported limits and costs before
-enabling real model traffic under Q-04a. Logs contain safe tool names/outcomes and
+Using AI is the selected agreement to transmit relevant request/source context without
+per-read dialogs; it does not authorize writes or unsolicited background work. Chats
+and content-bearing checkpoints expire 30 days after the last user message; content-free
+activity lasts 30 days from each event. Preferences and committed business objects
+have independent lifecycles. Minimal replay protection must survive content cleanup.
+Verify provider/account limits, billing/data terms and secret handling before
+enabling real traffic. Logs contain safe tool names/outcomes and
 correlation metadata, not full prompts, content or credentials by default.
 
 Persist AI session/message ownership and cancellation/action state where required.
@@ -165,6 +188,32 @@ The [AI product specification](../product/ai.md) owns the editable scenario cata
 and owner-only usage page requirements. The [implementation plan](../development/ai-implementation-plan.md)
 defines staged ports, durable usage accounting, chat, indexing and confirmed/automatic
 actions; [the setup runbook](../development/ai-setup.md) defines connection gates.
-All remain planned. `ai` owns conversation/run/tool/action usage metadata;
+The AI-00 specification and synthetic acceptance data are delivered; runtime remains
+not implemented. `ai` owns conversation/run/tool/action usage metadata;
 `search` owns derived retrieval/index jobs. Existing safe logs remain operator
 diagnostics, not a source of prompts or cross-user product analytics.
+
+## 9. Planning, settings and credentials
+
+Calendar application services own occupied/free intervals and conflicts. A task
+application planning service owns deterministic constraints/optimization inside the
+monolith, using independent typed tasks. Checkboxes/database rows do not silently
+become tasks. LLM estimates are labeled proposals, not completion/duration truth.
+Use explicit work windows and editable 45/15-minute session/break defaults. General
+replanning moves unprotected task sessions only; other personal events require a
+direct request. Stale/missing official coverage allows conditional previews only;
+applying affected plans waits for successful freshness/coverage revalidation.
+
+An editable personal instructions field guides style/preferences below server policy.
+Hard scheduling constraints remain structured/versioned; ambiguous free text cannot
+override them. Proactive work is opt-in, bounded and uses existing Celery/in-app
+delivery. Skip unchanged/non-actionable work and recheck settings on queued execution.
+
+Operator keys are consumer-scoped deployment secrets. Personal supported API connections
+require authenticated owner-only encrypted storage with a deployment-managed encryption
+key, masking and disconnect/revocation. The credential resolver exposes secrets only
+to the selected adapter consumer; prompts, checkpoints, client responses and analytics
+receive no plaintext secrets. Arbitrary client base URLs are not a provider interface.
+API/worker model consumers are explicitly configured; indexing workers do not inherit
+unrelated LLM/search credentials. Exact storage/rotation and package contracts are
+verified in AI-01/02 before activation; none are implemented by this document.

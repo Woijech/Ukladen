@@ -1,6 +1,6 @@
 # Ukladen Documentation Index
 
-Updated: 2026-10-17.
+Updated: 2026-10-21.
 
 ## Contract and reading order
 
@@ -33,6 +33,7 @@ Planned contracts do not override the current implemented API silently.
 - [ADR 0005](adr/0005-support-scoped-ai-action-permissions.md): confirmed/scoped automatic AI actions.
 - [ADR 0006](adr/0006-use-versioned-page-block-documents.md): notes block document schema and preserving migration.
 - [ADR 0007](adr/0007-use-page-backed-database-records.md): database record ownership, schema versions and recovery.
+- [ADR 0009](adr/0009-specify-provider-neutral-ai-orchestration.md): provider-neutral AI orchestration, credentials and deterministic planning boundaries.
 
 ## Current implementation guides
 
@@ -61,12 +62,14 @@ implementation task, not a guarantee that its checks were rerun during a later e
 
 ## Planned AI delivery
 
-- [AI scenarios and owner usage analytics](product/ai.md): editable scope and planned product behavior.
-- [AI implementation plan](development/ai-implementation-plan.md): AI-00 through AI-09, dependencies and acceptance gates.
-- [AI setup runbook](development/ai-setup.md): when/how to connect Groq Free, CPU embeddings and optional replacement providers.
+- [AI product specification](product/ai.md): owner-agreed chat, knowledge, planning, actions, provider choices and lifecycle.
+- [AI implementation plan](development/ai-implementation-plan.md): AI-00 through AI-12, dependencies and acceptance gates.
+- [AI tool contracts](development/ai-tool-contracts.md): capabilities, typed boundaries, budgets and synthetic acceptance data.
+- [AI setup runbook](development/ai-setup.md): staged operator/BYOK providers, embeddings, web search and activation gates.
 
-These are planning documents. AI integrations, retrieval, actions and analytics are
-not implemented; this plan does not authorize starting or deploying their stages.
+AI-00 specification and synthetic contracts are delivered. AI integrations, retrieval,
+actions, planning and analytics runtime are not implemented. These documents do not
+authorize starting or deploying their runtime stages.
 
 ## IIS evidence and future integration
 
