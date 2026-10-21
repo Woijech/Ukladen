@@ -1,6 +1,6 @@
 # AI Implementation Plan
 
-Updated: 2026-10-21.
+Updated: 2026-10-22.
 Status: AI-00 specification and synthetic acceptance contracts are delivered. All
 runtime stages below remain not implemented. This documentation task does not
 install dependencies, implement P-06, create accounts, call providers or deploy.
@@ -18,7 +18,7 @@ numeric order is not an implicit dependency or authorization to start another st
 | Stage | Deliverable | Dependencies / connection gate | Exit evidence |
 | --- | --- | --- | --- |
 | AI-00 | Agreed scope, policies, tool/config contracts and synthetic cases | No external connection | Specification/fixture/link checks; no runtime claim |
-| AI-01 | Framework-neutral ports, LangGraph/fake orchestration, PostgreSQL checkpoints/runs/usage | AI-00; prove Python 3.14 compatibility first | Offline service/HTTP/persistence/restart checks |
+| AI-01 | Neutral ports, LangChain create_agent/fakes/HITL, PostgreSQL checkpoints/runs/usage | AI-00; prove package compatibility; separate owner approval per step | Offline service/HTTP/persistence/restart checks |
 | AI-02 | Operator model catalog, supported adapters and encrypted personal API connections | AI-01; explicitly chosen vendor contract/account | Synthetic smoke, capability/secret/quota/isolation checks |
 | AI-03 | Authorized search/read tools and lexical grounding | AI-01; existing application services | Sources, current ownership, injection and coverage cases |
 | AI-04 | Separate streaming chats, cancellation, sources, instructions/model settings and usage UI | AI-01/02/03 | Desktop/mobile/session isolation and retention checks |
@@ -42,7 +42,7 @@ checks for every promoted capability. Stop at each requested stage's completion 
 | Area | Responsibility / reuse |
 | --- | --- |
 | ai module | Conversation/run/proposal/grant/settings/usage orchestration and application ports |
-| ai infrastructure | LangGraph wiring, PostgreSQL checkpointer and execution recovery; no framework types in domain/application |
+| ai infrastructure | LangChain create_agent/tools/HITL on LangGraph, PostgreSQL checkpoints and recovery; no framework types in domain/application |
 | LLM integrations | Concrete supported adapters; normalized requests/results and capability mapping |
 | search | Existing lexical service, derived chunks/embeddings, coverage and web-search application port |
 | embedding/web integrations | Independent implementations; no implicit shared keys or billing |
@@ -106,13 +106,23 @@ Normalize messages, typed tool requests/results, call IDs, finish/refusal/error 
 usage completeness and private provider continuation metadata. Separate query/document
 embedding methods. Check provider-neutral contracts through a deterministic fake.
 
-Prove pinned LangGraph/PostgreSQL checkpointer compatibility with Python 3.14 and the
-existing transaction/connection setup before installation. Do not downgrade Python
-or introduce multi-agent orchestration. Framework types remain infrastructure-only.
+Use LangChain create_agent for the standard model/tool loop and typed tools, with
+HumanInTheLoopMiddleware for review pauses and LangGraph PostgreSQL checkpoints for
+resumption. Reuse compatible call-limit/error middleware; no custom tool loop or
+direct StateGraph unless a concrete gap is demonstrated. Prove pinned LangChain,
+LangGraph and checkpointer compatibility with Python 3.14 and existing connections
+before adding dependencies. Framework types remain infrastructure-only. AI-01 tests
+HITL using synthetic non-business tools, not production writes/confirmation tables.
+
+The owner requested separate approval of every implementation step on 2026-10-22.
+Follow the [AI-01 approval checkpoints](ai-01-execution-plan.md): report the completed
+step, checks and exact next scope, then wait for explicit approval. This documentation
+update does not authorize compatibility probes, dependency installation or runtime work.
 
 Persist owned conversations/messages, runs, provider attempts and tool outcomes via
-Alembic. Planned run states: queued/running/completed/failed/cancelled/interrupted;
-pending proposals have separate lifecycle. Admit work durably before external work;
+Alembic, including reviewed checkpoint migrations rather than startup auto-DDL.
+Planned run states: queued/running/completed/failed/cancelled/interrupted;
+pending proposals have a separate lifecycle. Admit work durably before external work;
 no database transaction stays open during a model call. Count each actual retry.
 After crashes, reconcile incomplete work without automatically replaying side effects.
 Checkpoint replay is not authorization or an execution log.

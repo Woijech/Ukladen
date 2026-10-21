@@ -1,6 +1,6 @@
 # AI Setup and Provider Switching Runbook
 
-Updated: 2026-10-21.
+Updated: 2026-10-22.
 Status: planned runtime instructions. AI-00 documentation/fixtures exist; AI routes,
 settings, credentials, model adapters, checkpoints and embedding workers do not.
 Do not paste proposed settings into today's app expecting AI to work. No account,
@@ -18,9 +18,12 @@ provider, current price or universal OpenAI-compatible contract is assumed.
 1. Use the agreed specification, fixture and existing [local guide](local-development.md)
    or [home profile](../deployment/home-server.md). Preserve working env files,
    credentials and volumes. Ordinary CI uses fake providers and synthetic content.
-2. Prove LangGraph/checkpointer compatibility with the repository Python 3.14/runtime
-   before dependency installation. Keep domain/application contracts framework-neutral.
-3. Implement AI-01 with preserving Alembic migrations and disposable PostgreSQL/Redis.
+2. Follow the [owner-approved step workflow](ai-01-execution-plan.md). Prove LangChain
+   create_agent, HITL middleware and LangGraph/PostgreSQL checkpointer compatibility
+   with the repository Python 3.14/runtime before adding dependencies. Reuse these
+   mechanisms; keep framework types out of domain/application contracts.
+3. Implement AI-01 with preserving Alembic migrations, including checkpoint schema,
+   and disposable PostgreSQL/Redis. Do not run automatic schema setup on API startup.
    Verify conversation ownership, checkpoints, cancellation/restart, attempts/unknown
    usage, duplicate submission and complete content cleanup before real integration.
 4. Only after AI-01 implements the settings, its proposed offline configuration is:

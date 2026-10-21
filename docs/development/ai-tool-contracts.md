@@ -1,6 +1,6 @@
 # AI-00 Tool and Execution Contracts
 
-Updated: 2026-10-21.
+Updated: 2026-10-22.
 Status: specified, not implemented. This is the application contract beneath
 [AI product requirements](../product/ai.md), not an existing API/SDK/tool registry.
 Transport DTOs/migrations are finalized with each implementing stage. No real model,
@@ -12,6 +12,10 @@ web request or application mutation is authorized by these examples.
   capabilities, current instant and profile timezone. None are overridable model arguments.
 - Validate inputs/results with provider-neutral Pydantic DTOs; adapters own SDK conversion.
   Register only operations whose normal application services actually exist.
+- Expose these contracts through LangChain typed tools/create_agent. Reuse HITL and
+  persistence rather than a custom tool loop. Middleware pauses/reviews calls;
+  server ownership, exact confirmation, grants, idempotency and business transactions
+  remain mandatory. Editing a write proposal requires a new review, not edit-and-run.
 - Every reference has a discriminated source type/ID and version/location where
   applicable. Verify foreign IDs through ordinary services without leaking existence.
 - Results declare safe status, bounded data, citations, read coverage/truncation,

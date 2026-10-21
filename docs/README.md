@@ -1,6 +1,6 @@
 # Ukladen Documentation Index
 
-Updated: 2026-10-21.
+Updated: 2026-10-22.
 
 ## Contract and reading order
 
@@ -63,6 +63,7 @@ implementation task, not a guarantee that its checks were rerun during a later e
 
 - [AI product specification](product/ai.md): owner-agreed chat, knowledge, planning, actions, provider choices and lifecycle.
 - [AI implementation plan](development/ai-implementation-plan.md): AI-00 through AI-12, dependencies and acceptance gates.
+- [AI-01 execution steps](development/ai-01-execution-plan.md): individually approved scopes, deliverables and verification.
 - [AI tool contracts](development/ai-tool-contracts.md): capabilities, typed boundaries, budgets and synthetic acceptance data.
 - [AI setup runbook](development/ai-setup.md): staged operator/BYOK providers, embeddings, web search and activation gates.
 

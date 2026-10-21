@@ -391,7 +391,9 @@ The owner-confirmed [AI specification](docs/product/ai.md) selects provider-neut
 operator offerings and personal API connections, local-source-first answers with
 labeled model/web fallback, editable personal instructions and opt-in proactive work.
 [ADR 0009](docs/adr/0009-specify-provider-neutral-ai-orchestration.md) records one
-logical LangGraph agent with PostgreSQL checkpoints behind neutral ports. Calendar
+logical LangChain create_agent agent on LangGraph with PostgreSQL checkpoints behind
+neutral ports. Reuse tool schemas and HITL middleware; normal services still own
+authorization, replay protection and atomic commits. Calendar
 services own interval truth; tasks owns deterministic planning. A stale confirmed
 multi-action plan applies nothing and needs a new preview. Per-account activation
 settings and actual per-owner grants remain required. See [AI architecture](docs/architecture/ai.md).
@@ -1042,7 +1044,8 @@ S3-compatible API
 
 ```text
 LLM provider abstraction
-LangGraph + PostgreSQL checkpoints (target; compatibility not yet verified)
+LangChain create_agent + HITL middleware on LangGraph (target)
+PostgreSQL checkpoints (target; package compatibility not yet verified)
 Tool Calling
 Embeddings
 RAG

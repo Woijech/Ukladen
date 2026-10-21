@@ -83,6 +83,19 @@ Actual vendor/model IDs, feature compatibility, API/search endpoints, account pr
 configured budgets, encryption details and replay purge are verified in the implementing
 stage. These do not reopen the selected functionality or authorize external calls now.
 
+## AI implementation clarification (2026-10-22)
+
+The owner requested LangChain's ready-made tool calling/HITL rather than a custom
+agent loop. Selected composition: create_agent, typed tools, HumanInTheLoopMiddleware
+and PostgreSQL checkpoints on LangGraph. Domain services still own authorization,
+exact proposals, replay protection and atomic writes; changed arguments require a
+new confirmation. See the clarification in [ADR 0009](../adr/0009-specify-provider-neutral-ai-orchestration.md).
+
+The owner also requested explicit approval before each AI-01 implementation step.
+The [step plan](../development/ai-01-execution-plan.md) defines concrete scopes and
+checks. Updating documentation is authorized now; no AI-01 runtime step is authorized
+until separately approved. This developer workflow is distinct from product HITL.
+
 ## Remaining decisions
 
 | ID | Question | Proposed default | What depends on it |

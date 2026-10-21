@@ -1,6 +1,6 @@
 # AI, Retrieval and Application Tools
 
-Updated: 2026-10-21.
+Updated: 2026-10-22.
 Status: AI/RAG not implemented. `ai`, LLM and embedding boundaries contain package
 markers. Materials/extraction and basic lexical search are implemented separately;
 see [P-08 contracts](../development/materials.md). They do not implement chunks,
@@ -42,8 +42,12 @@ not depend on SDK/framework response types. Streaming/cancellation is required t
 behavior, never permission to execute incomplete or unconfirmed tool arguments.
 
 [ADR 0009](../adr/0009-specify-provider-neutral-ai-orchestration.md) selects one logical
-LangGraph agent with PostgreSQL checkpoints behind framework-neutral ports. Checkpoints
-support pause/resume; normal services and execution records own authorization/commits.
+LangChain create_agent agent on LangGraph with PostgreSQL checkpoints behind neutral
+ports. Use the ready-made model/tool loop, typed tools and HumanInTheLoopMiddleware;
+do not build a parallel tool loop or custom graph without demonstrated need.
+Checkpoints support pause/resume; normal services/execution records own authorization,
+idempotency and atomic commits. Edited write arguments need a fresh proposal and
+confirmation; middleware approval batches do not provide transaction atomicity.
 Prove Python 3.14 compatibility before installing packages. No multi-agent subsystem
 or separate AI/planning microservice is selected.
 
