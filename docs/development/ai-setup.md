@@ -1,10 +1,10 @@
 # AI Setup and Provider Switching Runbook
 
 Updated: 2026-10-22.
-Status: planned runtime instructions. AI-00 documentation/fixtures exist; AI routes,
-settings, credentials, model adapters, checkpoints and embedding workers do not.
-Do not paste proposed settings into today's app expecting AI to work. No account,
-key, dependency, model download, provider request or deployment was performed here.
+Status: the internal offline harness is implemented under AI-01 step 3; later setup
+instructions remain planned. AI routes/settings, credentials, real model adapters,
+owned checkpoints and embedding workers do not exist. Proposed environment settings
+do not enable an AI feature in today's app. No provider request or deployment was made.
 
 Use [product scope](../product/ai.md), [stages](ai-implementation-plan.md),
 [contracts](ai-tool-contracts.md) and [ADR 0009](../adr/0009-specify-provider-neutral-ai-orchestration.md).
@@ -46,6 +46,56 @@ docker compose config --quiet
 For home configuration use the deployment guide's home_compose helper and its quiet
 config check. These checks do not implement or enable AI. Fake/non-AI installations
 must not require a new secret file or access to model networks.
+
+### A1. Implemented offline harness
+
+`ai.application.agent` defines framework-neutral Pydantic input/result/review DTOs
+and the AgentRunner protocol. `ai.infrastructure.agent.OfflineAgentRunner` composes
+create_agent with built-in model/tool limits, ToolErrorMiddleware and HITL; it does
+not implement a second model/tool loop. `integrations.llm.fake.FakeChatModel` supplies
+scripted responses based on checkpointed messages rather than a mutable response index.
+`ai.infrastructure.fake_tools` contains pure bounded integer tools only.
+
+Run the network-free harness tests from `apps/backend`:
+
+~~~bash
+uv sync --frozen
+uv run pytest tests/test_ai_agent.py -q
+~~~
+
+The caller injects a checkpointer explicitly; unit tests use strict MessagePack
+serialization and InMemorySaver. In-memory checkpoints disappear with the process.
+The separate step-2 PostgreSQL proof does not implement application persistence.
+No API/startup/worker imports or registers this harness; conversation IDs are internal
+identifiers, not an implemented ownership check or a public execution endpoint.
+
+Messages are limited to 16 KiB UTF-8; model/tool call limits are at most 4/8 per
+framework invocation. Tool errors/results and review batches are sanitized/bounded.
+Only approve/reject are accepted, matched to the current interrupt and ordered batch;
+new messages cannot skip an unfinished execution. Changed arguments require another
+proposal in the future business review flow. The harness suppresses LangSmith tracing
+per invocation even if ambient tracing environment flags are enabled. Fake responses
+do not fabricate token usage or require API keys.
+
+Direct framework pins are LangChain 1.4.7, langchain-core 1.6.13, LangGraph 1.2.16,
+langgraph-checkpoint 4.3.0, langgraph-checkpoint-postgres 3.2.0 and LangSmith 0.14.12.
+The core/checkpoint packages are directly imported framework APIs; the PostgreSQL
+package is staged for step 4. LangSmith is already transitive and directly imported
+only to disable remote tracing. The tested Linux environment gains 26 runtime
+distributions; the universal lock also contains a platform-specific SDK dependency.
+The required websockets downgrade is 17.1 to 16.1.1; other existing pins are preserved.
+These dependencies replace custom loop/review/persistence machinery, but add framework,
+serialization, transport and checkpoint-schema maintenance. No LangSmith account,
+tracing service, separate agent server or provider SDK is activated.
+
+Durable attempt budgets across retry/resume, concurrent admission, authentication,
+cancellation, retention and business authorization are not implemented by this harness.
+Its built-in per-invocation limits cannot substitute for the planned durable ledger.
+
+Verification (2026-10-22): 26 offline harness tests; full backend pytest 988 passed /
+553 native-service checks skipped with PostgreSQL/Redis/S3 targets unset; full
+Ruff/format/Pyright, dependency/lock and quiet Compose checks passed. See
+[the execution record](ai-01-execution-plan.md#12-delivery-progress-2026-10-22).
 
 ## B. AI-02: verify one supported adapter before activation
 

@@ -91,10 +91,11 @@ and PostgreSQL checkpoints on LangGraph. Domain services still own authorization
 exact proposals, replay protection and atomic writes; changed arguments require a
 new confirmation. See the clarification in [ADR 0009](../adr/0009-specify-provider-neutral-ai-orchestration.md).
 
-The owner also requested explicit approval before each AI-01 implementation step.
-The [step plan](../development/ai-01-execution-plan.md) defines concrete scopes and
-checks. Updating documentation is authorized now; no AI-01 runtime step is authorized
-until separately approved. This developer workflow is distinct from product HITL.
+The owner requested approval before AI-01 changes, later clarifying that read-only
+inspection/checks need no additional confirmation. The
+[step plan](../development/ai-01-execution-plan.md) defines concrete scopes and checks.
+Steps 1/2/3 were subsequently authorized; later changing steps still need approval.
+This developer workflow is distinct from product HITL.
 
 ## Remaining decisions
 

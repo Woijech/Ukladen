@@ -397,7 +397,9 @@ authorization, replay protection and atomic commits. Calendar
 services own interval truth; tasks owns deterministic planning. A stale confirmed
 multi-action plan applies nothing and needs a new preview. Per-account activation
 settings and actual per-owner grants remain required. See [AI architecture](docs/architecture/ai.md).
-Status: AI-00 specification is delivered; AI/RAG/planning runtime is not implemented.
+Status: AI-00 and the AI-01 internal fake-only harness are delivered. Owned AI
+persistence/API, real providers, RAG and planning remain not implemented; see
+[the implemented subset](docs/development/ai-setup.md#a1-implemented-offline-harness).
 
 Architecture:
 
@@ -632,7 +634,8 @@ generation, pgvector retrieval and RAG remain not implemented.
 
 ## 5.13 ai
 
-Status: AI-00 contracts are specified; runtime is not implemented. Own conversations,
+Status: AI-00 contracts and an internal offline harness are delivered; owned runtime
+persistence/API are not implemented. Own planned conversations,
 personal instructions, proposals/grants and usage; keep SDK/framework types behind
 application interfaces. Checkpoint continuity never replaces authorization or commit truth.
 
@@ -1045,7 +1048,7 @@ S3-compatible API
 ```text
 LLM provider abstraction
 LangChain create_agent + HITL middleware on LangGraph (target)
-PostgreSQL checkpoints (target; package compatibility not yet verified)
+PostgreSQL checkpoints (target; compatibility proved, owned persistence not implemented)
 Tool Calling
 Embeddings
 RAG

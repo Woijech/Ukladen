@@ -67,9 +67,9 @@ implementation task, not a guarantee that its checks were rerun during a later e
 - [AI tool contracts](development/ai-tool-contracts.md): capabilities, typed boundaries, budgets and synthetic acceptance data.
 - [AI setup runbook](development/ai-setup.md): staged operator/BYOK providers, embeddings, web search and activation gates.
 
-AI-00 specification and synthetic contracts are delivered. AI integrations, retrieval,
-actions, planning and analytics runtime are not implemented. These documents do not
-authorize starting or deploying their runtime stages.
+AI-00 and the AI-01 internal offline harness are delivered; see the setup runbook for
+its tested scope. Owned AI persistence/API, real providers, retrieval, actions, planning
+and analytics remain not implemented. Plans do not authorize later changes/deployment.
 
 ## IIS contracts and future integration
 

@@ -1,9 +1,10 @@
 # AI-01 Execution Plan and Approval Checkpoints
 
 Updated: 2026-10-22.
-Status: planned; none of the implementation steps below has been approved or executed.
-The owner authorized this documentation update and asked to approve each subsequent
-implementation step separately. This is a developer workflow, distinct from the
+Status: in progress. Steps 1 through 3 are complete and verified.
+Steps 4 through 9 are not approved or implemented. The owner requested approval before
+changes and clarified that read-only inspection/checks need no additional permission.
+This is a developer workflow, distinct from the
 application's human-in-the-loop approval of user-data changes.
 
 Read [the AI plan](ai-implementation-plan.md#5-ai-01-offline-orchestration-persistence-and-accounting),
@@ -21,7 +22,8 @@ Approval of a numbered step covers its listed implementation, focused tests and
 repairs inside that scope, plus a local checkpoint commit when the change is
 self-contained and verified. At completion report changed files, executed checks,
 limitations and the proposed next step, then stop. Silence/time passing is not approval.
-Do not start the next step without an explicit owner reply. If a step needs materially
+Obtain an explicit owner reply before the next step that changes the project or data;
+read-only inspection/checks need no additional approval. If a step needs materially
 broader changes, explain the concrete change and obtain approval before that work.
 
 No real LLM/search calls, API keys, paid usage, embeddings, P-06 planning, production
@@ -144,4 +146,50 @@ Executed for this documentation update: 9 Markdown files/152 local links and anc
 balanced fences, English additions, nine distinct approval checkpoints, preservation
 of dated verification history, git diff --check and docker compose config --quiet.
 No AI-01 compatibility probe, package installation, database migration, runtime test,
-model API call or deployment was executed. The first implementation approval is pending.
+model API call or deployment was executed during that preparation update. The first
+implementation approval was pending then; subsequent progress is recorded below.
+
+## 12. Delivery progress (2026-10-22)
+
+Step 1 inspected the actual auth/registration/CSRF, synchronous SQLAlchemy transactions,
+Alembic metadata/head, Celery cleanup/recovery and safe logging boundaries. No project
+files or databases changed in that step.
+
+Step 2 proved LangChain 1.4.7, langchain-core 1.6.13, LangGraph 1.2.16,
+langgraph-checkpoint 4.3.0 and PostgreSQL checkpointer 3.2.0 on Python 3.14.4 with
+Pydantic 2.13.5/Psycopg 3.3.6. Exact existing runtime pins initially failed resolution:
+langgraph-sdk requires websockets <17 while Ukladen locked 17.1. Replacing only that
+existing pin with 16.1.1 made the installation compatible; all other runtime pins
+were preserved. There are 26 added runtime distributions on the tested Linux target.
+
+Six phases in separate disposable Python containers passed: checkpoint setup/typed
+input rejection, two review pauses, approve after restart, reject after restart and
+history/deletion/SQLAlchemy verification. The synthetic tool ran once on approval
+and zero times on rejection. External network was blocked in the proof script.
+The proof used a separately named PostgreSQL 18.6 container with tmpfs data; its
+container, data, temporary environment and package cache were removed. No existing
+application database was used. This is framework evidence, not owned application
+persistence or an authorization/idempotency proof.
+
+Step 3 adds only the proven package versions and a fake-only internal harness;
+see [the implemented subset and limits](ai-setup.md#a1-implemented-offline-harness).
+It does not connect the harness to HTTP, Celery or business services. Framework
+objects stay in the infrastructure/integration packages; the application exposes
+AgentRunner and neutral Pydantic DTOs. A small result middleware also sanitizes
+validation failures returned by ToolNode, which do not pass through exception-only
+error handling. Built-in error/review/call-limit middleware owns the standard flow.
+
+Step-3 verification: Ruff check and format check across the backend (370 files),
+full Pyright (zero errors), 26 offline AI tests, full pytest (988 passed / 553 skipped),
+uv lock --check --offline, uv pip check (94 installed packages), Markdown local
+links/anchors/fences, git diff --check and docker compose config --quiet. The full
+pytest run used the host execution context because sandbox TestClient setup hung;
+PostgreSQL/Redis/S3 integration environment variables were explicitly unset. Native
+integration tests were skipped, not passed. The owner separately approved adding
+one non-null browser-cookie assertion in the existing Google-link test to fix its
+pre-existing Pyright error; its native scenario remains among the skipped checks.
+
+No migration, owned persistence/API, real provider call, business action, frontend
+change, push or deployment was performed. Step 4 remains a separate approval:
+implement owner-scoped persistence/checkpointer integration and prepare reviewed
+migrations without applying them to existing application data.

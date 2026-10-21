@@ -1,1 +1,1 @@
-"""External adapter boundary. Status: not implemented."""
+"""Scripted offline model; real provider adapters are not implemented."""

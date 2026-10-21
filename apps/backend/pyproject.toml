@@ -19,6 +19,12 @@ dependencies = [
   "boto3>=1.43,<2",
   "pillow>=13,<14",
   "pypdf>=6.20,<7",
+  "langchain==1.4.7",
+  "langchain-core==1.6.13",
+  "langgraph==1.2.16",
+  "langgraph-checkpoint==4.3.0",
+  "langgraph-checkpoint-postgres==3.2.0",
+  "langsmith==0.14.12",
 ]
 
 [dependency-groups]

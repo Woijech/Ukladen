@@ -1,8 +1,11 @@
 # AI, Retrieval and Application Tools
 
 Updated: 2026-10-22.
-Status: AI/RAG not implemented. `ai`, LLM and embedding boundaries contain package
-markers. Materials/extraction and basic lexical search are implemented separately;
+Status: AI-01 has an internal fake-only LangChain harness with neutral DTOs, typed
+synthetic tools, review pauses and per-invocation limits. Owned persistence, API,
+real providers and AI/RAG product features are not implemented. See the
+[offline harness](../development/ai-setup.md#a1-implemented-offline-harness).
+Materials/extraction and basic lexical search are implemented separately;
 see [P-08 contracts](../development/materials.md). They do not implement chunks,
 embeddings, model tools or RAG. pgvector infrastructure alone is not retrieval.
 
@@ -37,7 +40,8 @@ LLM, embedding and web-search providers are separate adapters under `app/integra
 The owner selected provider-neutral tools, an operator model catalog and user-owned
 API connections. No particular LLM provider/model is required; the old Groq baseline
 is superseded. CPU E5-small remains an embedding implementation candidate pending
-runtime proof. All adapters are not implemented. Domain/application contracts must
+runtime proof. Only the scripted offline model is implemented; real adapters are not.
+Domain/application contracts must
 not depend on SDK/framework response types. Streaming/cancellation is required target
 behavior, never permission to execute incomplete or unconfirmed tool arguments.
 
@@ -48,7 +52,8 @@ do not build a parallel tool loop or custom graph without demonstrated need.
 Checkpoints support pause/resume; normal services/execution records own authorization,
 idempotency and atomic commits. Edited write arguments need a fresh proposal and
 confirmation; middleware approval batches do not provide transaction atomicity.
-Prove Python 3.14 compatibility before installing packages. No multi-agent subsystem
+Python 3.14.4 framework compatibility was proved in AI-01 step 2, including the
+required websockets 17.1 to 16.1.1 replacement. No multi-agent subsystem
 or separate AI/planning microservice is selected.
 
 ## 3. Planned tool capabilities
@@ -192,8 +197,9 @@ The [AI product specification](../product/ai.md) owns the editable scenario cata
 and owner-only usage page requirements. The [implementation plan](../development/ai-implementation-plan.md)
 defines staged ports, durable usage accounting, chat, indexing and confirmed/automatic
 actions; [the setup runbook](../development/ai-setup.md) defines connection gates.
-The AI-00 specification and synthetic acceptance data are delivered; runtime remains
-not implemented. `ai` owns conversation/run/tool/action usage metadata;
+The AI-00 specification/acceptance data and AI-01 offline harness are delivered.
+Owned runtime/usage persistence and product endpoints remain not implemented.
+`ai` owns planned conversation/run/tool/action usage metadata;
 `search` owns derived retrieval/index jobs. Existing safe logs remain operator
 diagnostics, not a source of prompts or cross-user product analytics.
 

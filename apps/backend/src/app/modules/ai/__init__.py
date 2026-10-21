@@ -1,1 +1,1 @@
-"""Ai module boundary. Status: not implemented."""
+"""Offline agent harness; owned persistence and HTTP integration are not implemented."""
