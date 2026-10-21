@@ -85,6 +85,18 @@ stage. These do not reopen the selected functionality or authorize external call
 
 ## Remaining decisions
 
+### Manual P-06 scope confirmed on 2026-10-21
+
+The owner selected backend-only incremental delivery, exact offset-aware deadlines,
+manual scheduling, advisory dependencies and page-only source links. Completing a
+parent requires closed active subtasks. Task removal uses recoverable branch trash;
+completion/cancellation/trash cancels future work blocks. Creation/moves are future-only.
+Availability windows are supplied per request. Overlaps and uncertain official sources
+require explicit acknowledgement and revalidation. AI and automatic scheduling are
+not part of this delivery. Basic task create/read/update is the first implementation
+increment; hierarchy, trash, dependencies, blocks and availability follow separately.
+See [task contracts and actual status](../development/tasks.md).
+
 | ID | Question | Proposed default | What depends on it |
 | --- | --- | --- | --- |
 | Q-04a | Product policies resolved in the 2026-10-21 table above. Per-account budgets/quotas and per-grant scope/expiry/counts are required activation inputs. | Provider-neutral operator/BYOK models, relevant-data transfer implied by AI use, 30-day chat/activity policies, initial automatic new-page/task creates only under actual grants. See [AI scope](ai.md). | Concrete credential/vendor contracts, execution records, minimal replay-record purge and account admission |
