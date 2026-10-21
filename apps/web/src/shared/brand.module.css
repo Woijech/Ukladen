@@ -1,2 +1,15 @@
-.brand { display: inline-flex; align-items: center; gap: 10px; color: #302b3f; font-size: 24px; font-weight: 750; letter-spacing: -.7px; line-height: 1; vertical-align: middle; }
-.symbol { flex-shrink: 0; border-radius: 12px; }
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.7px;
+  line-height: 1;
+  vertical-align: middle;
+}
+.symbol {
+  flex-shrink: 0;
+  border-radius: 12px;
+}
