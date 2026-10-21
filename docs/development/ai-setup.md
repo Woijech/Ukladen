@@ -1,9 +1,10 @@
 # AI Setup and Provider Switching Runbook
 
 Updated: 2026-10-22.
-Status: the internal offline harness is implemented under AI-01 step 3; later setup
-instructions remain planned. AI routes/settings, credentials, real model adapters,
-owned checkpoints and embedding workers do not exist. Proposed environment settings
+Status: the internal offline harness is implemented; AI-01 step 4 prepares owned
+persistence adapters and an unapplied migration. Native persistence validation and
+later setup instructions remain planned. AI routes/settings, credentials, real model
+adapters and embedding workers do not exist. Proposed environment settings
 do not enable an AI feature in today's app. No provider request or deployment was made.
 
 Use [product scope](../product/ai.md), [stages](ai-implementation-plan.md),
@@ -65,7 +66,7 @@ uv run pytest tests/test_ai_agent.py -q
 
 The caller injects a checkpointer explicitly; unit tests use strict MessagePack
 serialization and InMemorySaver. In-memory checkpoints disappear with the process.
-The separate step-2 PostgreSQL proof does not implement application persistence.
+The separate step-2 PostgreSQL proof does not verify the step-4 owned adapter.
 No API/startup/worker imports or registers this harness; conversation IDs are internal
 identifiers, not an implemented ownership check or a public execution endpoint.
 
@@ -80,7 +81,7 @@ do not fabricate token usage or require API keys.
 Direct framework pins are LangChain 1.4.7, langchain-core 1.6.13, LangGraph 1.2.16,
 langgraph-checkpoint 4.3.0, langgraph-checkpoint-postgres 3.2.0 and LangSmith 0.14.12.
 The core/checkpoint packages are directly imported framework APIs; the PostgreSQL
-package is staged for step 4. LangSmith is already transitive and directly imported
+package is used by the prepared owned adapter. LangSmith is already transitive and directly imported
 only to disable remote tracing. The tested Linux environment gains 26 runtime
 distributions; the universal lock also contains a platform-specific SDK dependency.
 The required websockets downgrade is 17.1 to 16.1.1; other existing pins are preserved.
@@ -96,6 +97,31 @@ Verification (2026-10-22): 26 offline harness tests; full backend pytest 988 pas
 553 native-service checks skipped with PostgreSQL/Redis/S3 targets unset; full
 Ruff/format/Pyright, dependency/lock and quiet Compose checks passed. See
 [the execution record](ai-01-execution-plan.md#12-delivery-progress-2026-10-22).
+
+### A2. Prepared owned persistence
+
+The domain state, AiRepository port, SQLAlchemy adapter and OwnedPostgresSaver are
+implemented internally. Revision 0022_ai_persistence prepares application and pinned
+checkpoint tables; it has not been applied or validated against native PostgreSQL.
+No startup code calls framework setup or enables the feature. See
+[the schema, transaction and deletion contracts](ai-persistence.md).
+
+owned_offline_runner composes the existing fake harness with an owner-bound saver.
+Its caller supplies and closes a Psycopg connection with autocommit enabled and no
+outer transaction. Each checkpoint operation checks ownership/expiry inside a short
+transaction; no storage transaction encloses a model call. Application repositories
+participate in caller-owned SQLAlchemy transactions. There is no public API or durable
+attempt/tool recording hook yet. This internal composition is not an activation recipe.
+
+Run the offline storage checks with no service targets configured:
+
+~~~bash
+uv run pytest tests/test_ai_agent.py tests/test_ai_state.py tests/test_ai_checkpoint_storage.py -q
+~~~
+
+Tests compile the migration and check state/filter/cursor behavior using mocks. Native
+migration, concurrency, rollback and process-restart verification require separately
+approved step 5. Retention cleanup and deletion endpoints remain step 8/6 work.
 
 ## B. AI-02: verify one supported adapter before activation
 

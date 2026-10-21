@@ -86,6 +86,15 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "material_objects",
         "page_material_links",
         "search_material_documents",
+        "ai_conversations",
+        "ai_messages",
+        "ai_runs",
+        "ai_provider_attempts",
+        "ai_tool_executions",
+        "checkpoint_migrations",
+        "checkpoints",
+        "checkpoint_blobs",
+        "checkpoint_writes",
     }
     assert set(inspect(database_connection).get_table_names()) == expected
     command.check(config)

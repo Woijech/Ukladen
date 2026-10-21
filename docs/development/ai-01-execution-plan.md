@@ -1,8 +1,9 @@
 # AI-01 Execution Plan and Approval Checkpoints
 
 Updated: 2026-10-22.
-Status: in progress. Steps 1 through 3 are complete and verified.
-Steps 4 through 9 are not approved or implemented. The owner requested approval before
+Status: in progress. Steps 1 through 4 are complete within their approved scope;
+step 4 prepares persistence code and a migration without applying it.
+Steps 5 through 9 are not approved or implemented. The owner requested approval before
 changes and clarified that read-only inspection/checks need no additional permission.
 This is a developer workflow, distinct from the
 application's human-in-the-loop approval of user-data changes.
@@ -193,3 +194,29 @@ No migration, owned persistence/API, real provider call, business action, fronte
 change, push or deployment was performed. Step 4 remains a separate approval:
 implement owner-scoped persistence/checkpointer integration and prepare reviewed
 migrations without applying them to existing application data.
+
+Step 4 was subsequently approved. It adds domain state, a neutral repository port,
+SQLAlchemy repositories and an owner-bound PostgreSQL checkpointer, plus the unapplied
+0022_ai_persistence revision. See [persistence contracts and migration impact](ai-persistence.md).
+The migration creates five application tables and four pinned checkpoint tables;
+it does not update existing user data. Composite owner keys, ordered message admission,
+versioned run transitions, submission uniqueness and a partial active-run index define
+the storage constraints. Attempt usage is nullable rather than fabricated as zero.
+
+Checkpoint access checks an active owner and a conversation within its 30-day window
+inside each short storage transaction. Automatic setup and inherited unscoped deletion,
+copying and pruning are disabled. No application service, API or worker invokes this
+composition yet. Admission, durable accounting hooks, cancellation and cleanup remain
+later steps. Static SQL generation and mocked cursor tests are not native PostgreSQL
+constraint, concurrency or restart evidence.
+
+Step-4 verification: 54 offline AI tests passed; full backend pytest reported
+1016 passed / 553 skipped with native PostgreSQL/Redis/S3 targets unset. The full
+run used the host execution context for local TestClient support and disabled remote
+AI tracing. Ruff check, format check (380 files), full Pyright (zero errors), quiet
+Compose validation, git diff --check and seven Markdown files/145 local links,
+anchors and balanced fences passed. Skipped native checks were not counted as passed.
+
+Step 5 requires separate approval: apply the prepared revision only to an explicitly
+identified disposable database, verify migrations/metadata/ownership/rollback and
+prove owned checkpoint resume across processes. No migration was applied during step 4.

@@ -1,0 +1,315 @@
+from dataclasses import asdict
+from typing import cast
+from uuid import UUID
+
+from sqlalchemy import select, update
+from sqlalchemy.orm import Session
+
+from app.modules.ai.domain.state import (
+    AiConflict,
+    AiNotFound,
+    Conversation,
+    ErrorCode,
+    ExecutionStatus,
+    InvalidAiState,
+    Message,
+    MessageRole,
+    ProviderAttempt,
+    Run,
+    RunStatus,
+    ToolExecution,
+    require_run_transition,
+)
+from app.modules.ai.infrastructure.orm import (
+    ConversationModel,
+    MessageModel,
+    ProviderAttemptModel,
+    RunModel,
+    ToolExecutionModel,
+)
+
+
+def conversation_entity(row: ConversationModel) -> Conversation:
+    return Conversation(
+        id=row.id,
+        user_id=row.user_id,
+        title=row.title,
+        created_at=row.created_at,
+        last_user_message_at=row.last_user_message_at,
+        next_sequence=row.next_sequence,
+    )
+
+
+def message_entity(row: MessageModel) -> Message:
+    return Message(
+        id=row.id,
+        user_id=row.user_id,
+        conversation_id=row.conversation_id,
+        sequence=row.sequence,
+        role=cast(MessageRole, row.role),
+        content=row.content,
+        created_at=row.created_at,
+    )
+
+
+def run_entity(row: RunModel) -> Run:
+    return Run(
+        id=row.id,
+        user_id=row.user_id,
+        conversation_id=row.conversation_id,
+        submission_id=row.submission_id,
+        request_digest=row.request_digest,
+        provider=row.provider,
+        model=row.model,
+        status=cast(RunStatus, row.status),
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+        finished_at=row.finished_at,
+        version=row.version,
+    )
+
+
+def attempt_entity(row: ProviderAttemptModel) -> ProviderAttempt:
+    return ProviderAttempt(
+        id=row.id,
+        user_id=row.user_id,
+        run_id=row.run_id,
+        number=row.number,
+        status=cast(ExecutionStatus, row.status),
+        started_at=row.started_at,
+        finished_at=row.finished_at,
+        input_tokens=row.input_tokens,
+        output_tokens=row.output_tokens,
+        error_code=cast(ErrorCode, row.error_code),
+    )
+
+
+def tool_entity(row: ToolExecutionModel) -> ToolExecution:
+    return ToolExecution(
+        id=row.id,
+        user_id=row.user_id,
+        run_id=row.run_id,
+        number=row.number,
+        call_id=row.call_id,
+        tool_name=row.tool_name,
+        status=cast(ExecutionStatus, row.status),
+        started_at=row.started_at,
+        finished_at=row.finished_at,
+        error_code=cast(ErrorCode, row.error_code),
+    )
+
+
+class SqlAlchemyAiRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def create_conversation(self, conversation: Conversation) -> None:
+        self.session.add(ConversationModel(**asdict(conversation)))
+        self.session.flush()
+
+    def get_conversation(self, user_id: UUID, conversation_id: UUID) -> Conversation | None:
+        row = self.session.scalar(
+            select(ConversationModel)
+            .where(ConversationModel.user_id == user_id, ConversationModel.id == conversation_id)
+            .execution_options(populate_existing=True)
+        )
+        return conversation_entity(row) if row else None
+
+    def list_conversations(self, user_id: UUID, limit: int, offset: int) -> list[Conversation]:
+        if not 1 <= limit <= 200 or not 0 <= offset <= 2**31 - 1:
+            raise InvalidAiState("Invalid conversation pagination.")
+        return [
+            conversation_entity(row)
+            for row in self.session.scalars(
+                select(ConversationModel)
+                .where(ConversationModel.user_id == user_id)
+                .order_by(ConversationModel.created_at.desc(), ConversationModel.id)
+                .limit(limit)
+                .offset(offset)
+            )
+        ]
+
+    def append_message(self, message: Message) -> None:
+        current = self.get_conversation(message.user_id, message.conversation_id)
+        if current is None:
+            raise AiNotFound()
+        if message.created_at < current.created_at or (
+            message.role == "user"
+            and current.last_user_message_at is not None
+            and message.created_at < current.last_user_message_at
+        ):
+            raise InvalidAiState("Message activity cannot move backwards.")
+        statement = (
+            update(ConversationModel)
+            .where(
+                ConversationModel.id == message.conversation_id,
+                ConversationModel.user_id == message.user_id,
+                ConversationModel.next_sequence == message.sequence,
+            )
+            .values(next_sequence=message.sequence + 1)
+        )
+        if message.role == "user":
+            statement = statement.values(last_user_message_at=message.created_at)
+        if self.session.scalar(statement.returning(ConversationModel.id)) is None:
+            raise AiConflict("Conversation sequence changed.")
+        self.session.add(MessageModel(**asdict(message)))
+        self.session.flush()
+
+    def messages(
+        self, user_id: UUID, conversation_id: UUID, after: int, limit: int
+    ) -> list[Message]:
+        if not 0 <= after <= 2**63 - 1 or not 1 <= limit <= 200:
+            raise InvalidAiState("Invalid message pagination.")
+        return [
+            message_entity(row)
+            for row in self.session.scalars(
+                select(MessageModel)
+                .where(
+                    MessageModel.user_id == user_id,
+                    MessageModel.conversation_id == conversation_id,
+                    MessageModel.sequence > after,
+                )
+                .order_by(MessageModel.sequence)
+                .limit(limit)
+            )
+        ]
+
+    def create_run(self, run: Run) -> None:
+        if run.status != "queued" or run.conversation_id is None:
+            raise InvalidAiState("New runs require a conversation and queued state.")
+        if (
+            self.session.scalar(
+                select(ConversationModel.id)
+                .where(
+                    ConversationModel.id == run.conversation_id,
+                    ConversationModel.user_id == run.user_id,
+                )
+                .with_for_update()
+            )
+            is None
+        ):
+            raise AiNotFound()
+        self.session.add(RunModel(**asdict(run)))
+        self.session.flush()
+
+    def get_run(self, user_id: UUID, run_id: UUID) -> Run | None:
+        row = self.session.scalar(
+            select(RunModel)
+            .where(RunModel.id == run_id, RunModel.user_id == user_id)
+            .execution_options(populate_existing=True)
+        )
+        return run_entity(row) if row else None
+
+    def submission(self, user_id: UUID, submission_id: UUID) -> Run | None:
+        row = self.session.scalar(
+            select(RunModel)
+            .where(RunModel.user_id == user_id, RunModel.submission_id == submission_id)
+            .execution_options(populate_existing=True)
+        )
+        return run_entity(row) if row else None
+
+    def save_run(self, run: Run, expected_status: RunStatus) -> None:
+        require_run_transition(expected_status, run.status)
+        if (
+            self.session.scalar(
+                update(RunModel)
+                .where(
+                    RunModel.id == run.id,
+                    RunModel.user_id == run.user_id,
+                    RunModel.status == expected_status,
+                    RunModel.version == run.version - 1,
+                    RunModel.updated_at <= run.updated_at,
+                )
+                .values(
+                    status=run.status,
+                    updated_at=run.updated_at,
+                    finished_at=run.finished_at,
+                    version=run.version,
+                )
+                .returning(RunModel.id)
+            )
+            is None
+        ):
+            raise AiConflict("Run state changed.")
+
+    def create_attempt(self, attempt: ProviderAttempt) -> None:
+        if attempt.status != "started":
+            raise InvalidAiState("Attempts must be recorded before execution.")
+        self.session.add(ProviderAttemptModel(**asdict(attempt)))
+        self.session.flush()
+
+    def save_attempt(self, attempt: ProviderAttempt) -> None:
+        if attempt.status == "started":
+            raise InvalidAiState("An attempt outcome is required.")
+        if (
+            self.session.scalar(
+                update(ProviderAttemptModel)
+                .where(
+                    ProviderAttemptModel.id == attempt.id,
+                    ProviderAttemptModel.user_id == attempt.user_id,
+                    ProviderAttemptModel.run_id == attempt.run_id,
+                    ProviderAttemptModel.status == "started",
+                )
+                .values(
+                    status=attempt.status,
+                    finished_at=attempt.finished_at,
+                    input_tokens=attempt.input_tokens,
+                    output_tokens=attempt.output_tokens,
+                    error_code=attempt.error_code,
+                )
+                .returning(ProviderAttemptModel.id)
+            )
+            is None
+        ):
+            raise AiConflict("Attempt is already finished or unavailable.")
+
+    def attempts(self, user_id: UUID, run_id: UUID) -> list[ProviderAttempt]:
+        return [
+            attempt_entity(row)
+            for row in self.session.scalars(
+                select(ProviderAttemptModel)
+                .where(
+                    ProviderAttemptModel.user_id == user_id, ProviderAttemptModel.run_id == run_id
+                )
+                .order_by(ProviderAttemptModel.number)
+            )
+        ]
+
+    def create_tool_execution(self, execution: ToolExecution) -> None:
+        if execution.status not in ("started", "rejected"):
+            raise InvalidAiState("Tool calls must be recorded before execution.")
+        self.session.add(ToolExecutionModel(**asdict(execution)))
+        self.session.flush()
+
+    def save_tool_execution(self, execution: ToolExecution) -> None:
+        if execution.status == "started":
+            raise InvalidAiState("A tool outcome is required.")
+        if (
+            self.session.scalar(
+                update(ToolExecutionModel)
+                .where(
+                    ToolExecutionModel.id == execution.id,
+                    ToolExecutionModel.user_id == execution.user_id,
+                    ToolExecutionModel.run_id == execution.run_id,
+                    ToolExecutionModel.status == "started",
+                )
+                .values(
+                    status=execution.status,
+                    finished_at=execution.finished_at,
+                    error_code=execution.error_code,
+                )
+                .returning(ToolExecutionModel.id)
+            )
+            is None
+        ):
+            raise AiConflict("Tool call is already finished or unavailable.")
+
+    def tool_executions(self, user_id: UUID, run_id: UUID) -> list[ToolExecution]:
+        return [
+            tool_entity(row)
+            for row in self.session.scalars(
+                select(ToolExecutionModel)
+                .where(ToolExecutionModel.user_id == user_id, ToolExecutionModel.run_id == run_id)
+                .order_by(ToolExecutionModel.number)
+            )
+        ]

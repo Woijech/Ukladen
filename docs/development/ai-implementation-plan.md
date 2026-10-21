@@ -2,7 +2,8 @@
 
 Updated: 2026-10-22.
 Status: AI-00 is delivered and AI-01 is partially implemented through its internal
-offline harness. Owned persistence/HTTP and all later runtime stages remain not
+offline harness and prepared owned persistence adapters/migration. The revision is
+unapplied; native verification, HTTP and all later runtime stages remain not
 implemented. No P-06, real provider traffic or deployment is included.
 
 Read [system architecture](../../SYSTEM_ARCHITECTURE.md), [AI architecture](../architecture/ai.md),
@@ -18,7 +19,7 @@ numeric order is not an implicit dependency or authorization to start another st
 | Stage | Deliverable | Dependencies / connection gate | Exit evidence |
 | --- | --- | --- | --- |
 | AI-00 | Agreed scope, policies, tool/config contracts and synthetic cases | No external connection | Specification/fixture/link checks; no runtime claim |
-| AI-01 (partial) | Offline create_agent/fakes/neutral DTOs/HITL delivered; owned checkpoints/runs/usage/API pending | AI-00; compatibility proved; approval before changes | Harness tests now; owned HTTP/persistence/restart checks pending |
+| AI-01 (partial) | Offline create_agent/fakes/neutral DTOs/HITL delivered; owned persistence adapters/migration prepared; native activation and API pending | AI-00; compatibility proved; approval before changes | Offline state/storage tests now; native persistence/restart and HTTP checks pending |
 | AI-02 | Operator model catalog, supported adapters and encrypted personal API connections | AI-01; explicitly chosen vendor contract/account | Synthetic smoke, capability/secret/quota/isolation checks |
 | AI-03 | Authorized search/read tools and lexical grounding | AI-01; existing application services | Sources, current ownership, injection and coverage cases |
 | AI-04 | Separate streaming chats, cancellation, sources, instructions/model settings and usage UI | AI-01/02/03 | Desktop/mobile/session isolation and retention checks |
@@ -103,9 +104,12 @@ no API key or private content, and does not implement the selected functionality
 
 Implemented subset: the internal fake-only AgentRunner boundary and LangChain
 composition with synthetic typed tools, review pauses and bounded errors/calls.
+Owned state/repositories and checkpoint integration are prepared with an unapplied
+Alembic revision; see [persistence contracts](ai-persistence.md). They do not yet
+record actual harness attempts or expose an owned request lifecycle.
 See [actual setup/limits](ai-setup.md#a1-implemented-offline-harness) and
 [delivery progress](ai-01-execution-plan.md#12-delivery-progress-2026-10-22).
-The remaining paragraphs are planned AI-01 work, not existing API/persistence.
+The remaining paragraphs describe the complete AI-01 target, not a delivered API.
 
 Own LlmProvider in ai.application and EmbeddingProvider/WebSearchProvider in search.application.
 Normalize messages, typed tool requests/results, call IDs, finish/refusal/error state,
@@ -124,7 +128,7 @@ The owner requested approval before changes and permits read-only checks without
 additional confirmation (clarified on 2026-10-22).
 Follow the [AI-01 approval checkpoints](ai-01-execution-plan.md): report the completed
 step, checks and exact next scope, then obtain approval before subsequent changes.
-Steps 1/2/3 were subsequently authorized; steps 4 onward remain pending.
+Steps 1 through 4 were subsequently authorized; steps 5 onward remain pending.
 
 Persist owned conversations/messages, runs, provider attempts and tool outcomes via
 Alembic, including reviewed checkpoint migrations rather than startup auto-DDL.
