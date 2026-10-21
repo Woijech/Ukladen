@@ -1,0 +1,20 @@
+from typing import Protocol
+from uuid import UUID
+
+from app.modules.tasks.domain.tasks import Task, TaskPriority, TaskStatus, TaskSummary
+
+
+class TaskRepository(Protocol):
+    """Owner-scoped storage in the caller's transaction; never commit independently."""
+
+    def create(self, task: Task) -> None: ...
+    def get(self, user_id: UUID, task_id: UUID) -> Task | None: ...
+    def list(
+        self,
+        user_id: UUID,
+        status: TaskStatus | None,
+        priority: TaskPriority | None,
+        limit: int,
+        offset: int,
+    ) -> list[TaskSummary]: ...
+    def save(self, task: Task, expected_version: int) -> None: ...
