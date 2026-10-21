@@ -191,8 +191,8 @@ umask 077
 home_compose exec -T postgres sh -c 'exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "backups/ukladen-$(date +%Y%m%d-%H%M%S).dump"
 ```
 
-Copy backups to a separate disk and test restore in an isolated database. Future
-uploaded files also require a consistent SeaweedFS backup; copying a live storage
+Copy backups to a separate disk and test restore in an isolated database. Uploaded
+avatars and material originals also require a consistent SeaweedFS backup; copying a live storage
 volume is not a consistent backup. Automated backups and production object-storage
 selection are not implemented. Redis remains ephemeral; restarting/recreating it
 can lose queued mail. The existing email implementation has no durable outbox.

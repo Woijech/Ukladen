@@ -21,7 +21,7 @@ CSRF protection; see [profile contracts and API examples](../development/user-pr
 
 The backend academics API is implemented: authenticated group catalogue/context and
 current-user academic profiles. See [academic profile contracts](../development/academic-profile.md)
-and the [verified IIS investigation](../integrations/bsuir-iis-investigation.md).
+and the [verified public IIS contract](../integrations/bsuir-iis-public-api.md).
 
 The public IIS read API is implemented behind application-owned directory and
 schedule ports. Authenticated endpoints provide teacher lookup by ID, full group
@@ -110,90 +110,16 @@ templates, statuses, durations, dependency failures and schedule outcomes, witho
 request payloads or exception messages. `LOG_LEVEL` controls application verbosity.
 See [logging and debugging](../development/logging.md).
 
-`core/config.py` uses Pydantic Settings. Environment variables override a `.env`
-in the process working directory. Required settings are `DATABASE_URL`, `REDIS_URL`,
-`S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` and `S3_BUCKET`. URL types validate
-connection settings. Object storage credentials use `SecretStr`. Configuration
-must be supplied at startup; there are no hard-coded application credentials.
-`AUTH_SESSION_TTL_SECONDS` sets the lifetime used by `SessionService` and defaults
-to 30 days (2,592,000 seconds). It must be positive and also sets cookie lifetime.
-`AUTH_PASSWORD_MIN_LENGTH` defaults to 12 characters and accepts values from 1 to
-1024. Registration rejects passwords longer than 1024 characters before hashing.
-`AUTH_EMAIL_VERIFICATION_TTL_SECONDS` defaults to 24 hours (86,400 seconds) and
-must be positive. These settings are used by `RegistrationService`.
-`AUTH_PASSWORD_RESET_TTL_SECONDS` defaults to one hour (3,600 seconds) and must
-be positive. `PasswordRecoveryService` uses it for newly issued reset tokens.
+The [environment reference](../development/environment.md) is the single inventory
+of settings, required values, validation, defaults and loading precedence. Pydantic
+Settings reads the working-directory `.env`, overridden by process environment;
+Compose supplies internal connection URLs. The backend uses synchronous Psycopg
+only and rejects empty storage credentials at startup. Credential-bearing database
+and Redis URLs are excluded from settings representations.
 
-`AUTH_SESSION_COOKIE_NAME` and `AUTH_CSRF_COOKIE_NAME` default to
-`__Host-ukladen_session` and `__Host-ukladen_csrf`. Cookies are HttpOnly, use
-`Path=/` without a domain, and default to `AUTH_COOKIE_SECURE=true` and
-`AUTH_COOKIE_SAMESITE=lax` (`strict` is also supported). Names must be distinct;
-`__Host-`/`__Secure-` names require Secure. `.env.example` explicitly selects
-unprefixed cookie names and disables Secure for local HTTP development.
-Settings validation errors omit input values to avoid exposing credentials.
-
-`AUTH_ALLOWED_ORIGINS` is a JSON list of exact browser origins, with no credentials,
-path, query or fragment. An empty list denies authentication mutations. Prefer
-same-origin deployment; the API does not install CORS middleware.
-`AUTH_LOGIN_RATE_LIMIT` defaults to 10 and `AUTH_LOGIN_RATE_WINDOW_SECONDS` to 60;
-both must be positive. Each request checks the peer limit and then a separate
-normalized-email limit, using the same threshold/window across addresses.
-`AUTH_REGISTER_RATE_LIMIT` defaults to 5 and `AUTH_REGISTER_RATE_WINDOW_SECONDS`
-to 60; both must be positive. Registration uses the hashed ASGI peer address with
-a separate Redis key namespace.
-`AUTH_PASSWORD_CHANGE_RATE_LIMIT` defaults to 5 and
-`AUTH_PASSWORD_CHANGE_RATE_WINDOW_SECONDS` to 60; both must be positive.
-Password-change limits are keyed by the authenticated user UUID, shared across
-that user's sessions and client addresses.
-`AUTH_EMAIL_VERIFICATION_CONFIRM_RATE_LIMIT` defaults to 5 and
-`AUTH_EMAIL_VERIFICATION_CONFIRM_RATE_WINDOW_SECONDS` to 60; both must be positive.
-Confirmation limits use the hashed ASGI peer address and a separate Redis key
-namespace from login.
-`AUTH_EMAIL_VERIFICATION_REQUEST_RATE_LIMIT` defaults to 5 and
-`AUTH_EMAIL_VERIFICATION_REQUEST_RATE_WINDOW_SECONDS` to 60; both must be positive.
-Resend limits are keyed by the authenticated user UUID, shared across sessions and
-client addresses, in their own Redis namespace.
-`AUTH_PASSWORD_RESET_CONFIRM_RATE_LIMIT` defaults to 5 and
-`AUTH_PASSWORD_RESET_CONFIRM_RATE_WINDOW_SECONDS` to 60; both must be positive.
-Reset-confirmation limits also use the hashed ASGI peer address, with their own
-Redis key namespace.
-`AUTH_PASSWORD_RESET_REQUEST_RATE_LIMIT` defaults to 5 and
-`AUTH_PASSWORD_RESET_REQUEST_RATE_WINDOW_SECONDS` to 60; both must be positive.
-Request limits use both the hashed ASGI peer address and hashed normalized email
-with separate Redis namespaces. Login similarly applies both peer and normalized-email
-limits using its configured threshold/window. Source-address rotation cannot bypass
-a target's limit; normalization matches login and raw emails are not stored in keys.
-`AUTH_EMAIL_DELIVERY_MODE` accepts `disabled` (the default), `fake` or `smtp`.
-`.env.example` explicitly enables the development fake; existing `.env` files
-are not modified. Disabled mode refuses email queuing and worker delivery with
-`EmailDeliveryUnavailable`. Fake mode sends no external email.
-
-`AUTH_EMAIL_VERIFICATION_URL` optionally enables email links to the frontend
-`/auth/verify-email` page. It must use an allowed origin, HTTPS except loopback
-development, and no credentials, query or fragment. The worker appends the token
-as `#token=...` to the configured URL for verification, or uses the same origin
-with `/auth/reset-password` for reset emails and `/auth/confirm-google-link` for
-Google mailbox challenges. If unset, messages retain
-manual token-only delivery. `.env.example` sets the local frontend URL; existing
-deployments must configure their public URL explicitly.
-
-SMTP mode requires `SMTP_HOST` and a bare `SMTP_FROM_EMAIL`. `SMTP_USERNAME` and
-`SMTP_PASSWORD` must be configured together when authentication is needed; both
-use `SecretStr` and are omitted from settings representations. `SMTP_PORT` defaults
-to 587 and accepts 1–65535. `SMTP_SECURITY` defaults to `starttls`, also accepts
-`tls` (implicit TLS, normally port 465) or `none` for a trusted local development
-receiver. Authentication without TLS is rejected. `SMTP_TIMEOUT_SECONDS` defaults
-to 10 and must be finite, positive and at most 60. Required SMTP fields and the
-sender address are validated at startup in SMTP mode. No SMTP connection occurs
-in the API process, during import or during settings validation. See
-[auth email setup](../development/auth-email.md).
-
-`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REDIRECT_URI` are optional
-as a group: all must be unset or all supplied. The secret uses `SecretStr` and is
-omitted from settings representations. Callback URIs disallow credentials, query
-strings and fragments; HTTPS is required except for `localhost`, `127.0.0.1` and
-`[::1]` development URLs. Commented placeholders are provided in `.env.example`.
-The Google adapter consumes these settings through the implemented browser routes.
+Google, SMTP, cookie, token and rate-limit behavior is detailed in that reference
+and the [Google](../development/google-auth.md) / [email](../development/auth-email.md)
+guides. No AI/provider configuration is consumed by the current runtime.
 
 ## Database
 
@@ -216,7 +142,7 @@ emails without deleting users or data; see the [upgrade guide](../development/go
 
 Alembic gets its URL from application settings. `0001_enable_vector` enables the
 `vector` extension. `0002_auth_persistence` creates users and the four auth tables.
-Alembic imports both modules' ORM models into its metadata. Schema changes must use
+Alembic imports all implemented modules' ORM models into its metadata. Schema changes must use
 migrations. Compose runs migration once before starting API processes; HTTP
 startup does not create tables.
 
@@ -237,7 +163,9 @@ Routes own short read and write transactions with IIS validation between them.
 The IIS adapter implements an academics-owned port and reuses the shared HTTP
 client with bounded timeouts and sanitized response validation. Read-only source
 term labels and period dates are returned as live context, not editable semesters.
-No full-catalogue cache, scraping, schedule synchronization or jobs are implemented.
+The academic-profile slice does not cache the full catalogue or scrape IIS.
+Schedule synchronization/jobs are implemented separately in `schedule`; see
+[schedule contracts](../development/schedule.md).
 
 `0006_personal_calendar_events` creates user-owned personal events with timezone-aware
 timestamps, nonblank titles, positive intervals and an owner/start/ID index. Deleting
@@ -1187,5 +1115,10 @@ verification records above retain their original scope and counts.
 Authentication security follow-up (2026-10-17): Ruff/format/Pyright and 1509 full
 backend tests passed (664 dependency deprecation warnings). Frontend checks and
 101 browser tests passed. Local API/web were updated; no schema change was needed.
-See [the security review](../development/auth-security-review-2026-10-17.md) for
-reproduced defects, verification-session compatibility, runtime evidence and limits.
+Email confirmation requires the token owner's active registration session under
+[ADR 0008](../adr/0008-require-completed-registration.md); password changes/resets
+invalidate all outstanding reset links. Login/reset-request throttling checks both
+peer and normalized email. Registration retains the existing 409 response for an
+already registered address, revealing account existence; removing that signal
+requires an explicit signup-contract change. Google consent and real inbox delivery
+were not exercised in this verification.

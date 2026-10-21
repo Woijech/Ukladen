@@ -1,19 +1,29 @@
 from email.errors import HeaderParseError
 from email.headerregistry import Address
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import AnyHttpUrl, Field, PostgresDsn, RedisDsn, SecretStr, model_validator
+from pydantic import (
+    AnyHttpUrl,
+    Field,
+    PostgresDsn,
+    RedisDsn,
+    SecretStr,
+    UrlConstraints,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)
 
-    database_url: PostgresDsn
-    redis_url: RedisDsn
+    database_url: Annotated[PostgresDsn, UrlConstraints(allowed_schemes=["postgresql+psycopg"])] = (
+        Field(repr=False)
+    )
+    redis_url: RedisDsn = Field(repr=False)
     s3_endpoint: AnyHttpUrl
-    s3_access_key: SecretStr
-    s3_secret_key: SecretStr
+    s3_access_key: SecretStr = Field(min_length=1)
+    s3_secret_key: SecretStr = Field(min_length=1)
     s3_bucket: str = Field(min_length=1)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     schedule_sync_enabled: bool = True

@@ -24,7 +24,6 @@ Planned contracts do not override the current implemented API silently.
 - [AI](architecture/ai.md): planned tools, confirmed actions, retrieval and provider boundaries.
 - [Frontend](architecture/frontend.md): authentication, weekly calendar, session isolation and timezone behavior.
 - [Brand exports](../assets/branding/README.md): approved Ukladen logo files and reuse in product screens.
-- [Frontend verification (2026-10-16)](development/frontend-verification-2026-10-16.md): review fixes, local commits and executed checks.
 - [Infrastructure](architecture/infrastructure.md): actual processes/storage/exposure.
 - [ADR 0001](adr/0001-use-seaweedfs.md): local object storage.
 - [ADR 0002](adr/0002-use-opaque-browser-sessions.md): browser authentication.
@@ -38,9 +37,9 @@ Planned contracts do not override the current implemented API silently.
 ## Current implementation guides
 
 - [Local development](development/local-development.md).
+- [Environment reference](development/environment.md): all implemented settings, sources and safe setup.
 - [Auth email delivery](development/auth-email.md).
 - [Google sign-in, registration completion and account linking](development/google-auth.md).
-- [Authentication security review (2026-10-17)](development/auth-security-review-2026-10-17.md).
 - [ADR 0008: completed registration](adr/0008-require-completed-registration.md).
 - [User profile](development/user-profile.md) and [avatar](development/user-avatar.md).
 - [Academic profile](development/academic-profile.md).
@@ -71,9 +70,8 @@ AI-00 specification and synthetic contracts are delivered. AI integrations, retr
 actions, planning and analytics runtime are not implemented. These documents do not
 authorize starting or deploying their runtime stages.
 
-## IIS evidence and future integration
+## IIS contracts and future integration
 
-- [Original investigation](integrations/bsuir-iis-investigation.md): historical evidence.
 - [Public contract](integrations/bsuir-iis-public-api.md): verified requests and limitations.
 - [Deep integration roadmap](integrations/bsuir-iis-roadmap.md): private capability gates.
 - [Sanitized fixture notes](../apps/backend/tests/fixtures/bsuir/README.md).
@@ -82,7 +80,8 @@ authorize starting or deploying their runtime stages.
 
 Keep requirements in product documents, ownership in architecture documents and
 implemented DTOs/operations in development guides. Use links rather than duplicating
-whole specifications. [Root overview](../overview.md) is a navigation entry.
+whole specifications. Keep reusable contracts and operating instructions here;
+one-off audit reports and task handoffs belong in Git/chat history.
 
 Every new capability must say whether it is implemented, planned or unverified.
 An empty package, infrastructure extension or fake adapter is not implementation.

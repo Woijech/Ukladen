@@ -3,7 +3,7 @@
 Status: implemented, backend only.
 
 The academics module selects the university schedule context for the authenticated
-student. The [IIS investigation](../integrations/bsuir-iis-investigation.md)
+student. The [public IIS contract](../integrations/bsuir-iis-public-api.md)
 records the verified public JSON contract. No HTML parser, new dependency,
 frontend, schedule import or background job was added.
 

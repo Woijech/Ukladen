@@ -17,7 +17,7 @@ dependencies = [
   "pwdlib[argon2]>=0.3,<1",
   "pyjwt[crypto]>=2.13,<3",
   "boto3>=1.43,<2",
-  "pillow>=12.3,<13",
+  "pillow>=13,<14",
   "pypdf>=6.20,<7",
 ]
 

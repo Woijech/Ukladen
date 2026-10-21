@@ -5,7 +5,9 @@ Status: target requirements. Calendar, nested pages with flat typed blocks and p
 links, collections/tags and saved calendar views are implemented, backend only; see [notes](../development/notes.md),
 [relations](../development/relations.md), [workspace](../development/workspace.md)
 and [calendar views](../development/calendar-views.md).
-Other capabilities remain planned. See [open decisions](open-questions.md) before selecting
+User databases, table/calendar views and mixed date projection are also implemented,
+backend only; see [database contracts](../development/databases.md).
+Remaining capabilities are planned. See [open decisions](open-questions.md) before selecting
 remaining editor, membership or calendar details; personal scope is confirmed.
 Private materials, optional page attachments and basic full-text search are also
 implemented, backend only; see [materials/search](../development/materials.md).

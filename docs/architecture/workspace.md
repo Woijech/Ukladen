@@ -5,7 +5,9 @@ Status: pages, flat typed blocks, hierarchy, branch trash, page/calendar links a
 collections/tags with typed memberships and saved calendar views are implemented, backend only; see
 [notes](../development/notes.md), [relations](../development/relations.md) and
 [workspace](../development/workspace.md) and [calendar views](../development/calendar-views.md).
-Other capabilities remain a target design under
+User databases, table/calendar views and mixed date projection are also implemented,
+backend only; see [database contracts](../development/databases.md).
+Remaining capabilities are a target design under
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md), with current APIs documented separately. The owner confirmed pages/blocks/databases and mandatory table/calendar views,
 with personal ownership. Formulas and collaboration are deferred; remaining details
 are recorded as open decisions.

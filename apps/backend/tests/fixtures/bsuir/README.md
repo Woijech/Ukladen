@@ -10,7 +10,7 @@ subgroup value 0, 1 and 2. Calendar IDs, teacher emails/photos and other contact
 fields were removed. These fixtures are excerpts, not complete schedules.
 Tests mutate copies to exercise failures; populated exam cases are synthetic
 variants of captured lessons, not a claim of live exam verification.
-See `docs/integrations/bsuir-iis-investigation.md` for evidence and limitations.
+See `docs/integrations/bsuir-iis-public-api.md` for evidence and limitations.
 
 `public.json` contains verified directory excerpts from `/employees/all`,
 `/faculties`, `/departments`, `/specialities` and `/auditories` captured on the

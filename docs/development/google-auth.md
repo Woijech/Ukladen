@@ -129,8 +129,9 @@ Apply Alembic `0021_google_email_confirmations` before starting the updated API.
 It adds a separate challenge table, without storing provider tokens. Rebuild/recreate
 API, web and the existing Celery worker together: the worker must recognize the new
 `google_link` email kind. No new env settings or secrets are required. Security fixes after this migration
-also require the matching registration session for ordinary email confirmation;
-see the [security review](auth-security-review-2026-10-17.md). The existing SMTP settings and `AUTH_EMAIL_VERIFICATION_URL` supply delivery and the frontend origin.
+also require the matching registration session for ordinary email confirmation under
+[ADR 0008](../adr/0008-require-completed-registration.md#security-amendment--2026-10-17).
+The existing SMTP settings and `AUTH_EMAIL_VERIFICATION_URL` supply delivery and the frontend origin.
 Disabled/fake delivery cannot deliver real mailbox challenges; trusted Google login
 itself does not require SMTP.
 
@@ -280,6 +281,8 @@ sign-in; no signature, state, browser-binding, CSRF or email-proof guard was wea
 The matching-session email confirmation requirement, stale reset-link revocation,
 per-email throttling and frontend security headers are implemented. The final full
 backend suite passed 1509 tests; frontend lint/typecheck/build and 101 browser tests
-passed. See [the security review](auth-security-review-2026-10-17.md) for scope,
-local runtime checks, dependency findings and residual privacy/deployment limits.
+passed. The registration API still returns 409 for an already registered address,
+revealing registration existence; password-login errors and reset-request
+acknowledgements remain generic. Eliminating that signal requires a signup-contract
+change. Live Google consent and external inbox delivery were not verified in that run.
 Earlier verification records above describe their own implementations and runs.

@@ -14,12 +14,15 @@ from the [documentation index](../README.md).
 Local object storage uses the pinned SeaweedFS image; no storage source build is
 required. The default configuration is a single-node development setup.
 
+Use the [environment reference](environment.md) for loading precedence, required
+secrets, optional settings and isolated test variables. Preserve existing private files.
+
 ## Full stack
 
 From the repository root:
 
 ```bash
-cp .env.example .env
+test -f .env || cp .env.example .env
 docker compose config --quiet
 docker compose up --build --detach --wait --wait-timeout 180
 docker compose ps
@@ -35,6 +38,7 @@ the local example values from `.env`; replace them for any shared deployment.
 If host port `5432` is already in use, set `POSTGRES_HOST_PORT=5433` in `.env` and
 rerun Compose. This changes only the host-side PostgreSQL port; containers continue
 to use `postgres:5432` on the Compose network.
+When changing `POSTGRES_HOST_PORT`, also update the host `DATABASE_URL` port.
 Keep PostgreSQL username/password/database values URL-safe when Compose assembles
 the connection URL. `S3_ACCESS_KEY`/`S3_SECRET_KEY` configure both the S3 account and the local Admin UI.
 `S3_BUCKET` is created automatically by `weed mini` on startup. S3 operations
@@ -132,6 +136,10 @@ On Linux, Playwright may need system packages; `npx playwright install --with-de
 chromium` installs them where administrative access is available. Browser tests
 start a production frontend on port 3001, which must be free.
 Build before running tests. Backend unit tests do not require external services.
+Native integration tests skip without the [isolated test variables](environment.md#isolated-test-configuration);
+passing a suite with skips is not full PostgreSQL/Redis/S3 verification.
+Run backend test processes sequentially against a shared test database: isolated
+schemas do not isolate concurrent creation of PostgreSQL's shared vector extension.
 
 From the root: `docker compose config --quiet`. The CI workflow also builds and
 starts the stack and checks routed HTTP probes. Run migration generation from

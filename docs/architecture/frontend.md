@@ -136,15 +136,17 @@ conversions use platform `Intl`; no timezone dependency was added.
 and connection indicator. Feature/entity/widget directories will be introduced
 with real UI slices rather than empty scaffolding.
 
-Zustand and the FullCalendar core, React, daygrid, timegrid and interaction packages
-are installed and locked. The current weekly calendar is rendered with React and CSS;
-it uses backend-resolved events and does not implement drag-and-drop or availability
+The current weekly calendar is rendered with React and CSS. Unused Zustand and
+FullCalendar packages were removed during the 2026-10-21 audit; they remain target
+stack candidates in the primary architecture, not current runtime dependencies.
+The calendar uses backend-resolved events and does not implement drag-and-drop or availability
 calculations. Permissions, schedule resolution and planning rules remain backend-owned.
 
 ## Target product responsibilities
 
-Status: partially implemented. Future business UI adds independent pages, direct event
-editing, optional organization, block documents and database/calendar views. Subjects
+Status: partially implemented. Future business UI adds independent pages, official-event override
+editing, optional organization, block documents and database/calendar views.
+Personal-event editing already exists. Subjects
 are optional navigation. Date labels and time reservations must be distinguishable.
 AI UI exposes supporting sources, recommendations, exact proposals/confirmation and
 explicit automatic-action permission management. Shared editing and formulas are deferred.
@@ -185,6 +187,13 @@ remote telemetry SDK is installed. See [logging](../development/logging.md).
 
 ESLint 9 is retained because the installed Next.js React plugins fail with ESLint
 10. TODO: upgrade lint tooling when those plugins support ESLint 10.
+
+The 2026-10-21 dependency audit found no production npm advisories. The development
+toolchain reported five affected package entries from one unpatched
+[braces advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm). It affects
+repository glob processing in the ESLint chain. Recheck `npm audit` when updating
+tooling; its proposed forced downgrade to eslint-config-next 14 is incompatible
+with Next.js 16. Do not suppress the finding or apply that downgrade blindly.
 
 The Dockerfile builds Next.js standalone output and serves it as the non-root
 `node` user. No extra UI framework, font download or bundling orchestrator is used.

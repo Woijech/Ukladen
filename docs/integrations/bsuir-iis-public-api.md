@@ -1,13 +1,13 @@
 # BSUIR IIS public API contract
 
 Verified: 2026-10-05, without login. Scope: all twelve sections of the official
-[public API page](https://iis.bsuir.by/api), JSON reads only. This supplements the
-[academics investigation](bsuir-iis-investigation.md).
+[public API page](https://iis.bsuir.by/api), JSON reads only. Later schedule
+verification is recorded below. This is the maintained public integration contract.
 Base URL: `https://iis.bsuir.by/api/v1`.
 
 | Operation | Verified request | Observed response |
 | --- | --- | --- |
-| Groups | `/student-groups` | Group array; see the earlier investigation |
+| Groups | `/student-groups` | 421 rows in the sampled catalogue; positive numeric IDs, string names, faculty/speciality metadata, nullable course and degree code |
 | Group schedule | `/schedule?studentGroup=353501` | Full schedule; 404 can mean unpublished |
 | Teachers | `/employees/all` | 761 teachers, numeric `id`, string `urlId`, names, degree, nullable rank/middle name, photo/calendar links, department labels, `fio` |
 | Teacher schedule | `/employees/schedule/s-nesterenkov` | Full schedule, `employeeDto`, null group; announcement lessons can have null subject/type and null employees |
@@ -48,6 +48,44 @@ separately; see [schedule](../development/schedule.md) and [calendar](../develop
 Private account capabilities remain unverified/unimplemented; see
 [deep integration](bsuir-iis-roadmap.md). XML is documented upstream but unverified;
 Ukladen requests and validates JSON.
+
+## Group identity, missing schedules and source limits
+
+The initial catalogue/group checks used cookie-free reads of the official rendered
+API documentation and JSON endpoints. Samples included groups `353501`, `310101`
+and catalogue group `350505`, which had no published schedule. Counts and sampled
+values above are dated evidence, not guaranteed current catalogue contents.
+The public API documentation renders in JavaScript; its unauthenticated Swagger
+link returned 403, so no public machine-readable OpenAPI schema was verified.
+
+Preserve group names as strings, including leading zeroes. Do not derive course,
+degree meaning, enrollment or subgroup assignment from a name. Match the returned
+schedule's `studentGroupDto.id/name` against the selected catalogue entry. Upstream
+ID lifetime stability, reuse and group-renaming policy are not guaranteed.
+`specialityDepartmentEducationFormId` is a combined source identifier, not an
+independent speciality ID. Source labels do not impose user workspace grouping.
+
+Schedule 404 occurs for both a valid unpublished group and a nonexistent name.
+Validate catalogue membership first; then represent unpublished schedules as empty
+context, distinct from timeout, HTTP 5xx and malformed JSON. Available subgroup
+choices are positive numbers observed in current lessons/exams, not a complete
+authoritative registry. Never manufacture subgroup choices for an empty schedule.
+Period labels/dates are read-only context; no stable semester ID, numbered semester
+or stable subject/room ID in lesson rows was verified. Nullable teacher/note/date
+fields and empty teacher arrays are valid. Sanitized excerpts and provenance are
+documented in [fixture notes](../../apps/backend/tests/fixtures/bsuir/README.md).
+
+The sampled catalogue prohibited caching and exposed no ETag/Last-Modified or
+rate-limit headers. No quota, pagination, SLA or reliable monotonic change token
+was established; an update date could predate the schedule. Compare normalized
+content rather than trusting that timestamp alone. Store selected group metadata
+for profile reads, without treating it as a complete offline catalogue.
+
+The adapter uses bounded socket timeouts, fixed upstream URLs, no credentials or
+cookies, no redirects and strict payload/identity validation. Response buffering
+currently has no explicit byte/depth budget; establish bounds from verified public
+payloads before introducing a potentially incompatible limit. No private-account
+contract or load/rate-limit probing is implied by these public observations.
 
 ## Schedule expansion verification (2026-10-07)
 

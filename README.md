@@ -1,429 +1,186 @@
 # Ukladen
 
-## Project Overview
+Ukladen is a personal workspace for a university schedule, personal calendar,
+notes and study materials. Academic selection is optional: personal events and
+pages work without a subject or university group. Official IIS facts stay separate
+from the user's changes.
 
-Ukladen is a personal student productivity platform that combines:
+The product is under active development. The browser currently provides account
+registration/login, optional BSUIR group selection and a weekly calendar. More
+workspace capabilities are available through the backend API.
 
-- BSUIR university schedule;
-- a flexible personal calendar;
-- tasks and deadlines;
-- reminders;
-- notes;
-- study materials;
-- relations between workspace entities;
-- search;
-- an AI assistant;
-- RAG over user materials.
+## Current capabilities
 
-The target combines a **Notion-like workspace and Notion Calendar-like calendar**
-with AI and deep BSUIR IIS integration. Academic organization is optional: pages,
-personal events and tasks do not require a subject or group selection.
+| Area | Status |
+| --- | --- |
+| Email/password and Google authentication, account linking, verification and recovery | Implemented backend and browser UI; verified email and a password are required for workspace access |
+| User profile/avatar, academic profile and public IIS directories | Implemented backend; group selection is available in the UI |
+| Official schedule synchronization, personal events, official overrides and resolved calendar | Implemented backend; UI supports weekly reads and personal-event create/edit/delete |
+| Independent nested pages, typed blocks, Markdown compatibility and recoverable trash | Implemented backend; editor UI planned |
+| Page/calendar/material links, collections, tags and saved calendar views | Implemented backend; organization UI planned |
+| User databases, typed properties, page-backed records, table/calendar views and date moves | Implemented backend; database UI planned |
+| One-shot calendar reminders and in-app notifications | Implemented backend; inbox/reminder UI planned |
+| Private materials, bounded document extraction and PostgreSQL full-text search | Implemented backend; materials/search UI planned |
+| Tasks, free slots/conflicts, semantic search, AI and RAG | Planned; runtime not implemented |
+| Collaboration, formulas and private IIS accounts/grades | Deferred; private API contracts unverified |
 
-Status: parts of the backend are implemented; the complete target product is not.
-See Current Status below and the [product overview](docs/product/overview.md).
+The [product specification](docs/product/overview.md) and
+[implementation roadmap](docs/development/implementation-roadmap.md) maintain the
+full status. A package marker or installed pgvector extension is not a feature.
 
-## Core Idea
+## Architecture and stack
 
-After registration, the user can use standalone personal events and, once implemented,
-pages without academic selection. Selecting a university group/subgroup is optional.
-
-The system retrieves schedule data through the BSUIR IIS integration and creates a personal calendar view.
-
-The imported university schedule is not treated as an immutable personal plan.
-
-For example, a student can:
-
-- mark a lecture as skipped;
-- free that interval in the personal calendar;
-- place a personal event in that time slot;
-- attach notes;
-- link tasks;
-- attach study materials;
-- create reminders.
-
-Official schedule data and personal calendar state are logically separated.
-
-Matching lesson subject labels never merge lecture/lab occurrences or automatically
-create shared notes. User-selected links, collections, tags and saved views organize
-independent objects. Optional page/calendar links, collections, tags and typed
-memberships and saved calendar views are implemented, backend only.
-Database/property/record APIs, saved table/calendar views and nonblocking date
-projection with mixed calendar display are implemented.
-
-## Development Documentation
-
-Start with the [documentation index](docs/README.md), then read the primary architecture,
-[workspace requirements](docs/product/workspace.md),
-[open decisions](docs/product/open-questions.md) and
-[backend implementation roadmap](docs/development/implementation-roadmap.md).
-
-Standalone pages, flat typed blocks and calendar links are implemented, backend only.
-User organization, databases and table/calendar views are implemented, backend only.
-Pages, blocks and user databases with table/calendar views are confirmed
-targets; formulas and collaboration are deferred. Current IIS scope is public schedule
-and related data; student-account integration is future-only. AI targets read/help,
-recommendations, confirmed writes and explicitly permitted automatic actions.
-AI remains unimplemented; see the decision register for remaining details.
-
-## Architecture
-
-Primary architecture document:
+One **modular monolith** serves HTTP and background jobs. API, ordinary worker,
+material worker and Beat share the same Python backend and PostgreSQL data model.
 
 ```text
-SYSTEM_ARCHITECTURE.md
+Browser → Next.js / Traefik → FastAPI → PostgreSQL 18 + pgvector
+                                  ├→ Redis → Celery workers / Beat
+                                  └→ SeaweedFS (private S3 objects)
 ```
 
-Architecture style:
+- Backend: Python 3.14, FastAPI, Pydantic Settings, SQLAlchemy, Psycopg, Alembic.
+- Frontend: Next.js 16, React 19, TypeScript, TanStack Query; React/CSS calendar.
+- Services: PostgreSQL 18, Redis 7.4, Celery, SeaweedFS, Traefik.
+- Quality: uv/lockfile, Ruff, Pyright, pytest, npm/lockfile, ESLint, Playwright, GitHub Actions.
+
+Application services own business rules. Dependencies follow
+`presentation → application → domain`; infrastructure implements ports. Binary
+files stay in S3, PostgreSQL owns canonical data, and Redis is disposable.
+See [SYSTEM_ARCHITECTURE.md](SYSTEM_ARCHITECTURE.md) for the architecture contract
+and [AGENTS.md](AGENTS.md) for development rules.
 
 ```text
-Modular Monolith
+apps/backend/     API, business modules, integrations, workers, Alembic and tests
+apps/web/         Next.js App Router frontend and browser tests
+infra/            Traefik routes and home Compose validation
+docs/             Product contracts, architecture, ADRs, development and deployment
+assets/branding/  Approved A1 logo source exports (frontend copies are intentional)
+docker-compose.yml       Local development stack
+docker-compose.home.yml  Optional home-hosting overlay
+.env.example             Local configuration example
+.env.home.example        Home configuration template; mandatory secrets are blank
 ```
 
-Main runtime components:
+## Requirements
 
-```text
-Next.js Frontend
-       |
-       v
-FastAPI Backend
-       |
- +-----+---------+----------+
- |               |          |
- v               v          v
-PostgreSQL      Redis     SeaweedFS/S3
-+ pgvector        |
-                  v
-             Celery Workers
-```
+Docker Engine and Compose v2 are enough for the full local stack. The home overlay
+requires Compose **2.24.4 or newer**. Host development additionally uses **uv 0.11.11**,
+**Python 3.14**, **Node.js 22** and npm. Initial installs/builds need network access.
+The default local ports are 8080, 3000, 8000, 5432, 6379, 8333 and 23646.
 
-## Technology Stack
+## First local start
 
-### Backend
-
-```text
-Python
-FastAPI
-Pydantic
-SQLAlchemy
-Alembic
-httpx
-```
-
-### Data
-
-```text
-PostgreSQL
-pgvector
-PostgreSQL Full Text Search
-Redis
-```
-
-### Async Processing
-
-```text
-Celery
-Celery Beat
-```
-
-### Files
-
-```text
-SeaweedFS
-S3-compatible object storage
-```
-
-### Frontend
-
-```text
-Next.js
-React
-TypeScript
-TanStack Query
-Zustand
-FullCalendar
-```
-
-### DevOps
-
-```text
-Docker
-Docker Compose
-Traefik
-GitHub Actions
-```
-
-### Quality
-
-```text
-uv
-Ruff
-Pyright
-pytest
-Playwright
-```
-
-## Backend Modules
-
-```text
-auth
-users
-academics
-subjects
-schedule
-calendar
-tasks
-reminders
-notes
-materials
-relations
-search
-ai
-notifications
-integrations
-```
-
-The additional `workspace` boundary implements collections, tags and typed
-memberships, saved event views and database/property/record APIs with table/calendar
-views, date moves and mixed calendar display. See
-[workspace contracts](docs/development/workspace.md) and
-[ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md).
-
-## Development Rules
-
-Mandatory rules for AI coding agents and human developers are defined in:
-
-```text
-AGENTS.md
-```
-
-## Documentation Language
-
-All technical documentation and code comments are written in English.
-
-User-facing product text may initially be Russian.
-
-## Current Status
-
-Phase 0 foundation is implemented. The repository contains a FastAPI modular
-monolith, Next.js shell, PostgreSQL 18/pgvector, Redis, Celery worker and Beat,
-SeaweedFS object storage, Traefik, Docker Compose and GitHub Actions CI.
-The backend authentication module is implemented: email/password registration,
-verification, login/logout/logout-all, password reset/change, session management,
-Google OIDC browser login, safe automatic linking to verified matching accounts,
-and explicit linking with password re-authentication. Verified email and an Ukladen
-password are mandatory before protected application access; see
-[registration policy](docs/adr/0008-require-completed-registration.md).
-Browser authentication uses opaque HttpOnly sessions, PostgreSQL storage, Redis
-caching/rate limiting and CSRF protection. Celery queues email after commit using
-a development fake or a configurable SMTP adapter. Login, registration and browser
-email-verification UI are implemented.
-
-Backend user/academic profiles, official IIS schedule storage/synchronization and
-the personal calendar API are implemented. Calendar supports personal events,
-per-user schedule overrides and resolved reads; see
-[Calendar API](docs/development/calendar.md). The weekly calendar and basic group
-selection UI are implemented; free slots and task blocks remain unimplemented.
-
-One-shot calendar reminders and durable in-app notifications are implemented,
-backend only; see [reminder API and recovery](docs/development/reminders.md).
-Task/deadline reminders and additional channels remain unimplemented.
-
-```text
-apps/backend     Python 3.14 API, module boundaries, migrations, workers, tests
-apps/web         Next.js/React/TypeScript shell and browser tests
-infra            Traefik routing
-docs            Architecture, product and local development documents
-```
-
-Start from the repository root:
+From the repository root, create configuration only if it does not already exist:
 
 ```bash
-cp .env.example .env
+test -f .env || cp .env.example .env
+docker compose config --quiet
 docker compose up --build --detach --wait --wait-timeout 180
 ```
 
-Open <http://localhost:8080> and <http://localhost:8080/api/docs>.
-All published ports bind to localhost. The first image build requires network
-access to download dependencies and images. These are local development settings.
+Open [Ukladen](http://localhost:8080) or [API docs](http://localhost:8080/api/docs).
+The `migrate` service applies Alembic before API startup. All base Compose ports
+bind to localhost. `docker compose down` stops containers and preserves data volumes.
 
-If `.env` already exists, copy the browser authentication settings from
-`.env.example` into it for local HTTP access. Production defaults use Secure
-`__Host-` cookies; local HTTP uses distinct unprefixed cookies with
-`AUTH_COOKIE_SECURE=false`. Set `AUTH_ALLOWED_ORIGINS` to the exact frontend
-origins (HTTPS in production). This allowlist provides CSRF validation, not CORS.
+**Configure email before expecting registration to complete.** The local example
+uses `AUTH_EMAIL_DELIVERY_MODE=fake`, which sends no mail and keeps tokens only in
+worker memory. Set `smtp` and your provider's host, verified sender and credentials
+for usable verification/recovery links; follow [email setup](docs/development/auth-email.md).
+Google login is optional and needs its own Web application OAuth client.
 
-`AUTH_EMAIL_DELIVERY_MODE` defaults to `disabled`. `.env.example` explicitly uses
-`fake` for development: queued verification/reset messages are captured only in
-worker memory, without sending external email or logging tokens. Existing `.env`
-files are not changed automatically. Real delivery uses `AUTH_EMAIL_DELIVERY_MODE=smtp`
-with your SMTP service; registration, verification resend and password-reset requests
-share the existing Celery queue. Configure `SMTP_HOST`, `SMTP_FROM_EMAIL`,
-`SMTP_USERNAME` and `SMTP_PASSWORD`, with `SMTP_SECURITY=starttls` / `SMTP_PORT=587`
-or `SMTP_SECURITY=tls` / `SMTP_PORT=465` as required by your service. Both TLS modes
-verify server certificates. No provider SDK is required. See
-[auth email setup and end-to-end checks](docs/development/auth-email.md).
+The [ENV reference](docs/development/environment.md) explains every backend setting,
+required values, defaults, empty-value behavior, container overrides, Google/SMTP
+setup and isolated test variables. Never overwrite an existing `.env` or `.env.home`
+with an example, and never commit or share real credentials.
 
-Set `AUTH_EMAIL_VERIFICATION_URL=http://localhost:8080/auth/verify-email` locally
-to include clickable verification and password-reset links in emails. Existing `.env`
-files need this new setting added explicitly. Deployment uses your frontend's
-public HTTPS URL with the same path and an origin in `AUTH_ALLOWED_ORIGINS`.
-Opening a verification link in the registration browser confirms through the
-CSRF-protected POST API. On another device, sign in to the same account before
-reopening the email link. Unknown registrations should use password recovery. Its token stays in a fragment and is removed from
-the address bar; GET previews do not consume it. Reset links use the same origin
-with `/auth/reset-password`. Choose **Забыли пароль?** on the sign-in page, request
-an email and enter the new password twice on its linked form. Success consumes the
-token and revokes all account sessions. Request fresh emails after rebuilding;
-previously sent token-only messages are unchanged.
+## Run the applications on the host
 
-For browser password login, call `GET /api/v1/auth/csrf` with cookies enabled,
-retain its `csrf_token`, then send it as `X-CSRF-Token` together with cookies and
-the browser's `Origin` on `POST /api/v1/auth/login` (`email` and `password` JSON).
-Successful login delivers an HttpOnly session cookie after committing the session.
-`POST /api/v1/auth/logout` and `/api/v1/auth/logout-all` require the same CSRF
-protection and return 204 after revocation. Login permits 10 attempts per client
-address per 60-second window by default.
+Start supporting services from the root, then run the backend:
 
-Register with `POST /api/v1/auth/register`, sending `email` and `password` in JSON
-with the same CSRF protection. Passwords accept 12–1024 characters by default;
-whitespace and Unicode are preserved. Success returns 201 with user/session IDs
-and expiry, sets the session cookie and queues verification email only after the
-account, credential, session and hashed verification token commit. The default
-limit is five attempts per client address per 60-second window, configurable with
-`AUTH_REGISTER_RATE_LIMIT` and `AUTH_REGISTER_RATE_WINDOW_SECONDS`. Invalid input
-returns 400, duplicate emails 409, invalid transport 422 and database failures 503;
-none issues a session cookie. Disabled email delivery returns 503 before creation.
-A queue failure after commit retains 201 and the session, with safe metadata-only
-logging; the account remains unverified. There is no durable publication recovery.
-Users may log in only to complete verification and request another message until
-registration is complete. `/auth/complete-registration` guides password setup and
-verification; business APIs reject incomplete accounts with `registration_incomplete`.
+```bash
+docker compose up --detach postgres redis seaweedfs
+cd apps/backend
+uv sync --frozen
+uv run --env-file ../../.env alembic upgrade head
+uv run --env-file ../../.env uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
 
-The Google adapter is configured with `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-and `GOOGLE_REDIRECT_URI`; leave all three unset to disable it, or configure all
-three together. Redirect URIs require HTTPS except for local loopback development,
-and cannot contain credentials, query strings or fragments. `.env.example` provides
-commented placeholders; existing `.env` files are not changed. The adapter uses
-Google discovery/JWKS data, PKCE and signed ID-token validation, returning only the
-verified Google subject, normalized email and email-authority flag.
-`PyJWT[crypto]` supplies RSA validation;
-Ukladen browser authentication continues to use opaque server-side sessions.
-Account resolution authenticates linked subjects and creates restricted registrations
-for unused emails. Gmail/validated Workspace proves email; external Google mailboxes
-require our own email proof. New Google users must set an Ukladen password.
-An unlinked authoritative identity signs into the matching active verified account
-automatically if no other Google identity is attached. Other eligible first links
-require fresh mailbox proof or explicit password-confirmed linking.
-It preserves existing accounts and commits user, identity and session together.
-Browser-bound Redis OAuth state is implemented with single-use consumption, nonce
-and S256 PKCE. `AUTH_OAUTH_STATE_TTL_SECONDS` defaults to 600; state and browser
-binding are stored hashed, with the nonce and verifier temporarily stored in Redis.
-Google start/callback endpoints are implemented. Also configure both
-`FRONTEND_AUTH_SUCCESS_URL` and `FRONTEND_AUTH_ERROR_URL` to enable browser login.
-They require HTTPS except loopback HTTP, with no credentials, query or fragment.
-Redirect destinations cannot be supplied by requests. `AUTH_OAUTH_COOKIE_NAME`
-defaults to `__Host-ukladen_oauth`; local HTTP must select an unprefixed name.
-Start/callback rate limits default to 10 attempts per 60 seconds and use
-`AUTH_GOOGLE_START_RATE_LIMIT` / `AUTH_GOOGLE_START_RATE_WINDOW_SECONDS` and
-`AUTH_GOOGLE_CALLBACK_RATE_LIMIT` / `AUTH_GOOGLE_CALLBACK_RATE_WINDOW_SECONDS`.
-Start redirects to Google; callback commits the ordinary session before setting
-its cookie and redirecting to the configured success page. Failures redirect to
-the configured error page and preserve existing sessions.
-Login/registration now include a Google button, `/auth/error` provides recovery,
-and profile menus support explicit linking with password confirmation. The fallback
-**Войти и связать Google** form remains available for accounts ineligible for automatic
-linking. Third-party mailbox challenges use a single-use, browser-bound email link
-and an explicit confirmation click. Existing profiles/passwords are preserved.
-Use `/workspace` for the success destination and `/auth/error` for failures;
-see [Google setup and troubleshooting](docs/development/google-auth.md).
+In another terminal:
 
-To explicitly link Google to a password account, authenticate first, then call
-`POST /api/v1/auth/google/link/start` with `current_password`, the session cookie
-and the usual Origin/CSRF header. The response redirects to Google with a new
-browser-bound flow. Callback requires the same still-active session and unchanged
-credential; it never transfers an identity owned by another user or changes profile,
-email or password. Linking requires `AUTH_COOKIE_SAMESITE=lax`. Its per-user limit
-defaults to 5 per 60 seconds, configured by `AUTH_GOOGLE_LINK_RATE_LIMIT` and
-`AUTH_GOOGLE_LINK_RATE_WINDOW_SECONDS`. Google-only accounts without a password
-cannot use password re-authentication to attach additional identities. Tests use mocked HTTP and in-memory signing keys, with no Google
-network calls.
+```bash
+cd apps/web
+npm ci
+npm run dev
+```
 
-Authenticated clients can change their password with
-`POST /api/v1/auth/password/change`, sending `current_password` and `new_password`
-in JSON with the same cookies, `Origin` and CSRF header. Success returns 204,
-keeps the current session, revokes others and invalidates outstanding reset links. The default limit is five
-attempts per user per 60-second window. The new password must meet the configured
-registration length policy; the default minimum is 12 characters.
+Open [the host frontend](http://localhost:3000). Next.js proxies `/api` to
+localhost:8000. Set `BACKEND_URL` before dev/build if that address changes; the root
+backend env file is not loaded by Next.js. The production rewrite is fixed at build time.
 
-Email-verification tokens can be confirmed with
-`POST /api/v1/auth/email-verification/confirm`, sending `token` in JSON with the
-CSRF cookie, allowed `Origin`, CSRF header and an active session for the same user
-(a restricted registration session is sufficient). Anonymous confirmation returns
-401; another account cannot consume the token. Success
-returns an empty 204, consumes the token and verifies its user's email without
-changing session cookies. Invalid, expired or used tokens return a generic 400;
-malformed request bodies return a generic 422. The default limit is five attempts
-per client address per 60-second window. Registration queues verification messages
-through the configured fake or SMTP worker adapter.
+Run Celery workers and one Beat for email, imports, reminders and extraction. Exact
+commands, alternate PostgreSQL ports and lifecycle guidance are in
+[local development](docs/development/local-development.md).
 
-Signed-in users can resend verification with
-`POST /api/v1/auth/email-verification/request`, sending `{}` in JSON with the
-session cookie and the same CSRF protection. The server uses the current user's
-stored email; caller-supplied recipients are rejected. Success returns 202 and
-`Email verification request accepted.`, retaining the session cookie. Already
-verified users receive the same acknowledgement without mail or a new token.
-The default limit is five requests per user per 60-second window, configured with
-`AUTH_EMAIL_VERIFICATION_REQUEST_RATE_LIMIT` and
-`AUTH_EMAIL_VERIFICATION_REQUEST_RATE_WINDOW_SECONDS`. Disabled delivery returns
-503 before issuance. The token commits before queuing; queue failure retains 202,
-so the user can request another message. Earlier unused tokens stay valid until
-their original expiry, and each token remains single-use.
+## Migrations and verification
 
-Password-reset tokens can be confirmed with
-`POST /api/v1/auth/password-reset/confirm`, sending `token` and `new_password` in
-JSON with the same CSRF protection. Login is unnecessary. Success returns an empty
-204 after updating the password, consuming the token and revoking all of the
-account's sessions; it clears the browser session cookie and invalidates all earlier
-outstanding reset links. Active passwordless accounts
-can create their first password this way. Recovery of an unverified registration
-also verifies its email and removes prior external identities; verified accounts
-retain their identities. The new password uses
-the configured registration length policy. Invalid tokens and policy failures
-return fixed 400 errors; malformed request bodies return a generic 422. The
-default limit is five attempts per client address per 60-second window.
+All schema changes use Alembic. For an intended **local development database**:
 
-Request a reset with `POST /api/v1/auth/password-reset/request`, sending `email` in
-JSON with the same CSRF protection; login is unnecessary. With fake or SMTP delivery enabled,
-all account outcomes return 202 and `Password reset request accepted.` Eligible
-accounts receive a hashed reset token in PostgreSQL, committed before its email
-message is queued. Disabled delivery returns a generic 503 before account lookup.
-The default request limit is five attempts per client address per minute. Requests
-preserve session cookies and never return tokens or account details. Queue failure
-after commit still returns the generic acknowledgement, with only safe server
-metadata logged; clients can retry. There is no durable delivery guarantee. SMTP
-mode sends through the configured service; fake messages remain only in worker memory.
+```bash
+cd apps/backend
+uv run --env-file ../../.env alembic current
+uv run --env-file ../../.env alembic upgrade head
+```
 
-Read [Local Development](docs/development/local-development.md) for host setup,
-checks and troubleshooting. Implementation details are in
-the [logging and debugging guide](docs/development/logging.md),
-[Architecture Overview](docs/architecture/overview.md),
-[Backend](docs/architecture/backend.md), [Frontend](docs/architecture/frontend.md)
-and [Infrastructure](docs/architecture/infrastructure.md).
+Do not run migration round trips on real data. Some downgrades intentionally reject
+populated tables to avoid data loss. Back up deployed data before an approved upgrade.
 
-For hosting `ukladen.app` on a home PC through Cloudflare Tunnel, follow
-[Home Server Setup](docs/deployment/home-server.md). The optional
-`docker-compose.home.yml` overlay removes host ports, uses `.env.home` and Secure
-cookies, and reuses the existing data volumes. Domain/tunnel activation requires
-your Cloudflare account; the checked-in configuration does not publish the site.
+Backend, from `apps/backend`:
 
-Local storage uses SeaweedFS; [ADR 0001](docs/adr/0001-use-seaweedfs.md) records
-the provider decision. Production storage remains a separate deployment decision.
-Backend authentication, profiles, IIS schedule integration, the personal calendar,
-[standalone nested pages with typed blocks and Markdown compatibility](docs/development/notes.md) and
-[optional page/calendar links](docs/development/relations.md) are implemented, backend only.
-[User databases and table/calendar views](docs/development/databases.md) are implemented.
-[Private materials, page attachments and PostgreSQL full-text search](docs/development/materials.md)
-are implemented, backend only: 25 MiB/file, 1 GiB retained originals/user and bounded
-PDF-text/DOCX/PPTX/TXT/MD extraction without OCR.
-Calendar/editor/material UI, free slots, tasks, semantic search, AI and RAG remain
-**not implemented**.
+```bash
+uv sync --frozen
+uv run ruff check .
+uv run ruff format --check .
+uv run pyright
+uv run pytest
+```
+
+For the **full** suite, supply disposable PostgreSQL/Redis/SeaweedFS through the
+[test settings](docs/development/environment.md#isolated-test-configuration).
+Without them, integration tests skip. CI provisions these services and exercises
+migration round trips, metadata consistency, ownership and concurrent writes.
+
+Frontend, from `apps/web`:
+
+```bash
+npm ci
+npm run lint
+npm run typecheck
+npm run build
+npx playwright install chromium
+npm test
+```
+
+Browser tests use a production server on port 3001 and mock API responses. Linux
+may need Playwright system dependencies. From the root also run
+`docker compose config --quiet`. [CI](.github/workflows/ci.yml) builds/starts Compose
+and checks routed health and worker readiness; it does not deploy.
+
+## Documentation and limits
+
+Start at the [documentation index](docs/README.md). Useful guides:
+
+- [Local development](docs/development/local-development.md) and [ENV reference](docs/development/environment.md).
+- [Backend](docs/architecture/backend.md), [frontend](docs/architecture/frontend.md) and [infrastructure](docs/architecture/infrastructure.md).
+- [Workspace requirements](docs/product/workspace.md), [open decisions](docs/product/open-questions.md) and [ADRs](docs/adr/0004-keep-workspace-organization-optional.md).
+- [Home hosting](docs/deployment/home-server.md) with Cloudflare Tunnel, HTTPS and no host ports; activation is a separate operator action.
+
+This is a personal workspace, with no collaboration or production availability
+promise. Schedule identity/coverage follows verified public IIS contracts. Personal
+recurrence/all-day events and task planning are unfinished. Extraction supports text
+PDF/DOCX/PPTX/TXT/MD, with 25 MiB/file and 1 GiB retained originals/user, without OCR.
+Auth email has no durable outbox; queue loss requires resend/recovery. Automated
+backups, redundancy and managed production deployment are not implemented.
+
+Technical code/docs are English; initial product text is Russian. Reuse the approved
+[A1 branding](assets/branding/README.md) for future screens.

@@ -40,7 +40,8 @@ resolved personal calendar. See [calendar contracts](../development/calendar.md)
 [backend architecture](backend.md) and [university read API](../development/university-api.md).
 
 The calendar module implements personal events, resolution and official overrides.
-Conflicts, free slots and UI are not implemented; see
+The weekly UI supports personal-event create/edit/delete. Conflicts and free slots
+are not implemented; see
 [calendar contracts](../development/calendar.md).
 
 ## Boundaries
@@ -71,8 +72,10 @@ One-shot calendar reminders and the durable inbox are implemented,
 backend only; see [reminder contracts](../development/reminders.md).
 Structured diagnostics, request/task correlation and
 container log rotation are implemented; see [logging](../development/logging.md).
-Remote observability services, metrics, tracing, production
-TLS, production credentials and deployment automation are not implemented.
+The home-hosting overlay supports browser TLS through Cloudflare Tunnel; public
+activation requires operator account/DNS setup. Remote observability services,
+metrics, tracing, managed production credentials and deployment automation are
+not implemented. See [infrastructure profiles](infrastructure.md).
 
 Standalone nested pages, flat typed blocks, page/calendar links and collections/tags
 are implemented; see [notes](../development/notes.md), [relations](../development/relations.md)

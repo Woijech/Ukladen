@@ -10,8 +10,7 @@ private endpoint exists.
 
 ## 1. Evidence and current coverage
 
-Read the [original investigation](bsuir-iis-investigation.md),
-[verified public contract](bsuir-iis-public-api.md),
+Read the [verified public contract](bsuir-iis-public-api.md),
 [university API](../development/university-api.md) and
 [schedule storage](../development/schedule.md) before modifying adapters.
 
