@@ -106,6 +106,7 @@ def test_failed_google_email_proof_cannot_attach_an_identity(
     live_client.cookies.clear()
     token = begin(live_client, provider)
     original_browser = live_client.cookies.get(google_settings.auth_oauth_cookie_name)
+    assert original_browser is not None
     if failure == "wrong-browser":
         live_client.cookies.delete(google_settings.auth_oauth_cookie_name)
     with Session(concurrent_engine) as database, database.begin():
