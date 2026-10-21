@@ -300,8 +300,22 @@ reported 1611 passed / 3 skipped / 4 failed. All four failures are the pre-exist
 profile test's invalid/unknown cookie setup; a read-only source snapshot of commit
 8b92d75 reproduced the same failures without the AI change. A temporary-snapshot
 one-line removal of the original cookie before replacement made those four pass.
-The repository's unrelated test remains unchanged pending separate owner permission;
-do not report that broader run as fully passing.
+At that checkpoint the repository's unrelated test remained unchanged pending
+separate owner permission; that initial broader run was not fully passing.
+
+The owner subsequently approved the separate profile-test correction. The test now
+deletes the original session cookie before setting an invalid/unknown replacement;
+application authentication code is unchanged. All 39 profile HTTP tests passed on
+the isolated PostgreSQL/Redis target after this one-line correction.
+
+Final verification after the approved correction: the full backend suite passed
+1621 tests / skipped 3 in 325.30 seconds with both native database URLs and the
+test Redis URL pointing only to the disposable services. Ruff, format (390 files),
+full Pyright (zero errors), quiet Compose validation and git diff --check passed.
+Skipped checks are not counted as passed. All test schemas were absent afterward;
+both disposable containers and their storage were removed, and existing application
+containers remained running. No application database migration or external provider
+call occurred. Step 7 remains unapproved.
 
 Step 7 requires separate approval: bound execution time and retries, reconcile
 unfinished runs after restart and verify recovery/cancel/interrupt races against the

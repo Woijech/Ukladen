@@ -308,6 +308,7 @@ def test_live_rejects_ineligible_sessions(
     if state == "missing":
         live_client.cookies.delete(SESSION_COOKIE)
     elif state in {"invalid", "unknown"}:
+        live_client.cookies.delete(SESSION_COOKIE)
         live_client.cookies.set(
             SESSION_COOKIE, "invalid" if state == "invalid" else generate_token()
         )
