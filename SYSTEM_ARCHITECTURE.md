@@ -54,7 +54,10 @@ Additive mixed calendar display is implemented through application query ports.
 One-shot calendar reminders and durable in-app notifications are implemented, backend only.
 Private materials, bounded document extraction, page attachments and basic PostgreSQL
 full-text search are implemented; see [materials/search](docs/development/materials.md).
-Status: not implemented — tasks, availability, semantic search, AI/RAG and authenticated IIS.
+Standalone task create/read/list/update with status/priority, exact deadlines/effort and
+optimistic versions is implemented, backend only; see [tasks](docs/development/tasks.md).
+Status: not implemented — task hierarchy/trash/dependencies/links, task blocks,
+availability, semantic search, AI/RAG and authenticated IIS.
 The frontend implements login/registration, browser email verification and password
 recovery, academic-group selection and a weekly calendar with personal-event create/edit/delete. Other
 workspace business UI remains unimplemented.
@@ -540,7 +543,10 @@ See [workspace architecture](docs/architecture/workspace.md).
 
 ## 5.6 tasks
 
-Status: not implemented. Tasks are independent typed objects; ordinary note
+Status: basic standalone task create/read/list/update, status/priority, exact deadlines,
+effort and optimistic versions are implemented, backend only. Hierarchy/trash,
+dependencies/page links, work blocks and scheduling remain not implemented; see
+[task contracts](docs/development/tasks.md). Tasks are independent typed objects; ordinary note
 checkboxes/database rows do not synchronize them. Deterministic planning is a task
 application service using calendar-owned availability, not business logic in an LLM.
 
@@ -1251,7 +1257,8 @@ record APIs, saved table/calendar views, date projection, versioned date moves a
 additive mixed calendar display. One-shot calendar reminders and durable in-app
 notifications are also implemented; see [reminders](docs/development/reminders.md).
 See [database delivery status](docs/development/databases.md) and
-[ADR 0007](docs/adr/0007-use-page-backed-database-records.md). Typed tasks,
+[ADR 0007](docs/adr/0007-use-page-backed-database-records.md). Basic task
+create/read/list/update is implemented; task hierarchy/trash/dependencies,
 availability/conflicts, explicit work blocks and task/deadline reminders
 remain not implemented.
 Planning can be requested independently of database features.

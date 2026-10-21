@@ -114,10 +114,13 @@ External labels remain metadata, not authoritative grouping identities.
 
 ## 7. Tasks, planning and reminders
 
-Tasks and availability: status not implemented. Calendar reminders and durable
+Basic standalone task create/read/list/update, status/priority, exact deadlines and
+effort are implemented, backend only; see [tasks](../development/tasks.md).
+Task hierarchy/trash/dependencies/links, work blocks and availability are not implemented.
+Calendar reminders and durable
 in-app notifications are implemented, backend only; see [reminder contracts](../development/reminders.md).
 
-Planned tasks exist independently of subjects and pages. Targets include status, priority,
+Tasks exist independently of subjects and pages. The complete target includes status, priority,
 optional deadline, effort, dependencies, optional links and explicit calendar blocks.
 A deadline and a work block are separate concepts.
 
@@ -176,7 +179,8 @@ AI-00 is specified; AI and analytics runtime remain not implemented. See [AI arc
 | Date-bound calendar views, date moves and mixed calendar display | Implemented backend |
 | Rich/nested blocks and page-page knowledge links | Status: not implemented. |
 | One-shot calendar reminders and durable in-app notifications | Implemented backend |
-| Tasks, availability and task/deadline reminders | Status: not implemented. |
+| Standalone task create/read/list/update, status/priority, exact deadline/effort and versions | Implemented backend |
+| Task hierarchy/trash/dependencies/links, work blocks, availability and task/deadline reminders | Status: not implemented. |
 | Private materials, page attachments and bounded document extraction | Implemented backend; no OCR |
 | Filtered PostgreSQL full-text search over pages/materials | Implemented backend |
 | Semantic search, AI and RAG | Status: not implemented. |

@@ -1,6 +1,8 @@
 # Tasks: Incremental P-06 Delivery
 
-Status: implementation contract. Runtime is not implemented yet.
+Updated: 2026-10-21.
+Status: independent task create/read/list/update implemented, backend only.
+Hierarchy, trash, dependencies, page links, work blocks and availability are not implemented.
 
 ## First increment: independent task create/read/update
 
@@ -29,7 +31,7 @@ the server clock and status is `todo` or `in_progress`; it is not stored.
 All explicit status transitions, including reopening, are supported for standalone
 tasks. No automatic scheduling, completion or calendar entry is created.
 
-### Planned HTTP contract
+### Implemented HTTP contract
 
 All paths are under `/api/v1/tasks`:
 
@@ -60,8 +62,54 @@ constrains updates by ID, owner and expected version. Repositories/services neve
 commit independently. Lists and reads refresh canonical state rather than trusting
 the SQLAlchemy identity map.
 
-The preserving Alembic migration creates only task storage and indexes. It refuses
+Alembic `0022_tasks` follows `0021_google_email_confirmations` and creates only task
+storage and its owner/creation index. It refuses
 to downgrade populated task storage. User deletion cascades to owned tasks.
+
+### Example
+
+After normal completed-registration authentication and CSRF bootstrap:
+
+```http
+POST /api/v1/tasks
+Content-Type: application/json
+Origin: <configured frontend origin>
+X-CSRF-Token: <current token>
+
+{
+  "title": "Prepare the laboratory report",
+  "priority": "high",
+  "deadline_at": "2026-10-30T18:00:00+03:00",
+  "estimated_minutes": 90
+}
+```
+
+Use the returned UUID with `GET /api/v1/tasks/{id}`. Change only supplied fields
+with PATCH, for example `{"expected_version":1,"status":"in_progress"}`.
+Re-read after a version conflict. Parent/source IDs and deletion/lifecycle routes
+are not supported in this increment; no stub APIs advertise future functionality.
+
+`is_overdue` uses the current server clock; it can change between reads without a
+version change. Offset-aware deadlines are stored as instants, not calendar events.
+There is no automatic POST retry/deduplication contract; submit task creation once.
+
+### Verification
+
+Domain/service tests cover validation, null/omitted semantics, all standalone status
+transitions, exact overdue boundaries, eligibility and optimistic versions.
+PostgreSQL tests cover owner-scoped persistence, independent sessions, rollback,
+constraints, user cascade, preserving upgrade/downgrade and metadata parity. HTTP
+tests cover real sessions, completed registration, CSRF, isolation, private logs,
+concurrent edits and sanitized write failures. Reuse `AUTH_TEST_DATABASE_URL` and
+`AUTH_TEST_REDIS_URL` against disposable services; unset variables skip those tests.
+
+Executed on 2026-10-21: Ruff, Ruff format check, Pyright, quiet base Compose
+validation and the full backend pytest suite against disposable PostgreSQL 18 with
+pgvector and Redis 7.4: **1604 passed, 3 skipped**. The three skipped tests require
+separate native S3 configuration (avatar storage, material storage and file jobs).
+The existing Starlette/httpx deprecation warning remains. Migration checks used
+only disposable schemas; no running application database migration or deployment
+was performed. Frontend verification was outside this backend-only increment.
 
 ## Agreed later manual P-06 increments
 

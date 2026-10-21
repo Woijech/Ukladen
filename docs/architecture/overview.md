@@ -64,8 +64,10 @@ external clients. Inter-module access must use application services or interface
 
 ## Scope
 
-Status: not implemented — free slots, conflict checks, task blocks,
-tasks, task/deadline reminders, semantic search, AI and RAG.
+Standalone task create/read/list/update, status/priority, exact deadlines/effort and
+optimistic versions are implemented, backend only; see [tasks](../development/tasks.md).
+Status: not implemented — task hierarchy/trash/dependencies/page links, free slots,
+conflict checks, task blocks, task/deadline reminders, semantic search, AI and RAG.
 Private materials, bounded document extraction, optional page attachments and lexical
 search are implemented, backend only; see [materials/search](../development/materials.md).
 One-shot calendar reminders and the durable inbox are implemented,

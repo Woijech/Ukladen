@@ -38,7 +38,9 @@ existing services just to match target vocabulary. A package marker is not a fea
 | Workspace | Collections/tags, typed membership, event views and recoverable page-backed databases with table/calendar views | [Workspace](workspace.md), [calendar views](calendar-views.md), [databases](databases.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
-Calendar free slots/conflicts, tasks, semantic search and AI are not implemented.
+Standalone task create/read/list/update is implemented, backend only; see [tasks](tasks.md).
+Task hierarchy/trash/dependencies/links, work blocks, calendar free slots/conflicts,
+semantic search and AI are not implemented.
 Workspace organization exists;
 saved event views, user databases, table/calendar views and mixed date projection exist.
 Authenticated IIS is unverified/unimplemented.
@@ -151,7 +153,12 @@ until explicitly scheduled. Formulas, rollups and automatic arbitrary workflows 
 
 ## 8. P-06 typed tasks and availability
 
-Status: not implemented. Dependencies: existing calendar; optional page links after P-02.
+Status: partially implemented — standalone task create/read/list/update, status/priority,
+exact deadlines/effort, optimistic versions and authenticated APIs are implemented,
+backend only; see [task contracts](tasks.md). Hierarchy/trash, dependencies/page links,
+manual blocks and availability are not implemented. The owner selected manual-only
+incremental delivery; automatic planning and saved work preferences remain later work.
+Dependencies: existing calendar; optional page links after P-02.
 Can be requested earlier independently of databases. Q-07 is resolved: independent
 typed tasks with optional source links and no automatic checkbox/record synchronization.
 Future calendar contracts remain Q-05. See [AI planning requirements](../product/ai.md#6-calendar-and-deterministic-planning).

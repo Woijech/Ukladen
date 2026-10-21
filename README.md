@@ -21,7 +21,8 @@ workspace capabilities are available through the backend API.
 | User databases, typed properties, page-backed records, table/calendar views and date moves | Implemented backend; database UI planned |
 | One-shot calendar reminders and in-app notifications | Implemented backend; inbox/reminder UI planned |
 | Private materials, bounded document extraction and PostgreSQL full-text search | Implemented backend; materials/search UI planned |
-| Tasks, free slots/conflicts, semantic search, AI and RAG | Planned; runtime not implemented |
+| Standalone task create/read/list/update, status/priority and exact deadline/effort | Implemented backend; see [task delivery](docs/development/tasks.md) |
+| Task hierarchy/trash/dependencies, work blocks, free slots/conflicts, semantic search, AI and RAG | Planned; runtime not implemented |
 | Collaboration, formulas and private IIS accounts/grades | Deferred; private API contracts unverified |
 
 The [product specification](docs/product/overview.md) and
