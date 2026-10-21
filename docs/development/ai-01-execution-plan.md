@@ -1,9 +1,9 @@
 # AI-01 Execution Plan and Approval Checkpoints
 
 Updated: 2026-10-22.
-Status: in progress. Steps 1 through 4 are complete within their approved scope;
-step 4 prepares persistence code and a migration without applying it.
-Steps 5 through 9 are not approved or implemented. The owner requested approval before
+Status: in progress. Steps 1 through 5 are complete within their approved scope;
+persistence migrations are tested only on disposable data, not applied to the app.
+Steps 6 through 9 are not approved or implemented. The owner requested approval before
 changes and clarified that read-only inspection/checks need no additional permission.
 This is a developer workflow, distinct from the
 application's human-in-the-loop approval of user-data changes.
@@ -220,3 +220,46 @@ anchors and balanced fences passed. Skipped native checks were not counted as pa
 Step 5 requires separate approval: apply the prepared revision only to an explicitly
 identified disposable database, verify migrations/metadata/ownership/rollback and
 prove owned checkpoint resume across processes. No migration was applied during step 4.
+
+Step 5 was subsequently approved. Native tests create separate committed schemas
+on the explicitly disposable database ukladen_ai01_step5 in the no-network container
+ukladen-ai01-step5-20261022 (PostgreSQL 18.6). The source, dependencies and exact
+Python 3.14.4 runtime are mounted read-only into separate test containers. Database
+storage is tmpfs; no existing application database, credentials or volume is reused.
+
+The new test suite covers preserving upgrade, populated-downgrade refusal, composite
+owner foreign keys, submission/active-run uniqueness, bounded attempts/tools/content,
+unknown usage, stale run versions, message/checkpoint rollback, exact expiry and
+active-user checks. Concurrent message/run admission accepts one contender. A guarded
+checkpoint transaction blocks concurrent deletion; deletion then cascades content and
+prevents recreation. The execution journal survives chat deletion and is removed by
+owner deletion.
+
+Fresh-process tests pause the fake agent and start new Python interpreters for foreign
+owner rejection, approve/reject resume, stale review rejection and deleted-chat denial.
+The tool executes once on approval and zero times on rejection. These are synthetic
+checkpoint continuity checks, not business authorization or HTTP lifecycle evidence.
+No runtime implementation or migration repair was needed; changes add durable native
+tests and update implementation status. The initial full native attempt exhausted a
+384 MiB temporary data disk; it was discarded and repeated with a 1 GiB tmpfs and
+64 MiB WAL target while retaining normal fsync.
+A later container-only import failure in credential-scrubbed document-parser children
+was resolved by preserving the original virtualenv/interpreter mount paths, without
+changing application code. Its 13 focused extraction tests then passed.
+
+Final step-5 verification: full backend pytest with AUTH_TEST_DATABASE_URL and
+AI_TEST_DATABASE_URL pointing only to that disposable target reported 1199 passed /
+398 skipped (214.35 seconds), including all 28 new native AI cases and the existing
+migration round-trip/metadata check. Other integration targets were unset. Ruff,
+format (382 files), full Pyright (zero errors), quiet Compose validation, seven
+Markdown files/146 local links and anchors, balanced fences and git diff --check
+passed. No new runtime dependency was added. Test schemas were absent after the run;
+the disposable database/container and its tmpfs storage were removed, and existing
+application containers remained running. No application database migration, provider
+request, push or deployment occurred.
+
+Step 6 requires separate approval: implement the authenticated offline chat/run API,
+durable request admission, submission idempotency and actual attempt/tool recording.
+Cancellation/deletion transport is included in that step; recovery bounds and cleanup
+remain steps 7/8. No real provider, business write tool, frontend, push or deployment
+is authorized by step 5.

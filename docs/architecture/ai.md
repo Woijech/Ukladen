@@ -3,10 +3,11 @@
 Updated: 2026-10-22.
 Status: AI-01 has an internal fake-only LangChain harness with neutral DTOs, typed
 synthetic tools, review pauses and per-invocation limits. Owned persistence adapters
-and an Alembic revision are prepared but not migrated or natively verified. API,
+and an Alembic revision are natively tested on disposable PostgreSQL; no application
+database migration has been applied. API,
 real providers and AI/RAG product features are not implemented. See the
 [offline harness](../development/ai-setup.md#a1-implemented-offline-harness).
-The [persistence guide](../development/ai-persistence.md) records the prepared schema,
+The [persistence guide](../development/ai-persistence.md) records the tested internal schema,
 owner checks, short transactions and deletion boundaries.
 Materials/extraction and basic lexical search are implemented separately;
 see [P-08 contracts](../development/materials.md). They do not implement chunks,

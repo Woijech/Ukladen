@@ -1,8 +1,8 @@
 # AI Setup and Provider Switching Runbook
 
 Updated: 2026-10-22.
-Status: the internal offline harness is implemented; AI-01 step 4 prepares owned
-persistence adapters and an unapplied migration. Native persistence validation and
+Status: the internal offline harness and owned persistence adapters are implemented
+and tested on disposable PostgreSQL. The migration is not applied to the application;
 later setup instructions remain planned. AI routes/settings, credentials, real model
 adapters and embedding workers do not exist. Proposed environment settings
 do not enable an AI feature in today's app. No provider request or deployment was made.
@@ -98,11 +98,12 @@ Verification (2026-10-22): 26 offline harness tests; full backend pytest 988 pas
 Ruff/format/Pyright, dependency/lock and quiet Compose checks passed. See
 [the execution record](ai-01-execution-plan.md#12-delivery-progress-2026-10-22).
 
-### A2. Prepared owned persistence
+### A2. Internal owned persistence
 
 The domain state, AiRepository port, SQLAlchemy adapter and OwnedPostgresSaver are
 implemented internally. Revision 0022_ai_persistence prepares application and pinned
-checkpoint tables; it has not been applied or validated against native PostgreSQL.
+checkpoint tables; native migrations and ownership/restart checks passed only on
+disposable PostgreSQL, with no application database migration.
 No startup code calls framework setup or enables the feature. See
 [the schema, transaction and deletion contracts](ai-persistence.md).
 
@@ -119,9 +120,11 @@ Run the offline storage checks with no service targets configured:
 uv run pytest tests/test_ai_agent.py tests/test_ai_state.py tests/test_ai_checkpoint_storage.py -q
 ~~~
 
-Tests compile the migration and check state/filter/cursor behavior using mocks. Native
-migration, concurrency, rollback and process-restart verification require separately
-approved step 5. Retention cleanup and deletion endpoints remain step 8/6 work.
+These tests compile the migration and check state/filter/cursor behavior using mocks.
+Step-5 native tests additionally verify migrations/metadata, owner constraints,
+concurrent admission/deletion, rollback and approve/reject resume in fresh interpreters;
+see the persistence guide for their explicit test target. Retention cleanup and
+deletion endpoints remain step 8/6 work.
 
 ## B. AI-02: verify one supported adapter before activation
 

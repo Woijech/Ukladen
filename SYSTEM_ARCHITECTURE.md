@@ -398,8 +398,8 @@ services own interval truth; tasks owns deterministic planning. A stale confirme
 multi-action plan applies nothing and needs a new preview. Per-account activation
 settings and actual per-owner grants remain required. See [AI architecture](docs/architecture/ai.md).
 Status: AI-00 and the AI-01 internal fake-only harness are delivered. Owned persistence
-adapters/migration are prepared but unapplied and not natively verified. AI API,
-real providers, RAG and planning remain not implemented; see
+adapters/migration are natively tested on disposable PostgreSQL, unapplied to the app.
+AI API, real providers, RAG and planning remain not implemented; see
 [the implemented subset](docs/development/ai-setup.md#a1-implemented-offline-harness).
 
 Architecture:
@@ -636,9 +636,10 @@ generation, pgvector retrieval and RAG remain not implemented.
 ## 5.13 ai
 
 Status: AI-00 contracts and an internal offline harness are delivered; owned persistence
-adapters/migration are prepared but unapplied. Native verification and API remain
-pending; see [persistence contracts](docs/development/ai-persistence.md). Own planned conversations,
-personal instructions, proposals/grants and usage; keep SDK/framework types behind
+adapters/migration are natively tested on disposable PostgreSQL, unapplied to the app.
+API remains pending; see [persistence contracts](docs/development/ai-persistence.md).
+Own conversations, personal instructions, proposals/grants and usage as each feature
+is delivered; keep SDK/framework types behind
 application interfaces. Checkpoint continuity never replaces authorization or commit truth.
 
 ```text
@@ -1050,7 +1051,7 @@ S3-compatible API
 ```text
 LLM provider abstraction
 LangChain create_agent + HITL middleware on LangGraph (target)
-PostgreSQL checkpoints (owned adapter/migration prepared; native verification pending)
+PostgreSQL checkpoints (owned adapter/migration tested on disposable data; app integration pending)
 Tool Calling
 Embeddings
 RAG

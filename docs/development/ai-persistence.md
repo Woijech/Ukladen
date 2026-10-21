@@ -1,8 +1,8 @@
 # AI Persistence Contracts
 
 Updated: 2026-10-22.
-Status: AI-01 step 4 code and migration are prepared. No migration has been applied.
-Native PostgreSQL behavior is not verified; step 5 requires separate owner approval.
+Status: AI-01 steps 4/5 implement and natively test internal owned persistence.
+The migration has been applied only to disposable test schemas, never to the app.
 No HTTP/worker path uses this storage yet. Read the
 [execution plan](ai-01-execution-plan.md) and [AI architecture](../architecture/ai.md).
 
@@ -41,7 +41,7 @@ Alembic revision when necessary. API startup never calls PostgresSaver.setup().
 Downgrade takes exclusive locks and refuses to drop tables while any AI conversation,
 message, execution or checkpoint content remains. The version register alone does
 not prevent an empty-schema downgrade. It does not silently delete populated AI data.
-The guard and schema equivalence still require native validation in step 5.
+The guard and schema equivalence are covered by native PostgreSQL tests.
 
 ## Transactions and access
 
@@ -60,9 +60,11 @@ OwnedPostgresSaver binds one user and conversation and rejects other thread IDs,
 unscoped listing and inherited destructive/copy operations. Every storage cursor
 checks the active user and a nonexpired conversation under shared row locks in the
 same short transaction as its checkpoint access. This prevents a concurrent deletion
-from leaving newly committed orphan checkpoints. Native race behavior is unverified.
+from leaving newly committed orphan checkpoints. Native tests verify that a concurrent
+deletion waits for the guarded transaction, then cascades its committed state.
 The caller supplies an autocommit Psycopg connection with no outer transaction and
-owns its lifetime. No storage transaction spans a model/tool call. The serializer
+owns its lifetime. Model/tool execution does not hold a storage transaction open;
+LangGraph may persist checkpoints independently in the background. The serializer
 disables pickle fallback and arbitrary MessagePack module loading.
 
 The factory owned_offline_runner validates the checkpoint migration register and
@@ -93,6 +95,24 @@ The existing pure harness does not enforce owner/expiry without this owned adapt
 
 Offline tests cover domain transitions/usage, repository owner and concurrency
 predicates, compiled PostgreSQL DDL, static migration SQL and mocked guarded cursors.
-They open no database connection. Native upgrade/downgrade, metadata comparison,
-foreign keys, transaction rollback, concurrent deletion and fresh-process resume must
-pass on an identified disposable PostgreSQL database in step 5 before activation.
+They open no database connection.
+
+[Native persistence tests](../../apps/backend/tests/test_ai_persistence.py) use
+AI_TEST_DATABASE_URL as an explicit disposable target, independently of app settings.
+Each test creates and finally drops its own random schema; committed data is visible
+to independent checkpoint connections/processes. With the target unset these tests
+skip. Set AUTH_TEST_DATABASE_URL to the same disposable target to also run the existing
+full migration round-trip/metadata test. From apps/backend:
+
+~~~bash
+uv run pytest tests/test_ai_persistence.py tests/test_auth_persistence.py -q
+~~~
+
+Native tests cover upgrade/downgrade/metadata, preserved existing users, populated
+downgrade refusal, foreign ownership, uniqueness/bounds, rollback, version conflicts,
+concurrent message/run admission, guarded deletion, content/journal cascades and
+expiry at exactly 30 days. The fresh-process driver uses only FakeChatModel: approval
+executes the synthetic tool once, rejection never executes it, stale reviews fail,
+and foreign/deleted conversations cannot resume. No live provider is invoked.
+See the dated execution record for environment, results and cleanup. API lifecycle,
+durable accounting hooks, crash reconciliation and retention jobs remain later work.

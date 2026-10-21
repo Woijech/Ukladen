@@ -66,11 +66,11 @@ implementation task, not a guarantee that its checks were rerun during a later e
 - [AI-01 execution steps](development/ai-01-execution-plan.md): individually approved scopes, deliverables and verification.
 - [AI tool contracts](development/ai-tool-contracts.md): capabilities, typed boundaries, budgets and synthetic acceptance data.
 - [AI setup runbook](development/ai-setup.md): staged operator/BYOK providers, embeddings, web search and activation gates.
-- [AI persistence](development/ai-persistence.md): prepared schema, owner checks, transaction boundaries and migration impact; not applied.
+- [AI persistence](development/ai-persistence.md): schema, owner checks, transaction boundaries and migration impact; tested on disposable data, unapplied to the app.
 
 AI-00 and the AI-01 internal offline harness are delivered; see the setup runbook for
-its tested scope. Owned persistence adapters/migration are prepared but unapplied;
-native verification, AI API, real providers, retrieval, actions, planning and analytics
+its tested scope. Owned persistence adapters/migration are tested on disposable data,
+unapplied to the app. AI API, real providers, retrieval, actions, planning and analytics
 remain pending. Plans do not authorize later changes/deployment.
 
 ## IIS contracts and future integration
