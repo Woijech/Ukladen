@@ -5,22 +5,23 @@ notes and study materials. Academic selection is optional: personal events and
 pages work without a subject or university group. Official IIS facts stay separate
 from the user's changes.
 
-The product is under active development. The browser currently provides account
-registration/login, optional BSUIR group selection and a weekly calendar. More
-workspace capabilities are available through the backend API.
+The product is under active development. The browser provides account registration/login, optional BSUIR group selection,
+a day/week calendar, notes, materials, databases, collections/tags, search,
+reminders/inbox and profile settings in a shared light/dark interface. See the
+[frontend guide](docs/architecture/frontend.md) for current UI limits.
 
 ## Current capabilities
 
 | Area | Status |
 | --- | --- |
 | Email/password and Google authentication, account linking, verification and recovery | Implemented backend and browser UI; verified email and a password are required for workspace access |
-| User profile/avatar, academic profile and public IIS directories | Implemented backend; group selection is available in the UI |
-| Official schedule synchronization, personal events, official overrides and resolved calendar | Implemented backend; UI supports weekly reads and personal-event create/edit/delete |
-| Independent nested pages, typed blocks, Markdown compatibility and recoverable trash | Implemented backend; editor UI planned |
-| Page/calendar/material links, collections, tags and saved calendar views | Implemented backend; organization UI planned |
-| User databases, typed properties, page-backed records, table/calendar views and date moves | Implemented backend; database UI planned |
-| One-shot calendar reminders and in-app notifications | Implemented backend; inbox/reminder UI planned |
-| Private materials, bounded document extraction and PostgreSQL full-text search | Implemented backend; materials/search UI planned |
+| User profile/avatar, academic profile and public IIS directories | Implemented backend/UI for profile/avatar and group selection |
+| Official schedule synchronization, personal events, official overrides and resolved calendar | Implemented backend; UI supports day/week reads and personal-event create/edit/delete; official override editing remains API-only |
+| Independent nested pages, typed blocks, Markdown compatibility and recoverable trash | Implemented backend/UI for flat blocks, hierarchy and trash |
+| Page/calendar/material links, collections, tags and saved calendar views | Implemented backend; UI for page/event/material links and collections/tags; saved event views remain API-only |
+| User databases, typed properties, page-backed records, table/calendar views and date moves | Implemented backend; UI for schemas, records, saved table/day/week/month views and form date edits; mixed display and drag moves remain API-only |
+| One-shot calendar reminders and in-app notifications | Implemented backend/UI for one-shot calendar reminders, pending cancellation and inbox |
+| Private materials, bounded document extraction and PostgreSQL full-text search | Implemented backend/UI for files/bookmarks, processing status and filtered full-text search |
 | Tasks, free slots/conflicts, semantic search, AI and RAG | Planned; runtime not implemented |
 | Collaboration, formulas and private IIS accounts/grades | Deferred; private API contracts unverified |
 

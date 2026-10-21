@@ -1,7 +1,8 @@
 # Materials and Basic Search
 
-Updated: 2026-10-16.
-Status: P-08 implemented, backend only. UI, OCR, legacy DOC/PPT conversion,
+Updated: 2026-10-22.
+Status: P-08 backend implemented. Materials and full-text search UI are described
+in the [frontend guide](../architecture/frontend.md). OCR, legacy DOC/PPT conversion,
 remote-page fetching, embeddings, semantic search and RAG are not implemented.
 
 ## Scope and limits

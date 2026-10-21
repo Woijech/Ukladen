@@ -1,6 +1,7 @@
 # Users Profile API
 
-Status: implemented, backend only.
+Status: backend implemented, with profile settings UI; see the
+[frontend guide](../architecture/frontend.md).
 
 The users module owns the canonical `users` table. Registration, verification,
 credentials, linked identities and opaque browser sessions keep their existing

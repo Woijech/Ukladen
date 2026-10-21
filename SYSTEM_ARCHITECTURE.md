@@ -8,7 +8,7 @@
 >
 > **Important:** This document intentionally does **not** define concrete BSUIR IIS response fields, exact external API payloads, full SQL schema, or detailed endpoint DTOs. Those contracts are separate documents.
 
-Updated: 2026-10-21. Target features are not implemented unless explicitly marked.
+Updated: 2026-10-22. Target features are not implemented unless explicitly marked.
 Read the [documentation index](docs/README.md), [open decisions](docs/product/open-questions.md)
 and [implementation roadmap](docs/development/implementation-roadmap.md) for a concrete slice.
 [ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md) records optional organization.
@@ -51,13 +51,17 @@ optional page/calendar links, collections/tags with typed memberships and saved
 calendar views and recoverable user databases/properties/page-backed records.
 Saved table/calendar database views, date projection and date moves are implemented.
 Additive mixed calendar display is implemented through application query ports.
-One-shot calendar reminders and durable in-app notifications are implemented, backend only.
+One-shot calendar reminders and durable in-app notifications are implemented.
 Private materials, bounded document extraction, page attachments and basic PostgreSQL
 full-text search are implemented; see [materials/search](docs/development/materials.md).
 Status: not implemented — tasks, availability, semantic search, AI/RAG and authenticated IIS.
 The frontend implements login/registration, browser email verification and password
-recovery, academic-group selection and a weekly calendar with personal-event create/edit/delete. Other
-workspace business UI remains unimplemented.
+recovery, optional academic-group selection, day/week personal-event CRUD, flat block
+pages, materials, explicit organization, database table/calendar views, full-text
+search, reminders/inbox and profile/avatar settings. Its shared light/dark shell
+preserves the existing API, session and calendar contracts. Official override editing,
+saved event views and mixed date projection remain API-only; tasks/AI UI cannot run
+until their backend exists. See the [frontend guide](docs/architecture/frontend.md).
 
 Detailed behavior: [product overview](docs/product/overview.md) and
 [workspace requirements](docs/product/workspace.md).

@@ -1,10 +1,12 @@
 # User Database Backend
 
-Updated: 2026-10-15.
-Status: P-05 is implemented, backend only: database/property/page-backed record APIs,
+Updated: 2026-10-22.
+Status: P-05 backend is implemented: database/property/page-backed record APIs,
 recoverable trash, typed validation/conversions, table/calendar views, date moves
 and mixed display with official/personal events.
-This guide records each delivered increment separately.
+This guide records each backend increment separately. Schema/record and saved table
+and day/week/month calendar UI are described in the [frontend guide](../architecture/frontend.md).
+Mixed display and drag date moves remain API-only.
 
 ## Database definitions
 

@@ -1,6 +1,6 @@
 # Backend Implementation Roadmap
 
-Updated: 2026-10-21.
+Updated: 2026-10-22.
 Status: implementation roadmap; completed slices are marked below. This document does not authorize starting the
 next phase; request a concrete slice before implementing it. Pages/blocks/databases,
 mandatory table/calendar views, personal scope and AI execution modes are confirmed.
@@ -43,11 +43,16 @@ Workspace organization exists;
 saved event views, user databases, table/calendar views and mixed date projection exist.
 Authenticated IIS is unverified/unimplemented.
 Frontend email/Google login/registration, explicit Google linking, browser email verification and password recovery,
-optional academic-group selection and weekly calendar personal-event create/edit/delete are implemented.
+optional academic-group selection and day/week calendar personal-event create/edit/delete are implemented.
 Session isolation, sync-result freshness, full-day interval rendering and explicit
 timezone handling have deterministic browser regressions; see
-[frontend](../architecture/frontend.md). Pages, materials/search, reminders/inbox,
-database/saved-view and other business UI remain not implemented.
+[frontend](../architecture/frontend.md). The separately requested frontend redesign
+adds the shared light/dark shell, flat block page editor, materials/search,
+collections/tags, database schemas/records/table and day/week/month saved views,
+reminders/inbox and profile/avatar settings. Official override editing, saved event
+views and mixed projection remain API-only. Tasks and AI remain unavailable.
+The P-01–P-08 sections below preserve their original backend-slice scope; their
+verification history is not evidence of rerunning backend checks for the UI work.
 
 ## 3. P-01 standalone pages
 
