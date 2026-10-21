@@ -1,7 +1,8 @@
 # AI-00 Tool and Execution Contracts
 
 Updated: 2026-10-22.
-Status: specified, not implemented. This is the application contract beneath
+Status: business capabilities specified, not implemented. AI-01 implements only
+the [offline fake lifecycle](ai-api.md) and synthetic tools/accounting. This is the target contract beneath
 [AI product requirements](../product/ai.md), not an existing API/SDK/tool registry.
 Transport DTOs/migrations are finalized with each implementing stage. No real model,
 web request or application mutation is authorized by these examples.

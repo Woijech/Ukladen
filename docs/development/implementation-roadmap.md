@@ -38,7 +38,9 @@ existing services just to match target vocabulary. A package marker is not a fea
 | Workspace | Collections/tags, typed membership, event views and recoverable page-backed databases with table/calendar views | [Workspace](workspace.md), [calendar views](calendar-views.md), [databases](databases.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
-Calendar free slots/conflicts, tasks, semantic search and AI are not implemented.
+Calendar free slots/conflicts, tasks, semantic search and real AI are not implemented.
+The default-disabled [offline AI API](ai-api.md) provides synthetic chat/run lifecycle
+and accounting; recovery/cleanup remain pending.
 Workspace organization exists;
 saved event views, user databases, table/calendar views and mixed date projection exist.
 Authenticated IIS is unverified/unimplemented.
@@ -220,7 +222,8 @@ retrieval and AI/RAG remain not implemented. No deployment is performed by this 
 
 ## 11. P-09 AI help, recommendations, confirmed/automatic actions and RAG
 
-Status: runtime not implemented; AI-00 specification/contracts delivered on 2026-10-21.
+Status: AI-00 specified; AI-01 has a default-disabled fake-only chat/run API and durable
+accounting. Real tools/providers, recovery/cleanup and product UI remain pending.
 Dependencies: only the application tools actually used; task planning requires P-06.
 The [detailed AI plan](ai-implementation-plan.md) splits work into AI-00 through AI-12,
 with the [owner-agreed product specification](../product/ai.md),

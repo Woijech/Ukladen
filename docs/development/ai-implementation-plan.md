@@ -2,9 +2,10 @@
 
 Updated: 2026-10-22.
 Status: AI-00 is delivered and AI-01 is partially implemented through its internal
-offline harness and owned persistence adapters/migration tested on disposable
-PostgreSQL. The revision is unapplied to the app; HTTP and all later runtime stages
-remain not implemented. No P-06, real provider traffic or deployment is included.
+offline harness, owned persistence and authenticated fake-only chat/run API with
+durable accounting. Tested on disposable PostgreSQL/Redis, disabled by default and
+unapplied to the running app. Recovery/cleanup and later stages remain unimplemented.
+No P-06, real provider traffic or deployment is included.
 
 Read [system architecture](../../SYSTEM_ARCHITECTURE.md), [AI architecture](../architecture/ai.md),
 [product scope](../product/ai.md), [ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md),
@@ -19,7 +20,7 @@ numeric order is not an implicit dependency or authorization to start another st
 | Stage | Deliverable | Dependencies / connection gate | Exit evidence |
 | --- | --- | --- | --- |
 | AI-00 | Agreed scope, policies, tool/config contracts and synthetic cases | No external connection | Specification/fixture/link checks; no runtime claim |
-| AI-01 (partial) | Offline create_agent/fakes/neutral DTOs/HITL and owned persistence delivered internally; app migration/API pending | AI-00; compatibility proved; approval before changes | Offline/native persistence/restart tests passed; HTTP/accounting/cleanup checks pending |
+| AI-01 (partial) | Offline agent, owned chat/run API, persistence and accounting; disabled by default | AI-00; compatibility proved; approval before changes | Offline/native persistence/HTTP/accounting tests passed; crash recovery/cleanup pending |
 | AI-02 | Operator model catalog, supported adapters and encrypted personal API connections | AI-01; explicitly chosen vendor contract/account | Synthetic smoke, capability/secret/quota/isolation checks |
 | AI-03 | Authorized search/read tools and lexical grounding | AI-01; existing application services | Sources, current ownership, injection and coverage cases |
 | AI-04 | Separate streaming chats, cancellation, sources, instructions/model settings and usage UI | AI-01/02/03 | Desktop/mobile/session isolation and retention checks |
@@ -61,8 +62,9 @@ are not already implemented merely because package markers or tables are planned
 
 ## 3. Planned configuration and bounds
 
-None of these settings are current application configuration. Add only the settings
-needed by the delivered stage; no empty future plugin system.
+Only AI_ENABLED, AI_LLM_PROVIDER and AI_LLM_MODEL are implemented, accepting the
+offline fake profile. Other settings below remain planned; add only those needed
+by the delivered stage, with no empty future plugin system.
 
 | Setting / configuration | Initial contract |
 | --- | --- |
@@ -106,7 +108,8 @@ Implemented subset: the internal fake-only AgentRunner boundary and LangChain
 composition with synthetic typed tools, review pauses and bounded errors/calls.
 Owned state/repositories and checkpoint integration are natively tested with an
 Alembic revision applied only to disposable data; see [persistence contracts](ai-persistence.md).
-They do not yet record actual harness attempts or expose an owned request lifecycle.
+The [offline API](ai-api.md) now records actual attempts/tools and exposes an owned
+request lifecycle; crash reconciliation and physical cleanup remain pending.
 See [actual setup/limits](ai-setup.md#a1-implemented-offline-harness) and
 [delivery progress](ai-01-execution-plan.md#12-delivery-progress-2026-10-22).
 The remaining paragraphs describe the complete AI-01 target, not a delivered API.
@@ -128,7 +131,7 @@ The owner requested approval before changes and permits read-only checks without
 additional confirmation (clarified on 2026-10-22).
 Follow the [AI-01 approval checkpoints](ai-01-execution-plan.md): report the completed
 step, checks and exact next scope, then obtain approval before subsequent changes.
-Steps 1 through 5 were subsequently authorized; steps 6 onward remain pending.
+Steps 1 through 6 were subsequently authorized; steps 7 onward remain pending.
 
 Persist owned conversations/messages, runs, provider attempts and tool outcomes via
 Alembic, including reviewed checkpoint migrations rather than startup auto-DDL.

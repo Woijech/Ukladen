@@ -2,10 +2,10 @@
 
 Updated: 2026-10-22.
 Status: the internal offline harness and owned persistence adapters are implemented
-and tested on disposable PostgreSQL. The migration is not applied to the application;
-later setup instructions remain planned. AI routes/settings, credentials, real model
-adapters and embedding workers do not exist. Proposed environment settings
-do not enable an AI feature in today's app. No provider request or deployment was made.
+with an authenticated, disabled-by-default fake API and durable attempt/tool accounting.
+The migration is tested on disposable data, unapplied to the running application.
+Real model adapters, credentials and embedding workers remain unimplemented.
+See [current API and recovery limits](ai-api.md). No provider request or deployment was made.
 
 Use [product scope](../product/ai.md), [stages](ai-implementation-plan.md),
 [contracts](ai-tool-contracts.md) and [ADR 0009](../adr/0009-specify-provider-neutral-ai-orchestration.md).
@@ -27,15 +27,13 @@ provider, current price or universal OpenAI-compatible contract is assumed.
    and disposable PostgreSQL/Redis. Do not run automatic schema setup on API startup.
    Verify conversation ownership, checkpoints, cancellation/restart, attempts/unknown
    usage, duplicate submission and complete content cleanup before real integration.
-4. Only after AI-01 implements the settings, its proposed offline configuration is:
+4. The implemented offline settings are below. They require the reviewed migration;
+   enabling them gives fixed synthetic answers, with no source access or real model:
 
 ~~~dotenv
 AI_ENABLED=true
 AI_LLM_PROVIDER=fake
 AI_LLM_MODEL=fake-v1
-AI_EMBEDDING_PROVIDER=disabled
-AI_ENABLED_CAPABILITIES='[]'
-AI_AUTOMATIC_ACTIONS_ENABLED=false
 ~~~
 
 Validate the existing base stack without printing expanded secrets:
@@ -67,8 +65,9 @@ uv run pytest tests/test_ai_agent.py -q
 The caller injects a checkpointer explicitly; unit tests use strict MessagePack
 serialization and InMemorySaver. In-memory checkpoints disappear with the process.
 The separate step-2 PostgreSQL proof does not verify the step-4 owned adapter.
-No API/startup/worker imports or registers this harness; conversation IDs are internal
-identifiers, not an implemented ownership check or a public execution endpoint.
+The [API composition](ai-api.md) supplies authenticated admission, owned checkpoints
+and accounting. Direct harness construction still treats conversation IDs as internal
+identifiers and does not itself authenticate a caller. No worker dispatch is configured.
 
 Messages are limited to 16 KiB UTF-8; model/tool call limits are at most 4/8 per
 framework invocation. Tool errors/results and review batches are sanitized/bounded.
@@ -89,9 +88,10 @@ These dependencies replace custom loop/review/persistence machinery, but add fra
 serialization, transport and checkpoint-schema maintenance. No LangSmith account,
 tracing service, separate agent server or provider SDK is activated.
 
-Durable attempt budgets across retry/resume, concurrent admission, authentication,
-cancellation, retention and business authorization are not implemented by this harness.
-Its built-in per-invocation limits cannot substitute for the planned durable ledger.
+The pure harness does not implement admission or authorization. The owned API adds
+authentication, per-run durable budgets, concurrent admission and cancellation through
+middleware/services. Retry/resume recovery, cleanup and business authorization remain
+later work; built-in per-invocation limits do not replace the journal.
 
 Verification (2026-10-22): 26 offline harness tests; full backend pytest 988 passed /
 553 native-service checks skipped with PostgreSQL/Redis/S3 targets unset; full
@@ -104,15 +104,16 @@ The domain state, AiRepository port, SQLAlchemy adapter and OwnedPostgresSaver a
 implemented internally. Revision 0022_ai_persistence prepares application and pinned
 checkpoint tables; native migrations and ownership/restart checks passed only on
 disposable PostgreSQL, with no application database migration.
-No startup code calls framework setup or enables the feature. See
+No startup code calls framework setup; the feature defaults off. See
 [the schema, transaction and deletion contracts](ai-persistence.md).
 
 owned_offline_runner composes the existing fake harness with an owner-bound saver.
 Its caller supplies and closes a Psycopg connection with autocommit enabled and no
 outer transaction. Each checkpoint operation checks ownership/expiry inside a short
 transaction; no storage transaction encloses a model call. Application repositories
-participate in caller-owned SQLAlchemy transactions. There is no public API or durable
-attempt/tool recording hook yet. This internal composition is not an activation recipe.
+participate in caller-owned SQLAlchemy transactions. Direct harness construction
+does not supply authenticated admission or attempt/tool accounting. The API adds that lifecycle
+and reuses this storage composition; see its separate contract.
 
 Run the offline storage checks with no service targets configured:
 
@@ -123,8 +124,9 @@ uv run pytest tests/test_ai_agent.py tests/test_ai_state.py tests/test_ai_checkp
 These tests compile the migration and check state/filter/cursor behavior using mocks.
 Step-5 native tests additionally verify migrations/metadata, owner constraints,
 concurrent admission/deletion, rollback and approve/reject resume in fresh interpreters;
-see the persistence guide for their explicit test target. Retention cleanup and
-deletion endpoints remain step 8/6 work.
+see the persistence guide for their explicit test target. Step 6 adds chat/run transport,
+manual deletion, cancellation, idempotency and attempt/tool hooks. Retention cleanup
+and crash reconciliation remain steps 8/7.
 
 ## B. AI-02: verify one supported adapter before activation
 

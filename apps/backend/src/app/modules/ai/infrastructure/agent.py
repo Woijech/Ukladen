@@ -35,6 +35,8 @@ from app.modules.ai.application.agent import (
     ReviewAction,
     ToolOutcome,
 )
+from app.modules.ai.application.lifecycle import ExecutionJournal
+from app.modules.ai.infrastructure.accounting import AccountingMiddleware
 
 CALL_LIMIT_ERRORS = (ModelCallLimitExceededError, ToolCallLimitExceededError)
 TOOL_ERROR = "Tool unavailable or invalid input."
@@ -77,6 +79,8 @@ class OfflineAgentRunner:
         review_tools: frozenset[str] = frozenset(),
         model_limit: int = 4,
         tool_limit: int = 8,
+        journal: ExecutionJournal | None = None,
+        run_id: UUID | None = None,
     ) -> None:
         if (
             type(model_limit) is not int
@@ -88,6 +92,7 @@ class OfflineAgentRunner:
         names = [tool.name for tool in tools]
         if len(names) != len(set(names)) or not review_tools.issubset(names):
             raise ValueError("Invalid offline tool registration.")
+        self.run_id = run_id
         middleware: list[AgentMiddleware[Any, Any]] = [
             ModelCallLimitMiddleware(run_limit=model_limit, exit_behavior="error"),
             ToolCallLimitMiddleware(run_limit=tool_limit, exit_behavior="error"),
@@ -99,6 +104,8 @@ class OfflineAgentRunner:
                 }
             ),
         ]
+        if journal is not None:
+            middleware.insert(2, AccountingMiddleware(journal))
         self.graph = create_agent(
             model=model,
             tools=tools,
@@ -106,9 +113,11 @@ class OfflineAgentRunner:
             middleware=middleware,
         )
 
-    @staticmethod
-    def _config(conversation_id: UUID) -> RunnableConfig:
-        return {"configurable": {"thread_id": str(conversation_id)}, "recursion_limit": 32}
+    def _config(self, conversation_id: UUID) -> RunnableConfig:
+        configurable = {"thread_id": str(conversation_id)}
+        if self.run_id is not None:
+            configurable["ukladen_run_id"] = str(self.run_id)
+        return {"configurable": configurable, "recursion_limit": 32}
 
     def run(self, request: AgentInput) -> AgentResult:
         with tracing_context(enabled=False):

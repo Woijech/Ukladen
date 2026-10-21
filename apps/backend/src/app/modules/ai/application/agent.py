@@ -21,7 +21,7 @@ class AgentInput(BaseModel):
             size = len(value.encode("utf-8"))
         except UnicodeEncodeError:
             raise ValueError("Invalid message encoding.") from None
-        if size > 16384 or not value.strip():
+        if size > 16384 or not value.strip() or "\x00" in value:
             raise ValueError("Message must contain text within 16 KiB UTF-8.")
         return value
 

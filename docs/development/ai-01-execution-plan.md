@@ -1,9 +1,9 @@
 # AI-01 Execution Plan and Approval Checkpoints
 
 Updated: 2026-10-22.
-Status: in progress. Steps 1 through 5 are complete within their approved scope;
+Status: in progress. Steps 1 through 6 are complete within their approved scope;
 persistence migrations are tested only on disposable data, not applied to the app.
-Steps 6 through 9 are not approved or implemented. The owner requested approval before
+Steps 7 through 9 are not approved or implemented. The owner requested approval before
 changes and clarified that read-only inspection/checks need no additional permission.
 This is a developer workflow, distinct from the
 application's human-in-the-loop approval of user-data changes.
@@ -263,3 +263,48 @@ durable request admission, submission idempotency and actual attempt/tool record
 Cancellation/deletion transport is included in that step; recovery bounds and cleanup
 remain steps 7/8. No real provider, business write tool, frontend, push or deployment
 is authorized by step 5.
+
+Step 6 was subsequently approved. It adds the authenticated, default-disabled
+[offline API](ai-api.md), application lifecycle/transaction ports, framework accounting
+middleware and pooled owned runner composition. No new dependency or migration is
+needed. The existing session/registration/Origin/CSRF/no-store contracts are reused.
+Admission and the user message commit together; owner-wide submission replay does
+not dispatch again. Model/tool records commit around actual dispatch; unknown usage
+remains nullable. Final assistant content and run completion share one transaction.
+
+Cancel/delete mark active execution terminal before allowing further work. Bound
+checkpoint access rejects cancelled runs, and a new turn selects its own/current or
+the latest completed predecessor checkpoint. Native tests complete a newer run while
+the cancelled model call is still blocked, then verify that its late result cannot
+write an assistant answer. This is ordinary cancellation/continuation, not automatic
+crash recovery. Failed completion can leave durable running work; exact replay returns
+that state without repeating calls. Step 7 still owns restart reconciliation/timeouts.
+
+The isolated test target is ukladen_ai01_step6 in ukladen-ai01-step6-20261022, with
+Redis in ukladen-ai01-step6-redis-20261022 sharing its no-network namespace. PostgreSQL
+uses tmpfs and normal fsync; Python/source/dependencies are mounted read-only using
+their original paths so credential-scrubbed parser children work. No live application
+database/cache, model credentials, SMTP delivery or external provider is involved.
+
+Step-6 verification: all 109 AI tests passed against the finalized code, including
+23 HTTP cases, 28 native persistence cases and four new accounting unit cases. The
+default full backend suite passed 1020 tests / skipped 604 with native targets unset.
+Ruff, format (390 files), full Pyright (zero errors), quiet Compose validation,
+14 Markdown files/271 local links and anchors, balanced fences and git diff --check
+passed. No frontend or real provider execution was needed.
+All test schemas were absent after verification; both temporary service containers
+and their RAM storage were removed. Existing application containers remained running.
+
+An initial broader PostgreSQL/Redis run before the final six input-boundary cases
+reported 1611 passed / 3 skipped / 4 failed. All four failures are the pre-existing
+profile test's invalid/unknown cookie setup; a read-only source snapshot of commit
+8b92d75 reproduced the same failures without the AI change. A temporary-snapshot
+one-line removal of the original cookie before replacement made those four pass.
+The repository's unrelated test remains unchanged pending separate owner permission;
+do not report that broader run as fully passing.
+
+Step 7 requires separate approval: bound execution time and retries, reconcile
+unfinished runs after restart and verify recovery/cancel/interrupt races against the
+durable ledger. Public review/resume behavior must preserve exact ownership and
+budgets. Physical 30-day purge remains step 8; real providers/UI/business tools remain
+separate stages. Do not enable the module or migrate existing application data here.

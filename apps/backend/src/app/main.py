@@ -15,6 +15,7 @@ from app.integrations.bsuir.public_api import IisPublicProvider
 from app.integrations.storage.materials import S3MaterialStorage
 from app.integrations.storage.s3 import S3AvatarStorage
 from app.modules.academics.presentation.routes import install_academics
+from app.modules.ai.presentation.routes import install_ai
 from app.modules.auth.infrastructure.email_sender import CeleryEmailSender
 from app.modules.auth.infrastructure.google_oidc import GoogleOidcProvider
 from app.modules.auth.infrastructure.password_hasher import Argon2PasswordHasher
@@ -103,6 +104,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_auth(application)
     install_users(application)
     install_academics(application)
+    install_ai(application)
     install_schedule(application)
     install_calendar(application)
     install_notes(application)

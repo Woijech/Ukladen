@@ -1,8 +1,10 @@
 # AI Assistant Product Specification
 
-Updated: 2026-10-21.
-Status: agreed target specification; AI runtime, tools, chat UI, semantic retrieval,
-planning and usage analytics are not implemented. AI-00 specifies the work; it does
+Updated: 2026-10-22.
+Status: agreed target specification. An [offline backend API](../development/ai-api.md)
+implements fake chats/runs and accounting under AI-01, disabled by default. Real
+model/workspace tools, chat UI, semantic retrieval, planning and usage analytics UI
+are not implemented. AI-00 specifies the target work; it does
 not enable integrations. This is the single AI specification linked from
 [the overview](overview.md). See [delivery](../development/ai-implementation-plan.md),
 [architecture](../architecture/ai.md), [tool contracts](../development/ai-tool-contracts.md)

@@ -1,8 +1,9 @@
 # Environment configuration
 
-Status: implemented configuration reference, audited 2026-10-21. The source of truth
+Status: implemented configuration reference, audited 2026-10-21; offline AI settings
+updated 2026-10-22. The source of truth
 is `apps/backend/src/app/core/config.py`, Compose and `apps/web/next.config.ts`.
-AI/provider variables in planned AI documents are not runtime settings.
+The three fake-only AI settings below are implemented; other planned provider settings are not.
 
 ## Loading and precedence
 
@@ -158,11 +159,14 @@ stores metadata only. Existing objects and credentials must be preserved on upgr
 | --- | --- | --- |
 | `SCHEDULE_SYNC_ENABLED` | `true` | Boolean used by API, worker and Beat. False disables accepted/periodic imports; stored calendar reads and reminder/material maintenance continue. |
 | `SCHEDULE_SYNC_INTERVAL_SECONDS` | `3600` | Integer 60–86400; selected-group refresh threshold and calendar stale warning threshold. It is not Beat's polling period. |
+| `AI_ENABLED` | `false` | Opts in to the authenticated offline demonstration API after reviewed migrations. No startup DDL. |
+| `AI_LLM_PROVIDER` | `fake` | Only fake is supported; other values are rejected. No external provider calls. |
+| `AI_LLM_MODEL` | `fake-v1` | Only fake-v1 is supported; other values are rejected. |
 
 Public IIS uses the adapter's verified public base URL; no IIS password/token or
-private account connection is implemented. AI/LLM, embeddings and semantic search
-runtime are **not implemented**. Do not add model/provider/API-key variables merely
-because [AI planning documents](ai-setup.md) name future activation inputs.
+private account connection is implemented. The [offline AI API](ai-api.md) uses only
+synthetic model/tool responses. Real LLMs, embeddings and semantic search are not
+implemented. Remaining settings in [AI plans](ai-setup.md) do not activate providers.
 
 ## Logging, frontend and deployment
 

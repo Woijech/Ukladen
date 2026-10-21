@@ -25,6 +25,7 @@ from psycopg.rows import DictRow
 from app.core.logging import log_failure
 from app.integrations.llm.fake import FakeChatModel
 from app.modules.ai.application.agent import AgentRunner
+from app.modules.ai.application.lifecycle import ExecutionJournal
 from app.modules.ai.domain.state import (
     AiConflict,
     AiNotFound,
@@ -45,6 +46,7 @@ class OwnedPostgresSaver(PostgresSaver):
         conversation_id: UUID,
         *,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
+        run_id: UUID | None = None,
     ) -> None:
         if (
             not connection.autocommit
@@ -54,6 +56,7 @@ class OwnedPostgresSaver(PostgresSaver):
                 "Checkpoints need an autocommit connection without an outer transaction."
             )
         self.user_id, self.conversation_id, self.now = user_id, conversation_id, now
+        self.run_id = run_id
         super().__init__(
             connection, serde=JsonPlusSerializer(pickle_fallback=False, allowed_msgpack_modules=[])
         )
@@ -96,6 +99,16 @@ class OwnedPostgresSaver(PostgresSaver):
                 )
                 if conversation is None:
                     raise AiNotFound()
+                if (
+                    self.run_id is not None
+                    and cursor.execute(
+                        "SELECT id FROM ai_runs WHERE id = %s AND user_id = %s "
+                        "AND conversation_id = %s AND status = 'running' FOR SHARE",
+                        (self.run_id, self.user_id, self.conversation_id),
+                    ).fetchone()
+                    is None
+                ):
+                    raise AiNotFound()
                 yield cursor
         except Error as error:
             log_failure(logger, "ai.checkpoint_storage_failed", error)
@@ -109,6 +122,31 @@ class OwnedPostgresSaver(PostgresSaver):
 
     def get_tuple(self, config: RunnableConfig) -> CheckpointTuple | None:
         self._require_config(config)
+        if self.run_id is not None and not config.get("configurable", {}).get("checkpoint_id"):
+            # Failed/cancelled branches cannot become the context for a new submission.
+            with self._cursor() as cursor:
+                row = cursor.execute(
+                    "SELECT c.checkpoint_id FROM checkpoints c JOIN ai_runs r "
+                    "ON r.id::text = c.metadata->>'ukladen_run_id' "
+                    "WHERE c.thread_id = %s AND c.checkpoint_ns = %s AND r.user_id = %s "
+                    "AND (r.id = %s OR r.status = 'completed') "
+                    "ORDER BY c.checkpoint_id DESC LIMIT 1",
+                    (
+                        str(self.conversation_id),
+                        config.get("configurable", {}).get("checkpoint_ns", ""),
+                        self.user_id,
+                        self.run_id,
+                    ),
+                ).fetchone()
+            if row is None:
+                return None
+            config = {
+                **config,
+                "configurable": {
+                    **config.get("configurable", {}),
+                    "checkpoint_id": row["checkpoint_id"],
+                },
+            }
         return super().get_tuple(config)
 
     def list(
@@ -179,8 +217,12 @@ def owned_offline_runner(
     *,
     review_tools: frozenset[str] = frozenset(),
     now: Callable[[], datetime] = lambda: datetime.now(UTC),
+    run_id: UUID | None = None,
+    journal: ExecutionJournal | None = None,
 ) -> AgentRunner:
     """Caller owns the connection; no connection creation or DDL occurs here."""
-    saver = OwnedPostgresSaver(connection, user_id, conversation_id, now=now)
+    saver = OwnedPostgresSaver(connection, user_id, conversation_id, now=now, run_id=run_id)
     saver.validate_schema()
-    return OfflineAgentRunner(model, tools, saver, review_tools=review_tools)
+    return OfflineAgentRunner(
+        model, tools, saver, review_tools=review_tools, run_id=run_id, journal=journal
+    )

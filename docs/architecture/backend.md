@@ -45,7 +45,7 @@ collections/tags with membership and saved calendar views are implemented; see [
 and [calendar views](../development/calendar-views.md). Database/property/page-backed
 record APIs are implemented; see [the database guide](../development/databases.md).
 Saved table/calendar database views, date moves and mixed date projection are
-implemented. Typed tasks, rich blocks and AI remain not implemented. The [workspace design](workspace.md) extends typed events
+implemented. Typed tasks, rich blocks and real AI remain not implemented. The [workspace design](workspace.md) extends typed events
 with independent pages, optional links, user organization, properties and saved views.
 `notes` owns page bodies; the `workspace` boundary owns organization/property/view
 definitions; calendar retains scheduling truth. Subjects are optional; lecture/lab
@@ -119,7 +119,8 @@ and Redis URLs are excluded from settings representations.
 
 Google, SMTP, cookie, token and rate-limit behavior is detailed in that reference
 and the [Google](../development/google-auth.md) / [email](../development/auth-email.md)
-guides. No AI/provider configuration is consumed by the current runtime.
+guides. The [offline AI API](../development/ai-api.md) consumes only AI_ENABLED and
+the fake/fake-v1 profile settings; no real provider configuration is implemented.
 
 ## Database
 

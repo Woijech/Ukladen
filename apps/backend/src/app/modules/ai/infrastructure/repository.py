@@ -1,8 +1,9 @@
 from dataclasses import asdict
+from datetime import datetime
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.modules.ai.domain.state import (
@@ -115,19 +116,44 @@ class SqlAlchemyAiRepository:
         )
         return conversation_entity(row) if row else None
 
-    def list_conversations(self, user_id: UUID, limit: int, offset: int) -> list[Conversation]:
+    def list_conversations(
+        self, user_id: UUID, limit: int, offset: int, active_after: datetime | None = None
+    ) -> list[Conversation]:
         if not 1 <= limit <= 200 or not 0 <= offset <= 2**31 - 1:
             raise InvalidAiState("Invalid conversation pagination.")
+        statement = select(ConversationModel).where(ConversationModel.user_id == user_id)
+        if active_after is not None:
+            statement = statement.where(
+                func.coalesce(ConversationModel.last_user_message_at, ConversationModel.created_at)
+                > active_after
+            )
         return [
             conversation_entity(row)
             for row in self.session.scalars(
-                select(ConversationModel)
-                .where(ConversationModel.user_id == user_id)
-                .order_by(ConversationModel.created_at.desc(), ConversationModel.id)
+                statement.order_by(ConversationModel.created_at.desc(), ConversationModel.id)
                 .limit(limit)
                 .offset(offset)
             )
         ]
+
+    def delete_conversation(self, user_id: UUID, conversation_id: UUID) -> None:
+        self.session.execute(
+            delete(ConversationModel).where(
+                ConversationModel.user_id == user_id, ConversationModel.id == conversation_id
+            )
+        )
+
+    def active_run(self, user_id: UUID, conversation_id: UUID) -> Run | None:
+        row = self.session.scalar(
+            select(RunModel)
+            .where(
+                RunModel.user_id == user_id,
+                RunModel.conversation_id == conversation_id,
+                RunModel.status.in_(("queued", "running", "interrupted")),
+            )
+            .execution_options(populate_existing=True)
+        )
+        return run_entity(row) if row else None
 
     def append_message(self, message: Message) -> None:
         current = self.get_conversation(message.user_id, message.conversation_id)

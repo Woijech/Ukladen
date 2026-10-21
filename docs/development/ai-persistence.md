@@ -1,9 +1,11 @@
 # AI Persistence Contracts
 
 Updated: 2026-10-22.
-Status: AI-01 steps 4/5 implement and natively test internal owned persistence.
+Status: AI-01 steps 4/5 implement and natively test owned persistence; step 6 connects
+the authenticated fake-only API and durable attempt/tool recording.
 The migration has been applied only to disposable test schemas, never to the app.
-No HTTP/worker path uses this storage yet. Read the
+The [HTTP lifecycle](ai-api.md) uses this storage when explicitly enabled; there is
+no worker dispatch. Read the
 [execution plan](ai-01-execution-plan.md) and [AI architecture](../architecture/ai.md).
 
 ## Schema and migration impact
@@ -52,9 +54,9 @@ Only user messages update last_user_message_at. Run changes check prior state an
 version, preventing stale running/interrupted/running writes. Attempt/tool completion
 can replace only a started record. A caller must roll back on failure.
 
-Database constraints protect unique submissions and active runs. Request admission,
-duplicate-payload handling and automatic attempt/tool recording are not implemented
-until the lifecycle step. A row or checkpoint is not proof of a committed business action.
+Database constraints protect unique submissions and active runs. The API lifecycle
+adds transactional admission, duplicate-payload checks and middleware attempt/tool
+records. A row or checkpoint is not proof of a committed business action.
 
 OwnedPostgresSaver binds one user and conversation and rejects other thread IDs,
 unscoped listing and inherited destructive/copy operations. Every storage cursor
@@ -67,6 +69,11 @@ owns its lifetime. Model/tool execution does not hold a storage transaction open
 LangGraph may persist checkpoints independently in the background. The serializer
 disables pickle fallback and arbitrary MessagePack module loading.
 
+The API also binds the saver to a running execution. Every batch rechecks that run;
+cancellation prevents further checkpoint writes. Server-issued ukladen_run_id metadata
+links checkpoint branches to run records. New work loads its current checkpoint or
+the latest completed predecessor, excluding unfinished failed/cancelled branches.
+
 The factory owned_offline_runner validates the checkpoint migration register and
 returns the existing fake runner through AgentRunner. It issues no DDL and opens no
 connection. The LLM receives neither database credentials nor these repositories.
@@ -77,7 +84,8 @@ Messages and checkpoints are conversation content. Deleting the conversation
 cascades both. Runs survive with conversation_id cleared; attempts/tool outcomes
 remain attached to their run. Owner-wide submission uniqueness therefore survives
 chat deletion until the execution journal is independently purged. User-account
-deletion cascades the journal too. These are schema rules, not implemented endpoints.
+deletion cascades the journal too. The API deletion endpoint also cancels active work
+and marks unfinished journal entries interrupted before deleting conversation content.
 
 The execution journal stores no prompts, titles, tool arguments/results, raw errors,
 provider payloads or API secrets. Error categories are fixed. Missing token usage is
@@ -86,9 +94,9 @@ digest supports payload comparison; it is not a prompt copy or a stored authoriz
 
 Checkpoint access expires exactly 30 days after the last user message, using creation
 time for an empty conversation. Reads and assistant/tool activity do not renew it.
-Repository reads alone do not enforce expiry; the future application lifecycle must
-check it before admitting work or returning content. Physical content cleanup,
-30-day journal purge, cancellation and deletion endpoints remain unimplemented.
+Repository reads alone do not enforce expiry; the application lifecycle checks it
+before admission/history and filters lists in SQL. Physical content cleanup and
+30-day journal purge remain unimplemented; cancellation/manual deletion exist.
 The existing pure harness does not enforce owner/expiry without this owned adapter.
 
 ## Verification boundary
@@ -114,5 +122,6 @@ concurrent message/run admission, guarded deletion, content/journal cascades and
 expiry at exactly 30 days. The fresh-process driver uses only FakeChatModel: approval
 executes the synthetic tool once, rejection never executes it, stale reviews fail,
 and foreign/deleted conversations cannot resume. No live provider is invoked.
-See the dated execution record for environment, results and cleanup. API lifecycle,
-durable accounting hooks, crash reconciliation and retention jobs remain later work.
+See the dated execution record for environment, results and cleanup. The API and
+accounting hooks add native HTTP tests. Crash reconciliation and retention jobs remain
+later work.

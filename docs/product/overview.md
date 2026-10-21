@@ -140,7 +140,9 @@ in PostgreSQL. Limits are 25 MiB/file and 1 GiB retained file storage/user. Text
 DOCX, PPTX, TXT and Markdown extraction runs asynchronously without OCR. Bookmarks
 store URLs without fetching them. Filtered full-text search covers authorized pages,
 material titles and extracted text; see [contracts](../development/materials.md).
-Chunking, embeddings, semantic search, AI and RAG remain not implemented.
+Chunking, embeddings, semantic search, real AI and RAG remain not implemented.
+The default-disabled [offline AI API](../development/ai-api.md) provides synthetic
+chats/runs and accounting; it does not read these sources or call a real model.
 
 AI answers questions about the user's calendar and workspace, searches content,
 explains imported information and proposes edits/plans. It accesses data only
@@ -158,7 +160,8 @@ editing, extraction, deterministic planning/replanning, model/web fallback, pers
 instructions and opt-in proactive reviews. Provider-neutral operator offerings and
 user-owned API connections replace the old single-provider baseline. Delivery and
 connection gates are in [the implementation plan](../development/ai-implementation-plan.md).
-AI-00 is specified; AI and analytics runtime remain not implemented. See [AI architecture](../architecture/ai.md).
+AI-00 is specified and AI-01 has an offline backend lifecycle; real assistant behavior
+and analytics UI remain not implemented. See [AI architecture](../architecture/ai.md).
 
 ## 9. Implementation status
 
@@ -181,12 +184,13 @@ AI-00 is specified; AI and analytics runtime remain not implemented. See [AI arc
 | Tasks, availability and task/deadline reminders | Status: not implemented. |
 | Private materials, page attachments and bounded document extraction | Implemented backend; no OCR |
 | Filtered PostgreSQL full-text search over pages/materials | Implemented backend |
-| Semantic search, AI and RAG | Status: not implemented. |
+| Offline AI chat/run lifecycle and accounting | Implemented backend, fake-only and disabled by default; recovery/cleanup pending |
+| Semantic search, real AI and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
 | Weekly calendar, personal-event create/edit/delete, login/registration and group selection UI | Implemented |
 | Flat block pages, materials/search, collections/tags, database saved views, reminders/inbox and profile/avatar UI | Implemented; see [frontend scope and limits](../architecture/frontend.md) |
 | Official override editing, saved event views and mixed calendar display UI | Status: not implemented; backend APIs exist. |
-| Tasks and AI UI | Status: not implemented; backend runtime absent. |
+| Tasks and AI UI | Status: not implemented; tasks backend absent, AI backend limited to offline testing. |
 
 ## 10. Development approach
 
