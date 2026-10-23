@@ -1,7 +1,7 @@
 # AI, Retrieval and Application Tools
 
 Updated: 2026-10-24.
-Status: AI-01 has an internal fake-only LangChain harness with neutral DTOs, typed
+Status: AI-01 is complete within its offline scope, using a fake-only LangChain harness with neutral DTOs, typed
 synthetic tools, review pauses and per-invocation limits. Owned persistence adapters
 and preserving Alembic revisions are natively tested on disposable PostgreSQL; no application
 database migration has been applied. The default-disabled [offline API](../development/ai-api.md)
@@ -12,7 +12,8 @@ Thirty-day physical cleanup and minimal replay/committed-context receipts are im
 the [retention contract](../development/ai-api.md#physical-retention-and-replay-protection)
 defines the independent clocks and maintenance-only setting. Receipts cannot grant write authority.
 Real providers and AI/RAG product features are not implemented. See the
-[offline harness](../development/ai-setup.md#a1-implemented-offline-harness).
+[offline harness](../development/ai-setup.md#a1-implemented-offline-harness) and
+[final verification](../development/ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 The [persistence guide](../development/ai-persistence.md) records the tested internal schema,
 owner checks, short transactions and deletion boundaries.
 Materials/extraction and basic lexical search are implemented separately;
@@ -207,10 +208,10 @@ The [AI product specification](../product/ai.md) owns the editable scenario cata
 and owner-only usage page requirements. The [implementation plan](../development/ai-implementation-plan.md)
 defines staged ports, durable usage accounting, chat, indexing and confirmed/automatic
 actions; [the setup runbook](../development/ai-setup.md) defines connection gates.
-The AI-00 specification/acceptance data and AI-01 offline harness are delivered.
+The AI-00 specification/acceptance data and offline AI-01 foundation are complete.
 Owned offline runtime/usage persistence and chat/run endpoints are implemented;
 real providers, business tools and product usage-summary endpoints remain not implemented.
-`ai` owns planned conversation/run/tool/action usage metadata;
+`ai` owns implemented conversation/run/tool usage metadata and planned action metadata;
 `search` owns derived retrieval/index jobs. Existing safe logs remain operator
 diagnostics, not a source of prompts or cross-user product analytics.
 
@@ -237,4 +238,5 @@ to the selected adapter consumer; prompts, checkpoints, client responses and ana
 receive no plaintext secrets. Arbitrary client base URLs are not a provider interface.
 API/worker model consumers are explicitly configured; indexing workers do not inherit
 unrelated LLM/search credentials. Exact storage/rotation and package contracts are
-verified in AI-01/02 before activation; none are implemented by this document.
+verified in AI-02 before activation. AI-01 proved only the offline framework/runtime;
+credential storage, rotation and real provider contracts remain not implemented.

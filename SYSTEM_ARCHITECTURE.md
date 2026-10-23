@@ -397,12 +397,13 @@ authorization, replay protection and atomic commits. Calendar
 services own interval truth; tasks owns deterministic planning. A stale confirmed
 multi-action plan applies nothing and needs a new preview. Per-account activation
 settings and actual per-owner grants remain required. See [AI architecture](docs/architecture/ai.md).
-Status: AI-00 and the AI-01 internal fake-only harness are delivered. Owned persistence
-adapters/migration are natively tested on disposable PostgreSQL, unapplied to the app.
+Status: AI-00 and the offline AI-01 foundation are complete. Owned persistence
+adapters/migrations are natively tested on disposable PostgreSQL, unapplied to the app.
 The default-disabled [offline API](docs/development/ai-api.md) implements owned chats/runs,
 admission, accounting, cancellation and deletion. Bounded recovery and 30-day cleanup
-with minimal replay/context receipts are implemented. Real providers, RAG and planning remain not implemented; see
-[the implemented subset](docs/development/ai-setup.md#a1-implemented-offline-harness).
+with minimal replay/context receipts are implemented. Real providers, RAG and planning
+remain not implemented; see [the implemented subset](docs/development/ai-setup.md)
+and [final AI-01 verification](docs/development/ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 
 Architecture:
 
@@ -637,9 +638,10 @@ generation, pgvector retrieval and RAG remain not implemented.
 
 ## 5.13 ai
 
-Status: AI-00 contracts and an internal offline harness are delivered; owned persistence
-adapters/migration are natively tested on disposable PostgreSQL, unapplied to the app.
-The default-disabled fake API adds owned admission/accounting and manual cancellation/deletion;
+Status: AI-00 and offline AI-01 are complete; owned persistence adapters/migrations
+are natively tested on disposable PostgreSQL, unapplied to the app.
+The default-disabled fake API adds owned admission/accounting, cancellation/deletion,
+bounded recovery and 30-day cleanup with minimal replay/context receipts;
 see [persistence contracts](docs/development/ai-persistence.md).
 Own conversations, personal instructions, proposals/grants and usage as each feature
 is delivered; keep SDK/framework types behind

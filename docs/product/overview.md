@@ -160,7 +160,7 @@ editing, extraction, deterministic planning/replanning, model/web fallback, pers
 instructions and opt-in proactive reviews. Provider-neutral operator offerings and
 user-owned API connections replace the old single-provider baseline. Delivery and
 connection gates are in [the implementation plan](../development/ai-implementation-plan.md).
-AI-00 is specified and AI-01 has an offline backend lifecycle; real assistant behavior
+AI-00 and the offline AI-01 foundation are complete; real assistant behavior
 and analytics UI remain not implemented. See [AI architecture](../architecture/ai.md).
 
 ## 9. Implementation status
@@ -184,7 +184,7 @@ and analytics UI remain not implemented. See [AI architecture](../architecture/a
 | Tasks, availability and task/deadline reminders | Status: not implemented. |
 | Private materials, page attachments and bounded document extraction | Implemented backend; no OCR |
 | Filtered PostgreSQL full-text search over pages/materials | Implemented backend |
-| Offline AI chat/run lifecycle and accounting | Implemented backend, fake-only and disabled by default; bounded execution/recovery, 30-day cleanup and minimal replay protection |
+| Offline AI chat/run lifecycle and accounting | AI-01 complete, fake-only and disabled by default; bounded execution/recovery, 30-day cleanup and minimal replay protection; migrations tested only on disposable data |
 | Semantic search, real AI and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
 | Weekly calendar, personal-event create/edit/delete, login/registration and group selection UI | Implemented |

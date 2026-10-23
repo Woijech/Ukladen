@@ -222,9 +222,10 @@ retrieval and AI/RAG remain not implemented. No deployment is performed by this 
 
 ## 11. P-09 AI help, recommendations, confirmed/automatic actions and RAG
 
-Status: AI-00 specified; AI-01 has a default-disabled fake-only chat/run API and durable
+Status: AI-00 and offline AI-01 complete, with a default-disabled fake-only chat/run API and durable
 accounting, bounded execution, overdue-run reconciliation, minimal replay/context
-receipts and physical cleanup. Real tools/providers and product UI remain pending.
+receipts and physical cleanup. See [final AI-01 verification](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
+Real tools/providers and product UI remain not implemented; application migrations are unapplied.
 Dependencies: only the application tools actually used; task planning requires P-06.
 The [detailed AI plan](ai-implementation-plan.md) splits work into AI-00 through AI-12,
 with the [owner-agreed product specification](../product/ai.md),
@@ -232,7 +233,7 @@ with the [owner-agreed product specification](../product/ai.md),
 Provider-neutral operator models and personal API connections replace the old Groq
 baseline. Selected scope includes chat/usage, RAG, note editing, task extraction,
 deterministic planning/replanning, labeled model/web fallback, instructions and
-opt-in proactive work. No runtime stage, external call or deployment is performed here.
+opt-in proactive work. No real provider call or deployment has been performed by the offline slice.
 AI calendar reads may be requested before P-08; RAG requires extraction/search.
 Execution policies are confirmed under Q-04 and the 2026-10-21 decision table; Q-04a
 retains concrete account/grant activation parameters, not unresolved core functionality.

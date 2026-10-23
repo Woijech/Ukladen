@@ -1,8 +1,9 @@
 # AI Assistant Product Specification
 
-Updated: 2026-10-22.
+Updated: 2026-10-24.
 Status: agreed target specification. An [offline backend API](../development/ai-api.md)
-implements fake chats/runs and accounting under AI-01, disabled by default. Real
+implements the completed offline AI-01 foundation: fake chats/runs, accounting,
+bounded recovery and 30-day cleanup, disabled by default and unmigrated in the app. Real
 model/workspace tools, chat UI, semantic retrieval, planning and usage analytics UI
 are not implemented. AI-00 specifies the target work; it does
 not enable integrations. This is the single AI specification linked from

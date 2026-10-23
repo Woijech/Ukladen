@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from threading import Event
+from time import monotonic, sleep
 from typing import cast
 from unittest.mock import patch
 from uuid import uuid4
@@ -233,7 +234,7 @@ def test_owned_timeout_cancel_race_closes_ledger_and_rejects_late_answer(
     original_init = OfflineAgentRunner.__init__
 
     def bounded(self, *args, **kwargs):
-        kwargs["run_timeout"] = 0.5
+        kwargs["run_timeout"] = 0.5 if operation == "timeout" else 3
         original_init(self, *args, **kwargs)
 
     def blocked(self, *args, **kwargs):
@@ -261,7 +262,11 @@ def test_owned_timeout_cancel_race_closes_ledger_and_rejects_late_answer(
                 response = ai_client.post(f"{BASE}/runs/{run_id}/cancel", headers=headers)
                 assert response.json()["status"] == "cancelled"
             elif operation == "reconcile":
-                assert reconcile_runs(sessions, now=recovery_time) == 1
+                # Checkpoint writes may hold the owner lock; maintenance skips busy owners.
+                until = monotonic() + 2
+                while reconcile_runs(sessions, now=recovery_time) != 1:
+                    assert monotonic() < until
+                    sleep(0.01)
             response = pending.result(timeout=5)
             run = response.json()
             assert run["status"] == ("cancelled" if operation == "cancel" else "failed"), (

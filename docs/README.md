@@ -69,9 +69,11 @@ implementation task, not a guarantee that its checks were rerun during a later e
 - [AI persistence](development/ai-persistence.md): schema, owner checks, transaction boundaries and migration impact; tested on disposable data, unapplied to the app.
 - [Offline AI API](development/ai-api.md): default-disabled fake chats/runs, idempotency, cancellation, accounting, bounded recovery, physical retention and minimal replay/context markers.
 
-AI-00 and the AI-01 internal offline harness are delivered; see the setup runbook for
-its tested scope. Owned persistence adapters/migration are tested on disposable data,
-unapplied to the app. A default-disabled fake chat/run API and accounting are implemented.
+AI-00 and the offline AI-01 foundation are complete; see the setup runbook and
+[final verification](development/ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24)
+for the tested scope. Owned persistence adapters/migrations are tested on disposable
+data, unapplied to the app. The default-disabled fake API includes accounting,
+bounded recovery, 30-day cleanup and minimal replay/context receipts.
 Real providers, retrieval, actions, planning and usage analytics UI
 remain pending. Plans do not authorize later changes/deployment.
 

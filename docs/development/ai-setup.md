@@ -1,15 +1,16 @@
 # AI Setup and Provider Switching Runbook
 
 Updated: 2026-10-24.
-Status: the internal offline harness and owned persistence adapters are implemented
-with an authenticated, disabled-by-default fake API and durable attempt/tool accounting.
-The migration is tested on disposable data, unapplied to the running application.
+Status: AI-01 is complete within its offline scope: harness, owned persistence,
+authenticated fake API, durable accounting, bounded recovery and retention cleanup.
+Disabled by default; migrations are tested on disposable data and unapplied to the
+running application. See [final verification](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 Real model adapters, credentials and embedding workers remain unimplemented.
 See [current API and recovery limits](ai-api.md). No provider request or deployment was made.
 
 Use [product scope](../product/ai.md), [stages](ai-implementation-plan.md),
 [contracts](ai-tool-contracts.md) and [ADR 0009](../adr/0009-specify-provider-neutral-ai-orchestration.md).
-LLM, embeddings and web search have independent adapters. The operator may offer
+LLM, embeddings and web search have separate planned adapter boundaries. The operator may offer
 several supported models and users may connect personal supported API accounts.
 DeepSeek/GLM are owner examples, not verified endpoints/model identifiers. No default
 provider, current price or universal OpenAI-compatible contract is assumed.
@@ -27,7 +28,8 @@ provider, current price or universal OpenAI-compatible contract is assumed.
    and disposable PostgreSQL/Redis. Do not run automatic schema setup on API startup.
    Verify conversation ownership, checkpoints, cancellation/restart, attempts/unknown
    usage, duplicate submission and complete content cleanup before real integration.
-4. The implemented offline settings are below. They require the reviewed migration;
+4. The implemented offline settings are below. Both flags default to false. These
+   opt-in values require reviewed revisions 0022/0023 to be applied to the target first;
    enabling them gives fixed synthetic answers, with no source access or real model:
 
 ~~~dotenv
@@ -69,7 +71,7 @@ The separate step-2 PostgreSQL proof does not verify the step-4 owned adapter.
 The [API composition](ai-api.md) supplies authenticated admission, owned checkpoints
 and accounting. Direct harness construction still treats conversation IDs as internal
 identifiers and does not itself authenticate a caller. Execution stays in the request;
-only overdue-run metadata reconciliation is scheduled on the existing worker.
+only recovery and retention maintenance are scheduled on the existing worker.
 
 Messages are limited to 16 KiB UTF-8; model/tool call limits are at most 4/8 per
 framework invocation. Tool errors/results and review batches are sanitized/bounded.
@@ -82,8 +84,8 @@ do not fabricate token usage or require API keys.
 Direct framework pins are LangChain 1.4.7, langchain-core 1.6.13, LangGraph 1.2.16,
 langgraph-checkpoint 4.3.0, langgraph-checkpoint-postgres 3.2.0 and LangSmith 0.14.12.
 The core/checkpoint packages are directly imported framework APIs; the PostgreSQL
-package is used by the prepared owned adapter. LangSmith is already transitive and directly imported
-only to disable remote tracing. The tested Linux environment gains 26 runtime
+package is used by the owned adapter. LangSmith is already transitive and directly
+imported only to disable remote tracing. The tested Linux environment gains 26 runtime
 distributions; the universal lock also contains a platform-specific SDK dependency.
 The required websockets downgrade is 17.1 to 16.1.1; other existing pins are preserved.
 These dependencies replace custom loop/review/persistence machinery, but add framework,
@@ -94,8 +96,8 @@ The pure harness does not implement admission or authorization. The owned API ad
 authentication, per-run durable budgets, concurrent admission and cancellation through
 middleware/services. Step 7 adds bounded ConnectionError retries, execution deadlines
 and conservative crash reconciliation; see [their exact limits](ai-api.md#execution-deadlines-and-recovery).
-Step 8 adds physical retention and minimal replay/context receipts. Business authorization remains later work; built-in
-per-invocation limits do not replace the journal.
+Step 8 adds physical retention and minimal replay/context receipts. Business
+authorization remains later work; built-in per-invocation limits do not replace the journal.
 
 Verification (2026-10-22): 26 offline harness tests; full backend pytest 988 passed /
 553 native-service checks skipped with PostgreSQL/Redis/S3 targets unset; full

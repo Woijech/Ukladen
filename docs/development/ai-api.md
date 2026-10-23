@@ -1,10 +1,10 @@
 # Offline AI API
 
 Updated: 2026-10-24.
-Status: AI-01 steps 6/7/8 implement authenticated fake-only transport, admission,
+Status: the completed offline AI-01 foundation implements authenticated fake-only transport, admission,
 accounting, bounded execution, recovery and 30-day cleanup. Disabled by default.
 Migrations 0022/0023 were tested on disposable databases;
-it has not been applied to the running application. Real providers, workspace tools,
+they have not been applied to the running application. Real providers, workspace tools,
 streaming and review/resume transport remain later work. See [the execution plan](ai-01-execution-plan.md).
 
 ## Configuration and composition
@@ -113,16 +113,17 @@ calls and no waiting admission queue. Capacity rejection does not dispatch or cr
 a provider attempt. A deadline returns control without waiting for a stuck handler;
 unfinished journal entries become interrupted with error_code=timeout. Python cannot
 kill a running thread: its slot stays occupied until it returns, and process shutdown
-can also wait for it. Its late result
-cannot complete the run, append an answer or change the closed journal. Native tests
+can also wait for it. Its late result cannot complete the run, append an answer or
+change the closed journal. Native tests
 exercise timeout, cancellation and reconciliation while that call is still blocked.
 Only pure fake tools are registered. Real adapters/tools must supply bounded transport
 timeouts or cancellable execution before activation; this is not isolation for arbitrary
 code or a guarantee that a timed-out external write did not happen.
 
-When AI_ENABLED or AI_RETENTION_ENABLED is true, Celery Beat schedules ai.reconcile_runs every 30 seconds on
-the existing worker. API, worker and Beat must share that setting and the migrated
-database. The task processes at most 100 overdue queued/running records per sweep,
+When AI_ENABLED or AI_RETENTION_ENABLED is true, Celery Beat schedules
+ai.reconcile_runs every 30 seconds on the existing worker. All consumers use the
+migrated database; API dispatch requires AI_ENABLED, and worker/Beat maintenance
+requires either flag. The task processes at most 100 overdue queued/running records per sweep,
 using owner-first locks and skipping busy owners. Repeated/concurrent sweeps are
 idempotent, including for disabled owners. Runs at least 60 seconds old become failed;
 unfinished attempts/tools become interrupted with error_code=interrupted and retain
@@ -149,8 +150,8 @@ and a repeated/concurrent sweep is safe. Disabled owners are included.
 
 Content-free run records expire 30 days after their terminal transition. Attempt/tool
 records use their outcome time, or start time if the outcome is unknown, independently.
-Reads and unrelated background activity do not extend these clocks. Cancellation caused by expiry
-is a new content-free transition with its own 30-day window. Active-run counters are
+Reads and unrelated background activity do not extend these clocks. Cancellation
+caused by expiry is a new content-free transition with its own 30-day window. Active-run counters are
 never pruned; terminal parents are removed after their children expire. Expired journal
 details are hidden immediately, even while physical cleanup waits for a worker.
 
@@ -158,7 +159,8 @@ Before purging a run, the same transaction leaves an ai_run_receipts row contain
 only owner ID, run ID, submission ID and a completed boolean. These minimal replay and
 committed-context markers last until account deletion; they contain no prompt, digest,
 model label, usage, tool data or timestamps. An old submission ID returns 409 instead
-of becoming executable after cleanup when reused in a valid owned chat. GET for a purged/expired run returns 404.
+of becoming executable after cleanup when reused in a valid owned chat.
+GET for a purged/expired run returns 404.
 Completed markers preserve the correct checkpoint context of a still-active chat;
 failed/cancelled branches remain excluded. The markers cannot authorize an action.
 See [storage and migration impact](ai-persistence.md).

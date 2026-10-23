@@ -22,7 +22,8 @@ reminders/inbox and profile settings in a shared light/dark interface. See the
 | User databases, typed properties, page-backed records, table/calendar views and date moves | Implemented backend; UI for schemas, records, saved table/day/week/month views and form date edits; mixed display and drag moves remain API-only |
 | One-shot calendar reminders and in-app notifications | Implemented backend/UI for one-shot calendar reminders, pending cancellation and inbox |
 | Private materials, bounded document extraction and PostgreSQL full-text search | Implemented backend/UI for files/bookmarks, processing status and filtered full-text search |
-| Tasks, free slots/conflicts, semantic search, AI and RAG | Planned; runtime not implemented |
+| Offline AI chat/run lifecycle | Implemented fake-only backend with accounting, checkpoints, bounded recovery and 30-day cleanup; disabled by default, migrations unapplied to the app; see [AI setup](docs/development/ai-setup.md) |
+| Tasks, free slots/conflicts, semantic search, real AI and RAG | Planned; runtime not implemented |
 | Collaboration, formulas and private IIS accounts/grades | Deferred; private API contracts unverified |
 
 The [product specification](docs/product/overview.md) and

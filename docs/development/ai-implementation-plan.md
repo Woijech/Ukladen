@@ -1,12 +1,12 @@
 # AI Implementation Plan
 
 Updated: 2026-10-24.
-Status: AI-00 is delivered and AI-01 is partially implemented through its internal
-offline harness, owned persistence and authenticated fake-only chat/run API with
-durable accounting. Tested on disposable PostgreSQL/Redis, disabled by default and
-unapplied to the running app. Bounded offline execution and conservative overdue-run
-reconciliation and physical retention cleanup are implemented; final AI-01 sign-off
-and later stages remain pending.
+Status: AI-00 and the offline AI-01 foundation are delivered: a fake-only harness,
+owned persistence, authenticated chat/run API, durable accounting, bounded execution,
+conservative recovery and physical retention cleanup. Tested on disposable
+PostgreSQL/Redis, disabled by default and unapplied to the running app.
+Later stages remain not implemented; see the dated final verification in the
+[execution record](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 No P-06, real provider traffic or deployment is included.
 
 Read [system architecture](../../SYSTEM_ARCHITECTURE.md), [AI architecture](../architecture/ai.md),
@@ -22,7 +22,7 @@ numeric order is not an implicit dependency or authorization to start another st
 | Stage | Deliverable | Dependencies / connection gate | Exit evidence |
 | --- | --- | --- | --- |
 | AI-00 | Agreed scope, policies, tool/config contracts and synthetic cases | No external connection | Specification/fixture/link checks; no runtime claim |
-| AI-01 (partial) | Offline agent, owned chat/run API, persistence, accounting, bounded recovery and retention; disabled by default | AI-00; compatibility proved; approval before changes | Offline/native lifecycle and cleanup checks; final step-9 sign-off pending; dated results in the execution plan |
+| AI-01 | Delivered offline agent, owned chat/run API, persistence, accounting, bounded recovery and retention; disabled by default | AI-00; all nine steps individually approved; no application migration/activation | Offline/native lifecycle, restart and cleanup checks; dated final verification in the execution record |
 | AI-02 | Operator model catalog, supported adapters and encrypted personal API connections | AI-01; explicitly chosen vendor contract/account | Synthetic smoke, capability/secret/quota/isolation checks |
 | AI-03 | Authorized search/read tools and lexical grounding | AI-01; existing application services | Sources, current ownership, injection and coverage cases |
 | AI-04 | Separate streaming chats, cancellation, sources, instructions/model settings and usage UI | AI-01/02/03 | Desktop/mobile/session isolation and retention checks |
@@ -101,59 +101,52 @@ Plans revalidate and commit as a whole; personal appointments remain fixed by de
 
 Remaining implementation gates are specific, not reopened product choices: actual
 vendor/search endpoints and models, account prices/quotas, encryption implementation,
-package/runtime compatibility, freshness thresholds and minimal replay-record purge.
+embedding/runtime compatibility and freshness thresholds. AI-01 proves framework
+compatibility and retains minimal replay/context markers until account deletion.
 Keep external integrations disabled until their gates are verified. AI-00 requires
 no API key or private content, and does not implement the selected functionality.
 
 ## 5. AI-01: offline orchestration, persistence and accounting
 
-Implemented subset: the internal fake-only AgentRunner boundary and LangChain
-composition with synthetic typed tools, review pauses and bounded errors/calls.
-Owned state/repositories and checkpoint integration are natively tested with an
-Alembic revision applied only to disposable data; see [persistence contracts](ai-persistence.md).
-The [offline API](ai-api.md) now records actual attempts/tools and exposes an owned
-request lifecycle with bounded dispatch/retries and conservative crash reconciliation;
-physical retention cleanup is implemented with minimal replay/context receipts.
-See [actual setup/limits](ai-setup.md#a1-implemented-offline-harness) and
-[delivery progress](ai-01-execution-plan.md#12-delivery-progress-2026-10-22).
-The remaining paragraphs describe the complete AI-01 target, not a delivered API.
+Status: complete within the approved offline scope. The framework-neutral AgentRunner
+port and input/result/review DTOs isolate LangChain create_agent, typed synthetic tools,
+HumanInTheLoopMiddleware and PostgreSQL checkpoints in infrastructure. Python 3.14
+compatibility and pinned dependencies are verified. There is no custom model/tool loop.
+Synthetic approve/reject resume is tested across fresh processes; production actions
+and public confirmation/resume transport remain AI-07/08.
 
-Own LlmProvider in ai.application and EmbeddingProvider/WebSearchProvider in search.application.
-Normalize messages, typed tool requests/results, call IDs, finish/refusal/error state,
-usage completeness and private provider continuation metadata. Separate query/document
-embedding methods. Check provider-neutral contracts through a deterministic fake.
+Owned conversations/messages, runs, provider attempts and tool outcomes use Alembic
+revisions 0022/0023, applied only to disposable data. Checkpoint schema is reviewed in
+migrations, never created on API startup. The [persistence contract](ai-persistence.md)
+describes owner constraints, short transactions, deletion and minimal replay receipts.
+No action/grant tables are added.
 
-Use LangChain create_agent for the standard model/tool loop and typed tools, with
-HumanInTheLoopMiddleware for review pauses and LangGraph PostgreSQL checkpoints for
-resumption. Reuse compatible call-limit/error middleware; no custom tool loop or
-direct StateGraph unless a concrete gap is demonstrated. Prove pinned LangChain,
-LangGraph and checkpointer compatibility with Python 3.14 and existing connections
-before adding dependencies. Framework types remain infrastructure-only. AI-01 tests
-HITL using synthetic non-business tools, not production writes/confirmation tables.
+The authenticated [offline API](ai-api.md) uses existing completed-registration,
+session, CSRF/Origin and no-store contracts. It enforces bounded input, server-derived
+identity, one active run/chat, exact submission replay and cancellation. Admission
+precedes execution; no transaction spans a model call. The journal counts actual
+attempts, including bounded retries, and preserves unknown usage as NULL.
+
+Durable deadlines, late-result barriers and conservative reconciliation close overdue
+work without replaying uncertain effects. Thirty-day content and independent activity
+cleanup is bounded and idempotent. Minimal owner/run/submission IDs and a completed
+marker survive detailed journal cleanup until account deletion. Maintenance can stay
+enabled independently of chat. See [setup and limitations](ai-setup.md).
 
 The owner requested approval before changes and permits read-only checks without
 additional confirmation (clarified on 2026-10-22).
 Follow the [AI-01 approval checkpoints](ai-01-execution-plan.md): report the completed
 step, checks and exact next scope, then obtain approval before subsequent changes.
-Steps 1 through 8 were subsequently authorized; step 9 remains pending.
+All nine steps were individually authorized and completed; the execution record
+preserves each checkpoint and [final verification](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 
-Persist owned conversations/messages, runs, provider attempts and tool outcomes via
-Alembic, including reviewed checkpoint migrations rather than startup auto-DDL.
-Planned run states: queued/running/completed/failed/cancelled/interrupted;
-pending proposals have a separate lifecycle. Admit work durably before external work;
-no database transaction stays open during a model call. Count each actual retry.
-After crashes, reconcile incomplete work without automatically replaying side effects.
-Checkpoint replay is not authorization or an execution log.
-
-Use planned authenticated /api/v1/ai transport, existing session/registration/CSRF/Origin
-contracts, bounded inputs and no-store responses. Keep user identity server-derived.
-Enforce one active run/chat, idempotent submission and cancellation/reconnect semantics.
-Implement expiry/manual-deletion across messages, checkpoint history, summaries, tool
-context and queued work; content-free metadata expires separately after 30 days.
-
-Verify duplicate submission, foreign IDs, invalid tools, restart, interrupted attempts,
-unknown usage, cancellation and non-resurrection after deletion on disposable PostgreSQL/Redis.
-No action/grant tables before AI-07/08, no external network in ordinary tests.
+The current narrow boundary is AgentRunner. Real model normalization/capability and
+credential contracts belong to AI-02; embedding and web-search ports belong to
+AI-05/11. These interfaces are added with their implementations rather than as empty
+AI-01 wrappers. Framework/SDK types must remain outside domain/application contracts.
+Real adapter transport timeouts are required before activation: a timed-out synchronous
+fake call keeps its bounded thread slot until it returns. No real model, business
+tool, source retrieval, streaming or product UI is delivered by AI-01.
 
 ## 6. AI-02: operator models and personal API connections
 

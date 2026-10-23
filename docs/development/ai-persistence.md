@@ -1,8 +1,8 @@
 # AI Persistence Contracts
 
 Updated: 2026-10-24.
-Status: AI-01 steps 4/5 implement and natively test owned persistence; step 6 connects
-the authenticated fake-only API and durable attempt/tool recording.
+Status: the completed offline AI-01 foundation implements and natively tests owned
+persistence, authenticated fake-only API accounting, bounded recovery and retention.
 The migrations have been applied only to disposable test schemas, never to the app.
 The [HTTP lifecycle](ai-api.md) uses this storage when explicitly enabled; there is
 no model worker dispatch; the existing worker performs bounded recovery/cleanup. Read the

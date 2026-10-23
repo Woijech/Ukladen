@@ -1,9 +1,9 @@
 # AI-01 Execution Plan and Approval Checkpoints
 
 Updated: 2026-10-24.
-Status: in progress. Steps 1 through 8 are complete within their approved scope;
+Status: complete. All nine steps are complete within their individually approved scope;
 persistence migrations are tested only on disposable data, not applied to the app.
-Step 9 is not approved or implemented.
+Step 9 was approved and its final verification completed on 2026-10-24; see section 13.
 The owner requested approval before
 changes and clarified that read-only inspection/checks need no additional permission.
 This is a developer workflow, distinct from the
@@ -436,7 +436,55 @@ Non-test container state was unchanged. No frontend change/check, real provider 
 application migration, push or deployment occurred. Step 8 is complete within its
 approved scope and forms one local delivery checkpoint.
 
-Step 9 requires separate approval: perform final AI-01 contract/setup verification,
+At the step-8 checkpoint, step 9 required separate approval: final AI-01 contract/setup verification,
 check the complete offline subset and limitations, update final capability status
 and create a local sign-off commit. It does not authorize applying app migrations,
 connecting real providers, product UI, business tools, push or deployment.
+
+## 13. Final AI-01 verification (2026-10-24)
+
+The owner approved step 9. The final audit checked the implemented AgentRunner/DTO
+boundary, fake-only settings, authenticated routes, checkpoint composition and gated
+worker/Beat maintenance against the approved scope. Runtime code, dependencies,
+environment files and deployment wiring are unchanged in this step.
+
+The [API](ai-api.md), [persistence](ai-persistence.md) and [setup](ai-setup.md) contracts
+describe the offline subset. Capability tables and the implementation plan distinguish
+it from future model adapters, workspace tools, streaming, UI, RAG, planning and writes.
+AgentRunner is the current neutral boundary; real model normalization and separate
+embedding/web-search ports are implemented with their later stages, without empty
+framework wrappers. Synthetic HITL resume is not public business confirmation.
+
+Verification uses ukladen_ai01_step9 in the no-network tmpfs PostgreSQL container
+ukladen-ai01-step9-20261024, with Redis in ukladen-ai01-step9-redis-20261024.
+The first full backend run reported 1657 passed / 3 skipped / 1 failed in 358.04 seconds.
+The failed recovery race assumed that a single sweep must acquire the owner lock;
+checkpoint writes can legitimately cause the documented skip-busy behavior. Its test
+now allows bounded repeated sweeps and gives cancellation/reconciliation separate
+time to win before the synthetic timeout. All late-answer/journal assertions remain.
+The three focused timeout/cancel/reconcile cases then passed in 9.63 seconds.
+
+The final full backend regression passed: 1658 passed / 3 skipped in 361.15 seconds.
+The skipped checks require native S3/SeaweedFS targets: file-processing jobs,
+material storage and avatar storage. PostgreSQL/Redis migration, ownership,
+concurrency, restart, recovery, accounting and retention tests were enabled.
+
+Ruff, format (400 files), full Pyright (zero errors), offline lock verification,
+installed dependency compatibility (94 packages) and quiet base Compose validation
+passed. Twelve Markdown files/263 local links and anchors, balanced fences and
+git diff --check passed. No frontend or home deployment wiring changed; their
+build/overlay checks were not rerun.
+
+The disposable database had zero AI/auth test schemas after verification. Both
+temporary containers and their storage were removed. Non-test container state
+was unchanged: ukladen-cloudflared-1 remained running. No real environment/secret,
+application migration, real provider call, frontend change, push or deployment occurred.
+
+AI-01 is complete as an offline backend foundation, not a production assistant.
+Only pure synthetic tools and a scripted fake model are registered. Synchronous
+timeouts do not kill blocked threads; real adapters need transport timeouts before
+activation. Synthetic HITL is internal; business authorization/public resume, real
+providers, source retrieval and UI remain separate stages. The 30-day cleanup
+contract retains minimal replay/context markers until account deletion and needs
+migrated worker/Beat maintenance after activation. Both AI flags still default off.
+This sign-off does not authorize application migrations, activation or starting AI-02.
