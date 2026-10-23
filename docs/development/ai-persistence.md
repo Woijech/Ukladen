@@ -1,6 +1,6 @@
 # AI Persistence Contracts
 
-Updated: 2026-10-22.
+Updated: 2026-10-24.
 Status: AI-01 steps 4/5 implement and natively test owned persistence; step 6 connects
 the authenticated fake-only API and durable attempt/tool recording.
 The migration has been applied only to disposable test schemas, never to the app.
@@ -70,7 +70,9 @@ LangGraph may persist checkpoints independently in the background. The serialize
 disables pickle fallback and arbitrary MessagePack module loading.
 
 The API also binds the saver to a running execution. Every batch rechecks that run;
-cancellation prevents further checkpoint writes. Server-issued ukladen_run_id metadata
+cancellation and the 60-second admission deadline prevent further checkpoint writes.
+Overdue-run reconciliation closes uncertain work without replay; see
+[execution/recovery](ai-api.md#execution-deadlines-and-recovery). Server-issued ukladen_run_id metadata
 links checkpoint branches to run records. New work loads its current checkpoint or
 the latest completed predecessor, excluding unfinished failed/cancelled branches.
 
@@ -123,5 +125,7 @@ expiry at exactly 30 days. The fresh-process driver uses only FakeChatModel: app
 executes the synthetic tool once, rejection never executes it, stale reviews fail,
 and foreign/deleted conversations cannot resume. No live provider is invoked.
 See the dated execution record for environment, results and cleanup. The API and
-accounting hooks add native HTTP tests. Crash reconciliation and retention jobs remain
-later work.
+accounting hooks add native HTTP tests. Step 7 additionally tests process termination
+during an actual fake-model dispatch, fresh-process reconciliation, deadline/cancel
+races, rollback/concurrent sweeps and durable budgets across reviewed resumes.
+Physical retention cleanup remains later work.

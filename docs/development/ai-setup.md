@@ -1,6 +1,6 @@
 # AI Setup and Provider Switching Runbook
 
-Updated: 2026-10-22.
+Updated: 2026-10-24.
 Status: the internal offline harness and owned persistence adapters are implemented
 with an authenticated, disabled-by-default fake API and durable attempt/tool accounting.
 The migration is tested on disposable data, unapplied to the running application.
@@ -67,7 +67,8 @@ serialization and InMemorySaver. In-memory checkpoints disappear with the proces
 The separate step-2 PostgreSQL proof does not verify the step-4 owned adapter.
 The [API composition](ai-api.md) supplies authenticated admission, owned checkpoints
 and accounting. Direct harness construction still treats conversation IDs as internal
-identifiers and does not itself authenticate a caller. No worker dispatch is configured.
+identifiers and does not itself authenticate a caller. Execution stays in the request;
+only overdue-run metadata reconciliation is scheduled on the existing worker.
 
 Messages are limited to 16 KiB UTF-8; model/tool call limits are at most 4/8 per
 framework invocation. Tool errors/results and review batches are sanitized/bounded.
@@ -90,8 +91,10 @@ tracing service, separate agent server or provider SDK is activated.
 
 The pure harness does not implement admission or authorization. The owned API adds
 authentication, per-run durable budgets, concurrent admission and cancellation through
-middleware/services. Retry/resume recovery, cleanup and business authorization remain
-later work; built-in per-invocation limits do not replace the journal.
+middleware/services. Step 7 adds bounded ConnectionError retries, execution deadlines
+and conservative crash reconciliation; see [their exact limits](ai-api.md#execution-deadlines-and-recovery).
+Physical cleanup and business authorization remain later work; built-in
+per-invocation limits do not replace the journal.
 
 Verification (2026-10-22): 26 offline harness tests; full backend pytest 988 passed /
 553 native-service checks skipped with PostgreSQL/Redis/S3 targets unset; full
@@ -126,7 +129,9 @@ Step-5 native tests additionally verify migrations/metadata, owner constraints,
 concurrent admission/deletion, rollback and approve/reject resume in fresh interpreters;
 see the persistence guide for their explicit test target. Step 6 adds chat/run transport,
 manual deletion, cancellation, idempotency and attempt/tool hooks. Retention cleanup
-and crash reconciliation remain steps 8/7.
+remains step 8. Step 7 adds deadlines/retry accounting and the ai.reconcile_runs task;
+enable the same AI_ENABLED setting in API, worker and Beat only after an explicitly
+approved migration/activation. No new queue, service or dependency is needed.
 
 ## B. AI-02: verify one supported adapter before activation
 

@@ -1,6 +1,6 @@
 # Backend Implementation Roadmap
 
-Updated: 2026-10-22.
+Updated: 2026-10-24.
 Status: implementation roadmap; completed slices are marked below. This document does not authorize starting the
 next phase; request a concrete slice before implementing it. Pages/blocks/databases,
 mandatory table/calendar views, personal scope and AI execution modes are confirmed.
@@ -40,7 +40,7 @@ existing services just to match target vocabulary. A package marker is not a fea
 
 Calendar free slots/conflicts, tasks, semantic search and real AI are not implemented.
 The default-disabled [offline AI API](ai-api.md) provides synthetic chat/run lifecycle
-and accounting; recovery/cleanup remain pending.
+and accounting with bounded execution and overdue-run reconciliation; physical cleanup remains pending.
 Workspace organization exists;
 saved event views, user databases, table/calendar views and mixed date projection exist.
 Authenticated IIS is unverified/unimplemented.
@@ -223,7 +223,8 @@ retrieval and AI/RAG remain not implemented. No deployment is performed by this 
 ## 11. P-09 AI help, recommendations, confirmed/automatic actions and RAG
 
 Status: AI-00 specified; AI-01 has a default-disabled fake-only chat/run API and durable
-accounting. Real tools/providers, recovery/cleanup and product UI remain pending.
+accounting, bounded execution and overdue-run reconciliation. Real tools/providers,
+physical cleanup and product UI remain pending.
 Dependencies: only the application tools actually used; task planning requires P-06.
 The [detailed AI plan](ai-implementation-plan.md) splits work into AI-00 through AI-12,
 with the [owner-agreed product specification](../product/ai.md),

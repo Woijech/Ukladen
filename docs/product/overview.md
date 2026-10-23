@@ -1,6 +1,6 @@
 # Ukladen Product Overview
 
-Updated: 2026-10-22.
+Updated: 2026-10-24.
 Status: target product specification; only capabilities listed as implemented
 below exist. Product references describe intent, not feature parity with another app.
 
@@ -184,7 +184,7 @@ and analytics UI remain not implemented. See [AI architecture](../architecture/a
 | Tasks, availability and task/deadline reminders | Status: not implemented. |
 | Private materials, page attachments and bounded document extraction | Implemented backend; no OCR |
 | Filtered PostgreSQL full-text search over pages/materials | Implemented backend |
-| Offline AI chat/run lifecycle and accounting | Implemented backend, fake-only and disabled by default; recovery/cleanup pending |
+| Offline AI chat/run lifecycle and accounting | Implemented backend, fake-only and disabled by default; bounded execution/recovery implemented, physical cleanup pending |
 | Semantic search, real AI and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
 | Weekly calendar, personal-event create/edit/delete, login/registration and group selection UI | Implemented |

@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 
+from app.modules.ai.domain.state import ErrorCode
+
 
 class InvalidAgentReview(ValueError):
     pass
@@ -63,6 +65,7 @@ class AgentResult(BaseModel):
     answer: str | None = None
     review: PendingReview | None = None
     tools: tuple[ToolOutcome, ...] = ()
+    error_code: ErrorCode | None = None
 
 
 class AgentRunner(Protocol):

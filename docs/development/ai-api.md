@@ -1,10 +1,11 @@
 # Offline AI API
 
-Updated: 2026-10-22.
-Status: AI-01 step 6 implements authenticated fake-only transport, admission and
-accounting. Disabled by default. Migration 0022 was tested on disposable databases;
+Updated: 2026-10-24.
+Status: AI-01 steps 6/7 implement authenticated fake-only transport, admission,
+accounting, bounded execution and overdue-run reconciliation. Disabled by default.
+Migration 0022 was tested on disposable databases;
 it has not been applied to the running application. Real providers, workspace tools,
-streaming, review/resume transport, restart reconciliation and physical retention
+streaming, review/resume transport and physical retention
 cleanup remain later work. See [the execution plan](ai-01-execution-plan.md).
 
 ## Configuration and composition
@@ -75,7 +76,10 @@ Execution claims queued -> running in another short transaction. LangChain middl
 records each actual model dispatch before calling the fake model and its outcome
 afterwards. Tool middleware records each attempted handler invocation and outcome;
 validation failures are failed outcomes, not successful business writes. Limits are
-4 attempts and 8 tool calls per run. No retry/fallback is configured. Missing usage
+4 actual attempts and 8 tool calls per run. Built-in ModelRetryMiddleware permits
+one retry on ConnectionError with a 50 ms delay; both calls enter the journal and
+consume the same attempt budget. Other errors, timeouts and tools are not retried;
+no provider fallback or SDK retry is configured. Missing usage
 stays NULL; measured zero remains zero. The answer and completed run state commit
 together. Failure/limit outcomes are failed runs; internal HITL pauses are interrupted
 but have no public resume endpoint yet.
@@ -92,15 +96,50 @@ already admitted call may finish; its late result cannot append an assistant mes
 change the terminal run state or overwrite a newer run's context. Deletion applies
 the same barrier before cascading content. Independent pages/events are preserved.
 
-## Current recovery and retention limits
+## Execution deadlines and recovery
+
+The owned execution deadline is 60 seconds from durable admission, including the
+queued interval. Each synthetic tool has a 10-second deadline, further reduced by
+the remaining run budget. Journal admission, checkpoint access and final completion
+also reject work past the durable deadline. Metadata/database I/O is not a hard
+real-time HTTP latency guarantee. Existing connection/pool/storage behavior still applies.
+
+Synchronous handlers run in a process-wide pool with at most eight outstanding
+calls and no waiting admission queue. Capacity rejection does not dispatch or create
+a provider attempt. A deadline returns control without waiting for a stuck handler;
+unfinished journal entries become interrupted with error_code=timeout. Python cannot
+kill a running thread: its slot stays occupied until it returns, and process shutdown
+can also wait for it. Its late result
+cannot complete the run, append an answer or change the closed journal. Native tests
+exercise timeout, cancellation and reconciliation while that call is still blocked.
+Only pure fake tools are registered. Real adapters/tools must supply bounded transport
+timeouts or cancellable execution before activation; this is not isolation for arbitrary
+code or a guarantee that a timed-out external write did not happen.
+
+When AI_ENABLED=true, Celery Beat schedules ai.reconcile_runs every 30 seconds on
+the existing worker. API, worker and Beat must share that setting and the migrated
+database. The task processes at most 100 overdue queued/running records per sweep,
+using owner-first locks and skipping busy owners. Repeated/concurrent sweeps are
+idempotent, including for disabled owners. Runs at least 60 seconds old become failed;
+unfinished attempts/tools become interrupted with error_code=interrupted and retain
+unknown usage. Terminal runs and explicit HITL pauses are preserved.
+An internal bound-run review does not renew its admission deadline; an expired pause
+can be cancelled. Longer-lived product proposal/resume policy belongs to AI-07.
+
+This conservative restart policy does not replay an uncertain model/tool call or
+invent an answer from a checkpoint. Exact submission replay returns the stored failed
+state; a new submission can proceed using completed predecessor context. Reviewed fake
+interrupts still resume through the framework with explicit decisions, fresh ownership
+checks and the durable attempt budget. There is no public resume endpoint or automatic
+approval; the production action/review bridge remains AI-07.
+
+## Current retention and activation limits
 
 Viewing/assistant messages/replayed submissions do not extend the 30-day user-message
 window. Expired chats are filtered or denied immediately. Physical content and journal
 cleanup are not implemented yet; see [storage boundaries](ai-persistence.md).
 
-If the process dies, checkpoint storage fails or final completion cannot commit, the
-durably admitted run can remain queued/running with incomplete records. Reposting the
-same submission does not dispatch again or fabricate completion. Cancel it to stop
-pending work. Step 7 implements bounded execution and restart reconciliation; no
-background recovery/timeout job or resume API is claimed here. This slice is not a
+If storage is unavailable, reconciliation waits for a later successful sweep. Worker
+or Beat outages delay it; reads do not run maintenance. The feature remains disabled
+by default and its migration is unapplied to the running app. This slice is not a
 production release of the assistant.

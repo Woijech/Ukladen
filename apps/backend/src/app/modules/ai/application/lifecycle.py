@@ -13,8 +13,8 @@ from uuid import UUID, uuid4
 from app.core.logging import log_failure
 from app.modules.ai.application.agent import AgentInput, AgentResult, AgentRunner
 from app.modules.ai.application.persistence import AiRepository
+from app.modules.ai.application.recovery import RUN_TIMEOUT, stop_run
 from app.modules.ai.domain.state import (
-    ACTIVE_RUN_STATUSES,
     AiConflict,
     AiNotFound,
     Conversation,
@@ -175,6 +175,9 @@ class AiService:
             current = repository.get_run(run.user_id, run.id)
             if current is None or current.status != "queued":
                 return
+            if self.now() >= current.created_at + RUN_TIMEOUT:
+                stop_run(repository, current, self.now(), status="failed", error="timeout")
+                return
             self.conversation(repository, run.user_id, request.conversation_id)
             run = current.transition("running", self.now())
             repository.save_run(run, "queued")
@@ -190,6 +193,17 @@ class AiService:
             if current is None or current.status != "running":
                 return
             conversation = self.conversation(repository, run.user_id, request.conversation_id)
+            if self.now() >= current.created_at + RUN_TIMEOUT:
+                result = AgentResult(status="failed", error_code="timeout")
+            if result.status not in {"completed", "interrupted"}:
+                stop_run(
+                    repository,
+                    current,
+                    self.now(),
+                    status="failed",
+                    error=result.error_code or "unavailable",
+                )
+                return
             status = "interrupted" if result.status == "interrupted" else "failed"
             if result.status == "completed" and result.answer:
                 repository.append_message(
@@ -207,22 +221,7 @@ class AiService:
             repository.save_run(current.transition(status, self.now()), "running")
 
     def interrupt(self, repository: AiRepository, run: Run) -> Run:
-        if run.status not in ACTIVE_RUN_STATUSES:
-            return run
-        now = self.now()
-        for attempt in repository.attempts(run.user_id, run.id):
-            if attempt.status == "started":
-                repository.save_attempt(
-                    replace(attempt, status="interrupted", finished_at=now, error_code="cancelled")
-                )
-        for tool in repository.tool_executions(run.user_id, run.id):
-            if tool.status == "started":
-                repository.save_tool_execution(
-                    replace(tool, status="interrupted", finished_at=now, error_code="cancelled")
-                )
-        cancelled = run.transition("cancelled", now)
-        repository.save_run(cancelled, run.status)
-        return cancelled
+        return stop_run(repository, run, self.now(), status="cancelled", error="cancelled")
 
     def cancel(self, user_id: UUID, run_id: UUID) -> RunSnapshot:
         with self.transactions(user_id, write=True) as repository:
@@ -251,6 +250,8 @@ class RunJournal:
         run = repository.get_run(self.run.user_id, self.run.id)
         if run is None or run.status != "running" or run.conversation_id is None:
             raise AiConflict("Execution is no longer active.")
+        if self.service.now() >= run.created_at + RUN_TIMEOUT:
+            raise TimeoutError("AI execution deadline exceeded.")
         self.service.conversation(repository, run.user_id, run.conversation_id)
         return run
 

@@ -1,5 +1,6 @@
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID, uuid4
 
@@ -14,6 +15,7 @@ from app.integrations.llm.fake import FakeChatModel
 from app.modules.ai.application.agent import AgentRunner
 from app.modules.ai.application.lifecycle import ExecutionJournal
 from app.modules.ai.application.persistence import AiRepository
+from app.modules.ai.application.recovery import RUN_TIMEOUT
 from app.modules.ai.domain.state import AiConflict, AiPersistenceUnavailable, Run
 from app.modules.ai.infrastructure.checkpoints import owned_offline_runner
 from app.modules.ai.infrastructure.fake_tools import fake_double
@@ -87,6 +89,9 @@ class PostgresAgentRunners:
                     [fake_double],
                     run_id=run.id,
                     journal=journal,
+                    run_timeout=max(
+                        0.001, (run.created_at + RUN_TIMEOUT - datetime.now(UTC)).total_seconds()
+                    ),
                 )
             finally:
                 connection.row_factory = previous

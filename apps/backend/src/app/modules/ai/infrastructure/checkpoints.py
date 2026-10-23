@@ -26,6 +26,7 @@ from app.core.logging import log_failure
 from app.integrations.llm.fake import FakeChatModel
 from app.modules.ai.application.agent import AgentRunner
 from app.modules.ai.application.lifecycle import ExecutionJournal
+from app.modules.ai.application.recovery import RUN_TIMEOUT
 from app.modules.ai.domain.state import (
     AiConflict,
     AiNotFound,
@@ -103,8 +104,9 @@ class OwnedPostgresSaver(PostgresSaver):
                     self.run_id is not None
                     and cursor.execute(
                         "SELECT id FROM ai_runs WHERE id = %s AND user_id = %s "
-                        "AND conversation_id = %s AND status = 'running' FOR SHARE",
-                        (self.run_id, self.user_id, self.conversation_id),
+                        "AND conversation_id = %s AND status = 'running' "
+                        "AND created_at > %s FOR SHARE",
+                        (self.run_id, self.user_id, self.conversation_id, instant - RUN_TIMEOUT),
                     ).fetchone()
                     is None
                 ):
@@ -219,10 +221,17 @@ def owned_offline_runner(
     now: Callable[[], datetime] = lambda: datetime.now(UTC),
     run_id: UUID | None = None,
     journal: ExecutionJournal | None = None,
+    run_timeout: float = 60,
 ) -> AgentRunner:
     """Caller owns the connection; no connection creation or DDL occurs here."""
     saver = OwnedPostgresSaver(connection, user_id, conversation_id, now=now, run_id=run_id)
     saver.validate_schema()
     return OfflineAgentRunner(
-        model, tools, saver, review_tools=review_tools, run_id=run_id, journal=journal
+        model,
+        tools,
+        saver,
+        review_tools=review_tools,
+        run_id=run_id,
+        journal=journal,
+        run_timeout=run_timeout,
     )

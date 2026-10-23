@@ -1,11 +1,13 @@
 # AI, Retrieval and Application Tools
 
-Updated: 2026-10-22.
+Updated: 2026-10-24.
 Status: AI-01 has an internal fake-only LangChain harness with neutral DTOs, typed
 synthetic tools, review pauses and per-invocation limits. Owned persistence adapters
 and an Alembic revision are natively tested on disposable PostgreSQL; no application
 database migration has been applied. The default-disabled [offline API](../development/ai-api.md)
 adds authenticated chats/runs, admission, accounting, cancellation and deletion.
+Bounded retries/deadlines and conservative overdue-run reconciliation are implemented;
+see [execution and recovery limits](../development/ai-api.md#execution-deadlines-and-recovery).
 Real providers and AI/RAG product features are not implemented. See the
 [offline harness](../development/ai-setup.md#a1-implemented-offline-harness).
 The [persistence guide](../development/ai-persistence.md) records the tested internal schema,
@@ -203,7 +205,8 @@ and owner-only usage page requirements. The [implementation plan](../development
 defines staged ports, durable usage accounting, chat, indexing and confirmed/automatic
 actions; [the setup runbook](../development/ai-setup.md) defines connection gates.
 The AI-00 specification/acceptance data and AI-01 offline harness are delivered.
-Owned runtime/usage persistence and product endpoints remain not implemented.
+Owned offline runtime/usage persistence and chat/run endpoints are implemented;
+real providers, business tools and product usage-summary endpoints remain not implemented.
 `ai` owns planned conversation/run/tool/action usage metadata;
 `search` owns derived retrieval/index jobs. Existing safe logs remain operator
 diagnostics, not a source of prompts or cross-user product analytics.

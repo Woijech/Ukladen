@@ -1,9 +1,10 @@
 # AI-01 Execution Plan and Approval Checkpoints
 
-Updated: 2026-10-22.
-Status: in progress. Steps 1 through 6 are complete within their approved scope;
+Updated: 2026-10-24.
+Status: in progress. Steps 1 through 7 are complete within their approved scope;
 persistence migrations are tested only on disposable data, not applied to the app.
-Steps 7 through 9 are not approved or implemented. The owner requested approval before
+Steps 8/9 are not approved or implemented.
+The owner requested approval before
 changes and clarified that read-only inspection/checks need no additional permission.
 This is a developer workflow, distinct from the
 application's human-in-the-loop approval of user-data changes.
@@ -322,3 +323,62 @@ unfinished runs after restart and verify recovery/cancel/interrupt races against
 durable ledger. Public review/resume behavior must preserve exact ownership and
 budgets. Physical 30-day purge remains step 8; real providers/UI/business tools remain
 separate stages. Do not enable the module or migrate existing application data here.
+
+Step 7 was subsequently approved. Built-in ModelRetryMiddleware permits at most one
+ConnectionError retry with a short fixed delay. Dispatch middleware and the durable
+journal enforce four actual attempts including retries; tools and uncertain timeouts
+are not retried. The owned run has a 60-second admission deadline and each tool a
+10-second deadline capped by remaining time. Journal admission, checkpoint access
+and final completion recheck the durable deadline. No custom model/tool loop,
+provider fallback, SDK retry, dependency or migration was added.
+
+A bounded synchronous call pool admits eight outstanding calls per process without
+an unbounded queue. A timed-out call may keep its thread until it returns; late
+outcomes cannot overwrite terminal journals, write answers or resume the graph.
+This bounds dispatch waiting, not all database/metadata HTTP latency or arbitrary
+side effects. Pure fake tools only remain registered; real adapters need transport
+deadlines/cancellable execution, including bounded process shutdown.
+
+The ai.reconcile_runs task is registered on the existing worker and scheduled every
+30 seconds only when AI_ENABLED=true. Each sweep examines at most 100 overdue
+queued/running runs. Owner-first locking, skip-locked admission and state rechecks
+make concurrent/repeated sweeps safe, including disabled owners. Runs become failed;
+unfinished attempts/tools become interrupted with unknown usage preserved. No model
+request, tool action or uncertain checkpoint is replayed. Explicit HITL pauses and
+terminal runs are preserved; pauses do not extend the admission deadline.
+
+The process-termination test exits during a genuine fake-model dispatch, then starts
+a fresh interpreter to reconcile the committed run. Exact submission replay returns
+the stored failure without another dispatch; a new submission completes from safe
+predecessor context. Native tests also cover exact deadline boundaries, rollback,
+concurrent sweeps, busy owners, disabled owners, timeout/cancel/reconciliation races
+with a still-blocked model, and durable budgets across fresh reviewed runners.
+Framework approve/reject and stale/foreign/deleted review checks remain in the suite.
+No public resume API or production action permission is introduced.
+
+Step-7 final verification used ukladen_ai01_step7 in the no-network
+ukladen-ai01-step7-20261022 PostgreSQL container, with Redis in
+ukladen-ai01-step7-redis-20261022. Both services use disposable RAM storage and
+read-only test clients; no live application database/cache is involved.
+
+### Step-7 completion verification (2026-10-24)
+
+After the interruption, the previous full-test process/output was unavailable.
+The identified temporary services were restarted with fresh RAM storage; the full
+suite was repeated rather than treating that unavailable result as passing.
+Final backend pytest reported 1644 passed / 3 skipped in 338.87 seconds, including
+all 132 collected AI tests. The three skipped checks require disposable S3/SeaweedFS
+configuration (native file-job storage, material storage and avatar storage).
+
+Ruff, format (397 files), full Pyright (zero errors), quiet Compose validation,
+nine Markdown files/170 local links and anchors, balanced fences and git diff --check
+passed. No frontend change/check was needed. Test schemas were absent afterward;
+both temporary containers and their storage were removed. Non-test container state
+was unchanged. No application database migration, real model call, push or deployment
+occurred. Step 7 is complete within its approved offline scope.
+
+Step 8 requires separate approval: physically purge chats/messages/checkpoints after
+30 days of user-message inactivity and content-free activity after its own 30-day
+window. Keep independent business objects and required minimal replay protection;
+test exact boundaries, concurrent cleanup and non-resurrection. Step 9 final sign-off,
+real providers, product UI and business tools remain separate approvals/stages.
