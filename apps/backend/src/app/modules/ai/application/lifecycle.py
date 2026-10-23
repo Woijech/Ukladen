@@ -113,14 +113,23 @@ class AiService:
     def get_run(self, user_id: UUID, run_id: UUID) -> RunSnapshot:
         with self.transactions(user_id) as repository:
             run = repository.get_run(user_id, run_id)
-            if run is None:
+            cutoff = self.now() - timedelta(days=30)
+            if run is None or (run.finished_at is not None and run.finished_at <= cutoff):
                 raise AiNotFound()
             if run.conversation_id is not None:
                 self.conversation(repository, user_id, run.conversation_id)
             return RunSnapshot(
                 run,
-                tuple(repository.attempts(user_id, run_id)),
-                tuple(repository.tool_executions(user_id, run_id)),
+                tuple(
+                    item
+                    for item in repository.attempts(user_id, run_id)
+                    if (item.finished_at or item.started_at) > cutoff
+                ),
+                tuple(
+                    item
+                    for item in repository.tool_executions(user_id, run_id)
+                    if (item.finished_at or item.started_at) > cutoff
+                ),
             )
 
     def submit(self, user_id: UUID, request: AgentInput, submission_id: UUID) -> RunSnapshot:
@@ -135,6 +144,11 @@ class AiService:
             conversation = self.conversation(repository, user_id, request.conversation_id)
             existing = repository.submission(user_id, submission_id)
             if existing is not None:
+                if (
+                    existing.finished_at is not None
+                    and existing.finished_at <= self.now() - timedelta(days=30)
+                ):
+                    raise AiConflict("Submission identifier is retired.")
                 if existing.request_digest != digest:
                     raise AiConflict("Submission identifier was already used.")
                 run = existing

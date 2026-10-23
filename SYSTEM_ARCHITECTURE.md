@@ -8,7 +8,7 @@
 >
 > **Important:** This document intentionally does **not** define concrete BSUIR IIS response fields, exact external API payloads, full SQL schema, or detailed endpoint DTOs. Those contracts are separate documents.
 
-Updated: 2026-10-22. Target features are not implemented unless explicitly marked.
+Updated: 2026-10-24. Target features are not implemented unless explicitly marked.
 Read the [documentation index](docs/README.md), [open decisions](docs/product/open-questions.md)
 and [implementation roadmap](docs/development/implementation-roadmap.md) for a concrete slice.
 [ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md) records optional organization.
@@ -400,7 +400,8 @@ settings and actual per-owner grants remain required. See [AI architecture](docs
 Status: AI-00 and the AI-01 internal fake-only harness are delivered. Owned persistence
 adapters/migration are natively tested on disposable PostgreSQL, unapplied to the app.
 The default-disabled [offline API](docs/development/ai-api.md) implements owned chats/runs,
-admission, accounting, cancellation and deletion. Real providers, RAG and planning remain not implemented; see
+admission, accounting, cancellation and deletion. Bounded recovery and 30-day cleanup
+with minimal replay/context receipts are implemented. Real providers, RAG and planning remain not implemented; see
 [the implemented subset](docs/development/ai-setup.md#a1-implemented-offline-harness).
 
 Architecture:

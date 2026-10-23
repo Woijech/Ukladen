@@ -26,6 +26,7 @@ from app.modules.ai.infrastructure.orm import (
     MessageModel,
     ProviderAttemptModel,
     RunModel,
+    RunReceiptModel,
     ToolExecutionModel,
 )
 
@@ -203,6 +204,16 @@ class SqlAlchemyAiRepository:
     def create_run(self, run: Run) -> None:
         if run.status != "queued" or run.conversation_id is None:
             raise InvalidAiState("New runs require a conversation and queued state.")
+        if (
+            self.session.scalar(
+                select(RunReceiptModel.run_id).where(
+                    RunReceiptModel.user_id == run.user_id,
+                    RunReceiptModel.submission_id == run.submission_id,
+                )
+            )
+            is not None
+        ):
+            raise AiConflict("Submission identifier is retired.")
         if (
             self.session.scalar(
                 select(ConversationModel.id)

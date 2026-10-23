@@ -123,6 +123,19 @@ class RunModel(Base):
     )
 
 
+class RunReceiptModel(Base):
+    __tablename__ = "ai_run_receipts"
+
+    run_id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    submission_id: Mapped[UUID]
+    completed: Mapped[bool]
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "submission_id", name="uq_ai_receipts_submission"),
+    )
+
+
 class ProviderAttemptModel(Base):
     __tablename__ = "ai_provider_attempts"
 

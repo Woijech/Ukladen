@@ -16,6 +16,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     ai_enabled: bool = False
+    ai_retention_enabled: bool = False
     ai_llm_provider: Literal["fake"] = "fake"
     ai_llm_model: Literal["fake-v1"] = "fake-v1"
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)

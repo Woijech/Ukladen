@@ -128,16 +128,20 @@ class OwnedPostgresSaver(PostgresSaver):
             # Failed/cancelled branches cannot become the context for a new submission.
             with self._cursor() as cursor:
                 row = cursor.execute(
-                    "SELECT c.checkpoint_id FROM checkpoints c JOIN ai_runs r "
-                    "ON r.id::text = c.metadata->>'ukladen_run_id' "
-                    "WHERE c.thread_id = %s AND c.checkpoint_ns = %s AND r.user_id = %s "
-                    "AND (r.id = %s OR r.status = 'completed') "
+                    "SELECT c.checkpoint_id FROM checkpoints c "
+                    "WHERE c.thread_id = %s AND c.checkpoint_ns = %s AND ("
+                    "EXISTS (SELECT 1 FROM ai_runs r WHERE r.user_id = %s "
+                    "AND r.id::text = c.metadata->>'ukladen_run_id' "
+                    "AND (r.id = %s OR r.status = 'completed')) OR "
+                    "EXISTS (SELECT 1 FROM ai_run_receipts r WHERE r.user_id = %s "
+                    "AND r.run_id::text = c.metadata->>'ukladen_run_id' AND r.completed)) "
                     "ORDER BY c.checkpoint_id DESC LIMIT 1",
                     (
                         str(self.conversation_id),
                         config.get("configurable", {}).get("checkpoint_ns", ""),
                         self.user_id,
                         self.run_id,
+                        self.user_id,
                     ),
                 ).fetchone()
             if row is None:

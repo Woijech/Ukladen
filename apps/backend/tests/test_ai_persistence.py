@@ -168,7 +168,7 @@ def test_migration_preserves_existing_user_and_refuses_populated_downgrade(
             command.downgrade(migration, "0021_google_email_confirmations")
         assert (
             connection.scalar(text("SELECT version_num FROM alembic_version"))
-            == "0022_ai_persistence"
+            == "0023_ai_run_receipts"
         )
         assert connection.scalar(select(func.count()).select_from(ConversationModel)) == 1
 

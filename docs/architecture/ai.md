@@ -3,11 +3,14 @@
 Updated: 2026-10-24.
 Status: AI-01 has an internal fake-only LangChain harness with neutral DTOs, typed
 synthetic tools, review pauses and per-invocation limits. Owned persistence adapters
-and an Alembic revision are natively tested on disposable PostgreSQL; no application
+and preserving Alembic revisions are natively tested on disposable PostgreSQL; no application
 database migration has been applied. The default-disabled [offline API](../development/ai-api.md)
 adds authenticated chats/runs, admission, accounting, cancellation and deletion.
 Bounded retries/deadlines and conservative overdue-run reconciliation are implemented;
 see [execution and recovery limits](../development/ai-api.md#execution-deadlines-and-recovery).
+Thirty-day physical cleanup and minimal replay/committed-context receipts are implemented;
+the [retention contract](../development/ai-api.md#physical-retention-and-replay-protection)
+defines the independent clocks and maintenance-only setting. Receipts cannot grant write authority.
 Real providers and AI/RAG product features are not implemented. See the
 [offline harness](../development/ai-setup.md#a1-implemented-offline-harness).
 The [persistence guide](../development/ai-persistence.md) records the tested internal schema,

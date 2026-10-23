@@ -1,9 +1,9 @@
 # AI-01 Execution Plan and Approval Checkpoints
 
 Updated: 2026-10-24.
-Status: in progress. Steps 1 through 7 are complete within their approved scope;
+Status: in progress. Steps 1 through 8 are complete within their approved scope;
 persistence migrations are tested only on disposable data, not applied to the app.
-Steps 8/9 are not approved or implemented.
+Step 9 is not approved or implemented.
 The owner requested approval before
 changes and clarified that read-only inspection/checks need no additional permission.
 This is a developer workflow, distinct from the
@@ -382,3 +382,61 @@ Step 8 requires separate approval: physically purge chats/messages/checkpoints a
 window. Keep independent business objects and required minimal replay protection;
 test exact boundaries, concurrent cleanup and non-resurrection. Step 9 final sign-off,
 real providers, product UI and business tools remain separate approvals/stages.
+
+### Step-8 delivery and verification (2026-10-24)
+
+Step 8 was subsequently approved. The existing ai.reconcile_runs worker task now
+performs bounded physical retention after recovery: at most 100 expired conversations
+and 100 eligible terminal journal runs per sweep. Owner-first locks, skip-locked
+admission and expiry/state rechecks protect concurrent renewal, deletion and cleanup.
+An expired conversation is cancelled before cascading its messages/checkpoint content;
+independent pages, events and materials are preserved. Each item is transactional;
+already completed items remain deleted if a later item fails.
+
+Chats use last user-message time (creation for an empty chat). Detailed run records
+use their terminal transition; attempt/tool records use outcome time or start time
+when unknown. Viewing does not renew any clock. Active budgets are not pruned.
+New expiry cancellation is a separate content-free transition with its own window.
+Expired journal details are hidden immediately; terminal parents are physically
+removed after their independently expired children. Retired submission IDs conflict
+before and after physical cleanup instead of becoming new executions.
+
+Revision 0023_ai_run_receipts creates one empty table, without changing existing
+content: owner/run/submission UUIDs and a completed boolean. Cleanup writes these
+minimal replay/committed-context markers in the same transaction as run deletion.
+They retain no prompt, digest, provider/model, usage, tool data or timestamps and
+survive until account deletion. Completed context remains selectable for an active
+chat after journal expiry; failed/cancelled branches remain excluded. The markers
+do not authorize business actions. Populated-receipt downgrade is refused; account
+deletion cascades receipts. The application database remains unmigrated.
+
+AI_RETENTION_ENABLED defaults to false and keeps worker maintenance scheduled when
+chat is disabled. Either this flag or AI_ENABLED schedules the existing 30-second
+task. Both false perform no AI maintenance SQL. Retention-only mode neither exposes
+chat endpoints nor dispatches a model. Operators must apply approved migrations
+before enabling either flag, and retain maintenance after disabling chat. Only env
+examples were changed; no real env/secret, dependency, new service or queue was added.
+
+The isolated target was ukladen_ai01_step8 in the no-network tmpfs PostgreSQL container
+ukladen-ai01-step8-20261024 with Redis in ukladen-ai01-step8-redis-20261024. Native
+migrations/metadata tests and initial retention checks passed. Full backend regression
+reported 1657 passed / 3 skipped in 359.37 seconds. The skipped native S3/SeaweedFS
+checks are the same file-job/material/avatar storage checks recorded for step 7.
+After the final unknown-outcome visibility refinement and test typing repairs,
+all 146 AI tests passed against the finalized code in 45.73 seconds. Tests cover exact
+boundaries, empty chats, all checkpoint content, late blocked calls after content/run
+purge, completed context, independent clocks, old submission rejection, other owners,
+disabled/busy owners, rollback/concurrent retries and bounded batches.
+
+Ruff, format (400 files), full Pyright (zero errors), quiet base Compose validation
+and retention-only Beat/worker registration checks passed. Ten Markdown files/224
+local links and anchors, balanced fences and git diff --check passed. Test schemas
+were absent afterward; both temporary containers and their storage were removed.
+Non-test container state was unchanged. No frontend change/check, real provider call,
+application migration, push or deployment occurred. Step 8 is complete within its
+approved scope and forms one local delivery checkpoint.
+
+Step 9 requires separate approval: perform final AI-01 contract/setup verification,
+check the complete offline subset and limitations, update final capability status
+and create a local sign-off commit. It does not authorize applying app migrations,
+connecting real providers, product UI, business tools, push or deployment.

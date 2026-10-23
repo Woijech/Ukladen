@@ -1,12 +1,11 @@
 # Offline AI API
 
 Updated: 2026-10-24.
-Status: AI-01 steps 6/7 implement authenticated fake-only transport, admission,
-accounting, bounded execution and overdue-run reconciliation. Disabled by default.
-Migration 0022 was tested on disposable databases;
+Status: AI-01 steps 6/7/8 implement authenticated fake-only transport, admission,
+accounting, bounded execution, recovery and 30-day cleanup. Disabled by default.
+Migrations 0022/0023 were tested on disposable databases;
 it has not been applied to the running application. Real providers, workspace tools,
-streaming, review/resume transport and physical retention
-cleanup remain later work. See [the execution plan](ai-01-execution-plan.md).
+streaming and review/resume transport remain later work. See [the execution plan](ai-01-execution-plan.md).
 
 ## Configuration and composition
 
@@ -15,6 +14,11 @@ fake-v1 in this slice. Unsupported values fail configuration validation; no prov
 fallback or model credentials exist. Enabling the flag exposes a synthetic demonstration,
 not a useful general assistant: each normal turn calls fake_double with 7 and returns
 the fixed answer `Offline test: 7 × 2 = 14.` It performs no workspace reads or writes.
+
+AI_RETENTION_ENABLED defaults to false. With the reviewed migrations applied,
+keeping this flag true in worker/Beat continues recovery/cleanup when AI_ENABLED=false;
+it does not expose the chat API or dispatch a model. Both flags false schedule no AI
+maintenance and need no AI tables. Never enable either flag against an unmigrated database.
 
 The ordinary API installer registers routes without connecting to AI storage or
 issuing DDL. Applying the reviewed Alembic revision is an explicit prerequisite for
@@ -116,7 +120,7 @@ Only pure fake tools are registered. Real adapters/tools must supply bounded tra
 timeouts or cancellable execution before activation; this is not isolation for arbitrary
 code or a guarantee that a timed-out external write did not happen.
 
-When AI_ENABLED=true, Celery Beat schedules ai.reconcile_runs every 30 seconds on
+When AI_ENABLED or AI_RETENTION_ENABLED is true, Celery Beat schedules ai.reconcile_runs every 30 seconds on
 the existing worker. API, worker and Beat must share that setting and the migrated
 database. The task processes at most 100 overdue queued/running records per sweep,
 using owner-first locks and skipping busy owners. Repeated/concurrent sweeps are
@@ -133,11 +137,31 @@ interrupts still resume through the framework with explicit decisions, fresh own
 checks and the durable attempt budget. There is no public resume endpoint or automatic
 approval; the production action/review bridge remains AI-07.
 
-## Current retention and activation limits
+## Physical retention and replay protection
 
 Viewing/assistant messages/replayed submissions do not extend the 30-day user-message
-window. Expired chats are filtered or denied immediately. Physical content and journal
-cleanup are not implemented yet; see [storage boundaries](ai-persistence.md).
+window. Expired chats are filtered or denied immediately. The maintenance task also
+purges at most 100 expired chats and processes at most 100 eligible journal runs per
+sweep. It rechecks expiry under owner locks, cancels active/interrupted work, then
+cascades messages and all three checkpoint content tables. Other pages/events/files
+are preserved. Failure rolls back the current item; completed items remain deleted,
+and a repeated/concurrent sweep is safe. Disabled owners are included.
+
+Content-free run records expire 30 days after their terminal transition. Attempt/tool
+records use their outcome time, or start time if the outcome is unknown, independently.
+Reads and unrelated background activity do not extend these clocks. Cancellation caused by expiry
+is a new content-free transition with its own 30-day window. Active-run counters are
+never pruned; terminal parents are removed after their children expire. Expired journal
+details are hidden immediately, even while physical cleanup waits for a worker.
+
+Before purging a run, the same transaction leaves an ai_run_receipts row containing
+only owner ID, run ID, submission ID and a completed boolean. These minimal replay and
+committed-context markers last until account deletion; they contain no prompt, digest,
+model label, usage, tool data or timestamps. An old submission ID returns 409 instead
+of becoming executable after cleanup when reused in a valid owned chat. GET for a purged/expired run returns 404.
+Completed markers preserve the correct checkpoint context of a still-active chat;
+failed/cancelled branches remain excluded. The markers cannot authorize an action.
+See [storage and migration impact](ai-persistence.md).
 
 If storage is unavailable, reconciliation waits for a later successful sweep. Worker
 or Beat outages delay it; reads do not run maintenance. The feature remains disabled

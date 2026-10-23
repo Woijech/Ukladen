@@ -32,6 +32,7 @@ provider, current price or universal OpenAI-compatible contract is assumed.
 
 ~~~dotenv
 AI_ENABLED=true
+AI_RETENTION_ENABLED=true
 AI_LLM_PROVIDER=fake
 AI_LLM_MODEL=fake-v1
 ~~~
@@ -93,7 +94,7 @@ The pure harness does not implement admission or authorization. The owned API ad
 authentication, per-run durable budgets, concurrent admission and cancellation through
 middleware/services. Step 7 adds bounded ConnectionError retries, execution deadlines
 and conservative crash reconciliation; see [their exact limits](ai-api.md#execution-deadlines-and-recovery).
-Physical cleanup and business authorization remain later work; built-in
+Step 8 adds physical retention and minimal replay/context receipts. Business authorization remains later work; built-in
 per-invocation limits do not replace the journal.
 
 Verification (2026-10-22): 26 offline harness tests; full backend pytest 988 passed /
@@ -118,6 +119,12 @@ participate in caller-owned SQLAlchemy transactions. Direct harness construction
 does not supply authenticated admission or attempt/tool accounting. The API adds that lifecycle
 and reuses this storage composition; see its separate contract.
 
+Revision 0023_ai_run_receipts adds minimal replay/context markers before detailed
+journals are purged. Both revisions are tested only on disposable schemas and remain
+unapplied to the running app. Keep AI_RETENTION_ENABLED=true in worker/Beat after an
+approved activation, even when chat is later disabled; both flags false intentionally
+perform no AI SQL on an unmigrated installation. No new queue/service is introduced.
+
 Run the offline storage checks with no service targets configured:
 
 ~~~bash
@@ -128,9 +135,10 @@ These tests compile the migration and check state/filter/cursor behavior using m
 Step-5 native tests additionally verify migrations/metadata, owner constraints,
 concurrent admission/deletion, rollback and approve/reject resume in fresh interpreters;
 see the persistence guide for their explicit test target. Step 6 adds chat/run transport,
-manual deletion, cancellation, idempotency and attempt/tool hooks. Retention cleanup
-remains step 8. Step 7 adds deadlines/retry accounting and the ai.reconcile_runs task;
-enable the same AI_ENABLED setting in API, worker and Beat only after an explicitly
+manual deletion, cancellation, idempotency and attempt/tool hooks. Step 8 implements
+bounded physical cleanup and replay markers. Step 7 adds deadlines/retry accounting
+and the ai.reconcile_runs task, extended with retention in step 8;
+enable AI_ENABLED/AI_RETENTION_ENABLED in the relevant consumers only after an explicitly
 approved migration/activation. No new queue, service or dependency is needed.
 
 ## B. AI-02: verify one supported adapter before activation

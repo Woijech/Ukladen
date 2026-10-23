@@ -5,7 +5,8 @@ Status: AI-00 is delivered and AI-01 is partially implemented through its intern
 offline harness, owned persistence and authenticated fake-only chat/run API with
 durable accounting. Tested on disposable PostgreSQL/Redis, disabled by default and
 unapplied to the running app. Bounded offline execution and conservative overdue-run
-reconciliation are implemented; physical retention cleanup and later stages remain unimplemented.
+reconciliation and physical retention cleanup are implemented; final AI-01 sign-off
+and later stages remain pending.
 No P-06, real provider traffic or deployment is included.
 
 Read [system architecture](../../SYSTEM_ARCHITECTURE.md), [AI architecture](../architecture/ai.md),
@@ -21,7 +22,7 @@ numeric order is not an implicit dependency or authorization to start another st
 | Stage | Deliverable | Dependencies / connection gate | Exit evidence |
 | --- | --- | --- | --- |
 | AI-00 | Agreed scope, policies, tool/config contracts and synthetic cases | No external connection | Specification/fixture/link checks; no runtime claim |
-| AI-01 (partial) | Offline agent, owned chat/run API, persistence, accounting and bounded recovery; disabled by default | AI-00; compatibility proved; approval before changes | Offline/native persistence/HTTP/accounting tests; physical cleanup pending; dated results in the execution plan |
+| AI-01 (partial) | Offline agent, owned chat/run API, persistence, accounting, bounded recovery and retention; disabled by default | AI-00; compatibility proved; approval before changes | Offline/native lifecycle and cleanup checks; final step-9 sign-off pending; dated results in the execution plan |
 | AI-02 | Operator model catalog, supported adapters and encrypted personal API connections | AI-01; explicitly chosen vendor contract/account | Synthetic smoke, capability/secret/quota/isolation checks |
 | AI-03 | Authorized search/read tools and lexical grounding | AI-01; existing application services | Sources, current ownership, injection and coverage cases |
 | AI-04 | Separate streaming chats, cancellation, sources, instructions/model settings and usage UI | AI-01/02/03 | Desktop/mobile/session isolation and retention checks |
@@ -63,13 +64,14 @@ are not already implemented merely because package markers or tables are planned
 
 ## 3. Planned configuration and bounds
 
-Only AI_ENABLED, AI_LLM_PROVIDER and AI_LLM_MODEL are implemented, accepting the
+Only AI_ENABLED, AI_RETENTION_ENABLED, AI_LLM_PROVIDER and AI_LLM_MODEL are implemented, accepting the
 offline fake profile. Other settings below remain planned; add only those needed
 by the delivered stage, with no empty future plugin system.
 
 | Setting / configuration | Initial contract |
 | --- | --- |
 | AI_ENABLED | false; fake is the offline default when enabled |
+| AI_RETENTION_ENABLED | false; after approved migration, keeps worker recovery/cleanup enabled independently of chat |
 | AI_LLM_PROVIDER / AI_LLM_MODEL | fake / fake-v1 initially; real adapters/models are explicit operator entries |
 | Operator connection/model catalog | Versioned supported provider/model entries, capability profile and secret reference; AI-02 |
 | Personal connection | Owner-scoped encrypted credential, supported adapter/model and disconnect state; AI-02 |
@@ -111,7 +113,7 @@ Owned state/repositories and checkpoint integration are natively tested with an
 Alembic revision applied only to disposable data; see [persistence contracts](ai-persistence.md).
 The [offline API](ai-api.md) now records actual attempts/tools and exposes an owned
 request lifecycle with bounded dispatch/retries and conservative crash reconciliation;
-physical retention cleanup remains pending.
+physical retention cleanup is implemented with minimal replay/context receipts.
 See [actual setup/limits](ai-setup.md#a1-implemented-offline-harness) and
 [delivery progress](ai-01-execution-plan.md#12-delivery-progress-2026-10-22).
 The remaining paragraphs describe the complete AI-01 target, not a delivered API.
@@ -133,7 +135,7 @@ The owner requested approval before changes and permits read-only checks without
 additional confirmation (clarified on 2026-10-22).
 Follow the [AI-01 approval checkpoints](ai-01-execution-plan.md): report the completed
 step, checks and exact next scope, then obtain approval before subsequent changes.
-Steps 1 through 7 were subsequently authorized; steps 8/9 remain pending.
+Steps 1 through 8 were subsequently authorized; step 9 remains pending.
 
 Persist owned conversations/messages, runs, provider attempts and tool outcomes via
 Alembic, including reviewed checkpoint migrations rather than startup auto-DDL.

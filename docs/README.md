@@ -67,7 +67,7 @@ implementation task, not a guarantee that its checks were rerun during a later e
 - [AI tool contracts](development/ai-tool-contracts.md): capabilities, typed boundaries, budgets and synthetic acceptance data.
 - [AI setup runbook](development/ai-setup.md): staged operator/BYOK providers, embeddings, web search and activation gates.
 - [AI persistence](development/ai-persistence.md): schema, owner checks, transaction boundaries and migration impact; tested on disposable data, unapplied to the app.
-- [Offline AI API](development/ai-api.md): default-disabled fake chats/runs, idempotency, cancellation, accounting, bounded execution and recovery; cleanup limits.
+- [Offline AI API](development/ai-api.md): default-disabled fake chats/runs, idempotency, cancellation, accounting, bounded recovery, physical retention and minimal replay/context markers.
 
 AI-00 and the AI-01 internal offline harness are delivered; see the setup runbook for
 its tested scope. Owned persistence adapters/migration are tested on disposable data,

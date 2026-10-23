@@ -40,7 +40,7 @@ existing services just to match target vocabulary. A package marker is not a fea
 
 Calendar free slots/conflicts, tasks, semantic search and real AI are not implemented.
 The default-disabled [offline AI API](ai-api.md) provides synthetic chat/run lifecycle
-and accounting with bounded execution and overdue-run reconciliation; physical cleanup remains pending.
+and accounting with bounded execution, overdue-run reconciliation and 30-day physical cleanup.
 Workspace organization exists;
 saved event views, user databases, table/calendar views and mixed date projection exist.
 Authenticated IIS is unverified/unimplemented.
@@ -223,8 +223,8 @@ retrieval and AI/RAG remain not implemented. No deployment is performed by this 
 ## 11. P-09 AI help, recommendations, confirmed/automatic actions and RAG
 
 Status: AI-00 specified; AI-01 has a default-disabled fake-only chat/run API and durable
-accounting, bounded execution and overdue-run reconciliation. Real tools/providers,
-physical cleanup and product UI remain pending.
+accounting, bounded execution, overdue-run reconciliation, minimal replay/context
+receipts and physical cleanup. Real tools/providers and product UI remain pending.
 Dependencies: only the application tools actually used; task planning requires P-06.
 The [detailed AI plan](ai-implementation-plan.md) splits work into AI-00 through AI-12,
 with the [owner-agreed product specification](../product/ai.md),

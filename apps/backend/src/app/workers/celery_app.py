@@ -31,7 +31,7 @@ celery_app.conf.update(
         "materials-dispatch": {"task": "materials.dispatch", "schedule": 30.0},
         **(
             {"ai-reconcile-runs": {"task": "ai.reconcile_runs", "schedule": 30.0}}
-            if settings.ai_enabled
+            if settings.ai_enabled or settings.ai_retention_enabled
             else {}
         ),
         **(
