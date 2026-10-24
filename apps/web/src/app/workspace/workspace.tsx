@@ -8,6 +8,8 @@ import { GoogleLinkDialog } from "@/shared/google-link-dialog";
 import logo from "@/shared/assets/ukladen-logo.png";
 import { QueryCache, QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { dateKey, dateTimeLocal, dayStart, localInstants, prettyDate as formatDate, resolveLocalTime, shiftDate, startOfWeek } from "./calendar-time";
+import { csrfToken, requestJson, RequestError, SessionExpiredError } from "./workspace-api";
+import { TasksPanel } from "./tasks-panel";
 import "./workspace.css";
 
 type CalendarEvent = {
@@ -155,37 +157,6 @@ function scheduleStatusMessage(status: ScheduleSyncStatus) {
     unsupported_invalid_event: "В расписании IIS есть занятие с некорректным временем или подгруппой.",
   };
   return unsupported[status.error_code ?? ""] ?? "IIS вернул запись расписания, которую текущий импортёр не может безопасно преобразовать в занятие.";
-}
-
-class RequestError extends Error {
-  constructor(readonly status: number, message: string) { super(message); }
-}
-
-class SessionExpiredError extends RequestError {}
-
-async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, { ...init, credentials: "same-origin", cache: "no-store" });
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { detail?: string; code?: string } | null;
-    if (response.status === 403 && payload?.code === "registration_incomplete") {
-      window.location.replace("/auth/complete-registration");
-      throw new SessionExpiredError(403, "Завершите регистрацию.");
-    }
-    if (path === "/api/v1/auth/login" && response.status === 401) throw new RequestError(response.status, "Неверная почта или пароль.");
-    if (path === "/api/v1/auth/register" && response.status === 409) throw new RequestError(response.status, "Аккаунт с такой почтой уже существует.");
-    if (response.status === 401) throw new SessionExpiredError(response.status, "Войдите в аккаунт, чтобы открыть личное пространство.");
-    if (response.status === 409) throw new RequestError(response.status, "Данные изменились. Обновите страницу и попробуйте ещё раз.");
-    if (response.status === 403) throw new RequestError(response.status, "Сессия защиты устарела. Обновите страницу и повторите действие.");
-    if (response.status === 422) throw new RequestError(response.status, payload?.detail === "Invalid academic selection." ? "Выбери группу и подгруппу из списка." : "Проверь заполненные данные.");
-    throw new RequestError(response.status, response.status === 503 ? "Сервис временно недоступен." : "Не удалось выполнить запрос.");
-  }
-  if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
-}
-
-async function csrfToken() {
-  const result = await requestJson<{ csrf_token: string }>("/api/v1/auth/csrf");
-  return result.csrf_token;
 }
 
 function Icon({ name }: { name: "calendar" | "plus" | "chevron" | "logout" | "sparkle" | "clock" | "menu" | "eye" | "eye-off" | "cap" | "close" }) {
@@ -387,6 +358,7 @@ function SessionWorkspace({ userTimeZone, checkingSession, onSessionEnd, onboard
 
 function CalendarWorkspace({ userTimeZone, onSessionEnd, onboarding }: { userTimeZone: string; onSessionEnd: () => void; onboarding: boolean }) {
   const queryClient = useQueryClient();
+  const [view, setView] = useState<"calendar" | "tasks">("calendar");
   const calendarScroll = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState(() => dateKey(new Date(), userTimeZone));
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
@@ -582,9 +554,9 @@ function CalendarWorkspace({ userTimeZone, onSessionEnd, onboarding }: { userTim
     <aside className="sidebar">
       <a className="brand-lockup" href="/workspace" aria-label="Ukladen — главная"><Brand /></a>
       <div className="sidebar-section-label">ПРОСТРАНСТВО</div>
-      <button className="nav-item active"><Icon name="calendar"/><span>Календарь</span><span className="nav-count">7</span></button>
+      <button className={`nav-item ${view === "calendar" ? "active" : ""}`} aria-current={view === "calendar" ? "page" : undefined} onClick={() => setView("calendar")}><Icon name="calendar"/><span>Календарь</span></button>
       <button className="nav-item muted-nav" title="Заметки появятся в следующих версиях"><span className="nav-glyph">▤</span><span>Заметки</span><span className="soon-label">скоро</span></button>
-      <button className="nav-item muted-nav" title="Задачи пока не подключены"><span className="nav-glyph">◷</span><span>Задачи</span><span className="soon-label">скоро</span></button>
+      <button className={`nav-item ${view === "tasks" ? "active" : ""}`} aria-label="Задачи" aria-current={view === "tasks" ? "page" : undefined} onClick={() => setView("tasks")}><span className="nav-glyph" aria-hidden="true">◷</span><span>Задачи</span></button>
       <div className="sidebar-spacer"/>
       <div className="sidebar-tip"><span className="tip-icon"><Icon name="sparkle"/></span><strong>В своём ритме</strong><p>Оставь место для того, что важно именно тебе.</p></div>
       <div className="account-area"><button className="account-button" aria-expanded={accountMenuOpen} onClick={() => setAccountMenuOpen(open => !open)}><span className="avatar">U</span><span className="account-copy"><strong>Моё пространство</strong><small>{meQuery.data?.group.name ?? "Личный календарь"}</small></span><span className="account-menu">···</span></button>
@@ -593,11 +565,12 @@ function CalendarWorkspace({ userTimeZone, onSessionEnd, onboarding }: { userTim
     </aside>
 
     <section className="main-panel">
-        <header className="topbar"><button className="mobile-menu" aria-label="Меню профиля" aria-expanded={topAccountMenuOpen} onClick={() => setTopAccountMenuOpen(open => !open)}><Icon name="menu"/></button><div className="breadcrumb">Моё пространство <Icon name="chevron"/> <strong>Календарь</strong></div><div className="topbar-actions"><span className={`connection-dot ${calendarQuery.isError ? "offline" : ""}`}/><span className="connection-label">{syncPending ? "Загрузка расписания" : calendarQuery.isFetching ? "Синхронизация" : calendarQuery.isError ? "Нет соединения" : "Синхронизировано"}</span><button className="avatar top-avatar" aria-label="Меню профиля" aria-expanded={topAccountMenuOpen} onClick={() => setTopAccountMenuOpen(open => !open)}>U</button></div>
+        <header className="topbar"><button className="mobile-menu" aria-label="Меню профиля" aria-expanded={topAccountMenuOpen} onClick={() => setTopAccountMenuOpen(open => !open)}><Icon name="menu"/></button><div className="breadcrumb">Моё пространство <Icon name="chevron"/> <strong>{view === "tasks" ? "Задачи" : "Календарь"}</strong></div><div className="topbar-actions">{view === "calendar" && <><span className={`connection-dot ${calendarQuery.isError ? "offline" : ""}`}/><span className="connection-label">{syncPending ? "Загрузка расписания" : calendarQuery.isFetching ? "Синхронизация" : calendarQuery.isError ? "Нет соединения" : "Синхронизировано"}</span></>}<button className="avatar top-avatar" aria-label="Меню профиля" aria-expanded={topAccountMenuOpen} onClick={() => setTopAccountMenuOpen(open => !open)}>U</button></div>
           {topAccountMenuOpen && <div className="top-account-popover"><div className="popover-heading">Профиль и расписание</div><button onClick={() => { setTopAccountMenuOpen(false); setShowGroupPicker(true); }}><Icon name="cap"/><span>{meQuery.data ? "Сменить учебную группу" : "Выбрать учебную группу"}</span></button><button onClick={() => { setTopAccountMenuOpen(false); setShowGoogleLink(true); }}>Связать с Google</button><button onClick={() => void logout()}><Icon name="logout"/><span>Выйти из аккаунта</span></button></div>}
         </header>
 
-      <div className="content-wrap">
+      <nav className="mobile-workspace-nav" aria-label="Разделы пространства"><button type="button" aria-current={view === "calendar" ? "page" : undefined} onClick={() => setView("calendar")}>Календарь</button><button type="button" aria-current={view === "tasks" ? "page" : undefined} onClick={() => setView("tasks")}>Задачи</button></nav>
+      {view === "tasks" ? <TasksPanel timeZone={timeZone} onSessionEnd={onSessionEnd} /> : <div className="content-wrap">
         <div className="page-heading"><div><div className="greeting">ТВОЯ НЕДЕЛЯ</div><h1>Календарь</h1><p className="heading-subtitle">Спокойный взгляд на предстоящие дни.</p></div><button className="primary-button create-button" onClick={() => openCreate()}><Icon name="plus"/><span>Новое событие</span></button></div>
 
         <section className="calendar-card" aria-label="Календарь на неделю">
@@ -639,9 +612,9 @@ function CalendarWorkspace({ userTimeZone, onSessionEnd, onboarding }: { userTim
 
         <div className="below-grid"><section className="selected-day-card"><div className="section-title"><div><span className="greeting">ВЫБРАННЫЙ ДЕНЬ</span><h2>{prettyDate(selected, { weekday: "long", day: "numeric", month: "long" })}</h2></div><button className="text-action" onClick={() => openCreate()}>+ Событие</button></div>{selectedEvents.length ? <div className="agenda-list">{selectedEvents.map(item => <button type="button" className="agenda-row" key={item.id} onClick={() => openEvent(item.originalEvent)}><span className={`agenda-dot ${item.source === "official" ? "dot-official" : "dot-personal"}`}/><span className="agenda-time">{Date.parse(item.starts_at) > Date.parse(item.originalEvent.starts_at) && "↪ "}{prettyDate(new Date(item.starts_at), { hour: "2-digit", minute: "2-digit" })}</span><span className="agenda-name">{item.title}</span><span className="agenda-place">{item.location ?? item.subject ?? ""}</span></button>)}</div> : <p className="agenda-empty">Здесь появятся события на выбранный день.</p>}</section>
           <section className="schedule-source-card"><div className="source-icon"><Icon name="cap"/></div><div className="source-copy"><span className="greeting">УЧЕБНОЕ РАСПИСАНИЕ</span><strong>{meQuery.data ? `Группа ${meQuery.data.group.name}` : "Добавь свою группу"}</strong><p>{meQuery.data ? `Подгруппа: ${meQuery.data.subgroup ?? "все"}. Официальные занятия отображаются вместе с личными планами.` : "Выбери группу, чтобы видеть пары в личном календаре."}</p></div><button aria-label="Настроить учебную группу" className="source-chevron" onClick={() => setShowGroupPicker(true)}><Icon name="chevron"/></button></section></div>
-        {toast && <div className="toast" role="status">{toast}</div>}
-        {showGoogleLink && <GoogleLinkDialog onClose={() => setShowGoogleLink(false)} onSessionEnd={onSessionEnd} />}
-      </div>
+      </div>}
+      {toast && <div className="toast" role="status">{toast}</div>}
+      {showGoogleLink && <GoogleLinkDialog onClose={() => setShowGoogleLink(false)} onSessionEnd={onSessionEnd} />}
     </section>
 
     {showEventForm && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setShowEventForm(false); }}><form className="event-modal" onSubmit={createEvent}><button type="button" className="modal-close" onClick={() => setShowEventForm(false)} aria-label="Закрыть">×</button><span className="greeting">ЛИЧНЫЙ КАЛЕНДАРЬ</span><h2>{editingEvent ? "Изменить событие" : "Новое событие"}</h2><p>{editingEvent ? "Можно изменить личный план. Учебные пары остаются без изменений." : "Личное событие можно поставить в любое время, даже одновременно с парой."}</p><p className="calendar-timezone">Часовой пояс: {timeZone}</p><label htmlFor="event-title">Название</label><input id="event-title" autoFocus required maxLength={200} value={title} onChange={event => setTitle(event.target.value)} placeholder="Например, подготовка к экзамену"/><div className="form-row"><div><label htmlFor="event-start">Начало</label><input id="event-start" type="datetime-local" required value={startValue} onChange={event => { setStartValue(event.target.value); setStartInstant(""); }}/>{startOptions.length > 1 && <select aria-label="Смещение начала" required value={startInstant} onChange={event => setStartInstant(event.target.value)}><option value="" disabled>Выберите смещение</option>{startOptions.map(instant => <option key={instant} value={instant}>{prettyDate(new Date(instant), { hour: "2-digit", minute: "2-digit", timeZoneName: "shortOffset" })}</option>)}</select>}</div><div><label htmlFor="event-end">Окончание</label><input id="event-end" type="datetime-local" required value={endValue} onChange={event => { setEndValue(event.target.value); setEndInstant(""); }}/>{endOptions.length > 1 && <select aria-label="Смещение окончания" required value={endInstant} onChange={event => setEndInstant(event.target.value)}><option value="" disabled>Выберите смещение</option>{endOptions.map(instant => <option key={instant} value={instant}>{prettyDate(new Date(instant), { hour: "2-digit", minute: "2-digit", timeZoneName: "shortOffset" })}</option>)}</select>}</div></div><label htmlFor="event-location">Место <span className="optional">необязательно</span></label><input id="event-location" value={location} onChange={event => setLocation(event.target.value)} maxLength={500} placeholder="Аудитория или место"/><label htmlFor="event-description">Описание <span className="optional">необязательно</span></label><textarea id="event-description" value={description} onChange={event => setDescription(event.target.value)} maxLength={10000} placeholder="Подробности личного события"/>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="modal-actions"><button type="button" className="cancel-button" onClick={() => setShowEventForm(false)}>Отмена</button>{editingEvent && <button type="button" className="cancel-button" onClick={() => void removeEvent(editingEvent)}>Удалить</button>}<button className="primary-button" disabled={saving}>{saving ? "Сохраняем…" : editingEvent ? "Сохранить" : "Добавить событие"}</button></div></form></div>}
