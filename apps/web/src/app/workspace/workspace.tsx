@@ -850,7 +850,7 @@ type SessionUser = {
   updated_at?: string;
 };
 
-export function Workspace() {
+export function Workspace({ initialSection = "calendar" }: { initialSection?: SectionKey }) {
   const [onboarding, setOnboarding] = useState(false);
   const session = useQuery({
     queryKey: ["workspace-session"],
@@ -910,6 +910,7 @@ export function Workspace() {
     );
   return (
     <SessionWorkspace
+      initialSection={initialSection}
       key={`${session.data.id}:${session.data.timezone}`}
       userTimeZone={session.data.timezone}
       user={session.data}
@@ -921,12 +922,14 @@ export function Workspace() {
 }
 
 function SessionWorkspace({
+  initialSection,
   userTimeZone,
   user,
   checkingSession,
   onSessionEnd,
   onboarding,
 }: {
+  initialSection: SectionKey;
   userTimeZone: string;
   user: SessionUser;
   checkingSession: boolean;
@@ -961,6 +964,7 @@ function SessionWorkspace({
     <div hidden={checkingSession}>
       <QueryClientProvider client={client}>
         <CalendarWorkspace
+          initialSection={initialSection}
           userTimeZone={userTimeZone}
           user={user}
           onSessionEnd={onSessionEnd}
@@ -972,18 +976,20 @@ function SessionWorkspace({
 }
 
 function CalendarWorkspace({
+  initialSection,
   userTimeZone,
   user,
   onSessionEnd,
   onboarding,
 }: {
+  initialSection: SectionKey;
   userTimeZone: string;
   user: SessionUser;
   onSessionEnd: () => void;
   onboarding: boolean;
 }) {
   const queryClient = useQueryClient();
-  const [section, setSection] = useState<SectionKey>("calendar");
+  const [section, setSection] = useState<SectionKey>(initialSection);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavigation, setMobileNavigation] = useState(false);
   const [dirty, setDirty] = useState(false);

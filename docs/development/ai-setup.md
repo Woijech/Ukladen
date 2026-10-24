@@ -7,7 +7,8 @@ Disabled by default; migrations are tested on disposable data and unapplied to t
 running application. See [final verification](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 AI-02 adds optional [OpenRouter models and encrypted credentials](ai-connections.md),
 implemented locally but unactivated. [AI-03 source reads](ai-03.md) are implemented
-locally; embedding workers remain unimplemented.
+locally. [AI-04](ai-04.md) adds locally implemented streaming chat, source viewing,
+preferences and usage UI/API; embedding workers remain unimplemented.
 See [current API and recovery limits](ai-api.md). No provider request or deployment was made.
 
 Use [product scope](../product/ai.md), [stages](ai-implementation-plan.md),

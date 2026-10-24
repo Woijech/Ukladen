@@ -7,7 +7,9 @@ bounded recovery and 30-day cleanup, disabled by default and unmigrated in the a
 AI-02 adds an optional [OpenRouter catalog and encrypted personal connections](../development/ai-connections.md),
 implemented locally but unactivated. [AI-03](../development/ai-03.md) implements backend
 workspace/calendar/database read tools with lexical search and source references.
-Chat UI, semantic retrieval, planning and usage analytics UI are not implemented. AI-00 specifies the target work; it does
+[AI-04](../development/ai-04.md) implements streaming chat, source inspection,
+model/connection settings, personal instructions and usage analytics UI/API locally.
+Activation, semantic retrieval and planning remain pending. AI-00 specifies the target work; it does
 not enable integrations. This is the single AI specification linked from
 [the overview](overview.md). See [delivery](../development/ai-implementation-plan.md),
 [architecture](../architecture/ai.md), [tool contracts](../development/ai-tool-contracts.md)
@@ -28,8 +30,9 @@ Groq-only baseline is superseded. LLM, embeddings and web search are separate ad
 
 ## 2. Editable scenario catalog
 
-The full user experience in every row remains not implemented. AI-UC-20 now has
-backend catalog/connection support; its settings UI remains AI-04. Existing IDs are preserved. Selected means target
+Rows describe the selected target; implemented local subsets are listed above.
+AI-UC-20 now has
+backend catalog/connection support and AI-04 settings UI. Existing IDs are preserved. Selected means target
 scope, not a currently enabled tool. Database querying remains separately optional.
 
 | ID | Selection / dependency | Request | Expected result and boundary |
@@ -62,7 +65,7 @@ this catalog does not change a deployment. Several scenarios may share a capabil
 ## 3. Chat and interaction
 
 - Separate owner-scoped chats with ordered history, continuation and multi-tool requests.
-- Planned entry points: /workspace/ai, contextual calendar panel and /workspace/ai/usage.
+- Implemented local entry points: /workspace/ai and /workspace/ai/usage. The contextual calendar panel remains planned.
 - Stream visible output/safe progress; support cancellation, stored state and reconnect
   without resubmission. Never expose private model reasoning.
 - Distinguish answers, proposals, approvals and committed results. Explain useful
@@ -201,7 +204,7 @@ or explicitly limit modes; do not silently weaken behavior or switch credentials
 LLM, embedding and search credentials/billing are independent. SDK/framework types do
 not enter domain/application contracts.
 
-The planned /workspace/ai/usage page and per-run summary show owner-only 7/30-day
+The implemented local /workspace/ai/usage page and per-run summary show owner-only 7/30-day
 summaries, daily series/accessible tables, model comparisons, recent runs, safe tool/action
 outcomes and index state. No new administrator role/global analytics is required.
 

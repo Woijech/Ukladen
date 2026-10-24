@@ -10,6 +10,14 @@ no model worker dispatch; the existing worker performs bounded recovery/cleanup.
 
 ## Schema and migration impact
 
+[AI-04](ai-04.md) adds 0026_ai_preferences (one versioned, UTF-8-bounded instructions
+record per owner, independent of chat retention) and 0027_ai_price_snapshots
+(nullable configured price metadata on admitted runs, following journal retention).
+Existing rows remain valid and unpriced. Owner deletion cascades preferences;
+chat deletion does not erase them. Downgrades refuse retained nonempty instructions
+or nonnull price metadata rather than silently discarding them. Streaming events
+remain transient; only existing canonical final messages/checkpoints are persisted.
+
 [AI-03](ai-03.md) adds revision 0025_ai_message_sources after 0024_ai_connections:
 default-empty bounded JSONB references on assistant messages, sharing their retention
 and deletion lifecycle. Current message DTOs return these historical source references.

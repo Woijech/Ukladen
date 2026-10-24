@@ -36,6 +36,11 @@ connection for checkpoint IO and restores its row factory/isolation on return.
 
 ## HTTP contract
 
+AI-04 extends this transport with an additive streaming endpoint, latest-first
+history windows, current source inspection, independent preferences and owner usage.
+See [the implemented AI-04 contract](ai-04.md) for their inputs, event/privacy bounds
+and recovery behavior. The existing synchronous submission endpoint is preserved.
+
 All paths below are relative to /api/v1/ai. All responses, including errors, use
 Cache-Control: no-store. Every operation requires an authenticated, active user with
 completed registration. Mutations also require the existing allowed Origin and matching

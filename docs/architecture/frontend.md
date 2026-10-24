@@ -1,6 +1,6 @@
 # Ukladen Frontend
 
-Status: implemented — shared light/dark shell, authentication and registration completion, optional group selection, day/week personal calendar, page/block editor, materials, collections/tags, database table/calendar views, search, reminders/inbox and profile/avatar settings. The boundaries below distinguish these interfaces from future backend capabilities.
+Status: implemented — shared light/dark shell, authentication and registration completion, optional group selection, day/week personal calendar, page/block editor, materials, collections/tags, database table/calendar views, search, reminders/inbox and profile/avatar settings, plus the locally implemented AI-04 chat/settings/usage UI. AI activation remains pending. The boundaries below distinguish these interfaces from future backend capabilities.
 
 `apps/web` uses Next.js App Router, React and strict TypeScript. The root layout
 provides a TanStack Query client created once per mounted provider. The frontend
@@ -100,8 +100,8 @@ users without an academic profile can choose to connect a BSUIR group or continu
 without one. Group selection uses the existing group catalogue, group-context,
 profile PATCH and schedule-sync endpoints. The calendar displays the authenticated
 user's resolved week and supports personal-event create/edit/delete. Profile actions
-open the group selector, settings or revoke the current session. Tasks and AI remain
-disabled because their backend runtime does not exist. Official event details are
+open the group selector, settings or revoke the current session. Tasks remain unavailable because their backend is not implemented. The AI section
+uses the default-disabled AI backend and explains missing activation/configuration. Official event details are
 read-only; override editing and saved event-calendar views remain API-only.
 
 The workspace checks `/api/v1/users/me` before mounting private data. Each authenticated
@@ -218,10 +218,11 @@ calculations. Permissions, schedule resolution and planning rules remain backend
 ## Target product responsibilities
 
 Status: partially implemented. Future UI includes official-event override editing,
-saved event-calendar views, mixed date projection and task/AI features after their
-backend slices. Subjects
+saved event-calendar views, mixed date projection and task features after their
+backend slices. [AI-04](../development/ai-04.md) implements read-only chat, sources,
+instructions, connections and usage; write/proposal/grant interfaces remain later stages. Subjects
 are optional navigation. Date labels and time reservations must be distinguishable.
-AI UI exposes supporting sources, recommendations, exact proposals/confirmation and
+The planned AI write UI will expose exact proposals/confirmation and
 explicit automatic-action permission management. Shared editing and formulas are deferred.
 
 Follow [workspace requirements](../product/workspace.md) and resolve editor/collaboration

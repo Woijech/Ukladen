@@ -7,7 +7,8 @@ conservative recovery and physical retention cleanup. Tested on disposable
 PostgreSQL/Redis, disabled by default and unapplied to the running app.
 AI-02 now adds the optional [OpenRouter catalog and encrypted connections](ai-connections.md);
 activation/live account verification remain pending. AI-03 adds implemented
-[authorized source reads](ai-03.md); subsequent stages remain not implemented; see the dated final verification in the
+[authorized source reads](ai-03.md). [AI-04](ai-04.md) adds locally implemented
+streaming chat/settings/usage UI and API; subsequent stages remain not implemented; see the dated final verification in the
 [execution record](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 No P-06, real provider traffic or deployment is included.
 
@@ -27,7 +28,7 @@ numeric order is not an implicit dependency or authorization to start another st
 | AI-01 | Delivered offline agent, owned chat/run API, persistence, accounting, bounded recovery and retention; disabled by default | AI-00; all nine steps individually approved; no application migration/activation | Offline/native lifecycle, restart and cleanup checks; dated final verification in the execution record |
 | AI-02 | Implemented optional OpenRouter catalog, supported adapter and encrypted personal connections; live activation pending | AI-01; owner-selected OpenRouter/DeepSeek; account gate remains | Synthetic HTTP/native secret/quota/isolation checks; [contract](ai-connections.md) |
 | AI-03 | Implemented authorized page/material/calendar/database tools and lexical grounding; unactivated | AI-01/02; existing application services | Native ownership/lifecycle, synthetic provider/API, current-context and citation checks; [contract](ai-03.md) |
-| AI-04 | Separate streaming chats, cancellation, sources, instructions/model settings and usage UI | AI-01/02/03 | Desktop/mobile/session isolation and retention checks |
+| AI-04 | Implemented local streaming chats, cancellation, sources, instructions/model settings and usage UI; unactivated | AI-01/02/03 | [Contract and verification](ai-04.md) |
 | AI-05 | Embedding runtime/hardware proof | AI-00; model download only if requested | Compatible packages, pinned model and measured full-stack cost |
 | AI-06 | Versioned chunks, hybrid retrieval, complete-source coverage support | AI-03/05; pgvector/index jobs | Retrieval quality, lifecycle/recovery and coverage checks |
 | AI-07 | Exact confirmed creates and requested edits | AI-01/03/04; each target service must exist | Normal-service writes, versions, commit/replay and previews |
@@ -195,6 +196,9 @@ Distinguish no evidence, partial evidence and source/index failure; no automatic
 external fallback on authorization failures. Test injection, foreign IDs and source errors.
 
 ## 8. AI-04: streaming chat, settings, sources and usage
+
+Status: implemented locally; default-disabled and unactivated. See the
+[AI-04 contract and verification](ai-04.md). The original scope follows.
 
 Deliver separate chats, continuation, streaming, safe progress, cancellation and
 reconnection to stored state, not duplicate submissions. Polling may aid recovery

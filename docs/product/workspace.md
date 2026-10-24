@@ -178,7 +178,9 @@ The user asks about tomorrow, searches a lab note or requests a planning change.
 - Retrieved page/material text cannot grant tool permissions or override instructions.
 - AI reports unimplemented tools, stale sources and unsupported IIS capabilities.
 
-AI runtime is not implemented. The [AI specification](ai.md) records the 2026-10-21
+AI-01 through [AI-04](../development/ai-04.md) are implemented locally and remain
+default-disabled/unactivated. Planning and business-write execution are later stages.
+The [AI specification](ai.md) records the 2026-10-21
 decisions: independent tasks, labeled effort estimates, explicit work windows,
 protected personal events and all-or-nothing confirmed plans. Knowledge fallback
 distinguishes missing local evidence from general/web information. Owner instructions

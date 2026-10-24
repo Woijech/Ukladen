@@ -15,7 +15,8 @@ An optional [OpenRouter adapter/catalog and encrypted personal connections](../d
 are implemented locally under AI-02; application migration and live account activation
 remain pending. [AI-03 source tools](../development/ai-03.md) implement authorized
 lexical search, page/material reads and calendar/database queries. Semantic retrieval,
-write tools and product AI UI are not implemented. See the
+write tools are not implemented. [AI-04](../development/ai-04.md) adds streaming
+chat, current-source inspection, preferences and usage UI/API locally; activation remains pending. See the
 [offline harness](../development/ai-setup.md#a1-implemented-offline-harness) and
 [final verification](../development/ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 The [persistence guide](../development/ai-persistence.md) records the tested internal schema,
@@ -217,7 +218,8 @@ actions; [the setup runbook](../development/ai-setup.md) defines connection gate
 The AI-00 specification/acceptance data and offline AI-01 foundation are complete.
 Owned offline runtime/usage persistence and chat/run endpoints are implemented;
 the optional OpenRouter adapter and AI-03 read tools are implemented but unactivated;
-write tools and product usage-summary endpoints remain not implemented.
+[AI-04](../development/ai-04.md) implements streaming chat/settings/usage UI and
+owner-only usage summaries. Write tools remain not implemented.
 `ai` owns implemented conversation/run/tool usage metadata and planned action metadata;
 `search` owns derived retrieval/index jobs. Existing safe logs remain operator
 diagnostics, not a source of prompts or cross-user product analytics.

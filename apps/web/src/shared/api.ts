@@ -9,10 +9,10 @@ export class RequestError extends Error {
 
 export class SessionExpiredError extends RequestError {}
 
-export async function requestJson<T>(
+export async function request(
   path: string,
   init?: RequestInit,
-): Promise<T> {
+): Promise<Response> {
   const response = await fetch(path, {
     ...init,
     credentials: "same-origin",
@@ -68,12 +68,23 @@ export async function requestJson<T>(
         : "Не удалось выполнить запрос.",
     );
   }
+  return response;
+}
+
+export async function requestJson<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const response = await request(path, init);
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 
-export async function csrfToken() {
-  const result = await requestJson<{ csrf_token: string }>("/api/v1/auth/csrf");
+export async function csrfToken(signal?: AbortSignal) {
+  const result = await requestJson<{ csrf_token: string }>(
+    "/api/v1/auth/csrf",
+    { signal },
+  );
   return result.csrf_token;
 }
 

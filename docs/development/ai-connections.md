@@ -32,7 +32,7 @@ port remain neutral. The existing LangChain runner/checkpointer is reused; its
 historical `OfflineAgentRunner` / `owned_offline_runner` names remain internal.
 Real chats register no synthetic tools. Tool-capable offerings now register
 [AI-03 authorized reads](ai-03.md); text-only offerings expose no workspace tools.
-UI streaming remains AI-04. The adapter's synchronous and streaming protocols are
+[AI-04](ai-04.md) now implements streaming chat and settings UI. The adapter's synchronous and streaming protocols are
 tested with synthetic HTTP/SSE; async calls reuse the guarded synchronous transport.
 
 Pinned additions: langchain-openrouter 0.2.8, openrouter 0.11.46 and transitive
@@ -215,7 +215,7 @@ than deliberately exhausting real quotas. No live account smoke has run in this 
 Rollback: disable affected catalog entries or AI_ENABLED, retaining maintenance for
 migrated data. Disconnect personal keys or remove operator secret access. Preserve
 existing chats, business objects, data volumes and encryption backups; do not force
-a destructive migration downgrade. UI/model settings are delivered in AI-04.
+a destructive migration downgrade. UI/model settings are delivered in [AI-04](ai-04.md).
 
 ## Verification (2026-10-24)
 

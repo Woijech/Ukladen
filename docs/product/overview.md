@@ -163,8 +163,9 @@ editing, extraction, deterministic planning/replanning, model/web fallback, pers
 instructions and opt-in proactive reviews. Provider-neutral operator offerings and
 user-owned API connections replace the old single-provider baseline. Delivery and
 connection gates are in [the implementation plan](../development/ai-implementation-plan.md).
-AI-00 and the offline AI-01 foundation are complete; real assistant behavior
-and analytics UI remain not implemented. See [AI architecture](../architecture/ai.md).
+AI-01/02/03 and [AI-04](../development/ai-04.md) are implemented locally, including
+streaming chat, source inspection, personal instructions and usage UI. Application
+activation and real-provider answer quality remain unverified. See [AI architecture](../architecture/ai.md).
 
 ## 9. Implementation status
 
@@ -195,7 +196,8 @@ and analytics UI remain not implemented. See [AI architecture](../architecture/a
 | Weekly calendar, personal-event create/edit/delete, login/registration and group selection UI | Implemented |
 | Flat block pages, materials/search, collections/tags, database saved views, reminders/inbox and profile/avatar UI | Implemented; see [frontend scope and limits](../architecture/frontend.md) |
 | Official override editing, saved event views and mixed calendar display UI | Status: not implemented; backend APIs exist. |
-| Tasks and AI UI | Status: not implemented; tasks backend absent, AI backend limited to offline testing. |
+| AI chat/settings/usage UI | Implemented locally under AI-04; default-disabled backend, activation and live-provider quality pending. |
+| Tasks UI | Status: not implemented; tasks backend absent. |
 
 ## 10. Development approach
 

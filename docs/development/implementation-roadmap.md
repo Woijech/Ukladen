@@ -40,7 +40,8 @@ existing services just to match target vocabulary. A package marker is not a fea
 
 Calendar free slots/conflicts, tasks and semantic search are not implemented.
 AI-02 adds optional [OpenRouter models and encrypted connections](ai-connections.md),
-implemented locally but unactivated; no product AI UI is delivered.
+implemented locally but unactivated. [AI-04](ai-04.md) adds a locally implemented
+streaming chat, source, settings and usage interface; activation remains pending.
 The default-disabled [offline AI API](ai-api.md) provides synthetic chat/run lifecycle
 and accounting with bounded execution, overdue-run reconciliation and 30-day physical cleanup.
 Workspace organization exists;
@@ -54,7 +55,7 @@ timezone handling have deterministic browser regressions; see
 adds the shared light/dark shell, flat block page editor, materials/search,
 collections/tags, database schemas/records/table and day/week/month saved views,
 reminders/inbox and profile/avatar settings. Official override editing, saved event
-views and mixed projection remain API-only. Tasks and AI remain unavailable.
+views and mixed projection remain API-only. Tasks remain unavailable. AI-04 UI is implemented locally; AI remains default-disabled.
 The P-01–P-08 sections below preserve their original backend-slice scope; their
 verification history is not evidence of rerunning backend checks for the UI work.
 
@@ -229,7 +230,8 @@ accounting, bounded execution, overdue-run reconciliation, minimal replay/contex
 receipts and physical cleanup. See [final AI-01 verification](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 AI-02 implements the optional OpenRouter adapter/catalog and encrypted personal
 connections; live account activation remains pending. [AI-03 read tools](ai-03.md)
-are implemented locally. Write tools and product UI remain not implemented; application migrations are unapplied.
+are implemented locally. [AI-04](ai-04.md) adds streaming chat/settings/usage UI
+and supporting APIs. Write tools remain not implemented; application migrations are unapplied.
 Dependencies: only the application tools actually used; task planning requires P-06.
 The [detailed AI plan](ai-implementation-plan.md) splits work into AI-00 through AI-12,
 with the [owner-agreed product specification](../product/ai.md),

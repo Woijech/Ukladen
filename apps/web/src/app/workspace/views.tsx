@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import symbol from "@/shared/assets/ukladen-avatar.png";
@@ -19,6 +19,9 @@ import {
 const DatabasesPanel = dynamic(() =>
   import("./panels/databases").then((module) => module.DatabasesPanel),
 );
+const AiPanel = dynamic(() =>
+  import("./panels/ai").then((module) => module.AiPanel),
+);
 import { OrganizationPanel, type EventTarget } from "./panels/organization";
 import type { SectionKey } from "./navigation";
 
@@ -34,6 +37,12 @@ type ViewProps = {
 };
 export function WorkspaceViews(props: ViewProps) {
   const { section, timeZone, onOpenPage, onNavigate } = props;
+  if (section === "ai")
+    return (
+      <Suspense fallback={<p role="status">Загрузка AI…</p>}>
+        <AiPanel onDirtyChange={props.onDirtyChange} />
+      </Suspense>
+    );
   if (section === "notes")
     return (
       <NotesPanel

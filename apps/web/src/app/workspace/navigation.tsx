@@ -42,6 +42,11 @@ export const sections = [
     icon: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4",
   },
   {
+    id: "ai",
+    title: "AI",
+    icon: "m12 3 2 6 6 3-6 2-2 6-2-6-6-2 6-3Z",
+  },
+  {
     id: "settings",
     title: "Настройки",
     icon: "m9 3-1 3-3 1-2 3 2 3v4l4 1 3 3 3-3 4-1v-4l2-3-2-3-3-1-1-3Zm6 9a3 3 0 1 1-6 0 3 3 0 0 1 6 0",
@@ -104,16 +109,6 @@ export function Navigation({
       >
         <NavIcon path="M9 5h12M9 12h12M9 19h12M3 5h.01M3 12h.01M3 19h.01" />
         <span>Задачи</span>
-        <small>скоро</small>
-      </button>
-      <button
-        className="nav-item muted-nav"
-        disabled
-        aria-label="AI Assistant · в разработке"
-        title="AI-модуль ещё не реализован"
-      >
-        <NavIcon path="m12 3 2 6 6 3-6 2-2 6-2-6-6-2 6-3Z" />
-        <span>AI Assistant</span>
         <small>скоро</small>
       </button>
       {footer}

@@ -62,7 +62,7 @@ pages, materials, explicit organization, database table/calendar views, full-tex
 search, reminders/inbox and profile/avatar settings. Its shared light/dark shell
 preserves the existing API, session and calendar contracts. Official override editing,
 saved event views and mixed date projection remain API-only. Tasks require their future
-backend; the product AI UI is a separate unimplemented stage. See the [frontend guide](docs/architecture/frontend.md).
+backend. The AI-04 chat/settings/usage UI is implemented locally; AI remains default-disabled and unactivated. See the [frontend guide](docs/architecture/frontend.md).
 
 Detailed behavior: [product overview](docs/product/overview.md) and
 [workspace requirements](docs/product/workspace.md).
@@ -648,7 +648,9 @@ bounded recovery and 30-day cleanup with minimal replay/context receipts;
 see [persistence contracts](docs/development/ai-persistence.md).
 AI-02 adds optional real model connections and AI-03 adds [authorized source tools](docs/development/ai-03.md),
 including typed database queries and current-source context rebuilding. They are
-implemented locally but unactivated; semantic retrieval, write actions and UI remain later stages.
+implemented locally but unactivated. [AI-04](docs/development/ai-04.md) adds streaming chats,
+current-source inspection, personal instructions and owner usage with historical price metadata.
+Semantic retrieval and write actions remain later stages.
 Own conversations, personal instructions, proposals/grants and usage as each feature
 is delivered; keep SDK/framework types behind
 application interfaces. Checkpoint continuity never replaces authorization or commit truth.

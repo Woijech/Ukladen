@@ -99,6 +99,14 @@ This developer workflow is distinct from product HITL.
 
 ## Remaining decisions
 
+AI-04 owner decisions (2026-10-24): implement a separate AI area, using Notion's
+documented chat history and model/source controls as interaction references; preserve
+Ukladen's existing shell and A1 identity. Include explicit per-request source selection
+alongside automatic owned-source search. Proceed with local implementation, checks
+and local commits. The difference between local delivery and application activation
+was explained; application migrations, provider traffic and deployment are not part
+of this local scope. No automatic model switching or additional AI phase is selected.
+
 AI-03 owner decisions (2026-10-24): include user-database reads alongside pages,
 materials and calendar; allow automatic search across owned sources unless restricted;
 retain labeled general explanations after missing local evidence; clarify material
