@@ -90,3 +90,27 @@ class SqlAlchemyTaskRepository:
         )
         if identifier is None:
             raise TaskVersionConflict()
+
+    def has_open_descendants(self, user_id: UUID, task_id: UUID) -> bool:
+        descendants = (
+            select(TaskModel.id)
+            .where(TaskModel.user_id == user_id, TaskModel.parent_id == task_id)
+            .cte("task_descendants", recursive=True)
+        )
+        descendants = descendants.union(
+            select(TaskModel.id)
+            .join(descendants, TaskModel.parent_id == descendants.c.id)
+            .where(TaskModel.user_id == user_id)
+        )
+        return (
+            self.session.scalar(
+                select(TaskModel.id)
+                .where(
+                    TaskModel.user_id == user_id,
+                    TaskModel.id.in_(select(descendants.c.id)),
+                    TaskModel.status.in_(("todo", "in_progress")),
+                )
+                .limit(1)
+            )
+            is not None
+        )

@@ -12,10 +12,12 @@ from test_auth_sessions import concurrent_engine as concurrent_engine
 
 from alembic import command
 from app.modules.tasks.application.ports import TaskRepository
-from app.modules.tasks.domain.tasks import Task, TaskVersionConflict
+from app.modules.tasks.application.service import TaskService
+from app.modules.tasks.domain.tasks import Task, TaskHierarchyConflict, TaskVersionConflict
 from app.modules.tasks.infrastructure.orm import TaskModel
 from app.modules.tasks.infrastructure.repository import SqlAlchemyTaskRepository
 from app.modules.users.infrastructure.orm import UserModel
+from app.modules.users.infrastructure.repository import SqlAlchemyUserAuthentication
 
 
 def test_migration_preserves_users_and_refuses_data_loss(database_connection: Connection) -> None:
@@ -109,6 +111,83 @@ def test_parent_constraint_requires_same_owner_and_acyclic_self_reference(
             database_connection.execute(insert(TaskModel).values(title="Invalid", **values))
     with pytest.raises(IntegrityError), database_connection.begin_nested():
         database_connection.execute(delete(TaskModel).where(TaskModel.id == parent))
+
+
+def test_repository_detects_open_descendants_at_any_depth(database_connection: Connection) -> None:
+    owner, other = uuid4(), uuid4()
+    root, child, grandchild, unrelated = uuid4(), uuid4(), uuid4(), uuid4()
+    database_connection.execute(
+        insert(UserModel),
+        [
+            {"id": owner, "email": "descendant-owner@example.com"},
+            {"id": other, "email": "descendant-other@example.com"},
+        ],
+    )
+    database_connection.execute(
+        insert(TaskModel),
+        [
+            {"id": root, "user_id": owner, "parent_id": None, "title": "Root", "status": "done"},
+            {
+                "id": child,
+                "user_id": owner,
+                "parent_id": root,
+                "title": "Child",
+                "status": "cancelled",
+            },
+            {
+                "id": grandchild,
+                "user_id": owner,
+                "parent_id": child,
+                "title": "Open grandchild",
+                "status": "todo",
+            },
+            {
+                "id": unrelated,
+                "user_id": other,
+                "parent_id": None,
+                "title": "Other",
+                "status": "todo",
+            },
+        ],
+    )
+    with Session(database_connection, join_transaction_mode="create_savepoint") as session:
+        repository = SqlAlchemyTaskRepository(session)
+        assert repository.has_open_descendants(owner, root)
+        assert repository.has_open_descendants(owner, child)
+        assert not repository.has_open_descendants(owner, grandchild)
+        assert not repository.has_open_descendants(other, root)
+        session.execute(update(TaskModel).where(TaskModel.id == grandchild).values(status="done"))
+        assert not repository.has_open_descendants(owner, root)
+
+
+def test_task_service_preserves_completion_invariant_across_nested_writes(
+    database_connection: Connection,
+) -> None:
+    owner = uuid4()
+    with Session(database_connection, join_transaction_mode="create_savepoint") as session:
+        session.add(UserModel(id=owner, email="task-service-tree@example.com"))
+        session.flush()
+        service = TaskService(
+            SqlAlchemyTaskRepository(session), SqlAlchemyUserAuthentication(session)
+        )
+        root = service.create(owner, {"title": "Root"})
+        child = service.create(owner, {"title": "Child", "parent_id": root.id})
+        grandchild = service.create(owner, {"title": "Grandchild", "parent_id": child.id})
+        with pytest.raises(TaskHierarchyConflict):
+            service.update(owner, root.id, {"parent_id": grandchild.id}, 1)
+        with pytest.raises(TaskHierarchyConflict):
+            service.update(owner, root.id, {"status": "done"}, 1)
+        assert service.get(owner, root.id).status == "todo"
+        service.update(owner, grandchild.id, {"status": "done"}, 1)
+        service.update(owner, child.id, {"status": "done"}, 1)
+        service.update(owner, root.id, {"status": "done"}, 1)
+        with pytest.raises(TaskHierarchyConflict):
+            service.update(owner, grandchild.id, {"status": "todo"}, 2)
+        with pytest.raises(TaskHierarchyConflict):
+            service.create(owner, {"title": "Open under closed", "parent_id": root.id})
+        moved = service.update(owner, grandchild.id, {"parent_id": None, "status": "todo"}, 2)
+        assert moved.parent_id is None and moved.status == "todo"
+        assert service.get(owner, root.id).status == "done"
 
 
 def test_repository_owner_version_filters_and_cascade(database_connection: Connection) -> None:
