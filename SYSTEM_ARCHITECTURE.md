@@ -54,14 +54,15 @@ Additive mixed calendar display is implemented through application query ports.
 One-shot calendar reminders and durable in-app notifications are implemented.
 Private materials, bounded document extraction, page attachments and basic PostgreSQL
 full-text search are implemented; see [materials/search](docs/development/materials.md).
-Status: not implemented — tasks, availability, semantic search, AI/RAG and authenticated IIS.
+Status: not implemented — tasks, availability, semantic search, RAG and authenticated IIS.
+AI-03 read tools are implemented locally but unactivated; see the AI section below.
 The frontend implements login/registration, browser email verification and password
 recovery, optional academic-group selection, day/week personal-event CRUD, flat block
 pages, materials, explicit organization, database table/calendar views, full-text
 search, reminders/inbox and profile/avatar settings. Its shared light/dark shell
 preserves the existing API, session and calendar contracts. Official override editing,
-saved event views and mixed date projection remain API-only; tasks/AI UI cannot run
-until their backend exists. See the [frontend guide](docs/architecture/frontend.md).
+saved event views and mixed date projection remain API-only. Tasks require their future
+backend; the product AI UI is a separate unimplemented stage. See the [frontend guide](docs/architecture/frontend.md).
 
 Detailed behavior: [product overview](docs/product/overview.md) and
 [workspace requirements](docs/product/workspace.md).
@@ -402,7 +403,9 @@ adapters/migrations are natively tested on disposable PostgreSQL, unapplied to t
 The default-disabled [offline API](docs/development/ai-api.md) implements owned chats/runs,
 admission, accounting, cancellation and deletion. Bounded recovery and 30-day cleanup
 with minimal replay/context receipts are implemented. AI-02 adds an optional [OpenRouter catalog and encrypted personal connections](docs/development/ai-connections.md),
-implemented locally but unactivated. RAG and planning remain not implemented; see [the implemented subset](docs/development/ai-setup.md)
+implemented locally but unactivated. [AI-03 source reads](docs/development/ai-03.md)
+add lexical search, pages/material excerpts, resolved calendar and typed database
+queries with current-source context. RAG and planning remain not implemented; see [the implemented subset](docs/development/ai-setup.md)
 and [final AI-01 verification](docs/development/ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 
 Architecture:
@@ -643,6 +646,9 @@ are natively tested on disposable PostgreSQL, unapplied to the app.
 The default-disabled fake API adds owned admission/accounting, cancellation/deletion,
 bounded recovery and 30-day cleanup with minimal replay/context receipts;
 see [persistence contracts](docs/development/ai-persistence.md).
+AI-02 adds optional real model connections and AI-03 adds [authorized source tools](docs/development/ai-03.md),
+including typed database queries and current-source context rebuilding. They are
+implemented locally but unactivated; semantic retrieval, write actions and UI remain later stages.
 Own conversations, personal instructions, proposals/grants and usage as each feature
 is delivered; keep SDK/framework types behind
 application interfaces. Checkpoint continuity never replaces authorization or commit truth.

@@ -10,6 +10,12 @@ no model worker dispatch; the existing worker performs bounded recovery/cleanup.
 
 ## Schema and migration impact
 
+[AI-03](ai-03.md) adds revision 0025_ai_message_sources after 0024_ai_connections:
+default-empty bounded JSONB references on assistant messages, sharing their retention
+and deletion lifecycle. Current message DTOs return these historical source references.
+Downgrade refuses nonempty references before dropping the column. Existing content is
+preserved; this revision is tested only on disposable data and unapplied to the app.
+
 [0022_ai_persistence](../../apps/backend/alembic/versions/0022_ai_persistence.py)
 follows 0021_google_email_confirmations and creates nine new tables. It does not
 rewrite existing users, pages, events or files. Existing user deletion gains cascades

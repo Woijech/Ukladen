@@ -6,7 +6,8 @@ owned persistence, authenticated chat/run API, durable accounting, bounded execu
 conservative recovery and physical retention cleanup. Tested on disposable
 PostgreSQL/Redis, disabled by default and unapplied to the running app.
 AI-02 now adds the optional [OpenRouter catalog and encrypted connections](ai-connections.md);
-activation/live account verification remain pending. Later stages remain not implemented; see the dated final verification in the
+activation/live account verification remain pending. AI-03 adds implemented
+[authorized source reads](ai-03.md); subsequent stages remain not implemented; see the dated final verification in the
 [execution record](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 No P-06, real provider traffic or deployment is included.
 
@@ -25,7 +26,7 @@ numeric order is not an implicit dependency or authorization to start another st
 | AI-00 | Agreed scope, policies, tool/config contracts and synthetic cases | No external connection | Specification/fixture/link checks; no runtime claim |
 | AI-01 | Delivered offline agent, owned chat/run API, persistence, accounting, bounded recovery and retention; disabled by default | AI-00; all nine steps individually approved; no application migration/activation | Offline/native lifecycle, restart and cleanup checks; dated final verification in the execution record |
 | AI-02 | Implemented optional OpenRouter catalog, supported adapter and encrypted personal connections; live activation pending | AI-01; owner-selected OpenRouter/DeepSeek; account gate remains | Synthetic HTTP/native secret/quota/isolation checks; [contract](ai-connections.md) |
-| AI-03 | Authorized search/read tools and lexical grounding | AI-01; existing application services | Sources, current ownership, injection and coverage cases |
+| AI-03 | Implemented authorized page/material/calendar/database tools and lexical grounding; unactivated | AI-01/02; existing application services | Native ownership/lifecycle, synthetic provider/API, current-context and citation checks; [contract](ai-03.md) |
 | AI-04 | Separate streaming chats, cancellation, sources, instructions/model settings and usage UI | AI-01/02/03 | Desktop/mobile/session isolation and retention checks |
 | AI-05 | Embedding runtime/hardware proof | AI-00; model download only if requested | Compatible packages, pinned model and measured full-stack cost |
 | AI-06 | Versioned chunks, hybrid retrieval, complete-source coverage support | AI-03/05; pgvector/index jobs | Retrieval quality, lifecycle/recovery and coverage checks |
@@ -176,6 +177,10 @@ Ordinary CI uses fake credentials/providers; one intentionally activated synthet
 smoke records actual usage and safe failures. No private file or automatic paid fallback.
 
 ## 7. AI-03: authorized reads and lexical grounding
+
+Status: implemented locally, including optional typed database queries. See the
+[AI-03 contract](ai-03.md). Disabled and unmigrated in the running application;
+synthetic verification does not prove real-model answer quality. The original scope follows.
 
 Implement the delivered subset of [tool contracts](ai-tool-contracts.md): resolved
 calendar, workspace search, page read and new bounded material excerpts. Optional

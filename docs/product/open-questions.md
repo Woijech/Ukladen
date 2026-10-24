@@ -99,6 +99,16 @@ This developer workflow is distinct from product HITL.
 
 ## Remaining decisions
 
+AI-03 owner decisions (2026-10-24): include user-database reads alongside pages,
+materials and calendar; allow automatic search across owned sources unless restricted;
+retain labeled general explanations after missing local evidence; clarify material
+ambiguity. The owner requested autonomous verified local commits between agreed steps
+and reusable boundaries for later RAG, rather than a replacement implementation.
+Bounded character reads, structured historical references, explicit request scope and
+current-source reconstruction are implementation choices described in [AI-03](../development/ai-03.md).
+Embedding/hybrid retrieval remains AI-05/06. No provider activation or application
+migration was authorized by this local implementation request.
+
 AI-02 owner decisions (2026-10-24): first integration is OpenRouter with DeepSeek
 V4.1 Flash; a configurable model choice should also support free offerings and
 restrict some models to selected accounts. The owner delegated adapter/catalog

@@ -6,7 +6,8 @@ authenticated fake API, durable accounting, bounded recovery and retention clean
 Disabled by default; migrations are tested on disposable data and unapplied to the
 running application. See [final verification](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 AI-02 adds optional [OpenRouter models and encrypted credentials](ai-connections.md),
-implemented locally but unactivated; embedding workers remain unimplemented.
+implemented locally but unactivated. [AI-03 source reads](ai-03.md) are implemented
+locally; embedding workers remain unimplemented.
 See [current API and recovery limits](ai-api.md). No provider request or deployment was made.
 
 Use [product scope](../product/ai.md), [stages](ai-implementation-plan.md),
@@ -32,7 +33,8 @@ account price is assumed.
    Verify conversation ownership, checkpoints, cancellation/restart, attempts/unknown
    usage, duplicate submission and complete content cleanup before real integration.
 4. The implemented offline settings are below. Both flags default to false. These
-   opt-in values require reviewed revisions 0022/0023 to be applied to the target first;
+   opt-in values require the reviewed current Alembic head, including 0025,
+   to be applied to the target first;
    enabling them gives fixed synthetic answers, with no source access or real model:
 
 ~~~dotenv
@@ -203,10 +205,12 @@ embedding/extraction workers do not inherit unrelated credentials.
 
 ## C. AI-03/04: tools, chats, instructions and usage
 
-Register only delivered application capabilities. Start with calendar/search/page
-reads; material text needs the new bounded excerpt contract, not original-byte download.
-Use synthetic cases first. Actual source reads must revalidate ownership/trash/version
-before each context build, including old tool results and source-derived summaries.
+AI-03 now registers the [delivered source tools](ai-03.md) on tool-capable offerings:
+calendar/search/page/material/database reads through normal application services.
+The bounded excerpt contract reads extracted text without original-byte downloads.
+Synthetic tests verify source reconstruction, owner/trash/version checks and suppression
+of stale tool bodies/source-derived summaries. Review the 0025 migration and whole-request
+input budget before activation; no real-model request has been made.
 
 Deliver planned /workspace/ai and /workspace/ai/usage with separate chats, streaming,
 cancellation/reconnect, source viewer, model/BYOK settings and personal instructions.

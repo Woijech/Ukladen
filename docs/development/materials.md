@@ -155,6 +155,10 @@ retry state. Run one Beat instance and both workers.
 
 ## Basic search
 
+[AI-03](ai-03.md) adds an internal material-owned bounded extracted-text read interface
+over the existing derived text, with current owner/readiness/trash checks and Unicode
+character positions. No new file download or bookmark-fetch endpoint is introduced.
+
 `GET /api/v1/search?q=...` returns `{items, limit, offset}`. Each hit includes
 `source` (`page`/`material`), `id`, `title`, plain-text `snippet` (up to 600 characters),
 `score`, `version` and `kind` (`file`/`link`, null for pages).

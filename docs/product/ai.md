@@ -5,8 +5,9 @@ Status: agreed target specification. An [offline backend API](../development/ai-
 implements the completed offline AI-01 foundation: fake chats/runs, accounting,
 bounded recovery and 30-day cleanup, disabled by default and unmigrated in the app.
 AI-02 adds an optional [OpenRouter catalog and encrypted personal connections](../development/ai-connections.md),
-implemented locally but unactivated. Workspace tools, chat UI, semantic retrieval, planning and usage analytics UI
-are not implemented. AI-00 specifies the target work; it does
+implemented locally but unactivated. [AI-03](../development/ai-03.md) implements backend
+workspace/calendar/database read tools with lexical search and source references.
+Chat UI, semantic retrieval, planning and usage analytics UI are not implemented. AI-00 specifies the target work; it does
 not enable integrations. This is the single AI specification linked from
 [the overview](overview.md). See [delivery](../development/ai-implementation-plan.md),
 [architecture](../architecture/ai.md), [tool contracts](../development/ai-tool-contracts.md)

@@ -6,7 +6,8 @@ accounting, bounded execution, recovery and 30-day cleanup. Disabled by default.
 Migrations 0022/0023 were tested on disposable databases;
 they have not been applied to the running application. AI-02 adds an optional
 [model catalog and encrypted connections](ai-connections.md), disabled and unactivated.
-Workspace tools, live chat streaming and review/resume transport remain later work. See [the execution plan](ai-01-execution-plan.md).
+[AI-03 source tools](ai-03.md) add authorized workspace reads and source references.
+Live chat streaming and review/resume transport remain later work. See [the execution plan](ai-01-execution-plan.md).
 
 ## Configuration and composition
 
@@ -45,14 +46,16 @@ CSRF cookie/header. Ownership is server-derived; request bodies reject unknown f
 | POST /conversations | title, trimmed nonempty text up to 200 characters | 201 conversation metadata |
 | GET /conversations | limit 1–200 (default 100), offset 0–2147483647 | items of nonexpired owned conversation metadata |
 | GET /conversations/{id}/messages | after sequence 0–9223372036854775807, limit 1–200 | ordered message items after that sequence |
-| POST /conversations/{id}/messages | submission_id UUID, message (nonblank, at most 16 KiB UTF-8) | 200 run metadata after foreground execution, or current state for a replay |
+| POST /conversations/{id}/messages | submission_id UUID, message (nonblank, at most 16 KiB UTF-8), optional source_scope | 200 run metadata after foreground execution, or current state for a replay |
 | GET /runs/{id} | Run UUID | Owned run state and content-free attempt/tool outcomes |
 | POST /runs/{id}/cancel | No body | Current run state; terminal states remain unchanged |
 | DELETE /conversations/{id} | Conversation UUID | 204; cancels active execution and cascades chat content |
 
 Conversation metadata contains id, title, created_at and last_user_message_at,
 plus the immutable model/connection selection described in [AI-02](ai-connections.md).
-Message items contain id, sequence, role, content and created_at. Current transport
+Message items contain id, sequence, role, content, created_at and sources. Sources
+are bounded historical references to evidence used at generation, not fresh access
+authorization or an assertion that every generated claim is supported. See [AI-03](ai-03.md). Current transport
 persists user and final assistant messages; intermediate tool bodies remain solely
 in conversation-owned checkpoints.
 
@@ -73,7 +76,8 @@ An expired existing chat denies run access as well as history and new submission
 
 A transaction checks owner, expiry, submission uniqueness and the active-run slot,
 then records a queued run and its user message together. The digest includes both
-conversation ID and exact message text. An exact owner-scoped replay returns the
+conversation ID and exact message text, plus source_scope when supplied.
+Omitted scope preserves the existing digest and unrestricted owned-source behavior. An exact owner-scoped replay returns the
 existing run without another message/model call; a changed payload returns 409.
 Replays do not renew chat activity. A second submission while a chat has queued,
 running or interrupted work is rejected. Identity/submission protection survives

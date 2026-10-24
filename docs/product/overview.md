@@ -142,7 +142,8 @@ store URLs without fetching them. Filtered full-text search covers authorized pa
 material titles and extracted text; see [contracts](../development/materials.md).
 Chunking, embeddings, semantic search and RAG remain not implemented. AI-02 adds an
 optional [OpenRouter catalog and encrypted connections](../development/ai-connections.md),
-implemented locally but unactivated.
+implemented locally but unactivated. AI-03 adds [authorized source reads](../development/ai-03.md),
+including pages, file excerpts, resolved calendar and typed database records.
 The default-disabled [offline AI API](../development/ai-api.md) provides synthetic
 chats/runs and accounting; it does not read these sources or call a real model.
 
@@ -188,6 +189,7 @@ and analytics UI remain not implemented. See [AI architecture](../architecture/a
 | Filtered PostgreSQL full-text search over pages/materials | Implemented backend |
 | Offline AI chat/run lifecycle and accounting | AI-01 complete, fake-only and disabled by default; bounded execution/recovery, 30-day cleanup and minimal replay protection; migrations tested only on disposable data |
 | Optional real-model catalog and personal API connections | AI-02 backend implemented locally; default-disabled, migration/live activation pending |
+| AI workspace/calendar/database reads | AI-03 implemented locally; lexical search, current-source context and historical source references; default-disabled and unactivated |
 | Semantic search and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
 | Weekly calendar, personal-event create/edit/delete, login/registration and group selection UI | Implemented |

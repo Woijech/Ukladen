@@ -30,7 +30,8 @@ These public checks did not authenticate an account or prove a real generation.
 `AgentRunner`, `ModelOffering`, `ModelSelection` and the connection configuration
 port remain neutral. The existing LangChain runner/checkpointer is reused; its
 historical `OfflineAgentRunner` / `owned_offline_runner` names remain internal.
-Real chats register no synthetic or business tools. AI-03 adds authorized reads;
+Real chats register no synthetic tools. Tool-capable offerings now register
+[AI-03 authorized reads](ai-03.md); text-only offerings expose no workspace tools.
 UI streaming remains AI-04. The adapter's synchronous and streaming protocols are
 tested with synthetic HTTP/SSE; async calls reuse the guarded synchronous transport.
 
@@ -49,7 +50,10 @@ available. No file is read during startup, migration or maintenance. Catalog cha
 are read on subsequent operations; replace files atomically across all API replicas.
 
 Each entry has an ID, positive version, label, exact provider/model, enabled state,
-capabilities and request/input/output bounds. `public: true` makes an enabled entry
+capabilities and request/input/output bounds. max_input_bytes bounds the entire
+serialized request, including tool schemas, from 256 to 65536 bytes (default 6000).
+The disabled tool-capable example uses version 2 and 65536 bytes to fit AI-03 schemas
+and bounded evidence; existing private catalogs need an explicit version/budget review. `public: true` makes an enabled entry
 available to authenticated completed accounts; otherwise `allowed_user_ids` is the
 explicit owner UUID allowlist. Restrictions apply equally to operator and personal
 keys. No administrator role, subscription tier or billing UI is introduced.

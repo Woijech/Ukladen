@@ -228,8 +228,8 @@ Status: AI-00 and offline AI-01 complete, with a default-disabled fake-only chat
 accounting, bounded execution, overdue-run reconciliation, minimal replay/context
 receipts and physical cleanup. See [final AI-01 verification](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 AI-02 implements the optional OpenRouter adapter/catalog and encrypted personal
-connections; live account activation remains pending. Business tools and product UI
-remain not implemented; application migrations are unapplied.
+connections; live account activation remains pending. [AI-03 read tools](ai-03.md)
+are implemented locally. Write tools and product UI remain not implemented; application migrations are unapplied.
 Dependencies: only the application tools actually used; task planning requires P-06.
 The [detailed AI plan](ai-implementation-plan.md) splits work into AI-00 through AI-12,
 with the [owner-agreed product specification](../product/ai.md),
