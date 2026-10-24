@@ -97,6 +97,12 @@ not part of this delivery. Basic task create/read/update is the first implementa
 increment; hierarchy, trash, dependencies, blocks and availability follow separately.
 See [task contracts and actual status](../development/tasks.md).
 
+On 2026-10-25, the owner confirmed the planned subtask invariants: optional
+same-owner parent, no product-level depth limit or cycles, no edit propagation,
+closed descendants before parent completion, no later active descendant beneath a
+completed ancestor, and atomic validation of combined parent/status updates.
+The hierarchy remains not implemented; see the [subtask contract](../development/tasks.md#confirmed-subtask-hierarchy-contract-2026-10-25).
+
 | ID | Question | Proposed default | What depends on it |
 | --- | --- | --- | --- |
 | Q-04a | Product policies resolved in the 2026-10-21 table above. Per-account budgets/quotas and per-grant scope/expiry/counts are required activation inputs. | Provider-neutral operator/BYOK models, relevant-data transfer implied by AI use, 30-day chat/activity policies, initial automatic new-page/task creates only under actual grants. See [AI scope](ai.md). | Concrete credential/vendor contracts, execution records, minimal replay-record purge and account admission |

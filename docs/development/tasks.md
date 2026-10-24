@@ -1,6 +1,6 @@
 # Tasks: Incremental P-06 Delivery
 
-Updated: 2026-10-21.
+Updated: 2026-10-25.
 Status: independent task create/read/list/update implemented, backend only.
 Hierarchy, trash, dependencies, page links, work blocks and availability are not implemented.
 
@@ -128,3 +128,29 @@ Status: not implemented. These decisions are not delivered by basic task APIs:
 
 Automatic planning, saved work preferences, task/deadline reminders, frontend and
 all AI runtime remain outside the requested first increment and unimplemented.
+
+### Confirmed subtask hierarchy contract (2026-10-25)
+
+Status: not implemented. The owner confirmed these rules for the future hierarchy
+slice; the existing task schema and API do not yet accept `parent_id`.
+
+- A task may have one parent or no parent. Nesting has no product-imposed depth limit;
+  every parent chain must be finite and acyclic.
+- Parent and child must belong to the same user. A task cannot parent itself or be
+  moved beneath any of its descendants.
+- Creating a child or moving a task changes only the requested task's parent
+  relationship; it does not propagate title, deadline, status or other business
+  fields to related tasks. Normal version and update-timestamp changes on the
+  moved task still apply.
+- A parent can transition to `done` only when every non-trashed descendant is
+  `done` or `cancelled`. This check does not complete descendants automatically.
+- An active (`todo` or `in_progress`) task cannot be created, moved or reopened
+  anywhere beneath a `done` ancestor. This keeps the completion rule true after
+  later writes, including writes to deeper descendants.
+- A PATCH that changes both `parent_id` and `status` validates the resulting
+  hierarchy and statuses together, atomically, before applying either change.
+
+The behavior of cancelling a parent with active descendants is not specified by
+these confirmations; it needs a separate decision before that lifecycle rule is
+implemented. These hierarchy rules do not add task trash, dependency edges or
+automatic scheduling.
