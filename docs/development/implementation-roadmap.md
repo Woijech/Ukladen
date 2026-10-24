@@ -38,14 +38,15 @@ existing services just to match target vocabulary. A package marker is not a fea
 | Workspace | Collections/tags, typed membership, event views and recoverable page-backed databases with table/calendar views | [Workspace](workspace.md), [calendar views](calendar-views.md), [databases](databases.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
-Standalone task create/read/list/update and subtask hierarchy are implemented, backend only; see [tasks](tasks.md).
+Standalone task create/read/list/update and subtask hierarchy are implemented with a browser UI; see [tasks](tasks.md).
 Task trash/dependencies/links, work blocks, calendar free slots/conflicts,
 semantic search and AI are not implemented.
 Workspace organization exists;
 saved event views, user databases, table/calendar views and mixed date projection exist.
 Authenticated IIS is unverified/unimplemented.
 Frontend email/Google login/registration, explicit Google linking, browser email verification and password recovery,
-optional academic-group selection and weekly calendar personal-event create/edit/delete are implemented.
+optional academic-group selection, weekly calendar personal-event create/edit/delete
+and task management are implemented.
 Session isolation, sync-result freshness, full-day interval rendering and explicit
 timezone handling have deterministic browser regressions; see
 [frontend](../architecture/frontend.md). Pages, materials/search, reminders/inbox,
@@ -155,7 +156,7 @@ until explicitly scheduled. Formulas, rollups and automatic arbitrary workflows 
 
 Status: partially implemented — task create/read/list/update, status/priority,
 exact deadlines/effort, optimistic versions, owner-scoped subtask hierarchy and
-authenticated APIs are implemented, backend only; see [task contracts](tasks.md).
+authenticated APIs and a task list/detail/create/edit/subtask UI are implemented; see [task contracts](tasks.md).
 Trash, dependencies/page links,
 manual blocks and availability are not implemented. The owner selected manual-only
 incremental delivery; automatic planning and saved work preferences remain later work.
@@ -164,8 +165,8 @@ Can be requested earlier independently of databases. Q-07 is resolved: independe
 typed tasks with optional source links and no automatic checkbox/record synchronization.
 Future calendar contracts remain Q-05. See [AI planning requirements](../product/ai.md#6-calendar-and-deterministic-planning).
 
-Tasks support standalone CRUD, status/priority, optional deadline/effort and optional
-links. Define transition/dependency rules and prevent dependency cycles. Keep typed
+The complete target adds recoverable deletion and optional links to the existing
+status/priority/deadline/effort fields. Define dependency rules and prevent cycles. Keep typed
 planning state authoritative; a customizable row is not silently a task.
 
 Add calendar operations:

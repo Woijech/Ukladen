@@ -55,12 +55,12 @@ One-shot calendar reminders and durable in-app notifications are implemented, ba
 Private materials, bounded document extraction, page attachments and basic PostgreSQL
 full-text search are implemented; see [materials/search](docs/development/materials.md).
 Task create/read/list/update and subtask hierarchy with status/priority, exact deadlines/effort and
-optimistic versions are implemented, backend only; see [tasks](docs/development/tasks.md).
+optimistic versions are implemented, with a working frontend task screen; see [tasks](docs/development/tasks.md).
 Status: not implemented — task trash/dependencies/links, task blocks,
 availability, semantic search, AI/RAG and authenticated IIS.
 The frontend implements login/registration, browser email verification and password
-recovery, academic-group selection and a weekly calendar with personal-event create/edit/delete. Other
-workspace business UI remains unimplemented.
+recovery, academic-group selection, a weekly calendar with personal-event create/edit/delete,
+and task management (including subtasks). Other workspace business UI remains unimplemented.
 
 Detailed behavior: [product overview](docs/product/overview.md) and
 [workspace requirements](docs/product/workspace.md).
@@ -544,7 +544,7 @@ See [workspace architecture](docs/architecture/workspace.md).
 ## 5.6 tasks
 
 Status: task create/read/list/update, subtask hierarchy, status/priority, exact deadlines,
-effort and optimistic versions are implemented, backend only. Trash,
+effort and optimistic versions are implemented, with a browser task screen. Trash,
 dependencies/page links, work blocks and scheduling remain not implemented; see
 [task contracts](docs/development/tasks.md). Tasks are independent typed objects; ordinary note
 checkboxes/database rows do not synchronize them. Deterministic planning is a task

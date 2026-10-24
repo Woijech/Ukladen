@@ -2,7 +2,7 @@
 
 Updated: 2026-10-25.
 Status: task create/read/list/update and owner-scoped subtask hierarchy implemented,
-backend only. Trash, dependencies, page links, work blocks and availability are not implemented.
+with a browser task screen. Trash, dependencies, page links, work blocks and availability are not implemented.
 
 ## First increment: independent task create/read/update
 
@@ -182,5 +182,23 @@ Status: not implemented. These decisions are not delivered by the current task A
   data. Source period boundaries alone must not be claimed as complete coverage.
 - Additive opt-in task-block/deadline calendar display, preserving existing APIs.
 
-Automatic planning, saved work preferences, task/deadline reminders, frontend and
-all AI runtime remain outside these backend increments and unimplemented.
+Automatic planning, saved work preferences, task/deadline reminders and all AI
+runtime remain outside these backend increments and unimplemented.
+
+## Browser task screen
+
+Status: implemented on 2026-10-25 in the existing `/workspace` shell. The sidebar
+and mobile navigation open a paginated task list with status/priority filters.
+Selecting a task shows its description, status, priority, deadline, effort, parent
+and direct children. The create/edit form covers all current task fields; the
+selected task can create a child, move beneath a chosen task or become a root.
+The parent picker paginates through existing tasks; the backend remains authoritative
+for cycles, ownership and completed-branch rules. There is no UI depth limit.
+
+The screen uses the existing completed-registration browser session, fresh CSRF on
+writes, no-store reads and per-identity query cache. It handles version and hierarchy
+conflicts explicitly; a stale editor draft is retained until the user chooses to
+reload. Deadline input and display use the profile timezone, including ambiguous
+and nonexistent local-time handling. Deadlines do not reserve calendar time.
+No delete/trash action is shown because the backend has no such route. There is no
+task/calendar block, dependency, page link or reminder UI in this slice.

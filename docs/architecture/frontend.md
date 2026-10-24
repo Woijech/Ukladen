@@ -1,6 +1,6 @@
 # Ukladen Frontend Foundation
 
-Status: shell, mandatory registration completion, browser email verification, email/Google login and registration, safe automatic/explicit Google linking, email password recovery, academic-group selection and a weekly calendar with personal-event create/edit/delete are implemented. Other business UI remains not implemented.
+Status: shell, mandatory registration completion, browser email verification, email/Google login and registration, safe automatic/explicit Google linking, email password recovery, academic-group selection, a weekly calendar with personal-event create/edit/delete and a personal task screen are implemented. Other business UI remains not implemented.
 
 `apps/web` uses Next.js App Router, React and strict TypeScript. The root layout
 provides a TanStack Query client created once per mounted provider. The frontend
@@ -100,8 +100,13 @@ users without an academic profile can choose to connect a BSUIR group or continu
 without one. Group selection uses the existing group catalogue, group-context,
 profile PATCH and schedule-sync endpoints. The calendar displays the authenticated
 user's resolved week and supports personal-event create/edit/delete. Profile actions
-open the group selector or revoke the current session. It does not implement tasks,
-page editing or saved views.
+open the group selector or revoke the current session. The task navigation opens
+an owner-scoped list/detail view with status and priority filters, 30-item pagination,
+create/edit, optional deadlines/effort and arbitrary-depth subtasks. A selected task
+can be moved beneath another task or detached. The backend validates hierarchy and
+optimistic versions; version conflicts leave the draft intact until the user explicitly
+reloads. Deadline input uses the profile timezone and explicit DST disambiguation.
+No task deletion, scheduling, reminders, page editing or saved views are exposed.
 
 The workspace checks `/api/v1/users/me` before mounting private data. Each authenticated
 identity owns a separate query client and mounted forms; logout, session expiry and
@@ -161,7 +166,7 @@ ESLint uses Next.js's accessibility, React and TypeScript rules. `tsc --noEmit`
 provides type checking. Playwright runs Chromium tests against the built frontend:
 shell/connectivity success/failure, verification/reset link handling and workspace flows.
 Workspace tests cover account isolation/session expiry, registration/login and optional
-group onboarding, CSRF-protected personal CRUD, read-only official events, queued/fast
+group onboarding, CSRF-protected personal-event and task writes, read-only official events, queued/fast
 IIS imports and recovery, interval continuations, calendar timezones and DST inputs.
 Verification
 tests check one POST with cookies/CSRF/Origin, fragment/history cleanup, privacy
@@ -199,3 +204,9 @@ The Dockerfile builds Next.js standalone output and serves it as the non-root
 `node` user. No extra UI framework, font download or bundling orchestrator is used.
 `npm run build` includes static assets in that standalone output; `npm start` runs
 the same standalone server used by Docker.
+
+Executed on 2026-10-25 for the task screen: frontend lint, TypeScript typecheck,
+production build, all **105 Playwright tests** (including four task flows), and
+quiet base Compose validation passed. Playwright used a temporary Chromium shell;
+no deployment or application database migration was performed. The tests mock
+task HTTP responses and do not replace backend PostgreSQL integration coverage.
