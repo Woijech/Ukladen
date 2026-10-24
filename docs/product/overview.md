@@ -1,6 +1,6 @@
 # Ukladen Product Overview
 
-Updated: 2026-10-21.
+Updated: 2026-10-25.
 Status: target product specification; only capabilities listed as implemented
 below exist. Product references describe intent, not feature parity with another app.
 
@@ -114,9 +114,9 @@ External labels remain metadata, not authoritative grouping identities.
 
 ## 7. Tasks, planning and reminders
 
-Basic standalone task create/read/list/update, status/priority, exact deadlines and
-effort are implemented, backend only; see [tasks](../development/tasks.md).
-Task hierarchy/trash/dependencies/links, work blocks and availability are not implemented.
+Task create/read/list/update, status/priority, exact deadlines/effort and subtask
+hierarchy are implemented, backend only; see [tasks](../development/tasks.md).
+Task trash/dependencies/links, work blocks and availability are not implemented.
 Calendar reminders and durable
 in-app notifications are implemented, backend only; see [reminder contracts](../development/reminders.md).
 
@@ -179,8 +179,8 @@ AI-00 is specified; AI and analytics runtime remain not implemented. See [AI arc
 | Date-bound calendar views, date moves and mixed calendar display | Implemented backend |
 | Rich/nested blocks and page-page knowledge links | Status: not implemented. |
 | One-shot calendar reminders and durable in-app notifications | Implemented backend |
-| Standalone task create/read/list/update, status/priority, exact deadline/effort and versions | Implemented backend |
-| Task hierarchy/trash/dependencies/links, work blocks, availability and task/deadline reminders | Status: not implemented. |
+| Task create/read/list/update, subtask hierarchy, status/priority, exact deadline/effort and versions | Implemented backend |
+| Task trash/dependencies/links, work blocks, availability and task/deadline reminders | Status: not implemented. |
 | Private materials, page attachments and bounded document extraction | Implemented backend; no OCR |
 | Filtered PostgreSQL full-text search over pages/materials | Implemented backend |
 | Semantic search, AI and RAG | Status: not implemented. |

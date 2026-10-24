@@ -111,6 +111,8 @@ def test_parent_constraint_requires_same_owner_and_acyclic_self_reference(
             database_connection.execute(insert(TaskModel).values(title="Invalid", **values))
     with pytest.raises(IntegrityError), database_connection.begin_nested():
         database_connection.execute(delete(TaskModel).where(TaskModel.id == parent))
+    database_connection.execute(delete(UserModel).where(UserModel.id == owner))
+    assert database_connection.scalar(select(TaskModel.id).where(TaskModel.id == child)) is None
 
 
 def test_repository_detects_open_descendants_at_any_depth(database_connection: Connection) -> None:

@@ -81,6 +81,8 @@ class TaskService:
         *,
         status: TaskStatus | None = None,
         priority: TaskPriority | None = None,
+        parent_id: UUID | None = None,
+        roots_only: bool = False,
         limit: int = 100,
         offset: int = 0,
     ) -> list[TaskSummary]:
@@ -92,9 +94,14 @@ class TaskService:
             or not 0 <= offset <= 2**31 - 1
             or (status is not None and status not in STATUSES)
             or (priority is not None and priority not in PRIORITIES)
+            or (parent_id is not None and not isinstance(parent_id, UUID))
+            or type(roots_only) is not bool
+            or (parent_id is not None and roots_only)
         ):
             raise InvalidTaskInput()
-        return self.repository.list(user_id, status, priority, limit, offset)
+        if parent_id is not None and self.repository.get(user_id, parent_id) is None:
+            raise TaskNotFound()
+        return self.repository.list(user_id, status, priority, limit, offset, parent_id, roots_only)
 
     def update(
         self,

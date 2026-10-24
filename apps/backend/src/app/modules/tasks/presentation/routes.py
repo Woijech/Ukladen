@@ -16,6 +16,7 @@ from app.modules.auth.presentation.dependencies import (
 from app.modules.tasks.application.service import TaskService
 from app.modules.tasks.domain.tasks import (
     InvalidTaskInput,
+    TaskHierarchyConflict,
     TaskNotFound,
     TaskPriority,
     TaskStatus,
@@ -67,12 +68,20 @@ def list_tasks(
     tasks: Tasks,
     status: TaskStatus | None = None,
     priority: TaskPriority | None = None,
+    parent_id: UUID | None = None,
+    roots_only: bool = False,
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
     offset: Annotated[int, Query(ge=0, le=2**31 - 1)] = 0,
 ) -> TaskListResponse:
     with database.begin():
         result = tasks.list(
-            current.user_id, status=status, priority=priority, limit=limit, offset=offset
+            current.user_id,
+            status=status,
+            priority=priority,
+            parent_id=parent_id,
+            roots_only=roots_only,
+            limit=limit,
+            offset=offset,
         )
         now = tasks.now()
         return TaskListResponse(
@@ -116,6 +125,8 @@ def install_tasks(application: FastAPI) -> None:
             status, detail, code = 422, "Invalid task input.", "invalid_task_input"
         elif isinstance(error, TaskNotFound):
             status, detail, code = 404, "Task not found.", "task_not_found"
+        elif isinstance(error, TaskHierarchyConflict):
+            status, detail, code = 409, "Task hierarchy conflict.", "task_hierarchy_conflict"
         else:
             status, detail, code = 409, "Task changed. Reload and retry.", "task_version_conflict"
         log_failure(logger, "tasks.operation_rejected", error, level=logging.WARNING, reason=code)
@@ -125,6 +136,6 @@ def install_tasks(application: FastAPI) -> None:
             headers={"Cache-Control": "no-store"},
         )
 
-    for error_type in (InvalidTaskInput, TaskNotFound, TaskVersionConflict):
+    for error_type in (InvalidTaskInput, TaskNotFound, TaskHierarchyConflict, TaskVersionConflict):
         application.add_exception_handler(error_type, task_error)
     application.include_router(router)

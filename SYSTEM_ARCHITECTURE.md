@@ -8,7 +8,7 @@
 >
 > **Important:** This document intentionally does **not** define concrete BSUIR IIS response fields, exact external API payloads, full SQL schema, or detailed endpoint DTOs. Those contracts are separate documents.
 
-Updated: 2026-10-21. Target features are not implemented unless explicitly marked.
+Updated: 2026-10-25. Target features are not implemented unless explicitly marked.
 Read the [documentation index](docs/README.md), [open decisions](docs/product/open-questions.md)
 and [implementation roadmap](docs/development/implementation-roadmap.md) for a concrete slice.
 [ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md) records optional organization.
@@ -54,9 +54,9 @@ Additive mixed calendar display is implemented through application query ports.
 One-shot calendar reminders and durable in-app notifications are implemented, backend only.
 Private materials, bounded document extraction, page attachments and basic PostgreSQL
 full-text search are implemented; see [materials/search](docs/development/materials.md).
-Standalone task create/read/list/update with status/priority, exact deadlines/effort and
-optimistic versions is implemented, backend only; see [tasks](docs/development/tasks.md).
-Status: not implemented — task hierarchy/trash/dependencies/links, task blocks,
+Task create/read/list/update and subtask hierarchy with status/priority, exact deadlines/effort and
+optimistic versions are implemented, backend only; see [tasks](docs/development/tasks.md).
+Status: not implemented — task trash/dependencies/links, task blocks,
 availability, semantic search, AI/RAG and authenticated IIS.
 The frontend implements login/registration, browser email verification and password
 recovery, academic-group selection and a weekly calendar with personal-event create/edit/delete. Other
@@ -543,8 +543,8 @@ See [workspace architecture](docs/architecture/workspace.md).
 
 ## 5.6 tasks
 
-Status: basic standalone task create/read/list/update, status/priority, exact deadlines,
-effort and optimistic versions are implemented, backend only. Hierarchy/trash,
+Status: task create/read/list/update, subtask hierarchy, status/priority, exact deadlines,
+effort and optimistic versions are implemented, backend only. Trash,
 dependencies/page links, work blocks and scheduling remain not implemented; see
 [task contracts](docs/development/tasks.md). Tasks are independent typed objects; ordinary note
 checkboxes/database rows do not synchronize them. Deterministic planning is a task
@@ -1257,8 +1257,8 @@ record APIs, saved table/calendar views, date projection, versioned date moves a
 additive mixed calendar display. One-shot calendar reminders and durable in-app
 notifications are also implemented; see [reminders](docs/development/reminders.md).
 See [database delivery status](docs/development/databases.md) and
-[ADR 0007](docs/adr/0007-use-page-backed-database-records.md). Basic task
-create/read/list/update is implemented; task hierarchy/trash/dependencies,
+[ADR 0007](docs/adr/0007-use-page-backed-database-records.md). Task
+create/read/list/update and subtask hierarchy are implemented; task trash/dependencies,
 availability/conflicts, explicit work blocks and task/deadline reminders
 remain not implemented.
 Planning can be requested independently of database features.

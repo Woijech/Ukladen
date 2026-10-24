@@ -54,6 +54,8 @@ class SqlAlchemyTaskRepository:
         priority: TaskPriority | None,
         limit: int,
         offset: int,
+        parent_id: UUID | None = None,
+        roots_only: bool = False,
     ) -> list[TaskSummary]:
         query = (
             select(TaskModel)
@@ -64,6 +66,10 @@ class SqlAlchemyTaskRepository:
             query = query.where(TaskModel.status == status)
         if priority is not None:
             query = query.where(TaskModel.priority == priority)
+        if parent_id is not None:
+            query = query.where(TaskModel.parent_id == parent_id)
+        elif roots_only:
+            query = query.where(TaskModel.parent_id.is_(None))
         return [
             task_summary(row)
             for row in self.session.scalars(

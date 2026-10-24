@@ -64,9 +64,9 @@ external clients. Inter-module access must use application services or interface
 
 ## Scope
 
-Standalone task create/read/list/update, status/priority, exact deadlines/effort and
+Task create/read/list/update, subtask hierarchy, status/priority, exact deadlines/effort and
 optimistic versions are implemented, backend only; see [tasks](../development/tasks.md).
-Status: not implemented — task hierarchy/trash/dependencies/page links, free slots,
+Status: not implemented — task trash/dependencies/page links, free slots,
 conflict checks, task blocks, task/deadline reminders, semantic search, AI and RAG.
 Private materials, bounded document extraction, optional page attachments and lexical
 search are implemented, backend only; see [materials/search](../development/materials.md).

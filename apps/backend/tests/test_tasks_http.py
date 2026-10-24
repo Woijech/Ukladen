@@ -44,6 +44,7 @@ def test_independent_task_http_flow_filters_versions_and_private_logs(
             deadline_at="2020-10-21T18:00:00+03:00",
         )
         assert task["title"] == "Study" and task["version"] == 1
+        assert task["parent_id"] is None
         assert task["deadline_at"] == "2020-10-21T15:00:00Z" and task["is_overdue"]
         assert "user_id" not in task and task["status"] == "todo" and task["priority"] == "normal"
         path = f"{BASE}/{task['id']}"
@@ -116,7 +117,7 @@ def test_independent_task_http_flow_filters_versions_and_private_logs(
         {"estimated_minutes": 0},
         {"estimated_minutes": 525601},
         {"user_id": str(uuid4())},
-        {"parent_id": str(uuid4())},
+        {"parent_id": "not-a-uuid"},
     ],
 )
 def test_invalid_task_creation(calendar_client: TestClient, values: dict) -> None:
@@ -203,6 +204,97 @@ def test_foreign_tasks_match_missing_tasks(
     assert calendar_client.get(BASE).json()["items"] == []
 
 
+def test_subtask_http_tree_filters_and_completion_guards(calendar_client: TestClient) -> None:
+    root = create_task(calendar_client, title="Root")
+    child = create_task(calendar_client, title="Child", parent_id=root["id"])
+    grandchild = create_task(calendar_client, title="Grandchild", parent_id=child["id"])
+    assert child["parent_id"] == root["id"]
+    assert grandchild["parent_id"] == child["id"]
+    assert len(calendar_client.get(BASE).json()["items"]) == 3
+    roots = calendar_client.get(f"{BASE}?roots_only=true").json()["items"]
+    assert [item["id"] for item in roots] == [root["id"]]
+    children = calendar_client.get(f"{BASE}?parent_id={root['id']}").json()["items"]
+    assert [item["id"] for item in children] == [child["id"]]
+    assert calendar_client.get(f"{BASE}?parent_id={grandchild['id']}").json()["items"] == []
+    assert calendar_client.get(f"{BASE}?parent_id={root['id']}&roots_only=true").status_code == 422
+    assert calendar_client.get(f"{BASE}?parent_id={uuid4()}").status_code == 404
+    cycle = calendar_client.patch(
+        f"{BASE}/{root['id']}",
+        headers=csrf_headers(calendar_client),
+        json={"expected_version": 1, "parent_id": grandchild["id"]},
+    )
+    assert cycle.status_code == 409 and cycle.json()["code"] == "task_hierarchy_conflict"
+    blocked = calendar_client.patch(
+        f"{BASE}/{root['id']}",
+        headers=csrf_headers(calendar_client),
+        json={"expected_version": 1, "status": "done"},
+    )
+    assert blocked.status_code == 409 and blocked.json()["code"] == "task_hierarchy_conflict"
+    for task in (grandchild, child, root):
+        response = calendar_client.patch(
+            f"{BASE}/{task['id']}",
+            headers=csrf_headers(calendar_client),
+            json={"expected_version": 1, "status": "done"},
+        )
+        assert response.status_code == 200, response.text
+    assert calendar_client.get(f"{BASE}/{root['id']}").json()["status"] == "done"
+    assert calendar_client.get(f"{BASE}/{child['id']}").json()["status"] == "done"
+    rejected = calendar_client.post(
+        BASE,
+        headers=csrf_headers(calendar_client),
+        json={"title": "Open", "parent_id": root["id"]},
+    )
+    assert rejected.status_code == 409 and rejected.json()["code"] == "task_hierarchy_conflict"
+    rejected = calendar_client.patch(
+        f"{BASE}/{grandchild['id']}",
+        headers=csrf_headers(calendar_client),
+        json={"expected_version": 2, "status": "todo"},
+    )
+    assert rejected.status_code == 409 and rejected.json()["code"] == "task_hierarchy_conflict"
+    detached = calendar_client.patch(
+        f"{BASE}/{grandchild['id']}",
+        headers=csrf_headers(calendar_client),
+        json={"expected_version": 2, "parent_id": None, "status": "todo"},
+    )
+    assert detached.status_code == 200, detached.text
+    assert detached.json()["parent_id"] is None and detached.json()["status"] == "todo"
+    assert {
+        item["id"] for item in calendar_client.get(f"{BASE}?roots_only=true").json()["items"]
+    } == {
+        root["id"],
+        grandchild["id"],
+    }
+
+
+def test_missing_and_foreign_parent_references_are_indistinguishable(
+    calendar_client: TestClient, concurrent_engine: Engine
+) -> None:
+    with Session(concurrent_engine) as session, session.begin():
+        other = UserModel(email="foreign-parent@example.com")
+        session.add(other)
+        session.flush()
+        foreign = TaskService(
+            SqlAlchemyTaskRepository(session), SqlAlchemyUserAuthentication(session)
+        ).create(other.id, {"title": "Private parent"})
+    own = create_task(calendar_client, title="Own")
+    for parent_id in (str(foreign.id), str(uuid4())):
+        created = calendar_client.post(
+            BASE,
+            headers=csrf_headers(calendar_client),
+            json={"title": "Hidden parent", "parent_id": parent_id},
+        )
+        moved = calendar_client.patch(
+            f"{BASE}/{own['id']}",
+            headers=csrf_headers(calendar_client),
+            json={"expected_version": 1, "parent_id": parent_id},
+        )
+        listed = calendar_client.get(f"{BASE}?parent_id={parent_id}")
+        for response in (created, moved, listed):
+            assert response.status_code == 404
+            assert response.json()["code"] == "task_not_found"
+    assert calendar_client.get(f"{BASE}/{own['id']}").json() == own
+
+
 def test_concurrent_edits_have_one_winner(
     calendar_client: TestClient, concurrent_engine: Engine
 ) -> None:
@@ -220,6 +312,36 @@ def test_concurrent_edits_have_one_winner(
     with Session(concurrent_engine) as session:
         row = session.get(TaskModel, UUID(task["id"]))
         assert row and row.version == 2 and row.title in ("First", "Second")
+
+
+def test_concurrent_parent_completion_and_child_creation_keep_tree_consistent(
+    calendar_client: TestClient,
+) -> None:
+    root = create_task(calendar_client, title="Parent")
+    headers = csrf_headers(calendar_client)
+
+    def complete_parent():
+        return calendar_client.patch(
+            f"{BASE}/{root['id']}",
+            headers=headers,
+            json={"expected_version": 1, "status": "done"},
+        )
+
+    def create_child():
+        return calendar_client.post(
+            BASE,
+            headers=headers,
+            json={"title": "Child", "parent_id": root["id"]},
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        finish = executor.submit(complete_parent)
+        add_child = executor.submit(create_child)
+        results = (finish.result(), add_child.result())
+    assert sorted(response.status_code for response in results) in ([200, 409], [201, 409])
+    parent = calendar_client.get(f"{BASE}/{root['id']}").json()
+    children = calendar_client.get(f"{BASE}?parent_id={root['id']}").json()["items"]
+    assert (parent["status"] == "done") == (children == [])
 
 
 @pytest.mark.parametrize("failure", ["write", "commit"])

@@ -38,6 +38,7 @@ class TaskCreate(TaskInput):
     priority: TaskPriority = "normal"
     deadline_at: AwareDatetime | None = None
     estimated_minutes: int | None = Field(default=None, ge=1, le=525600, strict=True)
+    parent_id: UUID | None = None
 
     @model_validator(mode="after")
     def validate_values(self) -> Self:
@@ -53,6 +54,7 @@ class TaskPatch(TaskInput):
     priority: TaskPriority | None = None
     deadline_at: AwareDatetime | None = None
     estimated_minutes: int | None = Field(default=None, ge=1, le=525600, strict=True)
+    parent_id: UUID | None = None
 
     @model_validator(mode="after")
     def validate_changes(self) -> Self:
@@ -65,6 +67,7 @@ class TaskPatch(TaskInput):
 
 class TaskSummaryResponse(BaseModel):
     id: UUID
+    parent_id: UUID | None
     title: str
     status: TaskStatus
     priority: TaskPriority

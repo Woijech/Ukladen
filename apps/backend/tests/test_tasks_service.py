@@ -52,6 +52,21 @@ def test_subtask_parent_owner_and_cycle_rules() -> None:
     repository.save.assert_not_called()
 
 
+def test_deep_parent_chain_has_no_fixed_depth_limit() -> None:
+    service, repository, _ = setup_service()
+    owner = uuid4()
+    root = service.create(owner, {"title": "Root"})
+    tasks = {root.id: root}
+    parent_id = root.id
+    for _ in range(1100):
+        child = replace(root, id=uuid4(), parent_id=parent_id)
+        tasks[child.id] = child
+        parent_id = child.id
+    repository.get.side_effect = lambda _, task_id: tasks.get(task_id)
+    created = service.create(owner, {"title": "Deep child", "parent_id": parent_id})
+    assert created.parent_id == parent_id
+
+
 def test_completion_and_reopening_enforce_descendant_state() -> None:
     service, repository, _ = setup_service()
     owner = uuid4()
@@ -187,6 +202,9 @@ def test_reads_and_writes_recheck_canonical_user() -> None:
         {"offset": 2**31},
         {"status": "unknown"},
         {"priority": "unknown"},
+        {"parent_id": "invalid"},
+        {"roots_only": 1},
+        {"parent_id": uuid4(), "roots_only": True},
     ],
 )
 def test_invalid_lists_rejected(values) -> None:

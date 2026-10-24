@@ -1,6 +1,6 @@
 # Product Decisions and Open Questions
 
-Updated: 2026-10-21.
+Updated: 2026-10-25.
 Status: decision register. Owner-confirmed scope is distinguished from open design
 choices. Proposed defaults are not owner confirmation; resolve relevant unknowns
 before implementing incompatible schemas, integrations or behavior.
@@ -101,7 +101,7 @@ On 2026-10-25, the owner confirmed the planned subtask invariants: optional
 same-owner parent, no product-level depth limit or cycles, no edit propagation,
 closed descendants before parent completion, no later active descendant beneath a
 completed ancestor, and atomic validation of combined parent/status updates.
-The hierarchy remains not implemented; see the [subtask contract](../development/tasks.md#confirmed-subtask-hierarchy-contract-2026-10-25).
+The hierarchy is now implemented in the backend; see the [subtask contract](../development/tasks.md#second-increment-subtask-hierarchy).
 
 | ID | Question | Proposed default | What depends on it |
 | --- | --- | --- | --- |
