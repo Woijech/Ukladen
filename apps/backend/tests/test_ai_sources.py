@@ -151,6 +151,7 @@ def test_calendar_combines_record_dates_and_events_without_claiming_availability
                 "title": "Appointment",
                 "starts_at": now,
                 "ends_at": now + timedelta(hours=1),
+                "description": "🙂" * 5000,
             },
         )
         database = service.views.databases.create(owner, "Dates")
@@ -175,6 +176,7 @@ def test_calendar_combines_record_dates_and_events_without_claiming_availability
     assert {source.source for source in result.sources} == {"personal", "record_date"}
     assert "calendar_display_is_not_availability" in result.warnings
     assert "academic_profile_not_selected" in result.warnings
+    assert "event_summaries_descriptions_omitted" in result.warnings
     assert (
         reader.read(
             owner,
@@ -182,3 +184,24 @@ def test_calendar_combines_record_dates_and_events_without_claiming_availability
         ).status
         == "not_found"
     )
+
+
+def test_large_database_option_lists_are_readable_through_schema_pagination(ai_database: Engine):
+    conversation, _ = seed(ai_database)
+    owner, reader = conversation.user_id, source_reader(ai_database)
+    options = [{"id": str(uuid4()), "name": "🙂" * 100} for _ in range(40)]
+    # Option names are unique under the normal schema contract.
+    for index, option in enumerate(options):
+        option["name"] = str(index) + "🙂" * 98
+    with Session(ai_database) as session, session.begin():
+        service = reader.service(session)
+        database = service.views.databases.create(owner, "Large schema")
+        prop = service.views.content.create_property(
+            owner, database.id, 1, "Choice", "select", options
+        )
+    schema = reader.read(owner, DatabaseRead(database_id=database.id))
+    assert schema.status == "ok" and schema.coverage == "complete"
+    page = reader.read(owner, DatabaseRead(database_id=database.id, property_id=prop.property.id))
+    assert page.status == "ok" and page.next_offset == 5 and page.coverage == "partial"
+    assert isinstance(page.data, dict)
+    assert isinstance(page.data["options"], list) and len(page.data["options"]) == 5

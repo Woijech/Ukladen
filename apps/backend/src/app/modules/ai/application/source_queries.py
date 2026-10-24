@@ -49,16 +49,19 @@ class CalendarRead(ReadQuery):
     include_hidden: bool = Field(default=False, strict=True)
     database_view_ids: tuple[UUID, ...] | None = Field(default=None, max_length=20)
     offset: int = Field(default=0, ge=0, le=10000, strict=True)
-    limit: int = Field(default=10, ge=1, le=20, strict=True)
+    limit: int = Field(default=5, ge=1, le=20, strict=True)
 
 
 class DatabaseList(ReadQuery):
     offset: int = Field(default=0, ge=0, le=10000, strict=True)
-    limit: int = Field(default=10, ge=1, le=20, strict=True)
+    limit: int = Field(default=5, ge=1, le=20, strict=True)
 
 
 class DatabaseRead(ReadQuery):
     database_id: UUID
+    property_id: UUID | None = None
+    offset: int = Field(default=0, ge=0, le=10000, strict=True)
+    limit: int = Field(default=5, ge=1, le=10, strict=True)
 
 
 class PropertyFilter(ReadQuery):

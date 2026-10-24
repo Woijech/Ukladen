@@ -168,29 +168,43 @@ class WorkspaceSourceService:
             )
         if isinstance(query, DatabaseRead):
             database, properties = self.views.content.schema(user_id, query.database_id)
-            views = self.views.list(user_id, database.id, limit=200)
+            end = query.offset + query.limit
+            schema_warnings: tuple[str, ...] = ()
+            if query.property_id is not None:
+                definition = self.views.content.definition(
+                    properties, query.property_id, active=True
+                )
+                selected = [definition]
+                options = definition.options[query.offset : end]
+                views = []
+                more = end < len(definition.options)
+                schema_warnings = ("selected_property_only",)
+            else:
+                active = [item for item in properties if item.trashed_at is None]
+                selected = active[query.offset : end]
+                options = ()
+                views = self.views.list(
+                    user_id, database.id, limit=query.limit + 1, offset=query.offset
+                )
+                more = end < len(active) or len(views) > query.limit
             return EvidenceResult(
                 data=json_value(
                     {
                         "schema_version": database.schema_version,
                         "properties": [
-                            {
-                                "id": item.id,
-                                "name": item.name,
-                                "kind": item.kind,
-                                "options": [asdict(option) for option in item.options],
-                            }
-                            for item in properties
-                            if item.trashed_at is None
+                            {"id": item.id, "name": item.name, "kind": item.kind}
+                            for item in selected
                         ],
+                        "options": [asdict(option) for option in options],
                         "views": [
                             {
                                 "id": view.id,
                                 "name": view.name,
                                 "layout": view.layout,
                                 "version": view.version,
+                                "date_property_id": view.date_property_id,
                             }
-                            for view in views
+                            for view in views[: query.limit]
                         ],
                     }
                 ),
@@ -200,10 +214,15 @@ class WorkspaceSourceService:
                         id=str(database.id),
                         version=database.version,
                         title=database.name,
-                        locator=f"schema:{database.schema_version}",
+                        locator=(
+                            f"schema:{database.schema_version}:"
+                            f"property:{query.property_id or 'all'}"
+                        ),
                     ),
                 ),
-                coverage="partial" if len(views) == 200 else "complete",
+                coverage="partial" if query.offset or more else "complete",
+                warnings=schema_warnings,
+                next_offset=end if more else None,
             )
         if isinstance(query, DatabaseReadQuery):
             if query.view_id is not None:
@@ -311,7 +330,24 @@ class WorkspaceSourceService:
                 data=json_value(
                     {
                         "timezone": result.timezone,
-                        "entries": [asdict(item) for item in batch],
+                        "entries": [
+                            asdict(item)
+                            if isinstance(item, RecordDateProjection)
+                            else {
+                                "id": item.id,
+                                "source": item.source,
+                                "title": item.title,
+                                "starts_at": item.starts_at,
+                                "ends_at": item.ends_at,
+                                "location": item.location,
+                                "blocks_time": item.blocks_time,
+                                "hidden": item.hidden,
+                                "skipped": item.skipped,
+                                "has_override": item.has_override,
+                                "version": item.version,
+                            }
+                            for item in batch
+                        ],
                         "checked_at": datetime.now(UTC),
                         "source_state": asdict(result.source) if result.source else None,
                     }
@@ -319,7 +355,12 @@ class WorkspaceSourceService:
                 sources=refs,
                 warnings=tuple(
                     dict.fromkeys(
-                        [*result.warnings, *warnings, "calendar_display_is_not_availability"]
+                        [
+                            *result.warnings,
+                            *warnings,
+                            "calendar_display_is_not_availability",
+                            "event_summaries_descriptions_omitted",
+                        ]
                     )
                 ),
                 coverage="partial"

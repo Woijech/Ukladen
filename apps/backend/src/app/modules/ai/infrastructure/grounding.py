@@ -40,7 +40,7 @@ DESCRIPTIONS = {
     "read_material_excerpt": "Read extracted file text by character range; no OCR/URL fetching.",
     "get_calendar_events": "Read events/record dates in profile timezone; not availability.",
     "list_databases": "List current owned active databases with pagination.",
-    "read_database": "Read current typed property schema, options and saved view IDs.",
+    "read_database": "Page typed properties/views; select property_id to page its options.",
     "query_database": "Read typed filtered/sorted records or an unchanged saved table view.",
 }
 
