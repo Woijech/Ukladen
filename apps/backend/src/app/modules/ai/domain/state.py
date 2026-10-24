@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
+from app.modules.ai.domain.pricing import PriceSnapshot
 from app.modules.search.domain.evidence import SourceReference
 
 RunStatus = Literal["queued", "running", "completed", "failed", "cancelled", "interrupted"]
@@ -109,6 +110,7 @@ class Run:
     offering_id: str | None = None
     offering_version: int | None = None
     connection_id: UUID | None = None
+    price: PriceSnapshot | None = None
 
     def __post_init__(self) -> None:
         require_time(self.created_at, self.updated_at, self.finished_at)

@@ -20,6 +20,7 @@ from app.modules.ai.application.source_queries import (
     MaterialRead,
     PageRead,
     PropertyFilter,
+    RecordRead,
     SearchRead,
 )
 from app.modules.ai.infrastructure.orm import MessageModel
@@ -33,6 +34,36 @@ from app.modules.search.infrastructure.documents import SqlAlchemyMaterialTextIn
 
 def source_reader(engine: Engine) -> SqlAlchemySourceReader:
     return SqlAlchemySourceReader(sessionmaker(engine), Mock(spec=AcademicProvider), 3600)
+
+
+def test_record_preview_rechecks_owner_trash_and_current_values(ai_database: Engine):
+    conversation, other = seed(ai_database)
+    owner = conversation.user_id
+    reader = source_reader(ai_database)
+    with Session(ai_database) as session, session.begin():
+        service = reader.service(session)
+        database = service.views.databases.create(owner, "Preview")
+        prop = service.views.content.create_property(owner, database.id, 1, "Score", "number")
+        result = service.views.content.create_record(
+            owner,
+            database.id,
+            prop.schema_version,
+            {str(prop.property.id): 7},
+            title="Current record",
+        )
+    query = RecordRead(database_id=database.id, record_id=result.record.id)
+    assert reader.read(other, query).status == "not_found"
+    preview = reader.read(owner, query)
+    assert preview.status == "ok" and "Score" in str(preview.data) and "7" in str(preview.data)
+    with Session(ai_database) as session, session.begin():
+        service = reader.service(session)
+        service.views.content.record_lifecycle(
+            owner,
+            database.id,
+            result.record.id,
+            result.record.version,
+        )
+    assert reader.read(owner, query).status == "unavailable"
 
 
 def test_source_metadata_round_trip_constraints_and_preserving_migration(ai_database: Engine):

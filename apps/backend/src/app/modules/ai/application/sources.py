@@ -14,6 +14,7 @@ from app.modules.ai.application.source_queries import (
     MaterialRead,
     PageRead,
     ReadQuery,
+    RecordRead,
     SearchRead,
 )
 from app.modules.calendar.application.composition import CalendarCompositionService
@@ -52,6 +53,38 @@ class WorkspaceSourceService:
         self.views, self.calendar = views, calendar
 
     def read(self, user_id: UUID, query: ReadQuery) -> EvidenceResult:
+        if isinstance(query, RecordRead):
+            database, definitions = self.views.content.schema(user_id, query.database_id)
+            record = self.views.content.record(user_id, database.id, query.record_id, active=True)
+            page = self.notes.summary(user_id, record.page_id, active=True)
+            definitions = [item for item in definitions if item.trashed_at is None]
+            end = query.offset + query.limit
+            return EvidenceResult(
+                data=json_value(
+                    {
+                        "title": page.title,
+                        "properties": [
+                            {
+                                "name": item.name,
+                                "value": str(record.values.get(str(item.id), ""))[:400],
+                            }
+                            for item in definitions[query.offset : end]
+                        ],
+                    }
+                ),
+                sources=(
+                    SourceReference(
+                        source="database_record",
+                        id=str(record.id),
+                        version=record.version,
+                        title=page.title,
+                        parent_id=str(database.id),
+                    ),
+                ),
+                coverage="partial",
+                warnings=("record_preview_values_bounded",),
+                next_offset=end if end < len(definitions) else None,
+            )
         if isinstance(query, SearchRead):
             hits = self.search.search(
                 user_id,

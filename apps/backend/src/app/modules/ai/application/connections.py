@@ -13,6 +13,7 @@ from app.modules.ai.domain.connections import (
     ModelSelection,
     PersonalConnection,
 )
+from app.modules.ai.domain.pricing import PriceSnapshot
 from app.modules.ai.domain.state import AiNotFound, Conversation, InvalidAiState, Run
 
 
@@ -39,6 +40,7 @@ class ModelOffering(BaseModel):
     # shortcut: bound serialized bytes until a verified per-model tokenizer is available.
     max_input_bytes: int = Field(default=6000, ge=256, le=65536)
     max_output_tokens: int = Field(default=2048, ge=1, le=2048)
+    price: PriceSnapshot | None = None
 
 
 class ConnectionConfiguration(Protocol):

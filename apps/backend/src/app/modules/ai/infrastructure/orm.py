@@ -21,6 +21,23 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.session import Base
 
 
+class AssistantPreferencesModel(Base):
+    __tablename__ = "ai_preferences"
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    instructions: Mapped[str] = mapped_column(Text)
+    version: Mapped[int] = mapped_column(Integer)
+
+    __table_args__ = (
+        CheckConstraint(
+            "octet_length(instructions) <= 8192", name="ck_ai_preferences_instructions"
+        ),
+        CheckConstraint("version > 0", name="ck_ai_preferences_version"),
+    )
+
+
 class PersonalConnectionModel(Base):
     __tablename__ = "ai_personal_connections"
 
@@ -141,6 +158,8 @@ class MessageModel(Base):
 class RunModel(Base):
     __tablename__ = "ai_runs"
 
+    price: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True))
+
     offering_id: Mapped[str | None] = mapped_column(String(64))
     offering_version: Mapped[int | None] = mapped_column(Integer)
     connection_id: Mapped[UUID | None]
@@ -179,6 +198,11 @@ class RunModel(Base):
         UniqueConstraint("user_id", "submission_id", name="uq_ai_runs_submission"),
         CheckConstraint("version > 0", name="ck_ai_runs_version"),
         CheckConstraint("request_digest ~ '^[0-9a-f]{64}$'", name="ck_ai_runs_digest"),
+        CheckConstraint(
+            "price IS NULL OR (jsonb_typeof(price) = 'object' "
+            "AND octet_length(price::text) <= 1024)",
+            name="ck_ai_runs_price",
+        ),
         CheckConstraint(
             "provider ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$' AND "
             "model ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$'",

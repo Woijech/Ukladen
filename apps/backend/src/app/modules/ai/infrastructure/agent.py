@@ -38,9 +38,11 @@ from app.modules.ai.application.agent import (
     ToolOutcome,
 )
 from app.modules.ai.application.lifecycle import ExecutionJournal
+from app.modules.ai.application.streaming import emit, stream_sink
 from app.modules.ai.infrastructure.accounting import AccountingMiddleware
 from app.modules.ai.infrastructure.bounds import BoundedCalls
 from app.modules.ai.infrastructure.grounding import SourceTools
+from app.modules.ai.infrastructure.instructions import AssistantInstructions
 
 CALL_LIMIT_ERRORS = (ModelCallLimitExceededError, ToolCallLimitExceededError)
 TOOL_ERROR = "Tool unavailable or invalid input."
@@ -88,6 +90,7 @@ class OfflineAgentRunner:
         run_timeout: float = 60,
         tool_timeout: float = 10,
         sources: SourceTools | None = None,
+        instructions: Callable[[], str] | None = None,
     ) -> None:
         if (
             type(model_limit) is not int
@@ -130,6 +133,8 @@ class OfflineAgentRunner:
             middleware.insert(4, AccountingMiddleware(journal))
         if sources is not None:
             middleware.append(sources)
+        if instructions is not None:
+            middleware.append(AssistantInstructions(instructions))
         self.graph = create_agent(
             model=model,
             tools=tools,
@@ -172,7 +177,35 @@ class OfflineAgentRunner:
     def _invoke(self, value: InputAgentState | Command[Any], config: RunnableConfig) -> AgentResult:
         self.bounds.begin(self.run_timeout)
         try:
-            result = self.graph.invoke(value, config)
+            if stream_sink.get() is None:
+                result = self.graph.invoke(value, config)
+            else:
+                result = {}
+                streamed_bytes = 0
+                stream: Any = self.graph.stream(value, config, stream_mode=["messages", "values"])
+                for mode, data in stream:
+                    if mode == "values":
+                        result = data
+                    elif mode == "messages":
+                        message, metadata = data
+                        if metadata.get("langgraph_node") != "model":
+                            continue
+                        # Only visible text crosses transport; never arguments, reasoning or state.
+                        content = message.content
+                        text = (
+                            content
+                            if isinstance(content, str)
+                            else "".join(
+                                block.get("text", "")
+                                for block in content
+                                if isinstance(block, dict) and block.get("type") == "text"
+                            )
+                        )
+                        streamed_bytes += len(text.encode("utf-8"))
+                        if streamed_bytes > RESULT_BYTES * 4:
+                            return AgentResult(status="limited")
+                        if text:
+                            emit("delta", id=message.id or "answer", text=text)
             response = self._result(result)
             return (
                 response.model_copy(update={"sources": self.sources.sources})

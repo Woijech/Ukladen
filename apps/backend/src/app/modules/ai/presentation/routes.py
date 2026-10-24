@@ -1,14 +1,17 @@
 import logging
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.core.logging import log_failure
 from app.modules.academics.presentation.routes import no_store
 from app.modules.ai.application.connections import ConnectionAccess, ModelOffering
 from app.modules.ai.application.lifecycle import AiService
+from app.modules.ai.application.source_queries import SourceQuery
+from app.modules.ai.application.usage import UsageReport
 from app.modules.ai.domain.connections import ConnectionLimited, ConnectionUnavailable
 from app.modules.ai.domain.state import (
     AiConflict,
@@ -20,6 +23,7 @@ from app.modules.ai.infrastructure.connections import FileConnectionConfiguratio
 from app.modules.ai.infrastructure.lifecycle import PostgresAgentRunners, SqlAlchemyAiTransactions
 from app.modules.ai.infrastructure.providers import OpenRouterModels
 from app.modules.ai.infrastructure.sources import SqlAlchemySourceReader
+from app.modules.ai.infrastructure.usage import SqlAlchemyUsageReader
 from app.modules.ai.presentation.schemas import (
     ConnectionCreate,
     ConnectionList,
@@ -27,17 +31,22 @@ from app.modules.ai.presentation.schemas import (
     ConversationCreate,
     ConversationList,
     ConversationResponse,
+    ConversationState,
     MessageList,
     MessageResponse,
     MessageSubmit,
+    PreferencesResponse,
+    PreferencesUpdate,
     RunResponse,
 )
+from app.modules.ai.presentation.streaming import stream_response
 from app.modules.auth.presentation.dependencies import (
     Config,
     CurrentSession,
     get_current_session,
     require_csrf,
 )
+from app.modules.search.application.evidence import EvidenceResult
 
 logger = logging.getLogger(__name__)
 router = APIRouter(
@@ -73,6 +82,84 @@ def get_ai(request: Request, settings: Config) -> AiService:
 
 
 Ai = Annotated[AiService, Depends(get_ai)]
+
+
+@router.get("/usage", response_model=UsageReport)
+def usage(
+    request: Request,
+    current: CurrentSession,
+    service: Ai,
+    days: int = Query(7, ge=7, le=30),
+    date_from: date | None = None,
+    date_to: date | None = None,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=10000),
+) -> UsageReport:
+    return SqlAlchemyUsageReader(request.app.state.session_factory).read(
+        current.user_id,
+        date_from,
+        date_to,
+        days,
+        limit,
+        offset,
+    )
+
+
+@router.post("/sources/read", response_model=EvidenceResult, dependencies=[Depends(require_csrf)])
+def read_source(
+    payload: SourceQuery,
+    request: Request,
+    settings: Config,
+    current: CurrentSession,
+    service: Ai,
+) -> EvidenceResult:
+    return SqlAlchemySourceReader(
+        request.app.state.session_factory,
+        request.app.state.academic_provider,
+        settings.schedule_sync_interval_seconds,
+    ).read(current.user_id, payload)
+
+
+@router.get("/preferences", response_model=PreferencesResponse)
+def preferences(current: CurrentSession, service: Ai) -> PreferencesResponse:
+    return PreferencesResponse.model_validate(service.preferences(current.user_id))
+
+
+@router.put(
+    "/preferences", response_model=PreferencesResponse, dependencies=[Depends(require_csrf)]
+)
+def save_preferences(
+    payload: PreferencesUpdate, current: CurrentSession, service: Ai
+) -> PreferencesResponse:
+    return PreferencesResponse.model_validate(
+        service.save_preferences(
+            current.user_id,
+            payload.instructions,
+            payload.expected_version,
+        )
+    )
+
+
+@router.get("/conversations/{conversation_id}/state", response_model=ConversationState)
+def conversation_state(
+    conversation_id: UUID, current: CurrentSession, service: Ai
+) -> ConversationState:
+    conversation, run = service.conversation_state(current.user_id, conversation_id)
+    return ConversationState(
+        conversation=ConversationResponse.model_validate(conversation),
+        run=RunResponse.from_snapshot(service.get_run(current.user_id, run.id)) if run else None,
+    )
+
+
+@router.post(
+    "/conversations/{conversation_id}/messages/stream", dependencies=[Depends(require_csrf)]
+)
+def submit_stream(
+    conversation_id: UUID, payload: MessageSubmit, current: CurrentSession, service: Ai
+) -> StreamingResponse:
+    request = payload.agent_input(conversation_id)
+    run, created = service.admit(current.user_id, request, payload.submission_id)
+    return stream_response(service, run, request, created)
 
 
 @router.post(
@@ -161,11 +248,17 @@ def history(
     service: Ai,
     after: int = Query(0, ge=0, le=2**63 - 1),
     limit: int = Query(100, ge=1, le=200),
+    recent: bool = False,
+    before: int | None = Query(None, ge=1, le=2**63 - 1),
 ) -> MessageList:
     return MessageList(
         items=[
             MessageResponse.model_validate(item)
-            for item in service.history(current.user_id, conversation_id, after, limit)
+            for item in (
+                service.recent_history(current.user_id, conversation_id, before, limit)
+                if recent or before is not None
+                else service.history(current.user_id, conversation_id, after, limit)
+            )
         ]
     )
 

@@ -8,6 +8,8 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.modules.ai.domain.connections import ConnectionLimited, PersonalConnection
+from app.modules.ai.domain.preferences import AssistantPreferences
+from app.modules.ai.domain.pricing import PriceSnapshot
 from app.modules.ai.domain.state import (
     AiConflict,
     AiNotFound,
@@ -24,6 +26,7 @@ from app.modules.ai.domain.state import (
     require_run_transition,
 )
 from app.modules.ai.infrastructure.orm import (
+    AssistantPreferencesModel,
     ConnectionBucketModel,
     ConversationModel,
     MessageModel,
@@ -67,6 +70,7 @@ def message_entity(row: MessageModel) -> Message:
 
 def run_entity(row: RunModel) -> Run:
     return Run(
+        price=PriceSnapshot.model_validate(row.price) if row.price else None,
         id=row.id,
         user_id=row.user_id,
         conversation_id=row.conversation_id,
@@ -118,6 +122,25 @@ def tool_entity(row: ToolExecutionModel) -> ToolExecution:
 class SqlAlchemyAiRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
+
+    def preferences(self, user_id: UUID) -> AssistantPreferences:
+        row = self.session.get(AssistantPreferencesModel, user_id, populate_existing=True)
+        return (
+            AssistantPreferences(row.instructions, row.version) if row else AssistantPreferences()
+        )
+
+    def save_preferences(self, user_id: UUID, value: AssistantPreferences) -> None:
+        self.session.merge(AssistantPreferencesModel(user_id=user_id, **asdict(value)))
+        self.session.flush()
+
+    def latest_run(self, user_id: UUID, conversation_id: UUID) -> Run | None:
+        row = self.session.scalar(
+            select(RunModel)
+            .where(RunModel.user_id == user_id, RunModel.conversation_id == conversation_id)
+            .order_by(RunModel.created_at.desc(), RunModel.id.desc())
+            .limit(1)
+        )
+        return run_entity(row) if row else None
 
     def save_connection(self, connection: PersonalConnection) -> None:
         self.session.merge(PersonalConnectionModel(**asdict(connection)))
@@ -307,6 +330,22 @@ class SqlAlchemyAiRepository:
             )
         ]
 
+    def recent_messages(
+        self, user_id: UUID, conversation_id: UUID, before: int | None, limit: int
+    ) -> list[Message]:
+        if not 1 <= limit <= 200 or (before is not None and not 1 <= before <= 2**63 - 1):
+            raise InvalidAiState("Invalid history pagination.")
+        statement = select(MessageModel).where(
+            MessageModel.user_id == user_id,
+            MessageModel.conversation_id == conversation_id,
+        )
+        if before is not None:
+            statement = statement.where(MessageModel.sequence < before)
+        items = list(
+            self.session.scalars(statement.order_by(MessageModel.sequence.desc()).limit(limit))
+        )
+        return [message_entity(row) for row in reversed(items)]
+
     def create_run(self, run: Run) -> None:
         if run.status != "queued" or run.conversation_id is None:
             raise InvalidAiState("New runs require a conversation and queued state.")
@@ -332,7 +371,14 @@ class SqlAlchemyAiRepository:
             is None
         ):
             raise AiNotFound()
-        self.session.add(RunModel(**asdict(run)))
+        self.session.add(
+            RunModel(
+                **(
+                    asdict(run)
+                    | {"price": run.price.model_dump(mode="json") if run.price else None}
+                )
+            )
+        )
         self.session.flush()
 
     def get_run(self, user_id: UUID, run_id: UUID) -> Run | None:

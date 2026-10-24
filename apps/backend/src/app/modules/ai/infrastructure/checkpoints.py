@@ -228,6 +228,7 @@ def owned_offline_runner(
     journal: ExecutionJournal | None = None,
     run_timeout: float = 60,
     sources: SourceTools | None = None,
+    instructions: Callable[[], str] | None = None,
 ) -> AgentRunner:
     """Caller owns the connection; no connection creation or DDL occurs here."""
     saver = OwnedPostgresSaver(connection, user_id, conversation_id, now=now, run_id=run_id)
@@ -241,4 +242,5 @@ def owned_offline_runner(
         journal=journal,
         run_timeout=run_timeout,
         sources=sources,
+        instructions=instructions,
     )

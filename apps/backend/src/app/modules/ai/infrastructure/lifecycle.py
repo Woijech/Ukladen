@@ -77,9 +77,13 @@ class PostgresAgentRunners:
             engine = database.get_bind()
         if not isinstance(engine, Engine):
             raise ValueError("AI execution requires an engine-backed session factory.")
-        self.engine, self.model = engine, model
+        self.engine, self.model, self.sessions = engine, model, sessions
         self.real_models = real_models
         self.sources = sources
+
+    def instructions(self, user_id: UUID) -> str:
+        with SqlAlchemyAiTransactions(self.sessions)(user_id) as repository:
+            return repository.preferences(user_id).instructions
 
     @contextmanager
     def __call__(self, run: Run, journal: ExecutionJournal) -> Iterator[AgentRunner]:
@@ -122,6 +126,7 @@ class PostgresAgentRunners:
                         run_id=run.id,
                         journal=journal,
                         sources=source_tools,
+                        instructions=lambda: self.instructions(run.user_id),
                         run_timeout=max(
                             0.001,
                             (run.created_at + RUN_TIMEOUT - datetime.now(UTC)).total_seconds(),

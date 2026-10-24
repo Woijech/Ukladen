@@ -85,6 +85,15 @@ class DatabaseReadQuery(ReadQuery):
     limit: int = Field(default=5, ge=1, le=20, strict=True)
 
 
+class RecordRead(ReadQuery):
+    """Current read-only source inspection; not an additional advertised agent tool."""
+
+    database_id: UUID
+    record_id: UUID
+    offset: int = Field(default=0, ge=0, le=100, strict=True)
+    limit: int = Field(default=5, ge=1, le=5, strict=True)
+
+
 SourceQuery = (
     SearchRead
     | PageRead
@@ -93,6 +102,7 @@ SourceQuery = (
     | DatabaseList
     | DatabaseRead
     | DatabaseReadQuery
+    | RecordRead
 )
 
 # Tool names are stable capabilities; retrieval implementation is independent of the model.

@@ -7,6 +7,7 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Protocol
 from uuid import UUID, uuid4
 
@@ -15,11 +16,13 @@ from app.modules.ai.application.agent import AgentInput, AgentResult, AgentRunne
 from app.modules.ai.application.connections import ConnectionAccess, ModelOffering
 from app.modules.ai.application.persistence import AiRepository
 from app.modules.ai.application.recovery import RUN_TIMEOUT, stop_run
+from app.modules.ai.application.streaming import emit
 from app.modules.ai.domain.connections import (
     ConnectionUnavailable,
     ModelSelection,
     PersonalConnection,
 )
+from app.modules.ai.domain.preferences import AssistantPreferences
 from app.modules.ai.domain.state import (
     AiConflict,
     AiNotFound,
@@ -71,6 +74,24 @@ class RunSnapshot:
     run: Run
     attempts: tuple[ProviderAttempt, ...]
     tools: tuple[ToolExecution, ...]
+
+    @property
+    def estimated_cost(self) -> Decimal | None:
+        if self.run.price is None:
+            return None
+        costs = [
+            cost
+            for item in self.attempts
+            if (cost := self.run.price.estimate(item.input_tokens, item.output_tokens)) is not None
+        ]
+        return sum(costs, Decimal(0)) if costs else None
+
+    @property
+    def unpriced_attempts(self) -> int:
+        return sum(
+            self.run.price is None or item.input_tokens is None or item.output_tokens is None
+            for item in self.attempts
+        )
 
 
 class AiService:
@@ -167,6 +188,34 @@ class AiService:
             self.conversation(repository, user_id, conversation_id)
             return repository.messages(user_id, conversation_id, after, limit)
 
+    def preferences(self, user_id: UUID) -> AssistantPreferences:
+        with self.transactions(user_id) as repository:
+            return repository.preferences(user_id)
+
+    def recent_history(
+        self, user_id: UUID, conversation_id: UUID, before: int | None, limit: int
+    ) -> list[Message]:
+        with self.transactions(user_id) as repository:
+            self.conversation(repository, user_id, conversation_id)
+            return repository.recent_messages(user_id, conversation_id, before, limit)
+
+    def save_preferences(
+        self, user_id: UUID, instructions: str, expected_version: int
+    ) -> AssistantPreferences:
+        result = AssistantPreferences(instructions, expected_version + 1)
+        with self.transactions(user_id, write=True) as repository:
+            if repository.preferences(user_id).version != expected_version:
+                raise AiConflict("Assistant preferences changed.")
+            repository.save_preferences(user_id, result)
+        return result
+
+    def conversation_state(
+        self, user_id: UUID, conversation_id: UUID
+    ) -> tuple[Conversation, Run | None]:
+        with self.transactions(user_id) as repository:
+            conversation = self.conversation(repository, user_id, conversation_id)
+            return conversation, repository.latest_run(user_id, conversation_id)
+
     def get_run(self, user_id: UUID, run_id: UUID) -> RunSnapshot:
         with self.transactions(user_id) as repository:
             run = repository.get_run(user_id, run_id)
@@ -190,6 +239,12 @@ class AiService:
             )
 
     def submit(self, user_id: UUID, request: AgentInput, submission_id: UUID) -> RunSnapshot:
+        run, created = self.admit(user_id, request, submission_id)
+        if created:
+            self.execute(run, request)
+        return self.get_run(user_id, run.id)
+
+    def admit(self, user_id: UUID, request: AgentInput, submission_id: UUID) -> tuple[Run, bool]:
         payload: list[object] = [str(request.conversation_id), request.message]
         if request.source_scope is not None:
             payload.append(request.source_scope.model_dump(mode="json"))
@@ -217,12 +272,15 @@ class AiService:
                     raise AiConflict("Conversation already has active execution.")
                 now = self.now()
                 provider, model = self.provider, self.model
+                price = None
                 if conversation.offering_id is not None:
                     offering, _ = self.connection_access().check(
                         repository, user_id, conversation, now
                     )
                     provider, model = offering.provider, offering.model
+                    price = offering.price
                 run = Run(
+                    price=price,
                     id=uuid4(),
                     user_id=user_id,
                     conversation_id=conversation.id,
@@ -249,9 +307,7 @@ class AiService:
                         created_at=now,
                     )
                 )
-        if existing is None:
-            self.execute(run, request)
-        return self.get_run(user_id, run.id)
+        return run, existing is None
 
     def execute(self, run: Run, request: AgentInput) -> None:
         with self.transactions(run.user_id, write=True) as repository:
@@ -362,7 +418,8 @@ class RunJournal:
                 started_at=self.service.now(),
             )
             repository.create_attempt(attempt)
-            return attempt
+        emit("progress", kind="model", number=number, status="started")
+        return attempt
 
     def finish_attempt(
         self,
@@ -420,7 +477,8 @@ class RunJournal:
                 started_at=self.service.now(),
             )
             repository.create_tool_execution(tool)
-            return tool
+        emit("progress", kind="tool", name=tool_name, number=number, status="started")
+        return tool
 
     def finish_tool(
         self, tool: ToolExecution, status: ExecutionStatus, error: ErrorCode | None = None

@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, replace
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from threading import Barrier
 from typing import cast
@@ -27,6 +28,8 @@ from sqlalchemy.schema import CreateSchema, DropSchema
 
 from alembic import command
 from app.db.session import Base
+from app.modules.ai.domain.preferences import AssistantPreferences
+from app.modules.ai.domain.pricing import PriceSnapshot
 from app.modules.ai.domain.state import (
     AiConflict,
     AiNotFound,
@@ -39,7 +42,7 @@ from app.modules.ai.domain.state import (
 )
 from app.modules.ai.infrastructure import checkpoint_schema
 from app.modules.ai.infrastructure.checkpoints import OwnedPostgresSaver
-from app.modules.ai.infrastructure.orm import ConversationModel, RunModel
+from app.modules.ai.infrastructure.orm import AssistantPreferencesModel, ConversationModel, RunModel
 from app.modules.ai.infrastructure.repository import SqlAlchemyAiRepository
 from app.modules.users.infrastructure.orm import UserModel
 
@@ -117,6 +120,38 @@ def make_message(conversation: Conversation, sequence: int = 1) -> Message:
     )
 
 
+def test_preferences_and_price_downgrade_refuses_retained_user_data(ai_database: Engine) -> None:
+    conversation, _ = seed(ai_database)
+    run = replace(
+        make_run(conversation),
+        price=PriceSnapshot(
+            date=NOW.date(),
+            currency="USD",
+            input_per_million=Decimal("1"),
+            output_per_million=Decimal("2"),
+        ),
+    )
+    with Session(ai_database) as database, database.begin():
+        repository = SqlAlchemyAiRepository(database)
+        repository.save_preferences(
+            conversation.user_id, AssistantPreferences("Keep these instructions", 1)
+        )
+        repository.create_run(run)
+    with ai_database.begin() as connection:
+        config = migration_config(connection)
+        with pytest.raises(DBAPIError, match="Cannot downgrade"), connection.begin_nested():
+            command.downgrade(config, "0026_ai_preferences")
+        assert connection.scalar(select(RunModel.price).where(RunModel.id == run.id)) is not None
+        connection.execute(update(RunModel).where(RunModel.id == run.id).values(price=None))
+        with pytest.raises(DBAPIError, match="Cannot downgrade"), connection.begin_nested():
+            command.downgrade(config, "0025_ai_message_sources")
+        assert (
+            connection.scalar(select(AssistantPreferencesModel.instructions))
+            == "Keep these instructions"
+        )
+        command.check(config)
+
+
 def checkpoint_connection(engine: Engine) -> PgConnection[DictRow]:
     dsn = engine.url.set(drivername="postgresql").render_as_string(hide_password=False)
     return PgConnection[DictRow].connect(
@@ -168,7 +203,7 @@ def test_migration_preserves_existing_user_and_refuses_populated_downgrade(
             command.downgrade(migration, "0021_google_email_confirmations")
         assert (
             connection.scalar(text("SELECT version_num FROM alembic_version"))
-            == "0025_ai_message_sources"
+            == "0027_ai_price_snapshots"
         )
         assert connection.scalar(select(func.count()).select_from(ConversationModel)) == 1
 

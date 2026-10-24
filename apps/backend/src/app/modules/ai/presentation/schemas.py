@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
@@ -7,6 +8,7 @@ from app.modules.ai.application.agent import AgentInput
 from app.modules.ai.application.connections import require_key
 from app.modules.ai.application.lifecycle import RunSnapshot
 from app.modules.ai.application.source_queries import SourceScope
+from app.modules.ai.domain.pricing import PriceSnapshot
 from app.modules.ai.domain.state import ErrorCode, ExecutionStatus, MessageRole, RunStatus
 from app.modules.search.domain.evidence import SourceReference
 
@@ -109,11 +111,17 @@ class RunResponse(BaseModel):
     offering_id: str | None
     offering_version: int | None
     connection_id: UUID | None
+    price: PriceSnapshot | None = None
+    estimated_cost: Decimal | None = None
+    unpriced_attempts: int = 0
 
     @classmethod
     def from_snapshot(cls, snapshot: RunSnapshot) -> RunResponse:
         run = snapshot.run
         return cls(
+            price=run.price,
+            estimated_cost=snapshot.estimated_cost,
+            unpriced_attempts=snapshot.unpriced_attempts,
             id=run.id,
             conversation_id=run.conversation_id,
             submission_id=run.submission_id,
@@ -160,3 +168,27 @@ class ConnectionResponse(BaseModel):
 
 class ConnectionList(BaseModel):
     items: list[ConnectionResponse]
+
+
+class PreferencesUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    instructions: str = Field(max_length=8192)
+    expected_version: int = Field(ge=0, le=2**31 - 2)
+
+    @field_validator("instructions")
+    @classmethod
+    def bounded_instructions(cls, value: str) -> str:
+        from app.modules.ai.domain.preferences import AssistantPreferences
+
+        return AssistantPreferences(value).instructions
+
+
+class PreferencesResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    instructions: str
+    version: int
+
+
+class ConversationState(BaseModel):
+    conversation: ConversationResponse
+    run: RunResponse | None
