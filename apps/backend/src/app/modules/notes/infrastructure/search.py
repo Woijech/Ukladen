@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, true
 from sqlalchemy.orm import Session
 
 from app.modules.notes.infrastructure.orm import PageModel
@@ -29,7 +29,10 @@ class SqlAlchemyPageSearch:
                 score.label("score"),
             )
             .where(
-                PageModel.user_id == user_id, PageModel.trashed_at.is_(None), vector.op("@@")(terms)
+                PageModel.user_id == user_id,
+                PageModel.trashed_at.is_(None),
+                vector.op("@@")(terms),
+                PageModel.id.in_(query.source_ids) if query.source_ids else true(),
             )
             .order_by(score.desc(), PageModel.id)
             .limit(query.offset + query.limit)

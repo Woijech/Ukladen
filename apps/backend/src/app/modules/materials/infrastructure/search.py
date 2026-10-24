@@ -52,6 +52,8 @@ class SqlAlchemyMaterialSearch:
         )
         if query.kind is not None:
             statement = statement.where(MaterialModel.kind == query.kind)
+        if query.source_ids:
+            statement = statement.where(MaterialModel.id.in_(query.source_ids))
         if query.extension is not None:
             statement = statement.where(
                 func.lower(MaterialModel.filename).endswith("." + query.extension)

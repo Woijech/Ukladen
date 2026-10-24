@@ -24,14 +24,18 @@ from app.modules.workspace.domain.organization import (
 
 
 @dataclass(frozen=True)
-class TableResult:
-    view: DatabaseView
+class RecordQueryResult:
     properties: list[DatabaseProperty]
     items: list[RecordResult]
     schema_version: int
     total: int
     limit: int
     offset: int
+
+
+@dataclass(frozen=True)
+class TableResult(RecordQueryResult):
+    view: DatabaseView
 
 
 class DatabaseViewService:
@@ -144,15 +148,22 @@ class DatabaseViewService:
     def table(
         self, user_id: UUID, database_id: UUID, view_id: UUID, limit: int = 100, offset: int = 0
     ) -> TableResult:
-        pagination(limit, offset)
         view = self.get(user_id, database_id, view_id)
-        database, definitions = self.content.schema(user_id, database_id)
         if view.layout != "table":
             raise WorkspaceConflict()
         try:
-            query = validate_query(query_value(view.query), definitions)
+            result = self.query(user_id, database_id, query_value(view.query), limit, offset)
         except InvalidWorkspaceInput:
             raise WorkspaceConflict() from None
+        return TableResult(**vars(result), view=view)
+
+    def query(
+        self, user_id: UUID, database_id: UUID, value: object, limit: int = 100, offset: int = 0
+    ) -> RecordQueryResult:
+        """Query current owned records without creating or changing a saved view."""
+        pagination(limit, offset)
+        database, definitions = self.content.schema(user_id, database_id)
+        query = validate_query(value, definitions)
         # shortcut: scan <=10000 page refs; add indexed page queries when raising the limit.
         candidates = self.repository.candidates(user_id, database_id, query, definitions)
         if len(candidates) > 10000:
@@ -190,6 +201,6 @@ class DatabaseViewService:
             )
             for item in batch
         ]
-        return TableResult(
-            view, columns, items, database.schema_version, len(selected), limit, offset
+        return RecordQueryResult(
+            columns, items, database.schema_version, len(selected), limit, offset
         )

@@ -26,3 +26,4 @@ class SearchQuery:
     extension: Literal["pdf", "docx", "pptx", "txt", "md"] | None = None
     limit: int = 20
     offset: int = 0
+    source_ids: tuple[UUID, ...] = ()
