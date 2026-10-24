@@ -5,7 +5,8 @@ Status: AI-00 and the offline AI-01 foundation are delivered: a fake-only harnes
 owned persistence, authenticated chat/run API, durable accounting, bounded execution,
 conservative recovery and physical retention cleanup. Tested on disposable
 PostgreSQL/Redis, disabled by default and unapplied to the running app.
-Later stages remain not implemented; see the dated final verification in the
+AI-02 now adds the optional [OpenRouter catalog and encrypted connections](ai-connections.md);
+activation/live account verification remain pending. Later stages remain not implemented; see the dated final verification in the
 [execution record](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 No P-06, real provider traffic or deployment is included.
 
@@ -23,7 +24,7 @@ numeric order is not an implicit dependency or authorization to start another st
 | --- | --- | --- | --- |
 | AI-00 | Agreed scope, policies, tool/config contracts and synthetic cases | No external connection | Specification/fixture/link checks; no runtime claim |
 | AI-01 | Delivered offline agent, owned chat/run API, persistence, accounting, bounded recovery and retention; disabled by default | AI-00; all nine steps individually approved; no application migration/activation | Offline/native lifecycle, restart and cleanup checks; dated final verification in the execution record |
-| AI-02 | Operator model catalog, supported adapters and encrypted personal API connections | AI-01; explicitly chosen vendor contract/account | Synthetic smoke, capability/secret/quota/isolation checks |
+| AI-02 | Implemented optional OpenRouter catalog, supported adapter and encrypted personal connections; live activation pending | AI-01; owner-selected OpenRouter/DeepSeek; account gate remains | Synthetic HTTP/native secret/quota/isolation checks; [contract](ai-connections.md) |
 | AI-03 | Authorized search/read tools and lexical grounding | AI-01; existing application services | Sources, current ownership, injection and coverage cases |
 | AI-04 | Separate streaming chats, cancellation, sources, instructions/model settings and usage UI | AI-01/02/03 | Desktop/mobile/session isolation and retention checks |
 | AI-05 | Embedding runtime/hardware proof | AI-00; model download only if requested | Compatible packages, pinned model and measured full-stack cost |
@@ -64,8 +65,8 @@ are not already implemented merely because package markers or tables are planned
 
 ## 3. Planned configuration and bounds
 
-Only AI_ENABLED, AI_RETENTION_ENABLED, AI_LLM_PROVIDER and AI_LLM_MODEL are implemented, accepting the
-offline fake profile. Other settings below remain planned; add only those needed
+AI_ENABLED, AI_RETENTION_ENABLED, AI_LLM_PROVIDER and AI_LLM_MODEL preserve the
+offline default. Optional AI_CONNECTIONS_FILE adds the delivered catalog/secret-file configuration. Other settings below remain planned; add only those needed
 by the delivered stage, with no empty future plugin system.
 
 | Setting / configuration | Initial contract |
@@ -149,6 +150,11 @@ fake call keeps its bounded thread slot until it returns. No real model, busines
 tool, source retrieval, streaming or product UI is delivered by AI-01.
 
 ## 6. AI-02: operator models and personal API connections
+
+Status: implemented locally through the [AI-02 contract](ai-connections.md); disabled by
+default, with application migration, live provider/account proof and activation pending.
+The owner selected OpenRouter/DeepSeek and delegated adapter expansion/access details;
+model changes use new chats and private setup/test artifacts stay out of commits.
 
 Implement the operator catalog plus owner-only create/list-masked/disconnect personal
 connections. Verify one chosen vendor's documented contract rather than assuming all

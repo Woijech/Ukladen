@@ -92,6 +92,8 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "ai_run_receipts",
         "ai_provider_attempts",
         "ai_tool_executions",
+        "ai_personal_connections",
+        "ai_connection_buckets",
         "checkpoint_migrations",
         "checkpoints",
         "checkpoint_blobs",

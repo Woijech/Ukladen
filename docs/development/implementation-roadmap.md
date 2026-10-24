@@ -38,7 +38,9 @@ existing services just to match target vocabulary. A package marker is not a fea
 | Workspace | Collections/tags, typed membership, event views and recoverable page-backed databases with table/calendar views | [Workspace](workspace.md), [calendar views](calendar-views.md), [databases](databases.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
-Calendar free slots/conflicts, tasks, semantic search and real AI are not implemented.
+Calendar free slots/conflicts, tasks and semantic search are not implemented.
+AI-02 adds optional [OpenRouter models and encrypted connections](ai-connections.md),
+implemented locally but unactivated; no product AI UI is delivered.
 The default-disabled [offline AI API](ai-api.md) provides synthetic chat/run lifecycle
 and accounting with bounded execution, overdue-run reconciliation and 30-day physical cleanup.
 Workspace organization exists;
@@ -225,7 +227,9 @@ retrieval and AI/RAG remain not implemented. No deployment is performed by this 
 Status: AI-00 and offline AI-01 complete, with a default-disabled fake-only chat/run API and durable
 accounting, bounded execution, overdue-run reconciliation, minimal replay/context
 receipts and physical cleanup. See [final AI-01 verification](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
-Real tools/providers and product UI remain not implemented; application migrations are unapplied.
+AI-02 implements the optional OpenRouter adapter/catalog and encrypted personal
+connections; live account activation remains pending. Business tools and product UI
+remain not implemented; application migrations are unapplied.
 Dependencies: only the application tools actually used; task planning requires P-06.
 The [detailed AI plan](ai-implementation-plan.md) splits work into AI-00 through AI-12,
 with the [owner-agreed product specification](../product/ai.md),

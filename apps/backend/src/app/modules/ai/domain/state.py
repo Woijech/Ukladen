@@ -46,9 +46,17 @@ class Conversation:
     created_at: datetime
     last_user_message_at: datetime | None = None
     next_sequence: int = 1
+    offering_id: str | None = None
+    offering_version: int | None = None
+    connection_id: UUID | None = None
+    provider: str = "fake"
+    model: str = "fake-v1"
 
     def __post_init__(self) -> None:
         require_time(self.created_at, self.last_user_message_at)
+        require_selection(self.offering_id, self.offering_version, self.connection_id)
+        require_label(self.provider)
+        require_label(self.model)
         if not 1 <= len(self.title.strip()) <= 200 or self.title != self.title.strip():
             raise InvalidAiState("Invalid conversation title.")
         if self.next_sequence < 1 or (
@@ -93,9 +101,13 @@ class Run:
     updated_at: datetime
     finished_at: datetime | None = None
     version: int = 1
+    offering_id: str | None = None
+    offering_version: int | None = None
+    connection_id: UUID | None = None
 
     def __post_init__(self) -> None:
         require_time(self.created_at, self.updated_at, self.finished_at)
+        require_selection(self.offering_id, self.offering_version, self.connection_id)
         require_label(self.provider)
         require_label(self.model)
         if not re.fullmatch(r"[0-9a-f]{64}", self.request_digest):
@@ -133,6 +145,20 @@ def require_run_transition(source: RunStatus, target: RunStatus) -> None:
     }
     if target not in allowed.get(source, set()):
         raise AiConflict("Run transition is unavailable.")
+
+
+def require_selection(
+    offering_id: str | None, version: int | None, connection_id: UUID | None
+) -> None:
+    if offering_id is None:
+        if version is not None or connection_id is not None:
+            raise InvalidAiState("A model offering is required.")
+    elif (
+        not re.fullmatch(r"[a-z][a-z0-9-]{0,63}", offering_id)
+        or type(version) is not int
+        or not 1 <= version <= 2**31 - 1
+    ):
+        raise InvalidAiState("Invalid model selection.")
 
 
 @dataclass(frozen=True, kw_only=True)

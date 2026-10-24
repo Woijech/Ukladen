@@ -1,0 +1,12 @@
+# Optional API-only secret mount. This overlay does not enable AI or run migrations.
+services:
+  api:
+    environment:
+      AI_CONNECTIONS_FILE: /run/secrets/ukladen-ai/catalog.json
+    volumes:
+      - type: bind
+        source: ./.secrets/ai
+        target: /run/secrets/ukladen-ai
+        read_only: true
+        bind:
+          create_host_path: false

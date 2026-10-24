@@ -19,6 +19,7 @@ from langchain.agents.middleware import (
 from langchain.agents.middleware.model_call_limit import ModelCallLimitExceededError
 from langchain.agents.middleware.tool_call_limit import ToolCallLimitExceededError
 from langchain.agents.middleware.types import InputAgentState
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
@@ -27,7 +28,6 @@ from langgraph.types import Command
 from langsmith import tracing_context
 
 from app.core.logging import log_failure
-from app.integrations.llm.fake import FakeChatModel
 from app.modules.ai.application.agent import (
     AgentInput,
     AgentResult,
@@ -71,11 +71,11 @@ def bounded_tool_result(
 
 
 class OfflineAgentRunner:
-    """Internal fake-only harness, without authentication, durable admission or business tools."""
+    """Shared bounded framework runner; authenticated callers own admission and tool access."""
 
     def __init__(
         self,
-        model: FakeChatModel,
+        model: BaseChatModel,
         tools: Sequence[BaseTool],
         checkpointer: BaseCheckpointSaver,
         *,

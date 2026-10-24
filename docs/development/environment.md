@@ -1,9 +1,9 @@
 # Environment configuration
 
-Status: implemented configuration reference, audited 2026-10-21; offline AI settings
-updated 2026-10-22. The source of truth
+Status: implemented configuration reference, audited 2026-10-21; AI connection settings
+updated 2026-10-24. The source of truth
 is `apps/backend/src/app/core/config.py`, Compose and `apps/web/next.config.ts`.
-The three fake-only AI settings below are implemented; other planned provider settings are not.
+The fake default and optional OpenRouter connection-file settings below are implemented.
 
 ## Loading and precedence
 
@@ -159,14 +159,17 @@ stores metadata only. Existing objects and credentials must be preserved on upgr
 | --- | --- | --- |
 | `SCHEDULE_SYNC_ENABLED` | `true` | Boolean used by API, worker and Beat. False disables accepted/periodic imports; stored calendar reads and reminder/material maintenance continue. |
 | `SCHEDULE_SYNC_INTERVAL_SECONDS` | `3600` | Integer 60–86400; selected-group refresh threshold and calendar stale warning threshold. It is not Beat's polling period. |
-| `AI_ENABLED` | `false` | Opts in to the authenticated offline demonstration API after reviewed migrations. No startup DDL. |
-| `AI_LLM_PROVIDER` | `fake` | Only fake is supported; other values are rejected. No external provider calls. |
+| `AI_ENABLED` | `false` | Opts in to authenticated chats after reviewed migrations. Explicit selected offerings can call real models; unselected chats stay fake. No startup DDL. |
+| `AI_RETENTION_ENABLED` | `false` | Continue migrated recovery/cleanup independently when chat is disabled. |
+| `AI_LLM_PROVIDER` | `fake` | Preserves the fake default; real selections come from the catalog rather than a global provider switch. |
 | `AI_LLM_MODEL` | `fake-v1` | Only fake-v1 is supported; other values are rejected. |
+| `AI_CONNECTIONS_FILE` | Omitted | API-only path to the private deployment catalog. Optional AI Compose overlay mounts `.secrets/ai` into API only. No plaintext keys in env files. See [connections](ai-connections.md). |
 
 Public IIS uses the adapter's verified public base URL; no IIS password/token or
-private account connection is implemented. The [offline AI API](ai-api.md) uses only
-synthetic model/tool responses. Real LLMs, embeddings and semantic search are not
-implemented. Remaining settings in [AI plans](ai-setup.md) do not activate providers.
+private account connection is implemented. The [AI API](ai-api.md) preserves synthetic
+model/tool responses by default. AI-02 implements optional OpenRouter models and
+encrypted personal connections, disabled/unactivated. Embeddings and semantic search
+remain unimplemented. Remaining settings in [AI plans](ai-setup.md) do not activate providers.
 
 ## Logging, frontend and deployment
 

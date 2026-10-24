@@ -401,8 +401,8 @@ Status: AI-00 and the offline AI-01 foundation are complete. Owned persistence
 adapters/migrations are natively tested on disposable PostgreSQL, unapplied to the app.
 The default-disabled [offline API](docs/development/ai-api.md) implements owned chats/runs,
 admission, accounting, cancellation and deletion. Bounded recovery and 30-day cleanup
-with minimal replay/context receipts are implemented. Real providers, RAG and planning
-remain not implemented; see [the implemented subset](docs/development/ai-setup.md)
+with minimal replay/context receipts are implemented. AI-02 adds an optional [OpenRouter catalog and encrypted personal connections](docs/development/ai-connections.md),
+implemented locally but unactivated. RAG and planning remain not implemented; see [the implemented subset](docs/development/ai-setup.md)
 and [final AI-01 verification](docs/development/ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 
 Architecture:

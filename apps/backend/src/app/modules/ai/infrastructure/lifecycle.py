@@ -1,5 +1,5 @@
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID, uuid4
@@ -19,6 +19,7 @@ from app.modules.ai.application.recovery import RUN_TIMEOUT
 from app.modules.ai.domain.state import AiConflict, AiPersistenceUnavailable, Run
 from app.modules.ai.infrastructure.checkpoints import owned_offline_runner
 from app.modules.ai.infrastructure.fake_tools import fake_double
+from app.modules.ai.infrastructure.providers import OpenRouterModels
 from app.modules.ai.infrastructure.repository import SqlAlchemyAiRepository
 from app.modules.users.domain.profile import ProfileUnavailable
 from app.modules.users.infrastructure.repository import SqlAlchemyUserAuthentication
@@ -63,13 +64,18 @@ def offline_model() -> FakeChatModel:
 
 class PostgresAgentRunners:
     def __init__(
-        self, sessions: sessionmaker[Session], model: Callable[[], FakeChatModel] = offline_model
+        self,
+        sessions: sessionmaker[Session],
+        model: Callable[[], FakeChatModel] = offline_model,
+        *,
+        real_models: OpenRouterModels | None = None,
     ) -> None:
         with sessions() as database:
             engine = database.get_bind()
         if not isinstance(engine, Engine):
             raise ValueError("AI execution requires an engine-backed session factory.")
         self.engine, self.model = engine, model
+        self.real_models = real_models
 
     @contextmanager
     def __call__(self, run: Run, journal: ExecutionJournal) -> Iterator[AgentRunner]:
@@ -81,17 +87,26 @@ class PostgresAgentRunners:
             previous = connection.row_factory
             connection.row_factory = dict_row
             try:
-                yield owned_offline_runner(
-                    connection,
-                    run.user_id,
-                    run.conversation_id,
-                    self.model(),
-                    [fake_double],
-                    run_id=run.id,
-                    journal=journal,
-                    run_timeout=max(
-                        0.001, (run.created_at + RUN_TIMEOUT - datetime.now(UTC)).total_seconds()
-                    ),
+                if run.offering_id is not None and self.real_models is None:
+                    raise AiConflict("Real model connections are unavailable.")
+                models = (
+                    self.real_models(run)
+                    if self.real_models and run.offering_id is not None
+                    else nullcontext(self.model())
                 )
+                with models as model:
+                    yield owned_offline_runner(
+                        connection,
+                        run.user_id,
+                        run.conversation_id,
+                        model,
+                        [fake_double] if run.offering_id is None else [],
+                        run_id=run.id,
+                        journal=journal,
+                        run_timeout=max(
+                            0.001,
+                            (run.created_at + RUN_TIMEOUT - datetime.now(UTC)).total_seconds(),
+                        ),
+                    )
             finally:
                 connection.row_factory = previous

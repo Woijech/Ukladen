@@ -168,6 +168,8 @@ def test_append_uses_sequence_compare_and_swap_and_only_user_messages_renew_acti
                 created_at=NOW,
                 last_user_message_at=None,
                 next_sequence=1,
+                provider="fake",
+                model="fake-v1",
             ),
             run.conversation_id,
         ]
@@ -208,6 +210,8 @@ def test_append_missing_or_stale_conversation_does_not_add_content(missing: bool
                 created_at=NOW,
                 last_user_message_at=None,
                 next_sequence=2,
+                provider="fake",
+                model="fake-v1",
             ),
             None,
         ]

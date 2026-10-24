@@ -4,8 +4,10 @@ from typing import cast
 from uuid import UUID
 
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
+from app.modules.ai.domain.connections import ConnectionLimited, PersonalConnection
 from app.modules.ai.domain.state import (
     AiConflict,
     AiNotFound,
@@ -22,8 +24,10 @@ from app.modules.ai.domain.state import (
     require_run_transition,
 )
 from app.modules.ai.infrastructure.orm import (
+    ConnectionBucketModel,
     ConversationModel,
     MessageModel,
+    PersonalConnectionModel,
     ProviderAttemptModel,
     RunModel,
     RunReceiptModel,
@@ -39,6 +43,11 @@ def conversation_entity(row: ConversationModel) -> Conversation:
         created_at=row.created_at,
         last_user_message_at=row.last_user_message_at,
         next_sequence=row.next_sequence,
+        provider=row.provider,
+        model=row.model,
+        offering_id=row.offering_id,
+        offering_version=row.offering_version,
+        connection_id=row.connection_id,
     )
 
 
@@ -68,6 +77,9 @@ def run_entity(row: RunModel) -> Run:
         updated_at=row.updated_at,
         finished_at=row.finished_at,
         version=row.version,
+        offering_id=row.offering_id,
+        offering_version=row.offering_version,
+        connection_id=row.connection_id,
     )
 
 
@@ -104,6 +116,91 @@ def tool_entity(row: ToolExecutionModel) -> ToolExecution:
 class SqlAlchemyAiRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
+
+    def save_connection(self, connection: PersonalConnection) -> None:
+        self.session.merge(PersonalConnectionModel(**asdict(connection)))
+        self.session.flush()
+
+    def get_connection(self, user_id: UUID, connection_id: UUID) -> PersonalConnection | None:
+        row = self.session.scalar(
+            select(PersonalConnectionModel)
+            .where(
+                PersonalConnectionModel.id == connection_id,
+                PersonalConnectionModel.user_id == user_id,
+            )
+            .execution_options(populate_existing=True)
+        )
+        return self._connection(row) if row else None
+
+    @staticmethod
+    def _connection(row: PersonalConnectionModel) -> PersonalConnection:
+        return PersonalConnection(
+            id=row.id,
+            user_id=row.user_id,
+            label=row.label,
+            created_at=row.created_at,
+            encrypted_key=row.encrypted_key,
+            encryption_key_id=row.encryption_key_id,
+            disconnected_at=row.disconnected_at,
+        )
+
+    def connections(self, user_id: UUID) -> list[PersonalConnection]:
+        return [
+            self._connection(row)
+            for row in self.session.scalars(
+                select(PersonalConnectionModel)
+                .where(PersonalConnectionModel.user_id == user_id)
+                .order_by(PersonalConnectionModel.created_at, PersonalConnectionModel.id)
+                .limit(20)
+            )
+        ]
+
+    def connection_runs(self, user_id: UUID, connection_id: UUID) -> list[Run]:
+        return [
+            run_entity(row)
+            for row in self.session.scalars(
+                select(RunModel).where(
+                    RunModel.user_id == user_id,
+                    RunModel.connection_id == connection_id,
+                    RunModel.status.in_(("queued", "running", "interrupted")),
+                )
+            )
+        ]
+
+    def _bucket(self, scope: str, now: datetime) -> ConnectionBucketModel:
+        self.session.execute(
+            insert(ConnectionBucketModel)
+            .values(
+                scope=scope,
+                window_start=now,
+                requests=0,
+            )
+            .on_conflict_do_nothing()
+        )
+        return self.session.scalars(
+            select(ConnectionBucketModel)
+            .where(ConnectionBucketModel.scope == scope)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).one()
+
+    def admit_connection(self, scope: str, limit: int, now: datetime) -> None:
+        bucket = self._bucket(scope, now)
+        if bucket.blocked_until is not None and now < bucket.blocked_until:
+            raise ConnectionLimited(int((bucket.blocked_until - now).total_seconds()) + 1)
+        elapsed = (now - bucket.window_start).total_seconds()
+        if elapsed >= 60:
+            bucket.window_start, bucket.requests = now, 0
+        if bucket.requests >= limit:
+            raise ConnectionLimited(max(1, int(60 - elapsed) + 1))
+        bucket.requests += 1
+        self.session.flush()
+
+    def block_connection(self, scope: str, until: datetime) -> None:
+        bucket = self._bucket(scope, until)
+        if bucket.blocked_until is None or bucket.blocked_until < until:
+            bucket.blocked_until = until
+        self.session.flush()
 
     def create_conversation(self, conversation: Conversation) -> None:
         self.session.add(ConversationModel(**asdict(conversation)))
@@ -311,6 +408,23 @@ class SqlAlchemyAiRepository:
                 .order_by(ProviderAttemptModel.number)
             )
         ]
+
+    def save_interrupted_usage(self, attempt: ProviderAttempt) -> None:
+        self.session.execute(
+            update(ProviderAttemptModel)
+            .where(
+                ProviderAttemptModel.id == attempt.id,
+                ProviderAttemptModel.user_id == attempt.user_id,
+                ProviderAttemptModel.run_id == attempt.run_id,
+                ProviderAttemptModel.status == "interrupted",
+            )
+            .values(
+                input_tokens=func.coalesce(ProviderAttemptModel.input_tokens, attempt.input_tokens),
+                output_tokens=func.coalesce(
+                    ProviderAttemptModel.output_tokens, attempt.output_tokens
+                ),
+            )
+        )
 
     def create_tool_execution(self, execution: ToolExecution) -> None:
         if execution.status not in ("started", "rejected"):

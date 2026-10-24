@@ -10,6 +10,21 @@ class InvalidAgentReview(ValueError):
     pass
 
 
+class ProviderFailure(Exception):
+    """Sanitized model outcome; reported partial usage survives refusals and truncation."""
+
+    def __init__(
+        self,
+        error_code: ErrorCode = "unavailable",
+        *,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
+    ) -> None:
+        super().__init__("Model request could not be completed.")
+        self.error_code: ErrorCode = error_code
+        self.input_tokens, self.output_tokens = input_tokens, output_tokens
+
+
 class AgentInput(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 

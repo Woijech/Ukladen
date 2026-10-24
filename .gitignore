@@ -16,3 +16,4 @@ test-results/
 .DS_Store
 celerybeat-schedule*
 backups/
+.secrets/

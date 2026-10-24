@@ -3,8 +3,9 @@
 Updated: 2026-10-24.
 Status: agreed target specification. An [offline backend API](../development/ai-api.md)
 implements the completed offline AI-01 foundation: fake chats/runs, accounting,
-bounded recovery and 30-day cleanup, disabled by default and unmigrated in the app. Real
-model/workspace tools, chat UI, semantic retrieval, planning and usage analytics UI
+bounded recovery and 30-day cleanup, disabled by default and unmigrated in the app.
+AI-02 adds an optional [OpenRouter catalog and encrypted personal connections](../development/ai-connections.md),
+implemented locally but unactivated. Workspace tools, chat UI, semantic retrieval, planning and usage analytics UI
 are not implemented. AI-00 specifies the target work; it does
 not enable integrations. This is the single AI specification linked from
 [the overview](overview.md). See [delivery](../development/ai-implementation-plan.md),
@@ -26,7 +27,8 @@ Groq-only baseline is superseded. LLM, embeddings and web search are separate ad
 
 ## 2. Editable scenario catalog
 
-Every row is not implemented. Existing IDs are preserved. Selected means target
+The full user experience in every row remains not implemented. AI-UC-20 now has
+backend catalog/connection support; its settings UI remains AI-04. Existing IDs are preserved. Selected means target
 scope, not a currently enabled tool. Database querying remains separately optional.
 
 | ID | Selection / dependency | Request | Expected result and boundary |

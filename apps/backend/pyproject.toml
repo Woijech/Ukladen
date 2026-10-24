@@ -25,6 +25,9 @@ dependencies = [
   "langgraph-checkpoint==4.3.0",
   "langgraph-checkpoint-postgres==3.2.0",
   "langsmith==0.14.12",
+  "langchain-openrouter==0.2.8",
+  "openrouter==0.11.46",
+  "cryptography>=50,<51",
 ]
 
 [dependency-groups]

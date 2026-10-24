@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
+from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from langgraph.checkpoint.base import (
@@ -23,7 +24,6 @@ from psycopg.pq import TransactionStatus
 from psycopg.rows import DictRow
 
 from app.core.logging import log_failure
-from app.integrations.llm.fake import FakeChatModel
 from app.modules.ai.application.agent import AgentRunner
 from app.modules.ai.application.lifecycle import ExecutionJournal
 from app.modules.ai.application.recovery import RUN_TIMEOUT
@@ -218,7 +218,7 @@ def owned_offline_runner(
     connection: Connection[DictRow],
     user_id: UUID,
     conversation_id: UUID,
-    model: FakeChatModel,
+    model: BaseChatModel,
     tools: Sequence[BaseTool],
     *,
     review_tools: frozenset[str] = frozenset(),

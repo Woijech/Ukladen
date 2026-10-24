@@ -99,6 +99,20 @@ This developer workflow is distinct from product HITL.
 
 ## Remaining decisions
 
+AI-02 owner decisions (2026-10-24): first integration is OpenRouter with DeepSeek
+V4.1 Flash; a configurable model choice should also support free offerings and
+restrict some models to selected accounts. The owner delegated adapter/catalog
+details with future extension in mind, accepted encrypted owner-only keys and
+disconnect semantics, and preferred new chats if switching adds complexity. The
+implementation selects one OpenRouter adapter, explicit UUID allowlists without new
+roles, and immutable chat model/connection selections. Private secrets, local
+configuration and temporary verification outputs stay out of commits. Runtime
+migration, real account smoke and activation remain separate from local delivery.
+The answer about payment versus application monetary limits was ambiguous and
+clarification was requested; paid traffic remains unactivated. The implementation
+supports free-only routing and bounded request/input/output admission, with no
+application billing subsystem. See [the connection contract](../development/ai-connections.md).
+
 | ID | Question | Proposed default | What depends on it |
 | --- | --- | --- | --- |
 | Q-04a | Product policies resolved in the 2026-10-21 table above. Per-account budgets/quotas and per-grant scope/expiry/counts are required activation inputs. | Provider-neutral operator/BYOK models, relevant-data transfer implied by AI use, 30-day chat/activity policies, initial automatic new-page/task creates only under actual grants. See [AI scope](ai.md). | Concrete credential/vendor contracts, execution records, minimal replay-record purge and account admission |

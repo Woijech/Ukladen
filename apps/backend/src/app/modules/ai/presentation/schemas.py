@@ -1,9 +1,10 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from app.modules.ai.application.agent import AgentInput
+from app.modules.ai.application.connections import require_key
 from app.modules.ai.application.lifecycle import RunSnapshot
 from app.modules.ai.domain.state import ErrorCode, ExecutionStatus, MessageRole, RunStatus
 
@@ -11,6 +12,8 @@ from app.modules.ai.domain.state import ErrorCode, ExecutionStatus, MessageRole,
 class ConversationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     title: str = Field(min_length=1, max_length=200)
+    offering_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9-]{0,63}$")
+    connection_id: UUID | None = None
 
     @field_validator("title")
     @classmethod
@@ -38,6 +41,11 @@ class ConversationResponse(BaseModel):
     title: str
     created_at: datetime
     last_user_message_at: datetime | None
+    offering_id: str | None
+    offering_version: int | None
+    connection_id: UUID | None
+    provider: str
+    model: str
 
 
 class ConversationList(BaseModel):
@@ -92,6 +100,9 @@ class RunResponse(BaseModel):
     finished_at: datetime | None
     attempts: list[AttemptResponse]
     tools: list[ToolResponse]
+    offering_id: str | None
+    offering_version: int | None
+    connection_id: UUID | None
 
     @classmethod
     def from_snapshot(cls, snapshot: RunSnapshot) -> RunResponse:
@@ -109,4 +120,37 @@ class RunResponse(BaseModel):
             finished_at=run.finished_at,
             attempts=[AttemptResponse.model_validate(item) for item in snapshot.attempts],
             tools=[ToolResponse.model_validate(item) for item in snapshot.tools],
+            offering_id=run.offering_id,
+            offering_version=run.offering_version,
+            connection_id=run.connection_id,
         )
+
+
+class ConnectionCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+    label: str = Field(min_length=1, max_length=100)
+    key: SecretStr = Field(repr=False)
+
+    @field_validator("label")
+    @classmethod
+    def bounded_label(cls, value: str) -> str:
+        return AgentInput.bounded_message(value).strip()
+
+    @field_validator("key")
+    @classmethod
+    def bounded_key(cls, value: SecretStr) -> SecretStr:
+        require_key(value.get_secret_value())
+        return value
+
+
+class ConnectionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    label: str
+    created_at: datetime
+    disconnected_at: datetime | None
+    key_mask: str = "********"
+
+
+class ConnectionList(BaseModel):
+    items: list[ConnectionResponse]

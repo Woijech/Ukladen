@@ -1,0 +1,37 @@
+{
+  "entries": [
+    {
+      "id": "deepseek-flash",
+      "version": 1,
+      "name": "DeepSeek V4.1 Flash",
+      "provider": "openrouter",
+      "model": "deepseek/deepseek-v4.1-flash",
+      "enabled": false,
+      "public": false,
+      "allowed_user_ids": [],
+      "operator_key_file": "openrouter.key",
+      "personal_allowed": true,
+      "tools": true,
+      "structured_output": true,
+      "streaming": true,
+      "free_only": false,
+      "requests_per_minute": 10
+    },
+    {
+      "id": "qwen-free",
+      "version": 1,
+      "name": "Qwen3 4B (free, text chat)",
+      "provider": "openrouter",
+      "model": "qwen/qwen3-4b:free",
+      "enabled": false,
+      "public": true,
+      "operator_key_file": "openrouter.key",
+      "personal_allowed": true,
+      "tools": false,
+      "structured_output": false,
+      "streaming": true,
+      "free_only": true,
+      "requests_per_minute": 5
+    }
+  ]
+}

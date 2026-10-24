@@ -67,14 +67,16 @@ implementation task, not a guarantee that its checks were rerun during a later e
 - [AI tool contracts](development/ai-tool-contracts.md): capabilities, typed boundaries, budgets and synthetic acceptance data.
 - [AI setup runbook](development/ai-setup.md): staged operator/BYOK providers, embeddings, web search and activation gates.
 - [AI persistence](development/ai-persistence.md): schema, owner checks, transaction boundaries and migration impact; tested on disposable data, unapplied to the app.
-- [Offline AI API](development/ai-api.md): default-disabled fake chats/runs, idempotency, cancellation, accounting, bounded recovery, physical retention and minimal replay/context markers.
+- [AI model connections](development/ai-connections.md): optional OpenRouter catalog, restricted offerings, encrypted personal keys and API-only secret setup; unactivated.
+- [AI chat/run API](development/ai-api.md): default-disabled fake chats/runs, idempotency, cancellation, accounting, bounded recovery, physical retention and minimal replay/context markers.
 
 AI-00 and the offline AI-01 foundation are complete; see the setup runbook and
 [final verification](development/ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24)
 for the tested scope. Owned persistence adapters/migrations are tested on disposable
 data, unapplied to the app. The default-disabled fake API includes accounting,
 bounded recovery, 30-day cleanup and minimal replay/context receipts.
-Real providers, retrieval, actions, planning and usage analytics UI
+The optional AI-02 OpenRouter adapter/catalog and encrypted credentials are
+implemented locally but unactivated. Retrieval, actions, planning and usage analytics UI
 remain pending. Plans do not authorize later changes/deployment.
 
 ## IIS contracts and future integration

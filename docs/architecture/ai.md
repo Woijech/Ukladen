@@ -11,7 +11,9 @@ see [execution and recovery limits](../development/ai-api.md#execution-deadlines
 Thirty-day physical cleanup and minimal replay/committed-context receipts are implemented;
 the [retention contract](../development/ai-api.md#physical-retention-and-replay-protection)
 defines the independent clocks and maintenance-only setting. Receipts cannot grant write authority.
-Real providers and AI/RAG product features are not implemented. See the
+An optional [OpenRouter adapter/catalog and encrypted personal connections](../development/ai-connections.md)
+are implemented locally under AI-02; application migration and live account activation
+remain pending. Retrieval, business tools and AI/RAG product UI are not implemented. See the
 [offline harness](../development/ai-setup.md#a1-implemented-offline-harness) and
 [final verification](../development/ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 The [persistence guide](../development/ai-persistence.md) records the tested internal schema,
@@ -51,7 +53,8 @@ LLM, embedding and web-search providers are separate adapters under `app/integra
 The owner selected provider-neutral tools, an operator model catalog and user-owned
 API connections. No particular LLM provider/model is required; the old Groq baseline
 is superseded. CPU E5-small remains an embedding implementation candidate pending
-runtime proof. Only the scripted offline model is implemented; real adapters are not.
+runtime proof. The scripted offline model remains the default; the optional OpenRouter adapter is
+implemented but unactivated. Other real adapters are not implemented.
 Domain/application contracts must
 not depend on SDK/framework response types. Streaming/cancellation is required target
 behavior, never permission to execute incomplete or unconfirmed tool arguments.
@@ -210,7 +213,8 @@ defines staged ports, durable usage accounting, chat, indexing and confirmed/aut
 actions; [the setup runbook](../development/ai-setup.md) defines connection gates.
 The AI-00 specification/acceptance data and offline AI-01 foundation are complete.
 Owned offline runtime/usage persistence and chat/run endpoints are implemented;
-real providers, business tools and product usage-summary endpoints remain not implemented.
+the optional OpenRouter adapter is implemented but unactivated; business tools and
+product usage-summary endpoints remain not implemented.
 `ai` owns implemented conversation/run/tool usage metadata and planned action metadata;
 `search` owns derived retrieval/index jobs. Existing safe logs remain operator
 diagnostics, not a source of prompts or cross-user product analytics.
@@ -239,4 +243,6 @@ receive no plaintext secrets. Arbitrary client base URLs are not a provider inte
 API/worker model consumers are explicitly configured; indexing workers do not inherit
 unrelated LLM/search credentials. Exact storage/rotation and package contracts are
 verified in AI-02 before activation. AI-01 proved only the offline framework/runtime;
-credential storage, rotation and real provider contracts remain not implemented.
+AI-02 now implements encrypted credential storage/rotation and the OpenRouter
+contract, with disabled profiles and pending live account verification. See
+[connection limits and activation](../development/ai-connections.md).

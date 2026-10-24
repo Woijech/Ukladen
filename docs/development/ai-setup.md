@@ -5,15 +5,18 @@ Status: AI-01 is complete within its offline scope: harness, owned persistence,
 authenticated fake API, durable accounting, bounded recovery and retention cleanup.
 Disabled by default; migrations are tested on disposable data and unapplied to the
 running application. See [final verification](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
-Real model adapters, credentials and embedding workers remain unimplemented.
+AI-02 adds optional [OpenRouter models and encrypted credentials](ai-connections.md),
+implemented locally but unactivated; embedding workers remain unimplemented.
 See [current API and recovery limits](ai-api.md). No provider request or deployment was made.
 
 Use [product scope](../product/ai.md), [stages](ai-implementation-plan.md),
 [contracts](ai-tool-contracts.md) and [ADR 0009](../adr/0009-specify-provider-neutral-ai-orchestration.md).
 LLM, embeddings and web search have separate planned adapter boundaries. The operator may offer
 several supported models and users may connect personal supported API accounts.
-DeepSeek/GLM are owner examples, not verified endpoints/model identifiers. No default
-provider, current price or universal OpenAI-compatible contract is assumed.
+AI-02 verifies the OpenRouter contract for the owner-selected DeepSeek V4.1 Flash
+profile and an optional free example; live account behavior remains unverified.
+GLM and other adapters are future choices. No universal wire contract or current
+account price is assumed.
 
 ## A. AI-00/01: stay offline first
 
@@ -144,6 +147,11 @@ enable AI_ENABLED/AI_RETENTION_ENABLED in the relevant consumers only after an e
 approved migration/activation. No new queue, service or dependency is needed.
 
 ## B. AI-02: verify one supported adapter before activation
+
+The [implemented OpenRouter setup](ai-connections.md) now defines the catalog,
+API-only secret mount, encrypted personal connections, immutable chat selections
+and offline/native tests. Live account smoke and application activation remain pending.
+Keep real keys and configured catalogs under ignored .secrets/ai/, never in shared env files.
 
 1. Choose an operator-supported provider, exact model and credential source. Verify
    official request/response/tool/streaming/structured-output contracts and account

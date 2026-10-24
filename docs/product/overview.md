@@ -140,7 +140,9 @@ in PostgreSQL. Limits are 25 MiB/file and 1 GiB retained file storage/user. Text
 DOCX, PPTX, TXT and Markdown extraction runs asynchronously without OCR. Bookmarks
 store URLs without fetching them. Filtered full-text search covers authorized pages,
 material titles and extracted text; see [contracts](../development/materials.md).
-Chunking, embeddings, semantic search, real AI and RAG remain not implemented.
+Chunking, embeddings, semantic search and RAG remain not implemented. AI-02 adds an
+optional [OpenRouter catalog and encrypted connections](../development/ai-connections.md),
+implemented locally but unactivated.
 The default-disabled [offline AI API](../development/ai-api.md) provides synthetic
 chats/runs and accounting; it does not read these sources or call a real model.
 
@@ -185,7 +187,8 @@ and analytics UI remain not implemented. See [AI architecture](../architecture/a
 | Private materials, page attachments and bounded document extraction | Implemented backend; no OCR |
 | Filtered PostgreSQL full-text search over pages/materials | Implemented backend |
 | Offline AI chat/run lifecycle and accounting | AI-01 complete, fake-only and disabled by default; bounded execution/recovery, 30-day cleanup and minimal replay protection; migrations tested only on disposable data |
-| Semantic search, real AI and RAG | Status: not implemented. |
+| Optional real-model catalog and personal API connections | AI-02 backend implemented locally; default-disabled, migration/live activation pending |
+| Semantic search and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
 | Weekly calendar, personal-event create/edit/delete, login/registration and group selection UI | Implemented |
 | Flat block pages, materials/search, collections/tags, database saved views, reminders/inbox and profile/avatar UI | Implemented; see [frontend scope and limits](../architecture/frontend.md) |

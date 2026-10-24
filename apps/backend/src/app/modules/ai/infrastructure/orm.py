@@ -9,6 +9,8 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -16,6 +18,49 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
+
+
+class PersonalConnectionModel(Base):
+    __tablename__ = "ai_personal_connections"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    label: Mapped[str] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    encrypted_key: Mapped[bytes | None] = mapped_column(LargeBinary)
+    encryption_key_id: Mapped[str | None] = mapped_column(String(32))
+    disconnected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        UniqueConstraint("id", "user_id", name="uq_ai_connections_owner"),
+        CheckConstraint(
+            "char_length(btrim(label)) BETWEEN 1 AND 100 AND label = btrim(label)",
+            name="ck_ai_connections_label",
+        ),
+        CheckConstraint(
+            "(disconnected_at IS NULL AND encrypted_key IS NOT NULL "
+            "AND encryption_key_id IS NOT NULL)"
+            " OR (disconnected_at IS NOT NULL AND encrypted_key IS NULL "
+            "AND encryption_key_id IS NULL)",
+            name="ck_ai_connections_secret",
+        ),
+        CheckConstraint(
+            "disconnected_at IS NULL OR disconnected_at >= created_at",
+            name="ck_ai_connections_time",
+        ),
+        Index("ix_ai_connections_owner", "user_id", "created_at", "id"),
+    )
+
+
+class ConnectionBucketModel(Base):
+    __tablename__ = "ai_connection_buckets"
+
+    scope: Mapped[str] = mapped_column(String(128), primary_key=True)
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    requests: Mapped[int] = mapped_column(Integer)
+    blocked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (CheckConstraint("requests >= 0", name="ck_ai_buckets_requests"),)
 
 
 class ConversationModel(Base):
@@ -28,8 +73,23 @@ class ConversationModel(Base):
     last_user_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     next_sequence: Mapped[int] = mapped_column(BigInteger)
     checkpoint_thread_id: Mapped[str] = mapped_column(Text, Computed("id::text", persisted=True))
+    offering_id: Mapped[str | None] = mapped_column(String(64))
+    offering_version: Mapped[int | None] = mapped_column(Integer)
+    connection_id: Mapped[UUID | None]
+    provider: Mapped[str] = mapped_column(String(128), default="fake", server_default="fake")
+    model: Mapped[str] = mapped_column(String(128), default="fake-v1", server_default="fake-v1")
 
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["connection_id", "user_id"],
+            ["ai_personal_connections.id", "ai_personal_connections.user_id"],
+            name="fk_ai_conversations_connection_owner",
+        ),
+        CheckConstraint(
+            "(offering_id IS NULL AND offering_version IS NULL AND connection_id IS NULL) OR "
+            "(offering_id IS NOT NULL AND offering_version IS NOT NULL AND offering_version > 0)",
+            name="ck_ai_conversations_selection",
+        ),
         UniqueConstraint("id", "user_id", name="uq_ai_conversations_owner"),
         UniqueConstraint("checkpoint_thread_id", name="uq_ai_conversations_thread"),
         CheckConstraint(
@@ -73,6 +133,10 @@ class MessageModel(Base):
 class RunModel(Base):
     __tablename__ = "ai_runs"
 
+    offering_id: Mapped[str | None] = mapped_column(String(64))
+    offering_version: Mapped[int | None] = mapped_column(Integer)
+    connection_id: Mapped[UUID | None]
+
     id: Mapped[UUID] = mapped_column(primary_key=True)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     conversation_id: Mapped[UUID | None]
@@ -87,6 +151,16 @@ class RunModel(Base):
     version: Mapped[int]
 
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["connection_id", "user_id"],
+            ["ai_personal_connections.id", "ai_personal_connections.user_id"],
+            name="fk_ai_runs_connection_owner",
+        ),
+        CheckConstraint(
+            "(offering_id IS NULL AND offering_version IS NULL AND connection_id IS NULL) OR "
+            "(offering_id IS NOT NULL AND offering_version IS NOT NULL AND offering_version > 0)",
+            name="ck_ai_runs_selection",
+        ),
         ForeignKeyConstraint(
             ["conversation_id", "user_id"],
             ["ai_conversations.id", "ai_conversations.user_id"],

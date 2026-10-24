@@ -1,17 +1,19 @@
-# Offline AI API
+# AI Chat and Run API
 
 Updated: 2026-10-24.
-Status: the completed offline AI-01 foundation implements authenticated fake-only transport, admission,
+Status: the completed AI-01 foundation implements authenticated transport, admission,
 accounting, bounded execution, recovery and 30-day cleanup. Disabled by default.
 Migrations 0022/0023 were tested on disposable databases;
-they have not been applied to the running application. Real providers, workspace tools,
-streaming and review/resume transport remain later work. See [the execution plan](ai-01-execution-plan.md).
+they have not been applied to the running application. AI-02 adds an optional
+[model catalog and encrypted connections](ai-connections.md), disabled and unactivated.
+Workspace tools, live chat streaming and review/resume transport remain later work. See [the execution plan](ai-01-execution-plan.md).
 
 ## Configuration and composition
 
 AI_ENABLED defaults to false. AI_LLM_PROVIDER and AI_LLM_MODEL accept only fake and
 fake-v1 in this slice. Unsupported values fail configuration validation; no provider
-fallback or model credentials exist. Enabling the flag exposes a synthetic demonstration,
+fallback exists. Optional AI_CONNECTIONS_FILE supplies explicit real model offerings.
+Without a selected offering, enabling the flag exposes a synthetic demonstration,
 not a useful general assistant: each normal turn calls fake_double with 7 and returns
 the fixed answer `Offline test: 7 × 2 = 14.` It performs no workspace reads or writes.
 
@@ -48,7 +50,8 @@ CSRF cookie/header. Ownership is server-derived; request bodies reject unknown f
 | POST /runs/{id}/cancel | No body | Current run state; terminal states remain unchanged |
 | DELETE /conversations/{id} | Conversation UUID | 204; cancels active execution and cascades chat content |
 
-Conversation metadata contains id, title, created_at and last_user_message_at.
+Conversation metadata contains id, title, created_at and last_user_message_at,
+plus the immutable model/connection selection described in [AI-02](ai-connections.md).
 Message items contain id, sequence, role, content and created_at. Current transport
 persists user and final assistant messages; intermediate tool bodies remain solely
 in conversation-owned checkpoints.
@@ -114,7 +117,8 @@ a provider attempt. A deadline returns control without waiting for a stuck handl
 unfinished journal entries become interrupted with error_code=timeout. Python cannot
 kill a running thread: its slot stays occupied until it returns, and process shutdown
 can also wait for it. Its late result cannot complete the run, append an answer or
-change the closed journal. Native tests
+reopen the closed journal. AI-02 may fill reported token counts on an existing
+unexpired interrupted attempt without changing its terminal status or retention clock. Native tests
 exercise timeout, cancellation and reconciliation while that call is still blocked.
 Only pure fake tools are registered. Real adapters/tools must supply bounded transport
 timeouts or cancellable execution before activation; this is not isolation for arbitrary

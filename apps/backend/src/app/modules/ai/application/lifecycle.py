@@ -12,14 +12,21 @@ from uuid import UUID, uuid4
 
 from app.core.logging import log_failure
 from app.modules.ai.application.agent import AgentInput, AgentResult, AgentRunner
+from app.modules.ai.application.connections import ConnectionAccess, ModelOffering
 from app.modules.ai.application.persistence import AiRepository
 from app.modules.ai.application.recovery import RUN_TIMEOUT, stop_run
+from app.modules.ai.domain.connections import (
+    ConnectionUnavailable,
+    ModelSelection,
+    PersonalConnection,
+)
 from app.modules.ai.domain.state import (
     AiConflict,
     AiNotFound,
     Conversation,
     ErrorCode,
     ExecutionStatus,
+    InvalidAiState,
     Message,
     ProviderAttempt,
     Run,
@@ -74,10 +81,12 @@ class AiService:
         *,
         provider: str = "fake",
         model: str = "fake-v1",
+        connections: ConnectionAccess | None = None,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.transactions, self.runners = transactions, runners
         self.provider, self.model, self.now = provider, model, now
+        self.connections = connections
 
     def conversation(
         self, repository: AiRepository, user_id: UUID, conversation_id: UUID
@@ -89,13 +98,61 @@ class AiService:
             raise AiNotFound()
         return conversation
 
-    def create(self, user_id: UUID, title: str) -> Conversation:
-        conversation = Conversation(
-            id=uuid4(), user_id=user_id, title=title.strip(), created_at=self.now()
-        )
+    def create(
+        self,
+        user_id: UUID,
+        title: str,
+        *,
+        offering_id: str | None = None,
+        connection_id: UUID | None = None,
+    ) -> Conversation:
         with self.transactions(user_id, write=True) as repository:
+            selection = ModelSelection()
+            provider, model = self.provider, self.model
+            if offering_id is not None:
+                selection, offering = self.connection_access().select(
+                    repository, user_id, offering_id, connection_id
+                )
+                provider, model = offering.provider, offering.model
+            elif connection_id is not None:
+                raise InvalidAiState("A model offering is required.")
+            conversation = Conversation(
+                id=uuid4(),
+                user_id=user_id,
+                title=title.strip(),
+                created_at=self.now(),
+                offering_id=selection.offering_id,
+                offering_version=selection.offering_version,
+                connection_id=selection.connection_id,
+                provider=provider,
+                model=model,
+            )
             repository.create_conversation(conversation)
         return conversation
+
+    def connection_access(self) -> ConnectionAccess:
+        if self.connections is None:
+            raise ConnectionUnavailable("Real model connections are not configured.")
+        return self.connections
+
+    def models(self, user_id: UUID) -> list[ModelOffering]:
+        return list(self.connections.configuration.offerings(user_id)) if self.connections else []
+
+    def personal_connections(self, user_id: UUID) -> list[PersonalConnection]:
+        with self.transactions(user_id) as repository:
+            return repository.connections(user_id)
+
+    def connect(self, user_id: UUID, label: str, key: str) -> PersonalConnection:
+        with self.transactions(user_id, write=True) as repository:
+            return self.connection_access().create(repository, user_id, label, key, self.now())
+
+    def disconnect(self, user_id: UUID, connection_id: UUID) -> None:
+        with self.transactions(user_id, write=True) as repository:
+            self.connection_access().disconnect(repository, user_id, connection_id, self.now())
+
+    def rotate_connection(self, user_id: UUID, connection_id: UUID) -> None:
+        with self.transactions(user_id, write=True) as repository:
+            self.connection_access().rotate(repository, user_id, connection_id)
 
     def list(self, user_id: UUID, limit: int, offset: int) -> list[Conversation]:
         with self.transactions(user_id) as repository:
@@ -156,14 +213,23 @@ class AiService:
                 if repository.active_run(user_id, conversation.id) is not None:
                     raise AiConflict("Conversation already has active execution.")
                 now = self.now()
+                provider, model = self.provider, self.model
+                if conversation.offering_id is not None:
+                    offering, _ = self.connection_access().check(
+                        repository, user_id, conversation, now
+                    )
+                    provider, model = offering.provider, offering.model
                 run = Run(
                     id=uuid4(),
                     user_id=user_id,
                     conversation_id=conversation.id,
                     submission_id=submission_id,
                     request_digest=digest,
-                    provider=self.provider,
-                    model=self.model,
+                    provider=provider,
+                    model=model,
+                    offering_id=conversation.offering_id,
+                    offering_version=conversation.offering_version,
+                    connection_id=conversation.connection_id,
                     status="queued",
                     created_at=now,
                     updated_at=now,
@@ -279,6 +345,10 @@ class RunJournal:
             number = len(repository.attempts(run.user_id, run.id)) + 1
             if number > 4:
                 raise AiConflict("Provider attempt budget exhausted.")
+            if run.offering_id is not None:
+                self.service.connection_access().check(
+                    repository, run.user_id, run, self.service.now(), admit=True
+                )
             attempt = ProviderAttempt(
                 id=uuid4(),
                 user_id=run.user_id,
@@ -318,6 +388,15 @@ class RunJournal:
                         output_tokens=output_tokens,
                         error_code=error,
                     )
+                )
+            elif (
+                stored is not None
+                and stored.status == "interrupted"
+                and stored.finished_at is not None
+                and stored.finished_at > self.service.now() - timedelta(days=30)
+            ):
+                repository.save_interrupted_usage(
+                    replace(stored, input_tokens=input_tokens, output_tokens=output_tokens)
                 )
 
     def start_tool(self, call_id: str, tool_name: str) -> ToolExecution:

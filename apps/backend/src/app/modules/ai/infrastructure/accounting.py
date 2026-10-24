@@ -10,6 +10,7 @@ from langchain.agents.middleware import (
 from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.types import Command
 
+from app.modules.ai.application.agent import ProviderFailure
 from app.modules.ai.application.lifecycle import ExecutionJournal
 from app.modules.ai.domain.state import InvalidAiState
 
@@ -28,16 +29,36 @@ class AccountingMiddleware(AgentMiddleware):
             self.journal.finish_attempt(
                 attempt,
                 "failed",
-                error="timeout" if isinstance(error, TimeoutError) else "unavailable",
+                error=(
+                    error.error_code
+                    if isinstance(error, ProviderFailure)
+                    else "timeout"
+                    if isinstance(error, TimeoutError)
+                    else "unavailable"
+                ),
+                input_tokens=error.input_tokens if isinstance(error, ProviderFailure) else None,
+                output_tokens=error.output_tokens if isinstance(error, ProviderFailure) else None,
             )
             raise
-        usage = next(
+        reported = next(
             (
-                message.usage_metadata
+                message.response_metadata["ukladen_usage"]
                 for message in response.result
-                if isinstance(message, AIMessage)
+                if isinstance(message, AIMessage) and "ukladen_usage" in message.response_metadata
             ),
             None,
+        )
+        usage = (
+            reported
+            if reported is not None
+            else next(
+                (
+                    message.usage_metadata
+                    for message in response.result
+                    if isinstance(message, AIMessage)
+                ),
+                None,
+            )
         )
         self.journal.finish_attempt(
             attempt,
