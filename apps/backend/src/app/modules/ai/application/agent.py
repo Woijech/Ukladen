@@ -3,7 +3,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 
+from app.modules.ai.application.source_queries import SourceScope
 from app.modules.ai.domain.state import ErrorCode
+from app.modules.search.domain.evidence import SourceReference
 
 
 class InvalidAgentReview(ValueError):
@@ -30,6 +32,7 @@ class AgentInput(BaseModel):
 
     conversation_id: UUID
     message: str = Field(min_length=1, max_length=16384)
+    source_scope: SourceScope | None = None
 
     @field_validator("message")
     @classmethod
@@ -81,6 +84,7 @@ class AgentResult(BaseModel):
     review: PendingReview | None = None
     tools: tuple[ToolOutcome, ...] = ()
     error_code: ErrorCode | None = None
+    sources: tuple[SourceReference, ...] = Field(default=(), max_length=64)
 
 
 class AgentRunner(Protocol):

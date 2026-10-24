@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
+from app.modules.search.domain.evidence import SourceReference
+
 RunStatus = Literal["queued", "running", "completed", "failed", "cancelled", "interrupted"]
 ExecutionStatus = Literal["started", "succeeded", "failed", "interrupted", "rejected"]
 MessageRole = Literal["user", "assistant", "tool"]
@@ -74,6 +76,7 @@ class Message:
     role: MessageRole
     content: str = field(repr=False)
     created_at: datetime
+    sources: tuple[SourceReference, ...] = ()
 
     def __post_init__(self) -> None:
         require_time(self.created_at)
@@ -85,6 +88,8 @@ class Message:
             raise InvalidAiState("Invalid stored message.")
         if self.sequence < 1:
             raise InvalidAiState("Invalid message sequence.")
+        if len(self.sources) > 64 or (self.sources and self.role != "assistant"):
+            raise InvalidAiState("Invalid message source references.")
 
 
 @dataclass(frozen=True, kw_only=True)

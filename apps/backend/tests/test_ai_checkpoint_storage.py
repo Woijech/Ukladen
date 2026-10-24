@@ -113,7 +113,7 @@ def test_migration_generates_sql_only_and_refuses_a_destructive_downgrade(
 ) -> None:
     config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_heads() == ["0024_ai_connections"]
+    assert scripts.get_heads() == ["0025_ai_message_sources"]
     revision = scripts.get_revision("0022_ai_persistence")
     assert revision is not None and revision.down_revision == "0021_google_email_confirmations"
     buffer = io.StringIO()

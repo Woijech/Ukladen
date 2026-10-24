@@ -2,7 +2,7 @@
   "entries": [
     {
       "id": "deepseek-flash",
-      "version": 1,
+      "version": 2,
       "name": "DeepSeek V4.1 Flash",
       "provider": "openrouter",
       "model": "deepseek/deepseek-v4.1-flash",
@@ -12,6 +12,7 @@
       "operator_key_file": "openrouter.key",
       "personal_allowed": true,
       "tools": true,
+      "max_input_bytes": 65536,
       "structured_output": true,
       "streaming": true,
       "free_only": false,

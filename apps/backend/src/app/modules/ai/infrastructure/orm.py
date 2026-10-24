@@ -15,6 +15,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -114,6 +115,7 @@ class MessageModel(Base):
     sequence: Mapped[int] = mapped_column(BigInteger)
     role: Mapped[str] = mapped_column(String(9))
     content: Mapped[str] = mapped_column(Text)
+    sources: Mapped[list[dict]] = mapped_column(JSONB, default=list, server_default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
@@ -127,6 +129,12 @@ class MessageModel(Base):
         CheckConstraint("sequence > 0", name="ck_ai_messages_sequence"),
         CheckConstraint("role IN ('user', 'assistant', 'tool')", name="ck_ai_messages_role"),
         CheckConstraint("octet_length(content) BETWEEN 1 AND 16384", name="ck_ai_messages_content"),
+        CheckConstraint(
+            "jsonb_typeof(sources) = 'array' AND jsonb_array_length(sources) <= 64 "
+            "AND octet_length(sources::text) <= 65536 "
+            "AND (role = 'assistant' OR sources = '[]'::jsonb)",
+            name="ck_ai_messages_sources",
+        ),
     )
 
 

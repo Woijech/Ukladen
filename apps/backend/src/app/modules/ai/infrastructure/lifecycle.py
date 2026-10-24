@@ -16,9 +16,11 @@ from app.modules.ai.application.agent import AgentRunner
 from app.modules.ai.application.lifecycle import ExecutionJournal
 from app.modules.ai.application.persistence import AiRepository
 from app.modules.ai.application.recovery import RUN_TIMEOUT
+from app.modules.ai.application.sources import SourceReader
 from app.modules.ai.domain.state import AiConflict, AiPersistenceUnavailable, Run
 from app.modules.ai.infrastructure.checkpoints import owned_offline_runner
 from app.modules.ai.infrastructure.fake_tools import fake_double
+from app.modules.ai.infrastructure.grounding import SourceTools
 from app.modules.ai.infrastructure.providers import OpenRouterModels
 from app.modules.ai.infrastructure.repository import SqlAlchemyAiRepository
 from app.modules.users.domain.profile import ProfileUnavailable
@@ -69,6 +71,7 @@ class PostgresAgentRunners:
         model: Callable[[], FakeChatModel] = offline_model,
         *,
         real_models: OpenRouterModels | None = None,
+        sources: SourceReader | None = None,
     ) -> None:
         with sessions() as database:
             engine = database.get_bind()
@@ -76,6 +79,7 @@ class PostgresAgentRunners:
             raise ValueError("AI execution requires an engine-backed session factory.")
         self.engine, self.model = engine, model
         self.real_models = real_models
+        self.sources = sources
 
     @contextmanager
     def __call__(self, run: Run, journal: ExecutionJournal) -> Iterator[AgentRunner]:
@@ -95,14 +99,29 @@ class PostgresAgentRunners:
                     else nullcontext(self.model())
                 )
                 with models as model:
+                    source_tools = (
+                        SourceTools(self.sources, run.user_id, journal)
+                        if self.sources is not None
+                        and run.offering_id is not None
+                        and self.real_models is not None
+                        and self.real_models.access.configuration.offering(
+                            run.user_id, run.offering_id
+                        ).tools
+                        else None
+                    )
                     yield owned_offline_runner(
                         connection,
                         run.user_id,
                         run.conversation_id,
                         model,
-                        [fake_double] if run.offering_id is None else [],
+                        [fake_double]
+                        if run.offering_id is None
+                        else source_tools.build_tools()
+                        if source_tools
+                        else [],
                         run_id=run.id,
                         journal=journal,
+                        sources=source_tools,
                         run_timeout=max(
                             0.001,
                             (run.created_at + RUN_TIMEOUT - datetime.now(UTC)).total_seconds(),

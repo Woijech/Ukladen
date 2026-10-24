@@ -66,6 +66,123 @@ def real_chat(client: TestClient, connection_id=None):
     return response.json()
 
 
+def test_workspace_tool_sources_persist_and_history_rechecks_edits_trash_and_scope(
+    configured_client: TestClient,
+    configuration: FileConnectionConfiguration,
+):
+    client = configured_client
+    page_response = client.post(
+        "/api/v1/notes/pages",
+        headers=csrf_headers(client),
+        json={
+            "title": "Source",
+            "content": "OLD PRIVATE SOURCE BODY",
+        },
+    )
+    assert page_response.status_code == 201, page_response.text
+    page = page_response.json()
+    conversation = real_chat(client)
+    outgoing = []
+    answers = iter(
+        [
+            completion(
+                content="",
+                reason="tool_calls",
+                tool_calls=[
+                    {
+                        "id": "source-1",
+                        "type": "function",
+                        "function": {
+                            "name": "read_page",
+                            "arguments": json.dumps({"page_id": page["id"]}),
+                        },
+                    }
+                ],
+            ),
+            completion("OLD PRIVATE SUMMARY"),
+            completion("INHERITED PRIVATE SUMMARY"),
+            completion("Source no longer available"),
+        ]
+    )
+
+    def respond(request):
+        outgoing.append(json.loads(request.content))
+        assert len(request.content) <= 65536
+        return httpx.Response(200, json=next(answers))
+
+    path = f"{BASE}/conversations/{conversation['id']}/messages"
+    payload = {
+        "submission_id": str(uuid4()),
+        "message": "Summarize the selected page",
+        "source_scope": {"page_ids": [page["id"]]},
+    }
+    with patch(
+        "app.modules.ai.infrastructure.providers.openrouter_model",
+        partial(openrouter_model, transport=httpx.MockTransport(respond)),
+    ):
+        first = client.post(path, headers=csrf_headers(client), json=payload)
+        assert first.json()["status"] == "completed", first.text
+        assert len(first.json()["tools"]) == 1 and len(first.json()["attempts"]) == 2
+        assert client.get(path).json()["items"][-1]["sources"][0]["id"] == page["id"]
+        assert client.post(path, headers=csrf_headers(client), json=payload).json() == first.json()
+        assert len(outgoing) == 2
+        assert (
+            client.post(
+                path,
+                headers=csrf_headers(client),
+                json=payload
+                | {
+                    "source_scope": {"page_ids": [str(uuid4())]},
+                },
+            ).status_code
+            == 409
+        )
+        changed = client.patch(
+            f"/api/v1/notes/pages/{page['id']}",
+            headers=csrf_headers(client),
+            json={"expected_version": page["version"], "content": "NEW CURRENT SOURCE BODY"},
+        )
+        assert changed.status_code == 200, changed.text
+        second = client.post(
+            path,
+            headers=csrf_headers(client),
+            json=payload
+            | {
+                "submission_id": str(uuid4()),
+                "message": "Explain further",
+            },
+        )
+        assert second.json()["status"] == "completed", second.text
+        serialized = json.dumps(outgoing[-1])
+        assert "NEW CURRENT SOURCE BODY" in serialized
+        assert (
+            "OLD PRIVATE SOURCE BODY" not in serialized and "OLD PRIVATE SUMMARY" not in serialized
+        )
+        assert (
+            client.post(
+                f"/api/v1/notes/pages/{page['id']}/trash",
+                headers=csrf_headers(client),
+                json={"expected_version": changed.json()["version"]},
+            ).status_code
+            == 200
+        )
+        third = client.post(
+            path,
+            headers=csrf_headers(client),
+            json=payload
+            | {
+                "submission_id": str(uuid4()),
+                "message": "What about now?",
+            },
+        )
+        assert third.json()["status"] == "completed", third.text
+        serialized = json.dumps(outgoing[-1])
+        assert "NEW CURRENT SOURCE BODY" not in serialized
+        assert "INHERITED PRIVATE SUMMARY" not in serialized
+        assert "not_found" in serialized
+        assert client.get(path).json()["items"][-1]["sources"] == []
+
+
 def test_connections_require_csrf_mask_secrets_and_never_validate_automatically(
     configured_client: TestClient,
     concurrent_engine: Engine,

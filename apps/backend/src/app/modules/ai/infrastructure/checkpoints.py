@@ -35,6 +35,7 @@ from app.modules.ai.domain.state import (
 )
 from app.modules.ai.infrastructure.agent import OfflineAgentRunner
 from app.modules.ai.infrastructure.checkpoint_schema import CHECKPOINT_SCHEMA_VERSION
+from app.modules.ai.infrastructure.grounding import SourceTools
 
 logger = logging.getLogger(__name__)
 
@@ -226,6 +227,7 @@ def owned_offline_runner(
     run_id: UUID | None = None,
     journal: ExecutionJournal | None = None,
     run_timeout: float = 60,
+    sources: SourceTools | None = None,
 ) -> AgentRunner:
     """Caller owns the connection; no connection creation or DDL occurs here."""
     saver = OwnedPostgresSaver(connection, user_id, conversation_id, now=now, run_id=run_id)
@@ -238,4 +240,5 @@ def owned_offline_runner(
         run_id=run_id,
         journal=journal,
         run_timeout=run_timeout,
+        sources=sources,
     )

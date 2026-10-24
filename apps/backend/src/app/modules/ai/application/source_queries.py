@@ -1,8 +1,8 @@
 from datetime import date
-from typing import Literal
+from typing import Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
 
 class ReadQuery(BaseModel):
@@ -14,6 +14,12 @@ class SourceScope(ReadQuery):
     material_ids: tuple[UUID, ...] = Field(default=(), max_length=20)
     database_ids: tuple[UUID, ...] = Field(default=(), max_length=20)
     calendar: bool = Field(default=False, strict=True)
+
+    @model_validator(mode="after")
+    def bounded_selection(self) -> Self:
+        if len(self.page_ids) + len(self.material_ids) + len(self.database_ids) > 20:
+            raise ValueError("Select at most 20 explicit sources.")
+        return self
 
 
 class SearchRead(ReadQuery):
@@ -96,3 +102,34 @@ READ_QUERIES: dict[str, type[ReadQuery]] = {
     "read_database": DatabaseRead,
     "query_database": DatabaseReadQuery,
 }
+
+
+def restrict_source_query(query: ReadQuery, scope: SourceScope | None) -> ReadQuery | None:
+    if scope is None:
+        return query
+    if isinstance(query, SearchRead):
+        if query.source is None:
+            if scope.page_ids and scope.material_ids:
+                raise ValueError("Search each selected source type separately.")
+            query = query.model_copy(update={"source": "page" if scope.page_ids else "material"})
+        allowed = (
+            scope.page_ids
+            if query.source == "page"
+            else scope.material_ids
+            if query.source == "material"
+            else (*scope.page_ids, *scope.material_ids)
+        )
+        if query.source_ids:
+            allowed = tuple(item for item in query.source_ids if item in allowed)
+        return query.model_copy(update={"source_ids": allowed}) if allowed else None
+    if isinstance(query, PageRead):
+        return query if query.page_id in scope.page_ids else None
+    if isinstance(query, MaterialRead):
+        return query if query.material_id in scope.material_ids else None
+    if isinstance(query, (DatabaseRead, DatabaseReadQuery)):
+        return query if query.database_id in scope.database_ids else None
+    if isinstance(query, CalendarRead):
+        return query if scope.calendar else None
+    if isinstance(query, DatabaseList):
+        return None
+    return None

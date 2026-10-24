@@ -190,9 +190,12 @@ class AiService:
             )
 
     def submit(self, user_id: UUID, request: AgentInput, submission_id: UUID) -> RunSnapshot:
+        payload: list[object] = [str(request.conversation_id), request.message]
+        if request.source_scope is not None:
+            payload.append(request.source_scope.model_dump(mode="json"))
         digest = hashlib.sha256(
             json.dumps(
-                [str(request.conversation_id), request.message],
+                payload,
                 ensure_ascii=False,
                 separators=(",", ":"),
             ).encode()
@@ -295,6 +298,7 @@ class AiService:
                         role="assistant",
                         content=result.answer,
                         created_at=self.now(),
+                        sources=result.sources,
                     )
                 )
                 status = "completed"

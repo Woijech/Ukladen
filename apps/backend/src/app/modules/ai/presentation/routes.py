@@ -19,6 +19,7 @@ from app.modules.ai.domain.state import (
 from app.modules.ai.infrastructure.connections import FileConnectionConfiguration
 from app.modules.ai.infrastructure.lifecycle import PostgresAgentRunners, SqlAlchemyAiTransactions
 from app.modules.ai.infrastructure.providers import OpenRouterModels
+from app.modules.ai.infrastructure.sources import SqlAlchemySourceReader
 from app.modules.ai.presentation.schemas import (
     ConnectionCreate,
     ConnectionList,
@@ -57,7 +58,13 @@ def get_ai(request: Request, settings: Config) -> AiService:
     return AiService(
         transactions,
         PostgresAgentRunners(
-            sessions, real_models=OpenRouterModels(transactions, access) if access else None
+            sessions,
+            real_models=OpenRouterModels(transactions, access) if access else None,
+            sources=SqlAlchemySourceReader(
+                sessions,
+                request.app.state.academic_provider,
+                settings.schedule_sync_interval_seconds,
+            ),
         ),
         provider=settings.ai_llm_provider,
         model=settings.ai_llm_model,

@@ -47,6 +47,7 @@ def configuration(tmp_path: Path) -> FileConnectionConfiguration:
                         "public": True,
                         "operator_key_file": "operator.key",
                         "tools": True,
+                        "max_input_bytes": 65536,
                     }
                 ]
             }

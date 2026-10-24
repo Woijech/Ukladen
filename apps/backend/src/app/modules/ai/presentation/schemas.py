@@ -6,7 +6,9 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from app.modules.ai.application.agent import AgentInput
 from app.modules.ai.application.connections import require_key
 from app.modules.ai.application.lifecycle import RunSnapshot
+from app.modules.ai.application.source_queries import SourceScope
 from app.modules.ai.domain.state import ErrorCode, ExecutionStatus, MessageRole, RunStatus
+from app.modules.search.domain.evidence import SourceReference
 
 
 class ConversationCreate(BaseModel):
@@ -25,6 +27,7 @@ class MessageSubmit(BaseModel):
     model_config = ConfigDict(extra="forbid")
     submission_id: UUID
     message: str = Field(min_length=1, max_length=16384)
+    source_scope: SourceScope | None = None
 
     @field_validator("message")
     @classmethod
@@ -32,7 +35,9 @@ class MessageSubmit(BaseModel):
         return AgentInput.bounded_message(value)
 
     def agent_input(self, conversation_id: UUID) -> AgentInput:
-        return AgentInput(conversation_id=conversation_id, message=self.message)
+        return AgentInput(
+            conversation_id=conversation_id, message=self.message, source_scope=self.source_scope
+        )
 
 
 class ConversationResponse(BaseModel):
@@ -59,6 +64,7 @@ class MessageResponse(BaseModel):
     role: MessageRole
     content: str
     created_at: datetime
+    sources: tuple[SourceReference, ...] = ()
 
 
 class MessageList(BaseModel):

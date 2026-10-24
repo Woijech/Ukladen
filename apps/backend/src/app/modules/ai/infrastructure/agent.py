@@ -40,6 +40,7 @@ from app.modules.ai.application.agent import (
 from app.modules.ai.application.lifecycle import ExecutionJournal
 from app.modules.ai.infrastructure.accounting import AccountingMiddleware
 from app.modules.ai.infrastructure.bounds import BoundedCalls
+from app.modules.ai.infrastructure.grounding import SourceTools
 
 CALL_LIMIT_ERRORS = (ModelCallLimitExceededError, ToolCallLimitExceededError)
 TOOL_ERROR = "Tool unavailable or invalid input."
@@ -86,6 +87,7 @@ class OfflineAgentRunner:
         run_id: UUID | None = None,
         run_timeout: float = 60,
         tool_timeout: float = 10,
+        sources: SourceTools | None = None,
     ) -> None:
         if (
             type(model_limit) is not int
@@ -102,6 +104,7 @@ class OfflineAgentRunner:
         if len(names) != len(set(names)) or not review_tools.issubset(names):
             raise ValueError("Invalid offline tool registration.")
         self.run_id = run_id
+        self.sources = sources
         self.run_timeout = run_timeout
         self.bounds = BoundedCalls(model_limit, tool_timeout)
         middleware: list[AgentMiddleware[Any, Any]] = [
@@ -125,6 +128,8 @@ class OfflineAgentRunner:
         ]
         if journal is not None:
             middleware.insert(4, AccountingMiddleware(journal))
+        if sources is not None:
+            middleware.append(sources)
         self.graph = create_agent(
             model=model,
             tools=tools,
@@ -139,6 +144,8 @@ class OfflineAgentRunner:
         return {"configurable": configurable, "recursion_limit": 32}
 
     def run(self, request: AgentInput) -> AgentResult:
+        if self.sources is not None:
+            self.sources.scope = request.source_scope
         with tracing_context(enabled=False):
             config = self._config(request.conversation_id)
             if self.graph.get_state(config).next:
@@ -166,7 +173,12 @@ class OfflineAgentRunner:
         self.bounds.begin(self.run_timeout)
         try:
             result = self.graph.invoke(value, config)
-            return self._result(result)
+            response = self._result(result)
+            return (
+                response.model_copy(update={"sources": self.sources.sources})
+                if self.sources
+                else response
+            )
         except CALL_LIMIT_ERRORS:
             return AgentResult(status="limited")
         except TimeoutError:

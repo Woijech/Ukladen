@@ -291,7 +291,11 @@ class WorkspaceSourceService:
             refs = tuple(
                 SourceReference(
                     source=item.source,
-                    id=item.id,
+                    id=(
+                        f"{item.record_id}:{item.property_id}"
+                        if isinstance(item, RecordDateProjection)
+                        else str(item.source_event_id)
+                    ),
                     version=item.record_version
                     if isinstance(item, RecordDateProjection)
                     else item.version,

@@ -3,11 +3,14 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 from uuid import uuid4
 
+import pytest
 from sqlalchemy import Engine, update
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 from test_ai_persistence import ai_database as ai_database
-from test_ai_persistence import seed
+from test_ai_persistence import make_message, migration_config, seed
 
+from alembic import command
 from app.modules.academics.application.ports import AcademicProvider
 from app.modules.ai.application.source_queries import (
     CalendarRead,
@@ -19,14 +22,46 @@ from app.modules.ai.application.source_queries import (
     PropertyFilter,
     SearchRead,
 )
+from app.modules.ai.infrastructure.orm import MessageModel
+from app.modules.ai.infrastructure.repository import SqlAlchemyAiRepository
 from app.modules.ai.infrastructure.sources import SqlAlchemySourceReader
 from app.modules.materials.application.service import MaterialService
 from app.modules.materials.infrastructure.orm import MaterialModel
+from app.modules.search.domain.evidence import SourceReference
 from app.modules.search.infrastructure.documents import SqlAlchemyMaterialTextIndex
 
 
 def source_reader(engine: Engine) -> SqlAlchemySourceReader:
     return SqlAlchemySourceReader(sessionmaker(engine), Mock(spec=AcademicProvider), 3600)
+
+
+def test_source_metadata_round_trip_constraints_and_preserving_migration(ai_database: Engine):
+    conversation, _ = seed(ai_database)
+    citation = SourceReference(source="page", id=str(uuid4()), version=3, title="Read source")
+    message = replace(make_message(conversation), role="assistant", sources=(citation,))
+    with Session(ai_database) as session, session.begin():
+        repository = SqlAlchemyAiRepository(session)
+        repository.append_message(message)
+        assert repository.messages(conversation.user_id, conversation.id, 0, 20) == [message]
+        assert repository.messages(uuid4(), conversation.id, 0, 20) == []
+    with ai_database.begin() as connection:
+        with pytest.raises(IntegrityError), connection.begin_nested():
+            connection.execute(update(MessageModel).values(sources={"invalid": True}))
+        with pytest.raises(IntegrityError), connection.begin_nested():
+            connection.execute(update(MessageModel).values(role="user"))
+        with pytest.raises(DBAPIError, match="Cannot downgrade"), connection.begin_nested():
+            command.downgrade(migration_config(connection), "0024_ai_connections")
+        connection.execute(update(MessageModel).values(sources=[]))
+        command.downgrade(migration_config(connection), "0024_ai_connections")
+        command.upgrade(migration_config(connection), "head")
+        command.check(migration_config(connection))
+    with Session(ai_database) as session:
+        assert (
+            SqlAlchemyAiRepository(session)
+            .messages(conversation.user_id, conversation.id, 0, 20)[0]
+            .content
+            == message.content
+        )
 
 
 def test_source_reads_use_current_owner_versions_filters_and_character_ranges(ai_database: Engine):

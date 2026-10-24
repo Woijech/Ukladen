@@ -33,6 +33,7 @@ from app.modules.ai.infrastructure.orm import (
     RunReceiptModel,
     ToolExecutionModel,
 )
+from app.modules.search.domain.evidence import SourceReference
 
 
 def conversation_entity(row: ConversationModel) -> Conversation:
@@ -60,6 +61,7 @@ def message_entity(row: MessageModel) -> Message:
         role=cast(MessageRole, row.role),
         content=row.content,
         created_at=row.created_at,
+        sources=tuple(SourceReference.model_validate(item) for item in row.sources),
     )
 
 
@@ -276,7 +278,14 @@ class SqlAlchemyAiRepository:
             statement = statement.values(last_user_message_at=message.created_at)
         if self.session.scalar(statement.returning(ConversationModel.id)) is None:
             raise AiConflict("Conversation sequence changed.")
-        self.session.add(MessageModel(**asdict(message)))
+        self.session.add(
+            MessageModel(
+                **(
+                    asdict(message)
+                    | {"sources": [item.model_dump(mode="json") for item in message.sources]}
+                )
+            )
+        )
         self.session.flush()
 
     def messages(
