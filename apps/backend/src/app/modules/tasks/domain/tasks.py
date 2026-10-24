@@ -8,7 +8,15 @@ TaskStatus = Literal["todo", "in_progress", "done", "cancelled"]
 TaskPriority = Literal["low", "normal", "high", "urgent"]
 STATUSES = ("todo", "in_progress", "done", "cancelled")
 PRIORITIES = ("low", "normal", "high", "urgent")
-TASK_FIELDS = {"title", "description", "status", "priority", "deadline_at", "estimated_minutes"}
+TASK_FIELDS = {
+    "title",
+    "description",
+    "status",
+    "priority",
+    "deadline_at",
+    "estimated_minutes",
+    "parent_id",
+}
 
 
 class InvalidTaskInput(ValueError):
@@ -23,6 +31,10 @@ class TaskVersionConflict(Exception):
     pass
 
 
+class TaskHierarchyConflict(Exception):
+    pass
+
+
 class TaskValues(TypedDict):
     title: str
     description: str | None
@@ -30,6 +42,7 @@ class TaskValues(TypedDict):
     priority: TaskPriority
     deadline_at: datetime | None
     estimated_minutes: int | None
+    parent_id: UUID | None
 
 
 def task_text(value: object, limit: int, *, required: bool = False) -> str | None:
@@ -69,6 +82,9 @@ def task_values(values: Mapping[str, object]) -> TaskValues:
     effort = values.get("estimated_minutes")
     if effort is not None and (type(effort) is not int or not 1 <= effort <= 525600):
         raise InvalidTaskInput()
+    parent_id = values.get("parent_id")
+    if parent_id is not None and not isinstance(parent_id, UUID):
+        raise InvalidTaskInput()
     return TaskValues(
         title=title,
         description=task_text(values.get("description"), 10000),
@@ -76,6 +92,7 @@ def task_values(values: Mapping[str, object]) -> TaskValues:
         priority=cast(TaskPriority, priority),
         deadline_at=deadline,
         estimated_minutes=cast(int | None, effort),
+        parent_id=cast(UUID | None, parent_id),
     )
 
 
@@ -98,6 +115,7 @@ class TaskSummary:
     version: int
     created_at: datetime
     updated_at: datetime
+    parent_id: UUID | None = None
 
     def is_overdue(self, now: datetime) -> bool:
         return (

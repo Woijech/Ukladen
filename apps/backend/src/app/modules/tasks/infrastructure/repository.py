@@ -19,6 +19,7 @@ def task_summary(row: TaskModel) -> TaskSummary:
     return TaskSummary(
         id=row.id,
         user_id=row.user_id,
+        parent_id=row.parent_id,
         title=row.title,
         status=cast(TaskStatus, row.status),
         priority=cast(TaskPriority, row.priority),

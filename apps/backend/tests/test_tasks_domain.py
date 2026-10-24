@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta, timezone
+from uuid import uuid4
 
 import pytest
 
@@ -32,6 +33,7 @@ from app.modules.tasks.domain.tasks import (
         {"deadline_at": datetime(2026, 10, 1)},
         {"deadline_at": "2026-10-01T00:00:00Z"},
         {"user_id": "foreign"},
+        {"parent_id": "not-a-uuid"},
     ],
 )
 def test_invalid_task_values(values: dict[str, object]) -> None:
@@ -50,7 +52,10 @@ def test_task_normalization_preserves_description_and_normalizes_deadline() -> N
         "priority": "normal",
         "deadline_at": datetime(2026, 10, 1, 15, tzinfo=UTC),
         "estimated_minutes": None,
+        "parent_id": None,
     }
+    parent = uuid4()
+    assert task_values({"title": "Child", "parent_id": parent})["parent_id"] == parent
     assert (
         task_values({"title": "Task", "estimated_minutes": 525600})["estimated_minutes"] == 525600
     )

@@ -1,7 +1,17 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -11,6 +21,7 @@ class TaskModel(Base):
     __tablename__ = "tasks"
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
+    parent_id: Mapped[UUID | None] = mapped_column()
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)
@@ -38,4 +49,12 @@ class TaskModel(Base):
         CheckConstraint("estimated_minutes BETWEEN 1 AND 525600", name="ck_tasks_effort"),
         CheckConstraint("version > 0", name="ck_tasks_version"),
         Index("ix_tasks_owner_created", "user_id", "created_at", "id"),
+        UniqueConstraint("id", "user_id", name="uq_tasks_id_user"),
+        ForeignKeyConstraint(
+            ["parent_id", "user_id"],
+            ["tasks.id", "tasks.user_id"],
+            name="fk_tasks_parent_owner",
+        ),
+        CheckConstraint("parent_id IS NULL OR parent_id != id", name="ck_tasks_parent"),
+        Index("ix_tasks_owner_parent", "user_id", "parent_id"),
     )

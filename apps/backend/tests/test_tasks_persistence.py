@@ -42,6 +42,75 @@ def test_migration_preserves_users_and_refuses_data_loss(database_connection: Co
     command.check(config)
 
 
+def test_hierarchy_migration_preserves_roots_and_refuses_link_loss(
+    database_connection: Connection,
+) -> None:
+    config = migration_config(database_connection)
+    command.downgrade(config, "0022_tasks")
+    owner, root_id, child_id = uuid4(), uuid4(), uuid4()
+    database_connection.execute(insert(UserModel).values(id=owner, email="task-tree@example.com"))
+    database_connection.execute(
+        insert(TaskModel).values(id=root_id, user_id=owner, title="Existing root")
+    )
+    command.upgrade(config, "head")
+    command.check(config)
+    assert (
+        database_connection.scalar(select(TaskModel.parent_id).where(TaskModel.id == root_id))
+        is None
+    )
+    database_connection.execute(
+        insert(TaskModel).values(
+            id=child_id, user_id=owner, parent_id=root_id, title="Linked child"
+        )
+    )
+    with pytest.raises(RuntimeError, match="populated task hierarchy"):
+        command.downgrade(config, "0022_tasks")
+    assert (
+        database_connection.scalar(select(TaskModel.parent_id).where(TaskModel.id == child_id))
+        == root_id
+    )
+    database_connection.execute(delete(TaskModel).where(TaskModel.id == child_id))
+    command.downgrade(config, "0022_tasks")
+    assert (
+        database_connection.scalar(select(TaskModel.title).where(TaskModel.id == root_id))
+        == "Existing root"
+    )
+    command.upgrade(config, "head")
+    command.check(config)
+
+
+def test_parent_constraint_requires_same_owner_and_acyclic_self_reference(
+    database_connection: Connection,
+) -> None:
+    owner, other, parent, child = uuid4(), uuid4(), uuid4(), uuid4()
+    database_connection.execute(
+        insert(UserModel),
+        [
+            {"id": owner, "email": "tree-owner@example.com"},
+            {"id": other, "email": "tree-other@example.com"},
+        ],
+    )
+    database_connection.execute(insert(TaskModel).values(id=parent, user_id=owner, title="Parent"))
+    database_connection.execute(
+        insert(TaskModel).values(id=child, user_id=owner, parent_id=parent, title="Child")
+    )
+    assert (
+        database_connection.scalar(select(TaskModel.parent_id).where(TaskModel.id == child))
+        == parent
+    )
+    for values in (
+        {"id": uuid4(), "user_id": other, "parent_id": parent},
+        {"id": uuid4(), "user_id": owner, "parent_id": uuid4()},
+        {"id": uuid4(), "user_id": owner, "parent_id": None},
+    ):
+        if values["parent_id"] is None:
+            values["parent_id"] = values["id"]
+        with pytest.raises(IntegrityError), database_connection.begin_nested():
+            database_connection.execute(insert(TaskModel).values(title="Invalid", **values))
+    with pytest.raises(IntegrityError), database_connection.begin_nested():
+        database_connection.execute(delete(TaskModel).where(TaskModel.id == parent))
+
+
 def test_repository_owner_version_filters_and_cascade(database_connection: Connection) -> None:
     owner, other, identifier = uuid4(), uuid4(), uuid4()
     now = datetime.now(UTC)
