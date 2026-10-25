@@ -35,6 +35,10 @@ class TaskHierarchyConflict(Exception):
     pass
 
 
+class TaskTrashConflict(Exception):
+    pass
+
+
 class TaskValues(TypedDict):
     title: str
     description: str | None
@@ -121,7 +125,8 @@ class TaskSummary:
 
     def is_overdue(self, now: datetime) -> bool:
         return (
-            self.status in ("todo", "in_progress")
+            self.trashed_at is None
+            and self.status in ("todo", "in_progress")
             and self.deadline_at is not None
             and self.deadline_at < now
         )

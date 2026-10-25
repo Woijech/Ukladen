@@ -266,6 +266,144 @@ def test_subtask_http_tree_filters_and_completion_guards(calendar_client: TestCl
     }
 
 
+def test_task_trash_restores_only_its_batch_and_respects_completed_ancestors(
+    calendar_client: TestClient,
+) -> None:
+    root = create_task(calendar_client, title="Root")
+    child = create_task(calendar_client, title="Child", parent_id=root["id"])
+    grandchild = create_task(calendar_client, title="Grandchild", parent_id=child["id"])
+    sibling = create_task(calendar_client, title="Sibling", parent_id=root["id"])
+    headers = csrf_headers(calendar_client)
+
+    def trash(task: dict) -> dict:
+        response = calendar_client.post(
+            f"{BASE}/{task['id']}/trash",
+            headers=headers,
+            json={"expected_version": task["version"]},
+        )
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    grandchild = trash(grandchild)
+    root = trash(root)
+    assert root["trash_batch_id"] == root["id"]
+    assert root["trashed_at"] is not None
+    assert calendar_client.get(BASE).json()["items"] == []
+    trashed = calendar_client.get(f"{BASE}?trashed=true").json()["items"]
+    assert {item["id"] for item in trashed} == {
+        root["id"],
+        child["id"],
+        grandchild["id"],
+        sibling["id"],
+    }
+    assert (
+        next(item for item in trashed if item["id"] == grandchild["id"])["trash_batch_id"]
+        == grandchild["id"]
+    )
+    blocked = calendar_client.post(
+        f"{BASE}/{child['id']}/restore", headers=headers, json={"expected_version": 2}
+    )
+    assert blocked.status_code == 409 and blocked.json()["code"] == "task_trash_conflict"
+    stale = calendar_client.post(
+        f"{BASE}/{root['id']}/restore", headers=headers, json={"expected_version": 1}
+    )
+    assert stale.status_code == 409 and stale.json()["code"] == "task_version_conflict"
+    root = calendar_client.post(
+        f"{BASE}/{root['id']}/restore", headers=headers, json={"expected_version": 2}
+    ).json()
+    assert root["trashed_at"] is None and root["version"] == 3
+    assert {item["id"] for item in calendar_client.get(BASE).json()["items"]} == {
+        root["id"],
+        child["id"],
+        sibling["id"],
+    }
+    assert [item["id"] for item in calendar_client.get(f"{BASE}?trashed=true").json()["items"]] == [
+        grandchild["id"]
+    ]
+    assert (
+        calendar_client.patch(
+            f"{BASE}/{grandchild['id']}",
+            headers=headers,
+            json={"expected_version": 2, "title": "Blocked"},
+        ).json()["code"]
+        == "task_trash_conflict"
+    )
+    assert (
+        calendar_client.post(
+            BASE, headers=headers, json={"title": "Blocked", "parent_id": grandchild["id"]}
+        ).json()["code"]
+        == "task_trash_conflict"
+    )
+
+    completion = calendar_client.patch(
+        f"{BASE}/{root['id']}", headers=headers, json={"expected_version": 3, "status": "done"}
+    )
+    assert completion.status_code == 409
+    for identifier in (child["id"], sibling["id"]):
+        current = calendar_client.get(f"{BASE}/{identifier}").json()
+        response = calendar_client.patch(
+            f"{BASE}/{identifier}",
+            headers=headers,
+            json={"expected_version": current["version"], "status": "done"},
+        )
+        assert response.status_code == 200, response.text
+    completion = calendar_client.patch(
+        f"{BASE}/{root['id']}", headers=headers, json={"expected_version": 3, "status": "done"}
+    )
+    assert completion.status_code == 200, completion.text
+    blocked = calendar_client.post(
+        f"{BASE}/{grandchild['id']}/restore", headers=headers, json={"expected_version": 2}
+    )
+    assert blocked.status_code == 409 and blocked.json()["code"] == "task_hierarchy_conflict"
+    assert calendar_client.get(f"{BASE}/{grandchild['id']}").json()["trashed_at"] is not None
+
+
+def test_task_trash_requires_owner_csrf_and_exact_version(
+    calendar_client: TestClient, concurrent_engine: Engine
+) -> None:
+    task = create_task(calendar_client)
+    path = f"{BASE}/{task['id']}"
+    assert calendar_client.post(f"{path}/trash", json={"expected_version": 1}).status_code == 403
+    for payload in ({}, {"expected_version": True}, {"expected_version": 1, "extra": 1}):
+        assert (
+            calendar_client.post(
+                f"{path}/trash", headers=csrf_headers(calendar_client), json=payload
+            ).status_code
+            == 422
+        )
+    with Session(concurrent_engine) as session, session.begin():
+        other = UserModel(email="foreign-trash@example.com")
+        session.add(other)
+        session.flush()
+        foreign = TaskService(
+            SqlAlchemyTaskRepository(session), SqlAlchemyUserAuthentication(session)
+        ).create(other.id, {"title": "Foreign"})
+    for operation in ("trash", "restore"):
+        for identifier in (foreign.id, uuid4()):
+            result = calendar_client.post(
+                f"{BASE}/{identifier}/{operation}",
+                headers=csrf_headers(calendar_client),
+                json={"expected_version": 1},
+            )
+            assert result.status_code == 404 and result.json()["code"] == "task_not_found"
+    trashed = calendar_client.post(
+        f"{path}/trash", headers=csrf_headers(calendar_client), json={"expected_version": 1}
+    )
+    assert trashed.status_code == 200
+    repeated = calendar_client.post(
+        f"{path}/trash", headers=csrf_headers(calendar_client), json={"expected_version": 2}
+    )
+    assert repeated.status_code == 409 and repeated.json()["code"] == "task_trash_conflict"
+    restored = calendar_client.post(
+        f"{path}/restore", headers=csrf_headers(calendar_client), json={"expected_version": 2}
+    )
+    assert restored.status_code == 200
+    repeated = calendar_client.post(
+        f"{path}/restore", headers=csrf_headers(calendar_client), json={"expected_version": 3}
+    )
+    assert repeated.status_code == 409 and repeated.json()["code"] == "task_trash_conflict"
+
+
 def test_missing_and_foreign_parent_references_are_indistinguishable(
     calendar_client: TestClient, concurrent_engine: Engine
 ) -> None:
@@ -380,4 +518,8 @@ def test_openapi_exposes_only_delivered_operations(calendar_client: TestClient) 
     paths = calendar_client.get("/api/openapi.json").json()["paths"]
     assert set(paths[BASE]) == {"get", "post"}
     assert set(paths[f"{BASE}/{{task_id}}"]) == {"get", "patch"}
-    assert not any(path.startswith(f"{BASE}/") and path != f"{BASE}/{{task_id}}" for path in paths)
+    assert {path for path in paths if path.startswith(f"{BASE}/")} == {
+        f"{BASE}/{{task_id}}",
+        f"{BASE}/{{task_id}}/trash",
+        f"{BASE}/{{task_id}}/restore",
+    }

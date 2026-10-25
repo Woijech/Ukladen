@@ -1,4 +1,5 @@
 from dataclasses import asdict
+from datetime import datetime
 from typing import cast
 from uuid import UUID
 
@@ -28,6 +29,8 @@ def task_summary(row: TaskModel) -> TaskSummary:
         version=row.version,
         created_at=row.created_at,
         updated_at=row.updated_at,
+        trashed_at=row.trashed_at,
+        trash_batch_id=row.trash_batch_id,
     )
 
 
@@ -56,11 +59,13 @@ class SqlAlchemyTaskRepository:
         offset: int,
         parent_id: UUID | None = None,
         roots_only: bool = False,
+        trashed: bool = False,
     ) -> list[TaskSummary]:
         query = (
             select(TaskModel)
             .options(defer(TaskModel.description))
             .where(TaskModel.user_id == user_id)
+            .where(TaskModel.trashed_at.is_not(None) if trashed else TaskModel.trashed_at.is_(None))
         )
         if status is not None:
             query = query.where(TaskModel.status == status)
@@ -101,12 +106,13 @@ class SqlAlchemyTaskRepository:
         descendants = (
             select(TaskModel.id)
             .where(TaskModel.user_id == user_id, TaskModel.parent_id == task_id)
+            .where(TaskModel.trashed_at.is_(None))
             .cte("task_descendants", recursive=True)
         )
         descendants = descendants.union(
             select(TaskModel.id)
             .join(descendants, TaskModel.parent_id == descendants.c.id)
-            .where(TaskModel.user_id == user_id)
+            .where(TaskModel.user_id == user_id, TaskModel.trashed_at.is_(None))
         )
         return (
             self.session.scalar(
@@ -115,8 +121,63 @@ class SqlAlchemyTaskRepository:
                     TaskModel.user_id == user_id,
                     TaskModel.id.in_(select(descendants.c.id)),
                     TaskModel.status.in_(("todo", "in_progress")),
+                    TaskModel.trashed_at.is_(None),
                 )
                 .limit(1)
             )
             is not None
+        )
+
+    def has_open_batch_tasks(self, user_id: UUID, batch_id: UUID) -> bool:
+        return (
+            self.session.scalar(
+                select(TaskModel.id)
+                .where(
+                    TaskModel.user_id == user_id,
+                    TaskModel.trash_batch_id == batch_id,
+                    TaskModel.status.in_(("todo", "in_progress")),
+                )
+                .limit(1)
+            )
+            is not None
+        )
+
+    def trash_branch(self, user_id: UUID, task_id: UUID, now: datetime) -> None:
+        branch = (
+            select(TaskModel.id)
+            .where(TaskModel.user_id == user_id, TaskModel.id == task_id)
+            .cte("task_trash_branch", recursive=True)
+        )
+        branch = branch.union_all(
+            select(TaskModel.id)
+            .join(branch, TaskModel.parent_id == branch.c.id)
+            .where(TaskModel.user_id == user_id)
+        )
+        self.session.execute(
+            update(TaskModel)
+            .where(
+                TaskModel.user_id == user_id,
+                TaskModel.id.in_(select(branch.c.id)),
+                TaskModel.trashed_at.is_(None),
+            )
+            .values(
+                trashed_at=now,
+                trash_batch_id=task_id,
+                updated_at=now,
+                version=TaskModel.version + 1,
+            )
+            .execution_options(synchronize_session=False)
+        )
+
+    def restore_batch(self, user_id: UUID, batch_id: UUID, now: datetime) -> None:
+        self.session.execute(
+            update(TaskModel)
+            .where(TaskModel.user_id == user_id, TaskModel.trash_batch_id == batch_id)
+            .values(
+                trashed_at=None,
+                trash_batch_id=None,
+                updated_at=now,
+                version=TaskModel.version + 1,
+            )
+            .execution_options(synchronize_session=False)
         )

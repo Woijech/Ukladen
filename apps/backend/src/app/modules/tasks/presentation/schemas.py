@@ -65,6 +65,12 @@ class TaskPatch(TaskInput):
         return self
 
 
+class TaskVersionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_version: int = Field(ge=1, le=2**31 - 2, strict=True)
+
+
 class TaskSummaryResponse(BaseModel):
     id: UUID
     parent_id: UUID | None
@@ -76,6 +82,8 @@ class TaskSummaryResponse(BaseModel):
     version: int
     created_at: AwareDatetime
     updated_at: AwareDatetime
+    trashed_at: AwareDatetime | None
+    trash_batch_id: UUID | None
     is_overdue: bool
 
     @classmethod

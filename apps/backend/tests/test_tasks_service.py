@@ -11,6 +11,7 @@ from app.modules.tasks.domain.tasks import (
     InvalidTaskInput,
     TaskHierarchyConflict,
     TaskNotFound,
+    TaskTrashConflict,
     TaskVersionConflict,
 )
 from app.modules.users.application.ports import UserAuthentication
@@ -24,6 +25,7 @@ def setup_service():
     users = create_autospec(UserAuthentication, instance=True)
     users.is_active.return_value = users.lock_active.return_value = True
     repository.has_open_descendants.return_value = False
+    repository.has_open_batch_tasks.return_value = False
     return TaskService(repository, users, now=lambda: NOW), repository, users
 
 
@@ -212,3 +214,43 @@ def test_invalid_lists_rejected(values) -> None:
     with pytest.raises(InvalidTaskInput):
         service.list(uuid4(), **values)
     repository.list.assert_not_called()
+
+
+def test_trash_requires_active_task_and_root_restore() -> None:
+    service, repository, _ = setup_service()
+    owner = uuid4()
+    task = service.create(owner, {"title": "Task"})
+    trashed = replace(task, version=2, trashed_at=NOW, trash_batch_id=task.id)
+    repository.get.side_effect = [task, trashed, trashed, task]
+    assert service.trash(owner, task.id, 1) == trashed
+    repository.trash_branch.assert_called_once_with(owner, task.id, NOW)
+    with pytest.raises(TaskTrashConflict):
+        service.update(owner, task.id, {"title": "Edit"}, 2)
+    repository.get.side_effect = [trashed, task]
+    assert service.restore(owner, task.id, 2) == task
+    repository.restore_batch.assert_called_once_with(owner, task.id, NOW)
+
+
+def test_restore_rejects_batch_member_and_open_branch_under_done_parent() -> None:
+    service, repository, _ = setup_service()
+    owner = uuid4()
+    parent = service.create(owner, {"title": "Done parent", "status": "done"})
+    child = replace(
+        service.create(owner, {"title": "Child"}),
+        parent_id=parent.id,
+        trashed_at=NOW,
+        trash_batch_id=uuid4(),
+    )
+    repository.get.side_effect = lambda _, identifier: {parent.id: parent, child.id: child}.get(
+        identifier
+    )
+    with pytest.raises(TaskTrashConflict):
+        service.restore(owner, child.id, 1)
+    child = replace(child, trash_batch_id=child.id)
+    repository.get.side_effect = lambda _, identifier: {parent.id: parent, child.id: child}.get(
+        identifier
+    )
+    repository.has_open_batch_tasks.return_value = True
+    with pytest.raises(TaskHierarchyConflict):
+        service.restore(owner, child.id, 1)
+    repository.restore_batch.assert_not_called()

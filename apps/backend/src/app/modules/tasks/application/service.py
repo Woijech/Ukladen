@@ -15,6 +15,7 @@ from app.modules.tasks.domain.tasks import (
     TaskPriority,
     TaskStatus,
     TaskSummary,
+    TaskTrashConflict,
     require_task_version,
     task_values,
 )
@@ -49,6 +50,8 @@ class TaskService:
             parent = self.repository.get(user_id, parent_id)
             if parent is None:
                 raise TaskNotFound()
+            if parent.trashed_at is not None:
+                raise TaskTrashConflict()
             ancestors.append(parent)
             parent_id = parent.parent_id
         return ancestors
@@ -83,6 +86,7 @@ class TaskService:
         priority: TaskPriority | None = None,
         parent_id: UUID | None = None,
         roots_only: bool = False,
+        trashed: bool = False,
         limit: int = 100,
         offset: int = 0,
     ) -> list[TaskSummary]:
@@ -96,12 +100,15 @@ class TaskService:
             or (priority is not None and priority not in PRIORITIES)
             or (parent_id is not None and not isinstance(parent_id, UUID))
             or type(roots_only) is not bool
+            or type(trashed) is not bool
             or (parent_id is not None and roots_only)
         ):
             raise InvalidTaskInput()
         if parent_id is not None and self.repository.get(user_id, parent_id) is None:
             raise TaskNotFound()
-        return self.repository.list(user_id, status, priority, limit, offset, parent_id, roots_only)
+        return self.repository.list(
+            user_id, status, priority, limit, offset, parent_id, roots_only, trashed
+        )
 
     def update(
         self,
@@ -115,6 +122,8 @@ class TaskService:
         if current is None:
             raise TaskNotFound()
         require_task_version(current.version, expected_version)
+        if current.trashed_at is not None:
+            raise TaskTrashConflict()
         if not changes or changes.keys() - TASK_FIELDS:
             raise InvalidTaskInput()
         values = {field: getattr(current, field) for field in TASK_FIELDS} | dict(changes)
@@ -131,3 +140,34 @@ class TaskService:
             raise TaskHierarchyConflict()
         self.repository.save(task, expected_version)
         return task
+
+    def trash(self, user_id: UUID, task_id: UUID, expected_version: int) -> Task:
+        self._require_user(user_id, write=True)
+        task = self.repository.get(user_id, task_id)
+        if task is None:
+            raise TaskNotFound()
+        require_task_version(task.version, expected_version)
+        if task.trashed_at is not None:
+            raise TaskTrashConflict()
+        self.repository.trash_branch(user_id, task_id, self.now())
+        result = self.repository.get(user_id, task_id)
+        assert result is not None
+        return result
+
+    def restore(self, user_id: UUID, task_id: UUID, expected_version: int) -> Task:
+        self._require_user(user_id, write=True)
+        task = self.repository.get(user_id, task_id)
+        if task is None:
+            raise TaskNotFound()
+        require_task_version(task.version, expected_version)
+        if task.trashed_at is None or task.trash_batch_id != task.id:
+            raise TaskTrashConflict()
+        ancestors = self._ancestors(user_id, task.parent_id, task.id)
+        if any(
+            ancestor.status == "done" for ancestor in ancestors
+        ) and self.repository.has_open_batch_tasks(user_id, task.id):
+            raise TaskHierarchyConflict()
+        self.repository.restore_batch(user_id, task.id, self.now())
+        result = self.repository.get(user_id, task_id)
+        assert result is not None
+        return result
