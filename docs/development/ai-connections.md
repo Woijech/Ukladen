@@ -1,6 +1,6 @@
 # AI model catalog and API connections
 
-Updated: 2026-10-24.
+Updated: 2026-10-25.
 Status: AI-02 backend implementation, disabled by default. Activation and a live
 account smoke remain unverified. No application migration or real model request
 has been performed. [AI-01](ai-api.md) supplies chats, execution and retention;
@@ -11,7 +11,7 @@ the [product specification](../product/ai.md) owns the full assistant scope.
 OpenRouter is the first supported adapter. The operator configures explicit,
 versioned model offerings; browser requests cannot provide endpoints or model IDs.
 The checked-in [example catalog](../../infra/ai-catalog.example.json) includes
-`deepseek/deepseek-v4.1-flash` and the optional text-chat profile
+`deepseek/deepseek-v4.1-flash-1017` and the optional text-chat profile
 `qwen/qwen3-4b:free`. Both are disabled. The latter advertises neither tools nor
 structured output. Free availability, account access and privacy-compatible routes
 are activation checks, not guarantees.
@@ -26,6 +26,12 @@ Official contracts checked on 2026-10-24:
 [streaming](https://openrouter.ai/docs/api_reference/streaming) and
 [LangChain integration](https://reference.langchain.com/python/langchain-openrouter/chat_models/ChatOpenRouter).
 These public checks did not authenticate an account or prove a real generation.
+
+On 2026-10-25 the owner selected
+[DeepSeek V4.1 Flash 1017](https://openrouter.ai/deepseek/deepseek-v4.1-flash-1017).
+Its public model ID was checked and the disabled example profile advanced to
+version 3. This updates the provisioning template only; existing private catalogs
+are not rewritten, and activation or live tool/JSON/stream compatibility is unverified.
 
 `AgentRunner`, `ModelOffering`, `ModelSelection` and the connection configuration
 port remain neutral. The existing LangChain runner/checkpointer is reused; its
@@ -52,7 +58,7 @@ are read on subsequent operations; replace files atomically across all API repli
 Each entry has an ID, positive version, label, exact provider/model, enabled state,
 capabilities and request/input/output bounds. max_input_bytes bounds the entire
 serialized request, including tool schemas, from 256 to 65536 bytes (default 6000).
-The disabled tool-capable example uses version 2 and 65536 bytes to fit AI-03 schemas
+The disabled tool-capable example uses version 3 and 65536 bytes to fit AI-03 schemas
 and bounded evidence; existing private catalogs need an explicit version/budget review. `public: true` makes an enabled entry
 available to authenticated completed accounts; otherwise `allowed_user_ids` is the
 explicit owner UUID allowlist. Restrictions apply equally to operator and personal

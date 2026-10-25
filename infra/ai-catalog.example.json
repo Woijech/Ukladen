@@ -2,10 +2,10 @@
   "entries": [
     {
       "id": "deepseek-flash",
-      "version": 2,
-      "name": "DeepSeek V4.1 Flash",
+      "version": 3,
+      "name": "DeepSeek V4.1 Flash 1017",
       "provider": "openrouter",
-      "model": "deepseek/deepseek-v4.1-flash",
+      "model": "deepseek/deepseek-v4.1-flash-1017",
       "enabled": false,
       "public": false,
       "allowed_user_ids": [],
