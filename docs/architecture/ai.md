@@ -277,5 +277,5 @@ AI-07 implementation: see [confirmed action contracts](../development/ai-07.md) 
 HITL review/commit bridge, 24-hour PostgreSQL proposals and content-free receipts retained until
 account deletion. Checkpoints are not execution authority. No new architecture boundary is introduced.
 
-AI-09 local hardening follows the [agreed acceptance scope](../development/ai-09.md);
-real-model evaluation and application activation remain separate gates.
+AI-09 local hardening is verified under the [agreed acceptance scope](../development/ai-09.md);
+real-model evaluation and application activation remain separate pending gates.

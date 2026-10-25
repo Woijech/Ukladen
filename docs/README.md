@@ -87,7 +87,7 @@ implemented locally but unactivated. AI-03 source tools and lexical grounding ar
 implemented locally. AI-04 chat/settings/usage UI/API is implemented locally.
 AI-05 adds a locally verified optional CPU embedding runtime and synthetic hardware proof.
 AI-06 adds local hybrid retrieval and durable complete-source processing.
-AI-07 adds locally implemented confirmed actions. AI-08 is deferred indefinitely; AI-09 local hardening is in progress. Activation and planning remain pending. Plans do not authorize later changes/deployment.
+AI-07 adds locally implemented confirmed actions. AI-08 is deferred indefinitely; AI-09 local hardening is complete; live-model acceptance remains pending. Activation and planning remain pending. Plans do not authorize later changes/deployment.
 
 ## IIS contracts and future integration
 

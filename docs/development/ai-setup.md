@@ -11,7 +11,8 @@ locally. [AI-04](ai-04.md) adds locally implemented streaming chat, source viewi
 preferences and usage UI/API. [AI-05](ai-05.md) adds optional local CPU embeddings and
 a disposable proof worker. [AI-06](ai-06.md) adds locally implemented versioned
 index jobs, hybrid retrieval and durable complete-source processing; activation
-remains pending.
+remains pending. AI-07 implements local confirmed actions; AI-08 is deferred indefinitely.
+[AI-09 local hardening](ai-09.md) is verified; live quality and activation remain pending.
 See [current API and recovery limits](ai-api.md). No provider request or deployment was made.
 
 Use [product scope](../product/ai.md), [stages](ai-implementation-plan.md),
@@ -279,7 +280,9 @@ disposable data. Requested note edits preserve block IDs/schema and source versi
 All-or-nothing multi-action application requires an actual shared transaction and
 availability serialization; checkpoints alone cannot provide it.
 
-Automatic dispatch stays off until AI-08 and a real owner grant exist. Initial
+AI-08 is deferred indefinitely by the owner (2026-10-26). Current business-content
+writes always require exact confirmation. The following is future reference only:
+automatic dispatch would require a new owner decision, AI-08 and a real grant. Initial
 allowlist: new-page/new-task creation in selected scopes; tasks require AI-10.
 Each grant specifies operation, targets, parameter/count limits, expiry and trigger.
 Moves/edits/deletes remain confirmed operations. Test revocation against queued work.

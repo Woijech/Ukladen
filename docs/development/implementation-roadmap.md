@@ -238,7 +238,8 @@ connections; live account activation remains pending. [AI-03 read tools](ai-03.m
 are implemented locally. [AI-04](ai-04.md) adds streaming chat/settings/usage UI
 and supporting APIs. [AI-07](ai-07.md) adds locally implemented exact confirmed actions;
 AI-08 automatic writes are deferred indefinitely and application migrations are unapplied.
-[AI-09 local hardening](ai-09.md) covers the implemented AI-01–AI-07 subset.
+[AI-09 local hardening](ai-09.md) is verified for the implemented AI-01–AI-07 subset;
+real-model acceptance and application activation remain pending.
 [AI-05](ai-05.md) adds a verified optional CPU embedding adapter and disposable
 hardware proof with explicit load limits. [AI-06](ai-06.md) implements local versioned indexing, AI-only hybrid retrieval and
 durable full-source processing. Activation and real-LLM quality remain pending.

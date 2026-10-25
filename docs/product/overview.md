@@ -156,12 +156,10 @@ explains imported information and proposes edits/plans. It accesses data only
 through authorized application tools. Answers based on workspace data identify
 supporting records and relevant source freshness.
 
-AI supports reading/help, recommendations, execution after exact confirmation and
-explicitly permitted automatic actions. Automatic writes require an owner-issued
-scoped permission; otherwise preview and confirmation apply. The 2026-10-21 policy
-selects automatic new-page/task creates only through real scoped grants; concrete
-per-grant/account limits remain activation inputs. Both paths use normal services,
-version checks and durable idempotency. The editable scenario catalog and planned
+The current AI scope supports reading/help, recommendations and execution after
+exact confirmation. The owner deferred AI-08 automatic writes indefinitely on
+2026-10-26; current business-content changes always require review of the exact result.
+Writes use normal services, version checks and durable idempotency. The editable scenario catalog and planned
 owner usage page are specified in [AI product requirements](ai.md), including note
 editing, extraction, deterministic planning/replanning, model/web fallback, personal
 instructions and opt-in proactive reviews. Provider-neutral operator offerings and
