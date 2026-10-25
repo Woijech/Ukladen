@@ -2,8 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { csrfToken, requestJson } from "@/shared/api";
-import { Modal, Pager, QueryState } from "@/shared/ui";
+import { csrfToken, requestJson, writeJson } from "@/shared/api";
+import { ActionFeedback, Modal, Pager, QueryState, useAction } from "@/shared/ui";
 import { aiBase, emptyScope, type Scope, type Source } from "./ai-api";
 
 const kinds = {
@@ -88,7 +88,7 @@ export function SourcePicker({
               ))}
             </select>
           </label>
-          <p>{count} из 20 выбрано</p>
+          <p>Выбрано: {count}</p>
           <QueryState
             pending={list.isPending}
             error={list.error}
@@ -100,7 +100,6 @@ export function SourcePicker({
                 <input
                   type="checkbox"
                   checked={scope[kind].includes(item.id)}
-                  disabled={count >= 20 && !scope[kind].includes(item.id)}
                   onChange={(event) =>
                     setScope({
                       ...scope,
@@ -152,6 +151,8 @@ const warnings: Record<string, string> = {
   snippets_are_not_full_sources: "Показаны фрагменты, а не весь документ.",
   extracted_text_only_no_ocr:
     "Извлечённый текст, без распознавания изображений.",
+  semantic_unavailable_lexical_fallback: "Поиск по смыслу временно недоступен. Использован поиск по словам.",
+  index_pending_or_unavailable: "Индекс ещё не готов. Доступные результаты могут быть неполными.",
   lexical_search_only: "Поиск по словам. Семантический поиск пока недоступен.",
   record_preview_values_bounded:
     "Показана часть полей; длинные значения сокращены.",
@@ -223,6 +224,16 @@ export function SourceViewer({
   source: Source;
   onClose: () => void;
 }) {
+  const action = useAction();
+  const indexed = source.source === "page" || source.source === "material";
+  const indexState = useQuery({
+    queryKey: ["ai-index-state", source.source, source.id],
+    enabled: indexed,
+    queryFn: ({ signal }) => requestJson<{ status: string }>(`${aiBase}/sources/${source.source}/${source.id}/index`, { signal }),
+    refetchInterval: (query) => ["pending", "processing"].includes(query.state.data?.status ?? "") ? 5000 : false,
+  });
+  const indexLabels: Record<string, string> = { pending: "Ожидает обработки", processing: "Индексируется", ready: "Готов к поиску по смыслу", failed: "Не удалось построить индекс", unavailable: "Доступен поиск по словам" };
+  const location = source.locator.match(/(?:^|;)(page|slide):(\d+)/);
   const initialOffset = source.locator.match(/(?:chars|characters):(\d+)/)?.[1];
   const [offset, setOffset] = useState(Number(initialOffset ?? 0));
   const [previous, setPrevious] = useState<number[]>([]);
@@ -278,6 +289,13 @@ export function SourceViewer({
   return (
     <Modal title="Просмотр источника" onClose={onClose} wide>
       <h2>{current?.title ?? "Источник ответа"}</h2>
+      {location && <p>{location[1] === "page" ? "Страница PDF" : "Слайд"} {location[2]}</p>}
+      {indexState.data && <p className="muted" role="status">{indexLabels[indexState.data.status] ?? "Обрабатывается"}</p>}
+      {indexState.data?.status === "failed" && <button className="secondary-button" disabled={action.busy} onClick={() => void action.run(async () => {
+        await writeJson(`${aiBase}/sources/${source.source}/${source.id}/index/retry`, "POST");
+        await indexState.refetch();
+      })}>Повторить обработку</button>}
+      <ActionFeedback {...action} />
       <p className="muted">
         Текущее содержимое. В ответе использовалась версия {source.version}.
         {current && current.version !== source.version

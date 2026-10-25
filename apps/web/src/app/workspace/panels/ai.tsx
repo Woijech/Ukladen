@@ -483,6 +483,7 @@ function Chat({
   const client = useQueryClient();
   const [text, setText] = useState("");
   const [scope, setScope] = useState<Scope | null>(null);
+  const [fullSources, setFullSources] = useState(false);
   const [picking, setPicking] = useState(false);
   const [source, setSource] = useState<Source | null>(null);
   const [details, setDetails] = useState(false);
@@ -497,6 +498,7 @@ function Chat({
     submission_id: string;
     message: string;
     source_scope?: Scope;
+    full_sources?: boolean;
   } | null>(null);
   const action = useAction();
   const bottom = useRef<HTMLDivElement>(null);
@@ -526,6 +528,12 @@ function Chat({
   });
   const run = state.data?.run;
   const conversation = state.data?.conversation;
+  const documentProgress = useQuery({
+    queryKey: ["ai-document-progress", run?.id],
+    enabled: !!run,
+    queryFn: ({ signal }) => requestJson<{ phase: string; processed_characters: number; total_characters: number; steps: number; error: string | null } | null>(`${aiBase}/runs/${run!.id}/document-progress`, { signal }),
+    refetchInterval: activeRun(run) ? 1500 : false,
+  });
   const messages =
     history.data?.pages
       .slice()
@@ -567,9 +575,14 @@ function Chat({
       : {
           submission_id: crypto.randomUUID(),
           message: text,
+          ...(fullSources ? { full_sources: true } : {}),
           ...(scope === null ? {} : { source_scope: scope }),
         };
     if (!payload) return;
+    if (payload.full_sources && (!payload.source_scope || !(payload.source_scope.page_ids.length + payload.source_scope.material_ids.length) || payload.source_scope.database_ids.length || payload.source_scope.calendar)) {
+      setError("Для полного разбора выбери страницы и файлы в источниках запроса.");
+      return;
+    }
     if (new TextEncoder().encode(payload.message).length > 16384) {
       setError("Сообщение превышает 16 КиБ. Сократи текст.");
       return;
@@ -726,7 +739,11 @@ function Chat({
             <div className="ai-run-status">
               <span role="status">
                 {running
-                  ? progress || runLabels[run.status]
+                  ? documentProgress.data
+                    ? documentProgress.data.phase === "combining"
+                      ? "Сопоставляю прочитанные материалы"
+                      : `Читаю источники целиком${documentProgress.data.total_characters ? ` · ${Math.floor(100 * documentProgress.data.processed_characters / documentProgress.data.total_characters)}%` : ""}`
+                    : progress || runLabels[run.status]
                   : runLabels[run.status]}
               </span>
               <button className="text-action" onClick={() => setDetails(true)}>
@@ -734,6 +751,13 @@ function Chat({
               </button>
             </div>
           )}
+          {documentProgress.data?.error && <p role="alert" className="form-error">{
+            documentProgress.data.error === "source_changed_or_unavailable"
+              ? "Источник изменился или стал недоступен во время разбора. Отправь запрос заново для проверки актуальных данных."
+              : documentProgress.data.error === "source_not_ready_or_unavailable"
+                ? "Выбранный источник недоступен или не удалось извлечь его текст."
+                : "Не удалось завершить полный разбор. Можно отправить запрос заново."
+          }</p>}
           <form
             className="ai-composer"
             onSubmit={(event) => {
@@ -782,6 +806,11 @@ function Chat({
                 </button>
               )}
             </div>
+            <label className="checkbox-label">
+              <input type="checkbox" checked={fullSources} disabled={running || hasPending} onChange={(event) => setFullSources(event.target.checked)} />
+              Разобрать выбранные страницы и файлы целиком
+            </label>
+            {fullSources && <p className="muted">Обработка продолжится в фоне. Можно закрыть чат и вернуться к результату позже.</p>}
             <p className="ai-processing muted">
               Запрос и нужные фрагменты передаются выбранному провайдеру. AI
               может ошибаться — проверяй источники.

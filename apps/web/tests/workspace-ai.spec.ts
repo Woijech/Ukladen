@@ -51,6 +51,7 @@ async function mockAi(page: Page) {
     run: null as null | Record<string, unknown>,
     writes: [] as { path: string; body: Record<string, unknown> | null }[],
     preferences: { instructions: "Отвечай кратко", version: 1 },
+    documentProgress: null as null | { phase: string; processed_characters: number; total_characters: number; steps: number; error: string | null },
     previewMissing: false,
     disconnect: false,
     connections: [
@@ -79,6 +80,8 @@ async function mockAi(page: Page) {
       expect(request.headers()["x-csrf-token"]).toBe("c".repeat(43));
       state.writes.push({ path, body });
     }
+    if (path.endsWith("/document-progress")) return route.fulfill({ json: state.documentProgress });
+    if (path.endsWith("/index")) return route.fulfill({ json: { status: "ready", version: 1 } });
     if (path.endsWith("/models"))
       return route.fulfill({
         json: [
@@ -182,7 +185,7 @@ async function mockAi(page: Page) {
     if (path.endsWith("/messages/stream")) {
       const run = {
         id: "44444444-2222-4333-8444-555555555555",
-        status: state.disconnect ? "running" : "completed",
+        status: state.disconnect || body!.full_sources ? "running" : "completed",
         provider: "openrouter",
         model: chat.model,
         submission_id: body!.submission_id,
@@ -191,6 +194,7 @@ async function mockAi(page: Page) {
         price: null,
       };
       state.run = run;
+      if (body!.full_sources) state.documentProgress = { phase: "reading", processed_characters: 1500, total_characters: 6000, steps: 1, error: null };
       state.messages = [
         {
           id: "user-message",
@@ -200,7 +204,7 @@ async function mockAi(page: Page) {
           sources: [],
         },
       ];
-      if (!state.disconnect)
+      if (!state.disconnect && !body!.full_sources)
         state.messages.push({
           id: "answer-message",
           sequence: 2,
@@ -498,4 +502,27 @@ test("logout and another account discard AI drafts and cached chats", async ({
   await expect(page.getByText("Private unfinished question")).toHaveCount(0);
   await page.getByRole("button", { name: "AI", exact: true }).click();
   await expect(page.getByRole("button", { name: /Подготовка/ })).toHaveCount(0);
+});
+
+
+test("full-source processing requires sources, shows saved progress and cancels", async ({ page }) => {
+  const state = await mockAi(page);
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  await page.getByLabel("Разобрать выбранные страницы и файлы целиком").check();
+  await page.getByLabel("Сообщение AI").fill("Сверь конспект с материалами лекции целиком");
+  await page.getByRole("button", { name: "Отправить ↑" }).click();
+  await expect(page.getByText("Для полного разбора выбери страницы и файлы в источниках запроса.")).toBeVisible();
+  await page.getByRole("button", { name: "Все источники", exact: true }).click();
+  await page.getByLabel("Все мои источники автоматически").uncheck();
+  await page.getByLabel("Моя заметка", { exact: true }).check();
+  await page.getByRole("button", { name: "Применить", exact: true }).click();
+  await page.getByRole("button", { name: "Отправить ↑" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Читаю источники целиком · 25%" })).toBeVisible();
+  const sent = state.writes.find(item => item.path.endsWith("/messages/stream"));
+  expect(sent?.body?.full_sources).toBe(true);
+  await page.reload();
+  await expect(page.getByText("Читаю источники целиком · 25%", { exact: true })).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("full-source-progress.png"), fullPage: true });
+  await page.getByRole("button", { name: "Остановить", exact: true }).click();
+  await expect(page.getByText("Остановлено", { exact: true })).toBeVisible();
 });
