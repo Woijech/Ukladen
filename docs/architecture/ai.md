@@ -14,18 +14,19 @@ defines the independent clocks and maintenance-only setting. Receipts cannot gra
 An optional [OpenRouter adapter/catalog and encrypted personal connections](../development/ai-connections.md)
 are implemented locally under AI-02; application migration and live account activation
 remain pending. [AI-03 source tools](../development/ai-03.md) implement authorized
-lexical search, page/material reads and calendar/database queries. Semantic retrieval,
-write tools are not implemented. [AI-04](../development/ai-04.md) adds streaming
+lexical search, page/material reads and calendar/database queries. Write tools are not implemented. [AI-04](../development/ai-04.md) adds streaming
 chat, current-source inspection, preferences and usage UI/API locally; activation remains pending.
 [AI-05](../development/ai-05.md) verifies an optional CPU embedding adapter and synthetic
-full-stack proof. Semantic indexing/retrieval remains AI-06. See the
+full-stack proof. [AI-06](../development/ai-06.md) adds local versioned indexing,
+AI-only hybrid retrieval and durable complete-source analysis. Activation and
+real-LLM comparison quality remain pending. See the
 [offline harness](../development/ai-setup.md#a1-implemented-offline-harness) and
 [final verification](../development/ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 The [persistence guide](../development/ai-persistence.md) records the tested internal schema,
 owner checks, short transactions and deletion boundaries.
-Materials/extraction and basic lexical search are implemented separately;
-see [P-08 contracts](../development/materials.md). They do not implement chunks,
-embeddings, model tools or RAG. pgvector infrastructure alone is not retrieval.
+P-08 supplies the materials/extraction and lexical-search foundation; see
+[P-08 contracts](../development/materials.md). AI-06 builds chunks, embeddings and
+hybrid retrieval on that foundation. pgvector infrastructure alone is not retrieval.
 
 ## 1. Product responsibilities
 
@@ -58,7 +59,8 @@ LLM, embedding and web-search providers are separate adapters under `app/integra
 The owner selected provider-neutral tools, an operator model catalog and user-owned
 API connections. No particular LLM provider/model is required; the old Groq baseline
 is superseded. AI-05 verifies pinned CPU E5-small ONNX inference behind the search-owned
-embedding port; the runtime is optional and not registered in production retrieval.
+embedding port; the runtime is optional and configured for AI-06 retrieval only when the operator
+selects the model directory and optional CPU deployment profile.
 Alternative local/API models keep this boundary and require separate index generations.
 Without a configured catalog default the scripted offline model
 remains the default. A configured default uses the operator's connection; the current
@@ -183,6 +185,12 @@ port is search-owned; its adapter accepts minimal query terms and returns bounde
 public results. Failed/unauthorized reads are not empty searches. External fallback
 cannot invent private task/calendar facts, broaden explicit source-only scope or
 silently switch model credentials. Retrieved pages remain untrusted content.
+
+AI-06 implements this pipeline locally. Source location extraction and generation/index
+state are derived search data. Durable complete-source jobs belong to AI and reference
+the normal chat/run/usage lifecycle; their short LangChain processing steps keep
+progress in PostgreSQL and revalidate source scope/versions at dispatch. They have no
+user call/document allowance, subscription or paywall. See [current contracts](../development/ai-06.md).
 
 ## 6. Trust, privacy and observability
 

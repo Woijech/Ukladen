@@ -9,7 +9,8 @@ implemented locally but unactivated. [AI-03](../development/ai-03.md) implements
 workspace/calendar/database read tools with lexical search and source references.
 [AI-04](../development/ai-04.md) implements streaming chat, source inspection,
 model/connection settings, personal instructions and usage analytics UI/API locally.
-Activation, semantic retrieval and planning remain pending. AI-00 specifies the target work; it does
+AI-06 adds local hybrid retrieval and durable complete-source processing; see
+[AI-06](../development/ai-06.md). Activation and planning remain pending. AI-00 specifies the target work; it does
 not enable integrations. This is the single AI specification linked from
 [the overview](overview.md). See [delivery](../development/ai-implementation-plan.md),
 [architecture](../architecture/ai.md), [tool contracts](../development/ai-tool-contracts.md)
@@ -98,7 +99,8 @@ Read all available extracted text in successive model-sized steps, persist progr
 support cancellation/restart, and combine evidence without manual "continue" prompts.
 Record source versions and coverage; changes invalidate derived work. PDF page and
 PPTX slide locations must be real extraction metadata. DOCX uses text/section locations.
-This is selected implementation scope, not a claim that the processor exists yet.
+This scope is implemented locally under [AI-06](../development/ai-06.md); activation
+and real-LLM answer-quality verification remain pending.
 
 If local evidence is insufficient, say so before using general model knowledge and
 public web search as needed. Distinguish local evidence, external evidence and

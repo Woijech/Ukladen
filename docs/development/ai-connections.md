@@ -217,8 +217,10 @@ durable billing counter. No migration or new user plan assignment is needed now.
 ### Personal connections, rotation and backups
 
 Private runtime files belong in `.secrets/ai/`, ignored by Git. The optional
-`docker-compose.ai.yml` mounts that directory read-only into **api only**; workers,
-Beat, migration and extraction processes receive no mount. It does not enable AI,
+`docker-compose.ai.yml` mounts that directory read-only into **api and the optional
+ai-document-worker**. The latter consumes explicitly requested AI-06 analyses on
+its dedicated queue when the `ai` profile is selected. Ordinary/embedding/material
+workers, Beat and migration processes receive no catalog mount. It does not enable AI,
 change real environment files or apply migrations. Host API use instead sets
 `AI_CONNECTIONS_FILE` to the private catalog's absolute path. Keep keys out of shared
 `.env` files, terminal arguments and chat messages.

@@ -39,10 +39,10 @@ that loses personal overrides. Schema version for the initial contracts is v1.
 
 | Tool / capability | Minimum input | Result / effect | Required application support |
 | --- | --- | --- | --- |
-| search_workspace / workspace_search | Query, optional source types/explicit IDs, bounded limit/cursor | Authorized matches, citations, coverage and index state; read | Existing lexical search; hybrid after AI-06 |
+| search_workspace / workspace_search | Query, optional source types/explicit IDs, bounded limit/cursor | Authorized matches, citations, coverage and index state; read | AI-03 lexical reads; optional AI-06 hybrid retrieval implemented locally |
 | read_page / page_read | Page ID, optional block range, byte limit | Current blocks/version and actual read coverage; read | Notes read application interface |
 | read_material_excerpt / material_read | Material ID, optional fragment/offset range, byte limit | Ready extracted text/version/location, partial flag; read | New bounded authorized extracted-text port |
-| retrieve_context / retrieval_read | Query, optional selected source IDs, candidate limit | Current lexical/vector fragments, provenance and coverage; read | Search chunks/hybrid lifecycle AI-06 |
+| retrieve_context / retrieval_read | Query, optional selected source IDs, candidate limit | Current lexical/vector fragments, provenance and coverage; read | AI-06 shares search_workspace; no separate retrieval_read alias is registered |
 | get_calendar_events / calendar_read | Offset-aware range, optional personal/official type/title filter | Resolved events/overrides and coverage/freshness; read | Existing calendar query |
 | query_database / database_read | Database/view ID, typed property filters/sort/cursor | Owned records/property schema with versions; read | Optional delivered workspace queries |
 | get_tasks / task_read | Status/deadline filters, optional task IDs, cursor | Real task status/effort/dependencies/version; read | P-06 tasks, not a package marker |

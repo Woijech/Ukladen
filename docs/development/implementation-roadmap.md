@@ -38,7 +38,8 @@ existing services just to match target vocabulary. A package marker is not a fea
 | Workspace | Collections/tags, typed membership, event views and recoverable page-backed databases with table/calendar views | [Workspace](workspace.md), [calendar views](calendar-views.md), [databases](databases.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
-Calendar free slots/conflicts, tasks and semantic search are not implemented.
+Calendar free slots/conflicts and tasks are not implemented. AI-06 semantic retrieval
+and complete-source analysis are implemented locally but unactivated.
 AI-02 adds optional [OpenRouter models and encrypted connections](ai-connections.md),
 implemented locally but unactivated. [AI-04](ai-04.md) adds a locally implemented
 streaming chat, source, settings and usage interface; activation remains pending.
@@ -237,7 +238,8 @@ connections; live account activation remains pending. [AI-03 read tools](ai-03.m
 are implemented locally. [AI-04](ai-04.md) adds streaming chat/settings/usage UI
 and supporting APIs. Write tools remain not implemented; application migrations are unapplied.
 [AI-05](ai-05.md) adds a verified optional CPU embedding adapter and disposable
-hardware proof with explicit load limits. Production indexing/hybrid retrieval remains AI-06.
+hardware proof with explicit load limits. [AI-06](ai-06.md) implements local versioned indexing, AI-only hybrid retrieval and
+durable full-source processing. Activation and real-LLM quality remain pending.
 Dependencies: only the application tools actually used; task planning requires P-06.
 The [detailed AI plan](ai-implementation-plan.md) splits work into AI-00 through AI-12,
 with the [owner-agreed product specification](../product/ai.md),

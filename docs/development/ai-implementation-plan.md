@@ -9,7 +9,8 @@ AI-02 now adds the optional [OpenRouter catalog and encrypted connections](ai-co
 activation/live account verification remain pending. AI-03 adds implemented
 [authorized source reads](ai-03.md). [AI-04](ai-04.md) adds locally implemented
 streaming chat/settings/usage UI and API. [AI-05](ai-05.md) adds an optional CPU embedding
-runtime with synthetic hardware proof; subsequent stages remain not implemented. See the dated final verification in the
+runtime with synthetic hardware proof. [AI-06](ai-06.md) adds local hybrid retrieval
+and durable complete-source processing; later stages remain not implemented. See the dated final verification in the
 [execution record](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 No P-06, real provider traffic or deployment is included.
 
@@ -31,7 +32,7 @@ numeric order is not an implicit dependency or authorization to start another st
 | AI-03 | Implemented authorized page/material/calendar/database tools and lexical grounding; unactivated | AI-01/02; existing application services | Native ownership/lifecycle, synthetic provider/API, current-context and citation checks; [contract](ai-03.md) |
 | AI-04 | Implemented local streaming chats, cancellation, sources, instructions/model settings and usage UI; unactivated | AI-01/02/03 | [Contract and verification](ai-04.md) |
 | AI-05 | Implemented optional CPU embedding runtime/hardware proof; no production activation | AI-00; owner approved downloads/local proof on 2026-10-25 | [Pinned runtime, full-stack measurements and load limits](ai-05.md) |
-| AI-06 | Versioned chunks, hybrid retrieval, complete-source coverage support | AI-03/05; pgvector/index jobs | Retrieval quality, lifecycle/recovery and coverage checks |
+| AI-06 | Implemented locally: versioned chunks, hybrid retrieval and durable complete-source analysis; unactivated | AI-03/05; pgvector/index jobs | Retrieval quality, lifecycle/recovery and coverage checks |
 | AI-07 | Exact confirmed creates and requested edits | AI-01/03/04; each target service must exist | Normal-service writes, versions, commit/replay and previews |
 | AI-08 | Opt-in automatic page/task creates with scoped grants | AI-07; tasks also need AI-10 | Revocation/expiry/limits/queued-job checks |
 | AI-09 | Release hardening and provider replacement rehearsal | Every capability being released | Evals, failure/recovery, secret/retention and owner acceptance |
@@ -39,8 +40,8 @@ numeric order is not an implicit dependency or authorization to start another st
 | AI-11 | Labeled knowledge fallback and bounded web search | AI-03; explicit search adapter contract | No-evidence vs failed search, citations, egress and injection checks |
 | AI-12 | Opt-in proactive reviews and in-app delivery | AI-04; AI-10 for task/workload reviews | Bounded/deduplicated triggers, disable/restart and quiet unchanged runs |
 
-AI-01/02/03/04 form a lexical prototype, not the complete agreed assistant. Add
-AI-06 and AI-11 after the delivered AI-05 proof for the selected semantic/multi-document/fallback experience.
+AI-01/02/03/04 form a lexical prototype, not the complete agreed assistant. AI-06 now supplies the local semantic/multi-document path after AI-05; AI-11 remains
+planned for the selected web fallback experience.
 AI-07 adds writes; P-06 and AI-10 are mandatory for the selected planning scenario.
 AI-08/12 remain user opt-in capabilities, not omitted target features. Run AI-09
 checks for every promoted capability. Stop at each requested stage's completion report.

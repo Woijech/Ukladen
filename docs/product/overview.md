@@ -140,9 +140,11 @@ in PostgreSQL. Limits are 25 MiB/file and 1 GiB retained file storage/user. Text
 DOCX, PPTX, TXT and Markdown extraction runs asynchronously without OCR. Bookmarks
 store URLs without fetching them. Filtered full-text search covers authorized pages,
 material titles and extracted text; see [contracts](../development/materials.md).
-Chunking, indexed embeddings, semantic search and RAG remain not implemented.
+[AI-06](../development/ai-06.md) implements versioned chunk indexing, AI-only hybrid
+retrieval and durable complete-source analysis locally; application activation and
+real-LLM answer-quality verification remain pending.
 [AI-05](../development/ai-05.md) verifies an optional local CPU embedding runtime
-independently of the future index. AI-02 adds an
+used by the optional AI-06 index. AI-02 adds an
 optional [OpenRouter catalog and encrypted connections](../development/ai-connections.md),
 implemented locally but unactivated. AI-03 adds [authorized source reads](../development/ai-03.md),
 including pages, file excerpts, resolved calendar and typed database records.
@@ -193,7 +195,7 @@ activation and real-provider answer quality remain unverified. See [AI architect
 | Offline AI chat/run lifecycle and accounting | AI-01 complete, fake-only and disabled by default; bounded execution/recovery, 30-day cleanup and minimal replay protection; migrations tested only on disposable data |
 | Optional real-model catalog and personal API connections | AI-02 backend implemented locally; default-disabled, migration/live activation pending |
 | AI workspace/calendar/database reads | AI-03 implemented locally; lexical search, current-source context and historical source references; default-disabled and unactivated |
-| Semantic search and RAG | Status: not implemented. |
+| Semantic retrieval / full-source analysis | AI-06 implemented locally; unactivated; real-LLM quality unverified. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
 | Weekly calendar, personal-event create/edit/delete, login/registration and group selection UI | Implemented |
 | Flat block pages, materials/search, collections/tags, database saved views, reminders/inbox and profile/avatar UI | Implemented; see [frontend scope and limits](../architecture/frontend.md) |

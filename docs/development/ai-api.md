@@ -7,7 +7,11 @@ Migrations 0022/0023 were tested on disposable databases;
 they have not been applied to the running application. AI-02 adds an optional
 [model catalog and encrypted connections](ai-connections.md), disabled and unactivated.
 [AI-03 source tools](ai-03.md) add authorized workspace reads and source references.
-Live chat streaming and review/resume transport remain later work. See [the execution plan](ai-01-execution-plan.md).
+AI-04 implements live chat streaming; review/resume transport remains later work.
+AI-06 adds `full_sources: true` message admission with explicit selected pages/files,
+durable background processing and progress; see [AI-06](ai-06.md). The foreground
+deadline/tool/attempt totals below do not cap the full analysis across successive
+steps. Ordinary cancel/history/usage/idempotency and chat retention still apply. See [the execution plan](ai-01-execution-plan.md).
 
 ## Configuration and composition
 

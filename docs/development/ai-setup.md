@@ -9,7 +9,9 @@ AI-02 adds optional [OpenRouter models and encrypted credentials](ai-connections
 implemented locally but unactivated. [AI-03 source reads](ai-03.md) are implemented
 locally. [AI-04](ai-04.md) adds locally implemented streaming chat, source viewing,
 preferences and usage UI/API. [AI-05](ai-05.md) adds optional local CPU embeddings and
-a disposable proof worker; production embedding/index jobs remain unimplemented.
+a disposable proof worker. [AI-06](ai-06.md) adds locally implemented versioned
+index jobs, hybrid retrieval and durable complete-source processing; activation
+remains pending.
 See [current API and recovery limits](ai-api.md). No provider request or deployment was made.
 
 Use [product scope](../product/ai.md), [stages](ai-implementation-plan.md),
@@ -160,7 +162,7 @@ approved migration/activation. No new queue, service or dependency is needed.
 ## B. AI-02: verify one supported adapter before activation
 
 The [implemented OpenRouter setup](ai-connections.md) now defines the catalog,
-API-only secret mount, encrypted personal connections, immutable chat selections
+AI-consumer secret mounts, encrypted personal connections, immutable chat selections
 and offline/native tests. Live account smoke and application activation remain pending.
 Keep real keys and configured catalogs under ignored .secrets/ai/, never in shared env files.
 
@@ -211,8 +213,9 @@ Do not accept arbitrary user-provided base URLs to internal networks.
 
 Disconnect immediately prevents new/queued dispatch via that connection; do not retry
 using another user's or the operator's key. Explain incomplete/in-flight outcomes
-honestly. Using a personal free model does not grant unlimited application quotas.
-The API process and any future generation worker need explicitly scoped access;
+honestly. Product access currently has no user quotas; provider/account rate limits
+still apply independently.
+The API process and optional AI document worker have explicit consumer-only mounts;
 embedding/extraction workers do not inherit unrelated credentials.
 
 ## C. AI-03/04: tools, chats, instructions and usage
@@ -239,7 +242,10 @@ chat-derived context, preserving created business objects and minimal replay pro
 
 AI-05 is delivered through the [CPU runtime/proof guide](ai-05.md). Its pinned ONNX
 candidate meets the initial targets at the documented bounded load, not continuous
-saturation. Steps 5–7 below remain AI-06; no production embedding queue is installed.
+saturation. Steps 5–7 are implemented locally in [AI-06](ai-06.md); application activation
+remains pending. The optional `embeddings` consumer and `ai` document consumer
+profiles preserve other workers. Combine `docker-compose.retrieval.yml` for CPU
+retrieval with the AI catalog overlay only after separate activation approval.
 
 1. Local CPU E5-small is a candidate from the earlier plan, not a mandatory LLM
    dependency. Prove Python 3.14 CPU packages and container compatibility before

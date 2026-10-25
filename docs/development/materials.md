@@ -216,3 +216,10 @@ checks and a live worker-daemon throughput test were not executed for P-08.
 No deployment, push, real-user migration or production configuration change was made.
 The quota is a product limit, not evidence that 1,000 active users fit this machine;
 physical storage, backups and real workload measurements remain deployment planning.
+
+## AI-06 located extraction follow-up (2026-10-25)
+
+[AI-06](ai-06.md) adds actual PDF page/PPTX slide character locations to derived
+extracted text and reuses it for optional hybrid retrieval/full-source processing.
+Original files, security limits and ordinary search contracts remain unchanged.
+The historical verification above is not evidence of rerunning checks for AI-06.

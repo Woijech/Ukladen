@@ -54,7 +54,9 @@ Additive mixed calendar display is implemented through application query ports.
 One-shot calendar reminders and durable in-app notifications are implemented.
 Private materials, bounded document extraction, page attachments and basic PostgreSQL
 full-text search are implemented; see [materials/search](docs/development/materials.md).
-Status: not implemented — tasks, availability, semantic search, RAG and authenticated IIS.
+Status: not implemented — tasks, availability and authenticated IIS. AI-06 semantic
+retrieval and complete-source analysis are implemented locally but unactivated; see
+[AI-06](docs/development/ai-06.md).
 AI-03 read tools are implemented locally but unactivated; see the AI section below.
 The frontend implements login/registration, browser email verification and password
 recovery, optional academic-group selection, day/week personal-event CRUD, flat block
@@ -405,7 +407,7 @@ admission, accounting, cancellation and deletion. Bounded recovery and 30-day cl
 with minimal replay/context receipts are implemented. AI-02 adds an optional [OpenRouter catalog and encrypted personal connections](docs/development/ai-connections.md),
 implemented locally but unactivated. [AI-03 source reads](docs/development/ai-03.md)
 add lexical search, pages/material excerpts, resolved calendar and typed database
-queries with current-source context. RAG and planning remain not implemented; see [the implemented subset](docs/development/ai-setup.md)
+queries with current-source context. AI-06 adds local hybrid retrieval and complete-source processing; planning remains not implemented; see [the implemented subset](docs/development/ai-setup.md)
 and [final AI-01 verification](docs/development/ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 
 Architecture:
@@ -636,8 +638,9 @@ Status: basic filtered PostgreSQL full-text search is implemented, backend only,
 over authorized untrashed page text and material titles/extracted text. Canonical
 ownership, trash and processing state gate results; derived indexes do not own content.
 Russian, English and simple configurations are combined with title weighting.
-See [search contracts](docs/development/materials.md). Semantic search, embedding
-generation, pgvector retrieval and RAG remain not implemented.
+See [search contracts](docs/development/materials.md). [AI-06](docs/development/ai-06.md)
+implements optional versioned local embeddings, pgvector/lexical fusion and durable
+complete-source processing. This local capability remains unactivated.
 
 ## 5.13 ai
 
@@ -1288,12 +1291,13 @@ Planning can be requested independently of database features.
 
 Status: general materials, bounded extraction and filtered/full-text search are
 implemented, backend only; see [P-08 contracts](docs/development/materials.md).
-Embeddings/semantic retrieval remain not implemented. Preserve permissions and
-content versions in later retrieval work.
+AI-06 embeddings/hybrid retrieval and complete-source processing are implemented
+locally, with owner/version validation and recoverable jobs; activation remains pending.
 
 ## Phase 5 — AI tools and grounded actions
 
-Status: not implemented. Read/help and recommendations, exact confirmed actions,
+Status: read/help and retrieval are implemented locally under AI-01–06, unactivated.
+Exact confirmed actions,
 then explicitly permitted automatic actions with revocable scopes and idempotent
 execution. RAG follows indexing. A calendar-only AI read slice
 can be requested earlier; do not force unrelated feature dependencies.

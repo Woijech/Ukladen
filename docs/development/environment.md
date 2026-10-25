@@ -163,7 +163,8 @@ stores metadata only. Existing objects and credentials must be preserved on upgr
 | `AI_RETENTION_ENABLED` | `false` | Continue migrated recovery/cleanup independently when chat is disabled. |
 | `AI_LLM_PROVIDER` | `fake` | Preserves the fake default; real selections come from the catalog rather than a global provider switch. |
 | `AI_LLM_MODEL` | `fake-v1` | Only fake-v1 is supported; other values are rejected. |
-| `AI_CONNECTIONS_FILE` | Omitted | API-only path to the private deployment catalog. Optional AI Compose overlay mounts `.secrets/ai` into API only. No plaintext keys in env files. See [connections](ai-connections.md). |
+| `SEARCH_EMBEDDINGS_DIRECTORY` | Omitted | Verified local AI-05 artifact directory; enables AI-06 index scanning/query embeddings. Optional retrieval Compose overlay maps it read-only to `/model` in CPU consumers. No startup download or real provider fallback. |
+| `AI_CONNECTIONS_FILE` | Omitted | AI-consumer path to the private deployment catalog. Optional AI Compose overlay mounts `.secrets/ai` into API and the opted-in AI document worker. No plaintext keys in env files. See [connections](ai-connections.md). |
 
 Public IIS uses the adapter's verified public base URL; no IIS password/token or
 private account connection is implemented. The [AI API](ai-api.md) preserves synthetic
