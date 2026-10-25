@@ -32,6 +32,8 @@ class TaskModel(Base):
     version: Mapped[int] = mapped_column(server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    trashed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    trash_batch_id: Mapped[UUID | None] = mapped_column()
 
     __table_args__ = (
         CheckConstraint(
@@ -57,4 +59,7 @@ class TaskModel(Base):
         ),
         CheckConstraint("parent_id IS NULL OR parent_id != id", name="ck_tasks_parent"),
         Index("ix_tasks_owner_parent", "user_id", "parent_id"),
+        CheckConstraint("(trashed_at IS NULL) = (trash_batch_id IS NULL)", name="ck_tasks_trash"),
+        Index("ix_tasks_owner_trash", "user_id", "trashed_at", "created_at", "id"),
+        Index("ix_tasks_owner_trash_batch", "user_id", "trash_batch_id"),
     )

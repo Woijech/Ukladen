@@ -116,6 +116,8 @@ class TaskSummary:
     created_at: datetime
     updated_at: datetime
     parent_id: UUID | None = None
+    trashed_at: datetime | None = None
+    trash_batch_id: UUID | None = None
 
     def is_overdue(self, now: datetime) -> bool:
         return (

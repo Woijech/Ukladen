@@ -81,6 +81,50 @@ def test_hierarchy_migration_preserves_roots_and_refuses_link_loss(
     command.check(config)
 
 
+def test_trash_migration_preserves_tasks_and_refuses_marker_loss(
+    database_connection: Connection,
+) -> None:
+    config = migration_config(database_connection)
+    command.downgrade(config, "0023_task_hierarchy")
+    owner, identifier = uuid4(), uuid4()
+    database_connection.execute(insert(UserModel).values(id=owner, email="task-trash@example.com"))
+    database_connection.execute(
+        insert(TaskModel).values(id=identifier, user_id=owner, title="Existing task")
+    )
+    command.upgrade(config, "head")
+    command.check(config)
+    assert (
+        database_connection.scalar(select(TaskModel.trashed_at).where(TaskModel.id == identifier))
+        is None
+    )
+    now = datetime.now(UTC)
+    database_connection.execute(
+        update(TaskModel)
+        .where(TaskModel.id == identifier)
+        .values(trashed_at=now, trash_batch_id=identifier)
+    )
+    with pytest.raises(RuntimeError, match="populated task trash"):
+        command.downgrade(config, "0023_task_hierarchy")
+    assert (
+        database_connection.scalar(
+            select(TaskModel.trash_batch_id).where(TaskModel.id == identifier)
+        )
+        == identifier
+    )
+    database_connection.execute(
+        update(TaskModel)
+        .where(TaskModel.id == identifier)
+        .values(trashed_at=None, trash_batch_id=None)
+    )
+    command.downgrade(config, "0023_task_hierarchy")
+    assert (
+        database_connection.scalar(select(TaskModel.title).where(TaskModel.id == identifier))
+        == "Existing task"
+    )
+    command.upgrade(config, "head")
+    command.check(config)
+
+
 def test_parent_constraint_requires_same_owner_and_acyclic_self_reference(
     database_connection: Connection,
 ) -> None:
