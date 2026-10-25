@@ -413,3 +413,37 @@ def test_disconnect_cancels_inflight_prevents_new_dispatch_and_erases_secret(
     with Session(concurrent_engine) as database:
         row = database.get(PersonalConnectionModel, UUID(connection["id"]))
         assert row is not None and row.encrypted_key is None and row.encryption_key_id is None
+
+
+@pytest.mark.parametrize("tools_enabled", [False, True])
+@pytest.mark.parametrize("actions_enabled", [False, True])
+def test_action_registration_respects_the_selected_model_tool_capability(
+    configured_client: TestClient,
+    configuration: FileConnectionConfiguration,
+    tools_enabled: bool,
+    actions_enabled: bool,
+):
+    application = cast(FastAPI, configured_client.app)
+    application.state.settings = application.state.settings.model_copy(
+        update={"ai_actions_enabled": actions_enabled}
+    )
+    catalog = json.loads(configuration.path.read_text())
+    catalog["entries"][0]["tools"] = tools_enabled
+    configuration.path.write_text(json.dumps(catalog))
+    conversation = real_chat(configured_client)
+    outgoing = []
+
+    def respond(request):
+        outgoing.append(json.loads(request.content))
+        return httpx.Response(200, json=completion())
+
+    with patch(
+        "app.modules.ai.infrastructure.providers.openrouter_model",
+        partial(openrouter_model, transport=httpx.MockTransport(respond)),
+    ):
+        response = submit(configured_client, conversation, "Ordinary synthetic chat")
+    assert response.json()["status"] == "completed", response.text
+    assert len(outgoing) == 1
+    tools = {item["function"]["name"] for item in outgoing[0].get("tools", [])}
+    assert ("propose_actions" in tools) == (tools_enabled and actions_enabled)
+    assert ("read_page" in tools) == tools_enabled

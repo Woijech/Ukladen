@@ -132,14 +132,18 @@ class PostgresAgentRunners:
                     else nullcontext(self.model())
                 )
                 with models as model:
+                    tools_enabled = run.offering_id is None or (
+                        self.real_models is not None
+                        and self.real_models.access.configuration.offering(
+                            run.user_id, run.offering_id
+                        ).tools
+                    )
+                    actions_enabled = self.actions_enabled and tools_enabled
                     source_tools = (
                         SourceTools(self.sources, run.user_id, journal)
                         if self.sources is not None
                         and run.offering_id is not None
-                        and self.real_models is not None
-                        and self.real_models.access.configuration.offering(
-                            run.user_id, run.offering_id
-                        ).tools
+                        and tools_enabled
                         else None
                     )
                     if source_tools is not None:
@@ -155,7 +159,7 @@ class PostgresAgentRunners:
                         if source_tools
                         else []
                     )
-                    if self.actions_enabled:
+                    if actions_enabled:
                         tools.append(action_tool())
                     yield owned_offline_runner(
                         connection,
@@ -164,7 +168,7 @@ class PostgresAgentRunners:
                         model,
                         tools,
                         review_tools=frozenset({"propose_actions"})
-                        if self.actions_enabled
+                        if actions_enabled
                         else frozenset(),
                         action_status=lambda interrupt_id: self.action_status(run, interrupt_id),
                         run_id=run.id,
