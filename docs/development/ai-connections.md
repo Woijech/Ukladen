@@ -11,9 +11,11 @@ the [product specification](../product/ai.md) owns the full assistant scope.
 OpenRouter is the first supported adapter. The operator configures explicit,
 versioned model offerings; browser requests cannot provide endpoints or model IDs.
 The checked-in [example catalog](../../infra/ai-catalog.example.json) includes
-`deepseek/deepseek-v4.1-flash-1017` and the optional text-chat profile
-`qwen/qwen3-4b:free`. Both are disabled. The latter advertises neither tools nor
-structured output. Free availability, account access and privacy-compatible routes
+the public default `deepseek/deepseek-v4.1-flash-1017`, visible but disabled Claude
+Haiku, Claude Sonnet and GPT-5.5 profiles, and a hidden disabled optional text-chat
+profile `qwen/qwen3-4b:free`. The latter advertises neither tools nor structured
+output. The example does not enable the API or configure a credential.
+Free availability, account access and privacy-compatible routes
 are activation checks, not guarantees.
 
 Official contracts checked on 2026-10-24:
@@ -29,9 +31,10 @@ These public checks did not authenticate an account or prove a real generation.
 
 On 2026-10-25 the owner selected
 [DeepSeek V4.1 Flash 1017](https://openrouter.ai/deepseek/deepseek-v4.1-flash-1017).
-Its public model ID was checked and the disabled example profile advanced to
-version 3. This updates the provisioning template only; existing private catalogs
-are not rewritten, and activation or live tool/JSON/stream compatibility is unverified.
+Its public model ID was checked and the disabled example profile initially advanced
+to version 3. The subsequent application-default delivery below advances it to
+version 4. Existing private catalogs are not rewritten, and activation or live
+tool/JSON/stream compatibility is unverified.
 
 `AgentRunner`, `ModelOffering`, `ModelSelection` and the connection configuration
 port remain neutral. The existing LangChain runner/checkpointer is reused; its
@@ -58,20 +61,32 @@ are read on subsequent operations; replace files atomically across all API repli
 Each entry has an ID, positive version, label, exact provider/model, enabled state,
 capabilities and request/input/output bounds. max_input_bytes bounds the entire
 serialized request, including tool schemas, from 256 to 65536 bytes (default 6000).
-The disabled tool-capable example uses version 3 and 65536 bytes to fit AI-03 schemas
+The default tool-capable example uses version 4 and 65536 bytes to fit AI-03 schemas
 and bounded evidence; existing private catalogs need an explicit version/budget review. `public: true` makes an enabled entry
 available to authenticated completed accounts; otherwise `allowed_user_ids` is the
 explicit owner UUID allowlist. Restrictions apply equally to operator and personal
-keys. No administrator role, subscription tier or billing UI is introduced.
-Disabled, unknown and unauthorized offerings are absent from the list and return 404.
+keys. No administrator role, paid subscription or billing UI is introduced.
+Disabled entries are hidden unless `listed: true`; listed disabled entries are
+returned as unavailable choices. Unknown and unauthorized entries remain hidden.
+Disabled/unauthorized models still return 404 when selected, including with a personal key.
+
+`GET /models` adds `available`, `operator_available` and `is_default` to safe model
+metadata. `operator_available` checks the local credential's format and permissions,
+not provider acceptance, credits or network reachability. There is at most one
+`is_default` entry per catalog. The UI preselects it with the application's connection;
+missing credentials block creation rather than selecting demo/personal credentials.
+An omitted model selects the caller-visible configured default on the server too.
+With no configured default the historical fake API behavior remains available.
+Explicit `demo: true` creates a fake chat and cannot include a model or connection.
 
 `operator_key_file` names a `.key` file in the catalog directory. It never appears
 in public metadata. A personal connection is an owner's OpenRouter API key, usable
 only with permitted offerings whose `personal_allowed` is true. Missing operator
 keys never fall back to personal keys, or conversely.
 
-Creating a chat accepts optional `offering_id` and `connection_id`. Omission preserves
-the existing offline fake behavior; a connection without an offering is invalid.
+Creating a chat accepts optional `offering_id` and `connection_id`. Omission uses
+the configured application default, or fake mode when no default is configured;
+a connection without an offering is invalid.
 Chats retain offering ID/version, provider/model and connection source. Every run
 copies that selection. Model, offering revision or connection changes require a
 new chat; there is no model-switch endpoint or implicit history transfer. Changing
@@ -92,12 +107,13 @@ require allowed Origin and CSRF. Owner identity is never accepted in a body.
 
 | Method / path | Contract |
 | --- | --- |
-| GET /models | Authorized enabled safe model profiles; no credentials, paths or owner allowlists |
+| GET /models | Authorized enabled or explicitly listed safe profiles, availability and default flags; no credentials, paths or owner allowlists |
+| GET /access | Current owner's plan and nullable monthly request/token limits; currently free with no product quotas |
 | POST /connections | `{label, key}`; stores an encrypted OpenRouter credential without a network call; 201 masked metadata |
 | GET /connections | Up to 20 retained owned connection records, including disconnect state |
 | DELETE /connections/{id} | 204; erase ciphertext/key identifier, persist disconnect time and cancel unfinished runs on that connection; repeated disconnect is safe |
 | POST /connections/{id}/rotate | 204; re-encrypt an active owned connection with the current master key, without a provider call |
-| POST /conversations | Existing title plus optional offering_id/connection_id; immutable model selection |
+| POST /conversations | Title plus optional offering_id/connection_id or explicit demo; application default if configured; immutable model selection |
 
 Connection metadata is limited to id, label, creation/disconnect times and the fixed
 mask `********`. Keys are printable ASCII, 16–1024 characters; labels are trimmed,
@@ -156,6 +172,50 @@ checked for the selected account; local totals do not represent its external tra
 
 ## Local provisioning, rotation and backups
 
+### Application key and developer-managed models
+
+The owner confirmed on 2026-10-25 that ordinary users must not need API keys.
+Copy the reviewed example to the private catalog when provisioning; DeepSeek is the
+public application default. Put the owner's **OpenRouter** key in the single private
+file `.secrets/ai/openrouter.key`, referenced by `operator_key_file`. Never put this
+shared credential in a personal connection or browser code. The API container runs
+as UID 10001, which must be able to traverse/read the private directory/files.
+The encryption keyring is needed only for optional personal connections, not the
+application key. Keep the API flag disabled until migrations and deployment setup
+are complete; no private file, real environment, application DB or deployment is
+changed by this delivery.
+
+To offer another model later, edit the private catalog: verify the exact model ID,
+capabilities, account access and privacy-compatible route, set its credential
+reference, bump its version and set `enabled: true`. `listed: true` keeps a disabled
+profile visible as "not yet available". Only one profile may have `is_default: true`.
+The confirmed public IDs for the disabled examples were checked on 2026-10-25:
+[Haiku](https://openrouter.ai/anthropic/claude-haiku-5.5),
+[Sonnet](https://openrouter.ai/anthropic/claude-sonnet-5.5),
+[GPT-5.5](https://openrouter.ai/openai/gpt-5.5).
+They remain unverified for live tools/JSON/streaming; no request is sent merely to
+list a model. Supporting a different provider adapter still requires implementation.
+
+### Future user quotas
+
+`AiAccessPolicy` is the application boundary for future user entitlements. Its
+current `UnlimitedAiAccessPolicy` reports plan `free` and null monthly request/token
+limits and imposes no product quota or payment gate. The owner-only usage ledger
+continues to count runs, provider attempts and known/unknown tokens, including use
+of a shared application key. Technical connection throttles, execution/size bounds
+and upstream account limits remain separate and unchanged.
+
+The policy admission hook runs for a new submission inside the existing serialized
+owner transaction, before its run/message is stored. Exact retries reuse the stored
+run and do not reserve quota again. A future policy can reject with `UsageLimited`
+(HTTP 429) or reserve quota atomically using the transaction repository. Subscription
+storage, quota counters/reservations, reset periods, token settlement and payments
+are **not implemented**. A future quota implementation must add authoritative,
+race-safe persistence through Alembic and cannot use the 30-day display report as a
+durable billing counter. No migration or new user plan assignment is needed now.
+
+### Personal connections, rotation and backups
+
 Private runtime files belong in `.secrets/ai/`, ignored by Git. The optional
 `docker-compose.ai.yml` mounts that directory read-only into **api only**; workers,
 Beat, migration and extraction processes receive no mount. It does not enable AI,
@@ -199,8 +259,9 @@ Keep AI disabled until the reviewed migrations are applied to the intended targe
 maintenance is enabled and connection/privacy/account limits have been checked.
 The current owner's UUID is available from authenticated `GET /api/v1/users/me`;
 it belongs in private configuration, not the checked-in example.
-Enable only reviewed profiles, placing the intended owner UUID in the restricted
-DeepSeek entry. Never set `public` on a restricted offering merely to make setup work.
+Enable only reviewed profiles. The current owner-selected default DeepSeek profile
+is public to completed authenticated accounts; private/restricted profiles still
+require explicit UUID allowlists. Never widen a restricted profile to bypass setup.
 The free example can be offered publicly after verifying its current route and quotas.
 
 Validate without exposing resolved secrets:

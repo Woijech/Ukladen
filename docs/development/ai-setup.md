@@ -20,6 +20,13 @@ profile and an optional free example; live account behavior remains unverified.
 GLM and other adapters are future choices. No universal wire contract or current
 account price is assumed.
 
+The 2026-10-25 [catalog/access follow-up](ai-connections.md#application-key-and-developer-managed-models)
+makes the shared application connection the normal path: the provisioning template
+selects public DeepSeek V4.1 Flash 1017, while Claude Haiku/Sonnet and GPT-5.5 are
+listed but disabled. Users need no personal key. Free/unlimited product access and
+owned usage accounting are implemented; subscription/quota persistence remains future
+work. Runtime AI flags still default to false; no model/account has been activated.
+
 ## A. AI-00/01: stay offline first
 
 1. Use the agreed specification, fixture and existing [local guide](local-development.md)

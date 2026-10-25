@@ -18,6 +18,7 @@ class ConversationCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     offering_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9-]{0,63}$")
     connection_id: UUID | None = None
+    demo: bool = False
 
     @field_validator("title")
     @classmethod

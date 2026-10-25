@@ -74,6 +74,14 @@ export type Model = {
   tools: boolean;
   free_only: boolean;
   personal_allowed: boolean;
+  available: boolean;
+  operator_available: boolean;
+  is_default: boolean;
+};
+export type AiAccessStatus = {
+  plan: string;
+  monthly_request_limit: number | null;
+  monthly_token_limit: number | null;
 };
 export type Connection = {
   id: string;

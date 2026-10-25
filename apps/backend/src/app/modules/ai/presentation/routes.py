@@ -8,11 +8,12 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.core.logging import log_failure
 from app.modules.academics.presentation.routes import no_store
-from app.modules.ai.application.connections import ConnectionAccess, ModelOffering
+from app.modules.ai.application.access import AiAccessStatus
+from app.modules.ai.application.connections import ConnectionAccess, ModelOption
 from app.modules.ai.application.lifecycle import AiService
 from app.modules.ai.application.source_queries import SourceQuery
 from app.modules.ai.application.usage import UsageReport
-from app.modules.ai.domain.connections import ConnectionLimited, ConnectionUnavailable
+from app.modules.ai.domain.connections import ConnectionLimited, ConnectionUnavailable, UsageLimited
 from app.modules.ai.domain.state import (
     AiConflict,
     AiNotFound,
@@ -82,6 +83,11 @@ def get_ai(request: Request, settings: Config) -> AiService:
 
 
 Ai = Annotated[AiService, Depends(get_ai)]
+
+
+@router.get("/access", response_model=AiAccessStatus)
+def access_status(current: CurrentSession, service: Ai) -> AiAccessStatus:
+    return service.access_status(current.user_id)
 
 
 @router.get("/usage", response_model=UsageReport)
@@ -177,12 +183,13 @@ def create_conversation(
             payload.title,
             offering_id=payload.offering_id,
             connection_id=payload.connection_id,
+            demo=payload.demo,
         )
     )
 
 
-@router.get("/models", response_model=list[ModelOffering])
-def list_models(current: CurrentSession, service: Ai) -> list[ModelOffering]:
+@router.get("/models", response_model=list[ModelOption])
+def list_models(current: CurrentSession, service: Ai) -> list[ModelOption]:
     return service.models(current.user_id)
 
 
@@ -305,6 +312,9 @@ def install_ai(application: FastAPI) -> None:
             status, detail = 409, "AI state changed or execution is unavailable."
         elif isinstance(error, InvalidAiState):
             status, detail = 422, "Invalid AI input."
+        elif isinstance(error, UsageLimited):
+            status, detail = 429, "AI usage limit reached."
+            headers["Retry-After"] = str(error.retry_after)
         elif isinstance(error, ConnectionLimited):
             status, detail = 429, "AI connection request limit reached."
             headers["Retry-After"] = str(error.retry_after)

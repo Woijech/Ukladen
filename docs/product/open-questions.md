@@ -131,6 +131,17 @@ clarification was requested; paid traffic remains unactivated. The implementatio
 supports free-only routing and bounded request/input/output admission, with no
 application billing subsystem. See [the connection contract](../development/ai-connections.md).
 
+AI application access decision (2026-10-25): the owner confirmed a shared operator
+key and public DeepSeek V4.1 Flash 1017 as the ordinary default, with Claude Haiku,
+Claude Sonnet and GPT-5.5 visible but unavailable until developer activation.
+This supersedes the restricted DeepSeek example as the current default offering;
+explicit restrictions still apply to any other private profiles. Personal keys are
+optional. Current access is free without product request/token quotas. Keep an
+application policy boundary for future user limits/subscriptions and existing owned
+usage accounting; billing, quota persistence and actual paid-model deployment remain
+separate work. Technical/server/provider throttles remain. See the
+[implemented catalog and access contract](../development/ai-connections.md).
+
 | ID | Question | Proposed default | What depends on it |
 | --- | --- | --- | --- |
 | Q-04a | Product policies resolved in the 2026-10-21 table above. Per-account budgets/quotas and per-grant scope/expiry/counts are required activation inputs. | Provider-neutral operator/BYOK models, relevant-data transfer implied by AI use, 30-day chat/activity policies, initial automatic new-page/task creates only under actual grants. See [AI scope](ai.md). | Concrete credential/vendor contracts, execution records, minimal replay-record purge and account admission |

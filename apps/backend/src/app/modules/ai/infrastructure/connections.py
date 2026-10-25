@@ -11,7 +11,7 @@ from uuid import UUID
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.modules.ai.application.connections import ModelOffering, require_key
+from app.modules.ai.application.connections import ModelOffering, ModelOption, require_key
 from app.modules.ai.domain.connections import ConnectionUnavailable, PersonalConnection
 from app.modules.ai.domain.state import AiNotFound
 
@@ -33,6 +33,7 @@ def read_file(path: Path, *, secret: bool = False) -> bytes:
 
 class CatalogEntry(ModelOffering):
     enabled: bool = False
+    listed: bool = False
     public: bool = False
     allowed_user_ids: tuple[UUID, ...] = Field(default=(), max_length=1000)
     operator_key_file: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9_-]+\.key$")
@@ -46,6 +47,8 @@ class Catalog(BaseModel):
     def unique_entries(self):
         if len({entry.id for entry in self.entries}) != len(self.entries):
             raise ValueError("Duplicate model offering.")
+        if sum(entry.is_default for entry in self.entries) > 1:
+            raise ValueError("Only one default model offering is supported.")
         for entry in self.entries:
             if entry.model.startswith("openrouter/") or entry.model.endswith(
                 (":online", ":batch", "-latest")
@@ -82,6 +85,29 @@ class FileConnectionConfiguration:
             for entry in self._entries()
             if entry.enabled and (entry.public or user_id in entry.allowed_user_ids)
         ]
+
+    def model_options(self, user_id: UUID) -> list[ModelOption]:
+        options = []
+        for entry in self._entries():
+            if not (entry.enabled or entry.listed) or not (
+                entry.public or user_id in entry.allowed_user_ids
+            ):
+                continue
+            operator_available = False
+            if entry.enabled:
+                try:
+                    self.operator_key(entry.id)
+                    operator_available = True
+                except ConnectionUnavailable:
+                    pass
+            options.append(
+                ModelOption(
+                    **self._public(entry).model_dump(),
+                    available=entry.enabled,
+                    operator_available=operator_available,
+                )
+            )
+        return options
 
     def offering(self, user_id: UUID, offering_id: str) -> ModelOffering:
         entry = self._entry(offering_id)

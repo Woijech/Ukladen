@@ -192,6 +192,16 @@ provider/account before submission. Operators offer multiple supported adapters/
 users select an offering or their own supported connection, including free models where
 available. This specification guarantees neither a particular model nor a free quota.
 
+Owner decision, 2026-10-25: the current operator offering is DeepSeek V4.1 Flash
+1017, selected by default without a personal key. Claude Haiku, Claude Sonnet and
+GPT-5.5 are visible unavailable choices until the operator enables reviewed catalog
+profiles. Current application access is free with no daily/monthly request or token
+quotas; provider charges are paid by the operator for the shared connection.
+Technical safety bounds and provider/account limits still apply. Optional personal
+connections remain additional. Local catalog/default UI and an unlimited access-policy
+boundary are implemented; application activation remains pending. Paid subscriptions
+and user quota persistence/enforcement are future work, not implemented.
+
 Keys are server-side secrets. Operator keys are consumer-scoped deployment secrets;
 personal keys require owner-only encrypted persistence and a deployment-managed
 encryption key. Submit them through authenticated/CSRF-protected settings, never return

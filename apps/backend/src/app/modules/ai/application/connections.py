@@ -41,10 +41,17 @@ class ModelOffering(BaseModel):
     max_input_bytes: int = Field(default=6000, ge=256, le=65536)
     max_output_tokens: int = Field(default=2048, ge=1, le=2048)
     price: PriceSnapshot | None = None
+    is_default: bool = False
+
+
+class ModelOption(ModelOffering):
+    available: bool = True
+    operator_available: bool = True
 
 
 class ConnectionConfiguration(Protocol):
     def offerings(self, user_id: UUID) -> Sequence[ModelOffering]: ...
+    def model_options(self, user_id: UUID) -> Sequence[ModelOption]: ...
     def offering(self, user_id: UUID, offering_id: str) -> ModelOffering: ...
     def operator_key(self, offering_id: str) -> str: ...
     def quota_scope(self, offering_id: str) -> str: ...

@@ -310,7 +310,7 @@ function NewChat({
   onCreated: (chat: Conversation) => void;
 }) {
   const [title, setTitle] = useState("Новая беседа");
-  const [offering, setOffering] = useState("");
+  const [chosenOffering, setOffering] = useState<string | null>(null);
   const [connection, setConnection] = useState("");
   const action = useAction();
   const models = useQuery({
@@ -323,7 +323,29 @@ function NewChat({
     queryFn: ({ signal }) =>
       requestJson<{ items: Connection[] }>(`${aiBase}/connections`, { signal }),
   });
+  const offering =
+    chosenOffering ??
+    models.data?.find((item) => item.is_default)?.id ??
+    models.data?.find(
+      (item) => item.available && item.operator_available && item.streaming,
+    )?.id ??
+    (models.data?.length === 0 ? "__demo__" : "");
   const model = models.data?.find((item) => item.id === offering);
+  const personalConnections =
+    connections.data?.items.filter((item) => !item.disconnected_at) ?? [];
+  const canUse = (item: Model) =>
+    item.available &&
+    item.streaming &&
+    (item.operator_available ||
+      (item.personal_allowed && personalConnections.length > 0));
+  const canCreate =
+    offering === "__demo__" ||
+    (model &&
+      canUse(model) &&
+      (connection
+        ? model.personal_allowed &&
+          personalConnections.some((item) => item.id === connection)
+        : model.operator_available));
   return (
     <Modal title="Новый AI-чат" onClose={onClose}>
       <h2>Новая беседа</h2>
@@ -338,16 +360,17 @@ function NewChat({
       <form
         onSubmit={(event) => {
           event.preventDefault();
+          if (!canCreate) return;
           void action.run(async () =>
             onCreated(
               await writeJson<Conversation>(`${aiBase}/conversations`, "POST", {
                 title,
-                ...(offering
-                  ? {
+                ...(offering === "__demo__"
+                  ? { demo: true }
+                  : {
                       offering_id: offering,
                       ...(connection ? { connection_id: connection } : {}),
-                    }
-                  : {}),
+                    }),
               }),
             ),
           );
@@ -372,17 +395,24 @@ function NewChat({
               setConnection("");
             }}
           >
-            <option value="">Демонстрация — без внешнего API</option>
+            <option value="" disabled>
+              Выбери модель
+            </option>
             {models.data?.map((item) => (
-              <option key={item.id} value={item.id} disabled={!item.streaming}>
+              <option key={item.id} value={item.id} disabled={!canUse(item)}>
                 {item.name}
+                {!item.available ? " · пока недоступно" : ""}
+                {item.available && !item.operator_available && !canUse(item)
+                  ? " · подключение не настроено"
+                  : ""}
                 {item.free_only ? " · только бесплатные маршруты" : ""}
                 {!item.streaming ? " · нет стриминга" : ""}
               </option>
             ))}
+            <option value="__demo__">Демонстрация — без внешнего API</option>
           </select>
         </label>
-        {model && (
+        {model?.available && (
           <>
             <label className="field-label">
               Подключение
@@ -391,26 +421,37 @@ function NewChat({
                 value={connection}
                 onChange={(event) => setConnection(event.target.value)}
               >
-                <option value="">Ключ приложения</option>
+                <option value="" disabled={!model.operator_available}>
+                  AI Ukladen
+                  {!model.operator_available ? " · подключение не настроено" : ""}
+                </option>
                 {model.personal_allowed &&
-                  connections.data?.items
-                    .filter((item) => !item.disconnected_at)
-                    .map((item) => (
-                      <option value={item.id} key={item.id}>
-                        {item.label} · {item.key_mask}
-                      </option>
-                    ))}
+                  personalConnections.map((item) => (
+                    <option value={item.id} key={item.id}>
+                      {item.label} · {item.key_mask}
+                    </option>
+                  ))}
               </select>
             </label>
             <p className="muted">
-              {model.provider} · {model.model}.{" "}
+              {connection
+                ? "Личное API-подключение."
+                : model.operator_available
+                  ? "Работает через подключение Ukladen. Свой ключ не нужен."
+                  : "Для этой модели нужно настроенное подключение."}{" "}
               {model.tools
                 ? "Доступны поиск и чтение твоих источников."
                 : "Эта модель отвечает без доступа к пространству."}
             </p>
           </>
         )}
-        {!offering && (
+        {model && !canCreate && (
+          <p className="muted">
+            Подключение этой модели пока не настроено. Если у тебя есть личное
+            подключение, выбери его; иначе модель должен подключить владелец Ukladen.
+          </p>
+        )}
+        {offering === "__demo__" && (
           <p className="muted">
             Тестовая модель показывает заранее заданный ответ. Для настоящего
             помощника выбери настроенную модель.
@@ -422,7 +463,7 @@ function NewChat({
         </p>
         <button
           className="primary-button"
-          disabled={action.busy || !models.data || !connections.data}
+          disabled={action.busy || !models.data || !connections.data || !canCreate}
         >
           Создать чат
         </button>

@@ -91,9 +91,29 @@ async function mockAi(page: Page) {
             tools: true,
             free_only: true,
             personal_allowed: true,
+            available: true,
+            operator_available: true,
+            is_default: true,
           },
+          ...["Claude Haiku", "Claude Sonnet", "GPT-5.5"].map((name, index) => ({
+            id: `planned-${index}`,
+            name,
+            provider: "openrouter",
+            model: `synthetic/planned-${index}`,
+            streaming: true,
+            tools: false,
+            free_only: false,
+            personal_allowed: true,
+            available: false,
+            operator_available: false,
+            is_default: false,
+          })),
         ],
       });
+    if (path.endsWith("/access"))
+      return route.fulfill({json: {
+        plan: "free", monthly_request_limit: null, monthly_token_limit: null,
+      }});
     if (path.endsWith("/preferences")) {
       if (method === "PUT")
         state.preferences = {
@@ -312,6 +332,49 @@ test("broken streaming recovers the stored run without resubmission and can canc
   ).toHaveLength(1);
 });
 
+test("application model is selected by default and future models cannot be selected", async ({page}) => {
+  const state = await mockAi(page);
+  state.connections = [];
+  await page.goto("/workspace/ai");
+  await page.getByRole("button", {name: "Новый чат", exact: false}).click();
+  await expect(page.getByLabel("Модель", {exact: true})).toHaveValue("flash");
+  await expect(page.getByLabel("Подключение", {exact: true})).toHaveValue("");
+  for (const name of ["Claude Haiku", "Claude Sonnet", "GPT-5.5"])
+    await expect(page.getByRole("option", {name: `${name} · пока недоступно`, exact: true})).toHaveJSProperty("disabled", true);
+  await page.getByRole("button", {name: "Создать чат", exact: true}).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(state.writes.find(item => item.path.endsWith("/conversations"))!.body).toEqual({
+    title: "Новая беседа", offering_id: "flash",
+  });
+});
+
+test("missing application credentials block creation without an implicit demo or personal fallback", async ({page}) => {
+  const state = await mockAi(page);
+  state.connections = [];
+  await page.route("**/api/v1/ai/models", route => route.fulfill({json: [{
+    id: "flash", name: "Test Flash", provider: "openrouter", model: "synthetic/model",
+    streaming: true, tools: true, free_only: false, personal_allowed: true,
+    available: true, operator_available: false, is_default: true,
+  }]}));
+  await page.goto("/workspace/ai");
+  await page.getByRole("button", {name: "Новый чат", exact: false}).click();
+  await expect(page.getByRole("button", {name: "Создать чат", exact: true})).toBeDisabled();
+  await expect(page.getByLabel("Модель", {exact: true})).toHaveValue("flash");
+  expect(state.writes).toHaveLength(0);
+});
+
+test("demo mode requires an explicit selection and never sends an application model", async ({page}) => {
+  const state = await mockAi(page);
+  await page.goto("/workspace/ai");
+  await page.getByRole("button", {name: "Новый чат", exact: false}).click();
+  await page.getByLabel("Модель", {exact: true}).selectOption("__demo__");
+  await page.getByRole("button", {name: "Создать чат", exact: true}).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(state.writes.find(item => item.path.endsWith("/conversations"))!.body).toEqual({
+    title: "Новая беседа", demo: true,
+  });
+});
+
 test("model connection selection and explicitly saved instructions reuse the existing shell", async ({
   page,
 }) => {
@@ -375,6 +438,8 @@ test("usage preserves unknowns and responsive source controls work with a keyboa
   await mockAi(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/workspace/ai/usage");
+  await expect(page.getByRole("region", {name: "Доступ к AI"})).toContainText("Бесплатный доступ");
+  await expect(page.getByRole("region", {name: "Доступ к AI"})).toContainText("без ограничений");
   await expect(page.getByText("Europe/Minsk", { exact: false })).toBeVisible();
   await expect(page.getByRole("table", { name: "По дням" })).toContainText(
     "Неизвестно",

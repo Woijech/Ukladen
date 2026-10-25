@@ -66,6 +66,55 @@ def real_chat(client: TestClient, connection_id=None):
     return response.json()
 
 
+def test_application_default_catalog_and_unlimited_access_need_no_personal_key(
+    configured_client: TestClient, configuration: FileConnectionConfiguration
+):
+    client = configured_client
+    data = json.loads(configuration.path.read_text())
+    data["entries"][0]["is_default"] = True
+    data["entries"].append(
+        data["entries"][0]
+        | {"id": "planned", "enabled": False, "listed": True, "is_default": False}
+    )
+    configuration.path.write_text(json.dumps(data))
+    with patch.object(
+        httpx.HTTPTransport, "handle_request", side_effect=AssertionError("No network")
+    ):
+        options = client.get(f"{BASE}/models").json()
+        assert options[0]["is_default"] and options[0]["operator_available"]
+        assert not options[1]["available"] and not options[1]["operator_available"]
+        assert "operator_key_file" not in str(options) and KEY not in str(options)
+        assert client.get(f"{BASE}/access").json() == {
+            "plan": "free",
+            "monthly_request_limit": None,
+            "monthly_token_limit": None,
+        }
+        assert client.get(f"{BASE}/connections").json()["items"] == []
+        response = client.post(
+            f"{BASE}/conversations", headers=csrf_headers(client), json={"title": "Default"}
+        )
+        assert response.status_code == 201, response.text
+        assert response.json()["offering_id"] == "flash"
+        assert response.json()["connection_id"] is None
+        assert (
+            client.post(
+                f"{BASE}/conversations",
+                headers=csrf_headers(client),
+                json={"title": "Unavailable", "offering_id": "planned"},
+            ).status_code
+            == 404
+        )
+        (configuration.path.parent / "operator.key").unlink()
+        assert not client.get(f"{BASE}/models").json()[0]["operator_available"]
+        assert (
+            client.post(
+                f"{BASE}/conversations", headers=csrf_headers(client), json={"title": "No fallback"}
+            ).status_code
+            == 503
+        )
+        assert len(client.get(f"{BASE}/conversations").json()["items"]) == 1
+
+
 def test_workspace_tool_sources_persist_and_history_rechecks_edits_trash_and_scope(
     configured_client: TestClient,
     configuration: FileConnectionConfiguration,

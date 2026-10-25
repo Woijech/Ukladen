@@ -56,8 +56,14 @@ LLM, embedding and web-search providers are separate adapters under `app/integra
 The owner selected provider-neutral tools, an operator model catalog and user-owned
 API connections. No particular LLM provider/model is required; the old Groq baseline
 is superseded. CPU E5-small remains an embedding implementation candidate pending
-runtime proof. The scripted offline model remains the default; the optional OpenRouter adapter is
-implemented but unactivated. Other real adapters are not implemented.
+runtime proof. Without a configured catalog default the scripted offline model
+remains the default. A configured default uses the operator's connection; the current
+provisioning example selects public DeepSeek V4.1 Flash 1017. Explicitly listed
+disabled models are visible but cannot execute. `AiAccessPolicy` checks new-run
+admission inside the owner transaction; its implemented policy is free/unlimited.
+Subscription/quota persistence and billing are not implemented. See the
+[catalog/access contract](../development/ai-connections.md). The optional OpenRouter
+adapter is implemented but unactivated. Other real adapters are not implemented.
 Domain/application contracts must
 not depend on SDK/framework response types. Streaming/cancellation is required target
 behavior, never permission to execute incomplete or unconfirmed tool arguments.

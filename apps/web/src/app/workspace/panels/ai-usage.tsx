@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { requestJson } from "@/shared/api";
 import { Modal, QueryState } from "@/shared/ui";
-import { aiBase, runLabels, type Run } from "./ai-api";
+import { aiBase, runLabels, type AiAccessStatus, type Run } from "./ai-api";
 
 type Metrics = {
   runs: number;
@@ -51,6 +51,11 @@ export function AiUsage() {
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
   const [offset, setOffset] = useState(0);
   const [runId, setRunId] = useState<string | null>(null);
+  const access = useQuery({
+    queryKey: ["ai-access"],
+    queryFn: ({ signal }) =>
+      requestJson<AiAccessStatus>(`${aiBase}/access`, { signal }),
+  });
   const query = useQuery({
     queryKey: ["ai-usage", days, range, offset],
     staleTime: 0,
@@ -63,6 +68,28 @@ export function AiUsage() {
   const report = query.data;
   return (
     <div className="ai-usage">
+      <QueryState
+        pending={access.isPending}
+        error={access.error}
+        retry={() => void access.refetch()}
+      />
+      {access.data && (
+        <section className="panel" aria-label="Доступ к AI">
+          <h2>
+            {access.data.plan === "free"
+              ? "Бесплатный доступ"
+              : `Тариф: ${access.data.plan}`}
+          </h2>
+          <p>
+            Запросов в месяц:{" "}
+            {access.data.monthly_request_limit ?? "без ограничений"}. Токенов в месяц:{" "}
+            {access.data.monthly_token_limit ?? "без ограничений"}.
+          </p>
+          <p className="muted">
+            Технические ограничения запросов и провайдера сохраняются.
+          </p>
+        </section>
+      )}
       <div className="panel-toolbar">
         <div className="segmented" aria-label="Период статистики">
           {[7, 30].map((value) => (

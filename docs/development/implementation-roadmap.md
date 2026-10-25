@@ -42,6 +42,10 @@ Calendar free slots/conflicts, tasks and semantic search are not implemented.
 AI-02 adds optional [OpenRouter models and encrypted connections](ai-connections.md),
 implemented locally but unactivated. [AI-04](ai-04.md) adds a locally implemented
 streaming chat, source, settings and usage interface; activation remains pending.
+The 2026-10-25 follow-up adds an application-owned default model, visible unavailable
+catalog choices and a free unlimited access-policy extension point for future user
+quotas/subscriptions. Billing and quota persistence remain unimplemented; see the
+[catalog/access guide](ai-connections.md). No production activation was performed.
 The default-disabled [offline AI API](ai-api.md) provides synthetic chat/run lifecycle
 and accounting with bounded execution, overdue-run reconciliation and 30-day physical cleanup.
 Workspace organization exists;

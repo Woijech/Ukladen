@@ -12,8 +12,13 @@ from typing import Protocol
 from uuid import UUID, uuid4
 
 from app.core.logging import log_failure
+from app.modules.ai.application.access import (
+    AiAccessPolicy,
+    AiAccessStatus,
+    UnlimitedAiAccessPolicy,
+)
 from app.modules.ai.application.agent import AgentInput, AgentResult, AgentRunner
-from app.modules.ai.application.connections import ConnectionAccess, ModelOffering
+from app.modules.ai.application.connections import ConnectionAccess, ModelOption
 from app.modules.ai.application.persistence import AiRepository
 from app.modules.ai.application.recovery import RUN_TIMEOUT, stop_run
 from app.modules.ai.application.streaming import emit
@@ -103,11 +108,15 @@ class AiService:
         provider: str = "fake",
         model: str = "fake-v1",
         connections: ConnectionAccess | None = None,
+        access_policy: AiAccessPolicy | None = None,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.transactions, self.runners = transactions, runners
         self.provider, self.model, self.now = provider, model, now
         self.connections = connections
+        self.access_policy = (
+            access_policy if access_policy is not None else UnlimitedAiAccessPolicy()
+        )
 
     def conversation(
         self, repository: AiRepository, user_id: UUID, conversation_id: UUID
@@ -126,7 +135,14 @@ class AiService:
         *,
         offering_id: str | None = None,
         connection_id: UUID | None = None,
+        demo: bool = False,
     ) -> Conversation:
+        if demo and (offering_id is not None or connection_id is not None):
+            raise InvalidAiState("Demo mode cannot select a real model or connection.")
+        if offering_id is None and connection_id is None and not demo:
+            default = next((item for item in self.models(user_id) if item.is_default), None)
+            if default is not None:
+                offering_id = default.id
         with self.transactions(user_id, write=True) as repository:
             selection = ModelSelection()
             provider, model = self.provider, self.model
@@ -156,8 +172,13 @@ class AiService:
             raise ConnectionUnavailable("Real model connections are not configured.")
         return self.connections
 
-    def models(self, user_id: UUID) -> list[ModelOffering]:
-        return list(self.connections.configuration.offerings(user_id)) if self.connections else []
+    def models(self, user_id: UUID) -> list[ModelOption]:
+        return (
+            list(self.connections.configuration.model_options(user_id)) if self.connections else []
+        )
+
+    def access_status(self, user_id: UUID) -> AiAccessStatus:
+        return self.access_policy.status(user_id)
 
     def personal_connections(self, user_id: UUID) -> list[PersonalConnection]:
         with self.transactions(user_id) as repository:
@@ -271,6 +292,7 @@ class AiService:
                 if repository.active_run(user_id, conversation.id) is not None:
                     raise AiConflict("Conversation already has active execution.")
                 now = self.now()
+                self.access_policy.admit(user_id, repository, now)
                 provider, model = self.provider, self.model
                 price = None
                 if conversation.offering_id is not None:

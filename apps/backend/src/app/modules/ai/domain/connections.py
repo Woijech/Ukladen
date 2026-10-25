@@ -15,6 +15,10 @@ class ConnectionLimited(ConnectionUnavailable):
         self.retry_after = max(1, min(retry_after, 86400))
 
 
+class UsageLimited(ConnectionLimited):
+    """An owner usage policy denied a new run, independently of provider throttling."""
+
+
 @dataclass(frozen=True, kw_only=True)
 class PersonalConnection:
     id: UUID
