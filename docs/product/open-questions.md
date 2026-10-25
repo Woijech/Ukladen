@@ -1,6 +1,6 @@
 # Product Decisions and Open Questions
 
-Updated: 2026-10-21.
+Updated: 2026-10-25.
 Status: decision register. Owner-confirmed scope is distinguished from open design
 choices. Proposed defaults are not owner confirmation; resolve relevant unknowns
 before implementing incompatible schemas, integrations or behavior.
@@ -97,13 +97,19 @@ not part of this delivery. Basic task create/read/update is the first implementa
 increment; hierarchy, trash, dependencies, blocks and availability follow separately.
 See [task contracts and actual status](../development/tasks.md).
 
+On 2026-10-25, the owner confirmed the planned subtask invariants: optional
+same-owner parent, no product-level depth limit or cycles, no edit propagation,
+closed descendants before parent completion, no later active descendant beneath a
+completed ancestor, and atomic validation of combined parent/status updates.
+The hierarchy is now implemented in the backend; see the [subtask contract](../development/tasks.md#second-increment-subtask-hierarchy).
+
 | ID | Question | Proposed default | What depends on it |
 | --- | --- | --- | --- |
 | Q-04a | Product policies resolved in the 2026-10-21 table above. Per-account budgets/quotas and per-grant scope/expiry/counts are required activation inputs. | Provider-neutral operator/BYOK models, relevant-data transfer implied by AI use, 30-day chat/activity policies, initial automatic new-page/task creates only under actual grants. See [AI scope](ai.md). | Concrete credential/vendor contracts, execution records, minimal replay-record purge and account admission |
 | Q-05 | Beyond mandatory database calendar views, which calendar features are required first: all-day events, recurrence, multiple calendars or external providers? | Existing timed events plus date projections; dates/deadlines are nonblocking. Recurrence/all-day contracts are separate; no Google/Microsoft sync assumed. | Date DTOs, recurrence/exception model and availability |
 | Q-06 | Which history, purge and export features should follow recoverable trash? | Implemented branch trash restores its batch root and preserves previously trashed children; see [notes](../development/notes.md). No purge/history/export yet. | Future cleanup, history and export |
 | Q-07 | Resolved on 2026-10-21: tasks are independent typed objects with optional source links. | Ordinary record rows/checkboxes are not tasks and do not synchronize status automatically. | P-06 task/subtask/dependency services and AI extraction/planning tools |
-| Q-08 | Which rich inline formatting, nested blocks and editor should follow the initial block slice? | Text, headings, flat lists, checkboxes and links are implemented, backend only. [ADR 0006](../adr/0006-use-versioned-page-block-documents.md) records the versioned schema and preserving migration. Page/material relations are implemented separately; embedded attachment blocks, UI/editor and rich formatting remain later work. | Future editor, rendering and export |
+| Q-08 | Which rich inline formatting, nested blocks and editor should follow the initial block slice? | Text, headings, flat lists, checkboxes and links are implemented with a versioned block editor UI. [ADR 0006](../adr/0006-use-versioned-page-block-documents.md) records the versioned schema and preserving migration. Page/material relations are implemented separately; embedded attachment blocks and rich formatting remain later work. See the [frontend guide](../architecture/frontend.md) for the current editor. | Future editor, rendering and export |
 | Q-09 | Should optional subjects use templates or a separately imported catalogue? | Defer; never merge by label or require subject IDs. | Subject module and explicit academic relations |
 | Q-10 | How should upstream replacements be reconciled without stable IDs? | Preserve historical references and expose uncertain replacements; explicit relinking. | Import matching, overrides and notifications |
 | Q-11 | What further content/query and operational limits are required? | Owner confirmed 25 MiB/file, 1 GiB retained file storage/user and no OCR for P-08. Other slice limits are in [materials/search contracts](../development/materials.md); no production throughput promise. | Later quota changes, indexing and production readiness |

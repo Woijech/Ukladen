@@ -38,6 +38,7 @@ class TaskCreate(TaskInput):
     priority: TaskPriority = "normal"
     deadline_at: AwareDatetime | None = None
     estimated_minutes: int | None = Field(default=None, ge=1, le=525600, strict=True)
+    parent_id: UUID | None = None
 
     @model_validator(mode="after")
     def validate_values(self) -> Self:
@@ -53,6 +54,7 @@ class TaskPatch(TaskInput):
     priority: TaskPriority | None = None
     deadline_at: AwareDatetime | None = None
     estimated_minutes: int | None = Field(default=None, ge=1, le=525600, strict=True)
+    parent_id: UUID | None = None
 
     @model_validator(mode="after")
     def validate_changes(self) -> Self:
@@ -63,8 +65,15 @@ class TaskPatch(TaskInput):
         return self
 
 
+class TaskVersionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_version: int = Field(ge=1, le=2**31 - 2, strict=True)
+
+
 class TaskSummaryResponse(BaseModel):
     id: UUID
+    parent_id: UUID | None
     title: str
     status: TaskStatus
     priority: TaskPriority
@@ -73,6 +82,8 @@ class TaskSummaryResponse(BaseModel):
     version: int
     created_at: AwareDatetime
     updated_at: AwareDatetime
+    trashed_at: AwareDatetime | None
+    trash_batch_id: UUID | None
     is_overdue: bool
 
     @classmethod

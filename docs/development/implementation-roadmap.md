@@ -1,6 +1,6 @@
 # Backend Implementation Roadmap
 
-Updated: 2026-10-21.
+Updated: 2026-10-25.
 Status: implementation roadmap; completed slices are marked below. This document does not authorize starting the
 next phase; request a concrete slice before implementing it. Pages/blocks/databases,
 mandatory table/calendar views, personal scope and AI execution modes are confirmed.
@@ -38,18 +38,26 @@ existing services just to match target vocabulary. A package marker is not a fea
 | Workspace | Collections/tags, typed membership, event views and recoverable page-backed databases with table/calendar views | [Workspace](workspace.md), [calendar views](calendar-views.md), [databases](databases.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
-Standalone task create/read/list/update is implemented, backend only; see [tasks](tasks.md).
-Task hierarchy/trash/dependencies/links, work blocks, calendar free slots/conflicts,
+Standalone task create/read/list/update, subtask hierarchy and branch trash are
+implemented with a browser UI; see [tasks](tasks.md).
+Task dependencies/links, work blocks, calendar free slots/conflicts,
 semantic search and AI are not implemented.
 Workspace organization exists;
 saved event views, user databases, table/calendar views and mixed date projection exist.
 Authenticated IIS is unverified/unimplemented.
 Frontend email/Google login/registration, explicit Google linking, browser email verification and password recovery,
-optional academic-group selection and weekly calendar personal-event create/edit/delete are implemented.
+optional academic-group selection, day/week calendar personal-event create/edit/delete
+and task management are implemented.
 Session isolation, sync-result freshness, full-day interval rendering and explicit
 timezone handling have deterministic browser regressions; see
-[frontend](../architecture/frontend.md). Pages, materials/search, reminders/inbox,
-database/saved-view and other business UI remain not implemented.
+[frontend](../architecture/frontend.md). The separately requested frontend redesign
+adds the shared light/dark shell, flat block page editor, materials/search,
+collections/tags, database schemas/records/table and day/week/month saved views,
+reminders/inbox and profile/avatar settings. Official override editing, saved event
+views and mixed projection remain API-only. Tasks share the redesigned navigation,
+theme and dialogs. AI remains unavailable.
+The P-01–P-08 sections below preserve their original backend-slice scope; their
+verification history is not evidence of rerunning backend checks for the UI work.
 
 ## 3. P-01 standalone pages
 
@@ -153,9 +161,11 @@ until explicitly scheduled. Formulas, rollups and automatic arbitrary workflows 
 
 ## 8. P-06 typed tasks and availability
 
-Status: partially implemented — standalone task create/read/list/update, status/priority,
-exact deadlines/effort, optimistic versions and authenticated APIs are implemented,
-backend only; see [task contracts](tasks.md). Hierarchy/trash, dependencies/page links,
+Status: partially implemented — task create/read/list/update, status/priority,
+exact deadlines/effort, optimistic versions, owner-scoped subtask hierarchy,
+recoverable branch trash, authenticated APIs and task management UI are implemented;
+see [task contracts](tasks.md).
+Dependencies/page links,
 manual blocks and availability are not implemented. The owner selected manual-only
 incremental delivery; automatic planning and saved work preferences remain later work.
 Dependencies: existing calendar; optional page links after P-02.
@@ -163,8 +173,8 @@ Can be requested earlier independently of databases. Q-07 is resolved: independe
 typed tasks with optional source links and no automatic checkbox/record synchronization.
 Future calendar contracts remain Q-05. See [AI planning requirements](../product/ai.md#6-calendar-and-deterministic-planning).
 
-Tasks support standalone CRUD, status/priority, optional deadline/effort and optional
-links. Define transition/dependency rules and prevent dependency cycles. Keep typed
+The complete target adds recoverable deletion and optional links to the existing
+status/priority/deadline/effort fields. Define dependency rules and prevent cycles. Keep typed
 planning state authoritative; a customizable row is not silently a task.
 
 Add calendar operations:

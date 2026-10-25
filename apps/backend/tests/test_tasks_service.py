@@ -7,7 +7,13 @@ import pytest
 
 from app.modules.tasks.application.ports import TaskRepository
 from app.modules.tasks.application.service import TaskService
-from app.modules.tasks.domain.tasks import InvalidTaskInput, TaskNotFound, TaskVersionConflict
+from app.modules.tasks.domain.tasks import (
+    InvalidTaskInput,
+    TaskHierarchyConflict,
+    TaskNotFound,
+    TaskTrashConflict,
+    TaskVersionConflict,
+)
 from app.modules.users.application.ports import UserAuthentication
 from app.modules.users.domain.profile import ProfileUnavailable
 
@@ -18,7 +24,83 @@ def setup_service():
     repository = create_autospec(TaskRepository, instance=True)
     users = create_autospec(UserAuthentication, instance=True)
     users.is_active.return_value = users.lock_active.return_value = True
+    repository.has_open_descendants.return_value = False
+    repository.has_open_batch_tasks.return_value = False
     return TaskService(repository, users, now=lambda: NOW), repository, users
+
+
+def test_subtask_parent_owner_and_cycle_rules() -> None:
+    service, repository, _ = setup_service()
+    owner = uuid4()
+    root = service.create(owner, {"title": "Root"})
+    child = service.create(owner, {"title": "Child"})
+    grandchild = service.create(owner, {"title": "Grandchild"})
+    tasks = {
+        root.id: root,
+        child.id: replace(child, parent_id=root.id),
+        grandchild.id: replace(grandchild, parent_id=child.id),
+    }
+    repository.get.side_effect = lambda user_id, task_id: (
+        tasks.get(task_id) if user_id == owner else None
+    )
+    with pytest.raises(TaskHierarchyConflict):
+        service.update(owner, root.id, {"parent_id": grandchild.id}, 1)
+    with pytest.raises(TaskHierarchyConflict):
+        service.update(owner, child.id, {"parent_id": child.id}, 1)
+    with pytest.raises(TaskNotFound):
+        service.create(owner, {"title": "Private", "parent_id": uuid4()})
+    with pytest.raises(TaskNotFound):
+        service.update(owner, child.id, {"parent_id": uuid4()}, 1)
+    repository.save.assert_not_called()
+
+
+def test_deep_parent_chain_has_no_fixed_depth_limit() -> None:
+    service, repository, _ = setup_service()
+    owner = uuid4()
+    root = service.create(owner, {"title": "Root"})
+    tasks = {root.id: root}
+    parent_id = root.id
+    for _ in range(1100):
+        child = replace(root, id=uuid4(), parent_id=parent_id)
+        tasks[child.id] = child
+        parent_id = child.id
+    repository.get.side_effect = lambda _, task_id: tasks.get(task_id)
+    created = service.create(owner, {"title": "Deep child", "parent_id": parent_id})
+    assert created.parent_id == parent_id
+
+
+def test_completion_and_reopening_enforce_descendant_state() -> None:
+    service, repository, _ = setup_service()
+    owner = uuid4()
+    root = service.create(owner, {"title": "Root"})
+    child = replace(service.create(owner, {"title": "Child"}), parent_id=root.id)
+    repository.get.side_effect = lambda _, task_id: {root.id: root, child.id: child}.get(task_id)
+    repository.has_open_descendants.return_value = True
+    with pytest.raises(TaskHierarchyConflict):
+        service.update(owner, root.id, {"status": "done"}, 1)
+    repository.has_open_descendants.return_value = False
+    done = service.update(owner, root.id, {"status": "done"}, 1)
+    repository.get.side_effect = lambda _, task_id: {root.id: done, child.id: child}.get(task_id)
+    with pytest.raises(TaskHierarchyConflict):
+        service.create(owner, {"title": "New open child", "parent_id": root.id})
+    with pytest.raises(TaskHierarchyConflict):
+        service.update(owner, child.id, {"status": "todo"}, 1)
+
+
+def test_combined_parent_and_status_patch_checks_final_state() -> None:
+    service, repository, _ = setup_service()
+    owner = uuid4()
+    done = service.create(owner, {"title": "Done", "status": "done"})
+    child = service.create(owner, {"title": "Child", "status": "done"})
+    repository.get.side_effect = lambda _, task_id: {done.id: done, child.id: child}.get(task_id)
+    with pytest.raises(TaskHierarchyConflict):
+        service.update(owner, child.id, {"parent_id": done.id, "status": "todo"}, 1)
+    repository.has_open_descendants.return_value = True
+    with pytest.raises(TaskHierarchyConflict):
+        service.update(owner, child.id, {"parent_id": done.id, "status": "cancelled"}, 1)
+    repository.has_open_descendants.return_value = False
+    moved = service.update(owner, child.id, {"parent_id": done.id, "status": "cancelled"}, 1)
+    assert moved.parent_id == done.id and moved.status == "cancelled"
 
 
 def test_create_and_partial_update_preserve_independent_state() -> None:
@@ -122,6 +204,9 @@ def test_reads_and_writes_recheck_canonical_user() -> None:
         {"offset": 2**31},
         {"status": "unknown"},
         {"priority": "unknown"},
+        {"parent_id": "invalid"},
+        {"roots_only": 1},
+        {"parent_id": uuid4(), "roots_only": True},
     ],
 )
 def test_invalid_lists_rejected(values) -> None:
@@ -129,3 +214,43 @@ def test_invalid_lists_rejected(values) -> None:
     with pytest.raises(InvalidTaskInput):
         service.list(uuid4(), **values)
     repository.list.assert_not_called()
+
+
+def test_trash_requires_active_task_and_root_restore() -> None:
+    service, repository, _ = setup_service()
+    owner = uuid4()
+    task = service.create(owner, {"title": "Task"})
+    trashed = replace(task, version=2, trashed_at=NOW, trash_batch_id=task.id)
+    repository.get.side_effect = [task, trashed, trashed, task]
+    assert service.trash(owner, task.id, 1) == trashed
+    repository.trash_branch.assert_called_once_with(owner, task.id, NOW)
+    with pytest.raises(TaskTrashConflict):
+        service.update(owner, task.id, {"title": "Edit"}, 2)
+    repository.get.side_effect = [trashed, task]
+    assert service.restore(owner, task.id, 2) == task
+    repository.restore_batch.assert_called_once_with(owner, task.id, NOW)
+
+
+def test_restore_rejects_batch_member_and_open_branch_under_done_parent() -> None:
+    service, repository, _ = setup_service()
+    owner = uuid4()
+    parent = service.create(owner, {"title": "Done parent", "status": "done"})
+    child = replace(
+        service.create(owner, {"title": "Child"}),
+        parent_id=parent.id,
+        trashed_at=NOW,
+        trash_batch_id=uuid4(),
+    )
+    repository.get.side_effect = lambda _, identifier: {parent.id: parent, child.id: child}.get(
+        identifier
+    )
+    with pytest.raises(TaskTrashConflict):
+        service.restore(owner, child.id, 1)
+    child = replace(child, trash_batch_id=child.id)
+    repository.get.side_effect = lambda _, identifier: {parent.id: parent, child.id: child}.get(
+        identifier
+    )
+    repository.has_open_batch_tasks.return_value = True
+    with pytest.raises(TaskHierarchyConflict):
+        service.restore(owner, child.id, 1)
+    repository.restore_batch.assert_not_called()

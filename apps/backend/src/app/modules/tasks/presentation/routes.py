@@ -16,9 +16,11 @@ from app.modules.auth.presentation.dependencies import (
 from app.modules.tasks.application.service import TaskService
 from app.modules.tasks.domain.tasks import (
     InvalidTaskInput,
+    TaskHierarchyConflict,
     TaskNotFound,
     TaskPriority,
     TaskStatus,
+    TaskTrashConflict,
     TaskVersionConflict,
 )
 from app.modules.tasks.infrastructure.repository import SqlAlchemyTaskRepository
@@ -28,6 +30,7 @@ from app.modules.tasks.presentation.schemas import (
     TaskPatch,
     TaskResponse,
     TaskSummaryResponse,
+    TaskVersionRequest,
 )
 from app.modules.users.infrastructure.repository import SqlAlchemyUserAuthentication
 
@@ -67,12 +70,22 @@ def list_tasks(
     tasks: Tasks,
     status: TaskStatus | None = None,
     priority: TaskPriority | None = None,
+    parent_id: UUID | None = None,
+    roots_only: bool = False,
+    trashed: bool = False,
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
     offset: Annotated[int, Query(ge=0, le=2**31 - 1)] = 0,
 ) -> TaskListResponse:
     with database.begin():
         result = tasks.list(
-            current.user_id, status=status, priority=priority, limit=limit, offset=offset
+            current.user_id,
+            status=status,
+            priority=priority,
+            parent_id=parent_id,
+            roots_only=roots_only,
+            trashed=trashed,
+            limit=limit,
+            offset=offset,
         )
         now = tasks.now()
         return TaskListResponse(
@@ -110,12 +123,50 @@ def update_task(
     return response
 
 
+@router.post("/{task_id}/trash", response_model=TaskResponse, dependencies=[Depends(require_csrf)])
+def trash_task(
+    task_id: UUID,
+    payload: TaskVersionRequest,
+    current: CurrentSession,
+    database: Database,
+    tasks: Tasks,
+) -> TaskResponse:
+    with database.begin():
+        response = TaskResponse.from_task(
+            tasks.trash(current.user_id, task_id, payload.expected_version), tasks.now()
+        )
+    logger.info("tasks.task_trashed", extra={"user_id": str(current.user_id)})
+    return response
+
+
+@router.post(
+    "/{task_id}/restore", response_model=TaskResponse, dependencies=[Depends(require_csrf)]
+)
+def restore_task(
+    task_id: UUID,
+    payload: TaskVersionRequest,
+    current: CurrentSession,
+    database: Database,
+    tasks: Tasks,
+) -> TaskResponse:
+    with database.begin():
+        response = TaskResponse.from_task(
+            tasks.restore(current.user_id, task_id, payload.expected_version), tasks.now()
+        )
+    logger.info("tasks.task_restored", extra={"user_id": str(current.user_id)})
+    return response
+
+
 def install_tasks(application: FastAPI) -> None:
     def task_error(request: Request, error: Exception) -> JSONResponse:
         if isinstance(error, InvalidTaskInput):
             status, detail, code = 422, "Invalid task input.", "invalid_task_input"
         elif isinstance(error, TaskNotFound):
             status, detail, code = 404, "Task not found.", "task_not_found"
+        elif isinstance(error, TaskHierarchyConflict):
+            status, detail, code = 409, "Task hierarchy conflict.", "task_hierarchy_conflict"
+        elif isinstance(error, TaskTrashConflict):
+            status, detail, code = 409, "Task trash conflict.", "task_trash_conflict"
         else:
             status, detail, code = 409, "Task changed. Reload and retry.", "task_version_conflict"
         log_failure(logger, "tasks.operation_rejected", error, level=logging.WARNING, reason=code)
@@ -125,6 +176,12 @@ def install_tasks(application: FastAPI) -> None:
             headers={"Cache-Control": "no-store"},
         )
 
-    for error_type in (InvalidTaskInput, TaskNotFound, TaskVersionConflict):
+    for error_type in (
+        InvalidTaskInput,
+        TaskNotFound,
+        TaskHierarchyConflict,
+        TaskTrashConflict,
+        TaskVersionConflict,
+    ):
         application.add_exception_handler(error_type, task_error)
     application.include_router(router)

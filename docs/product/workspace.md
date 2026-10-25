@@ -1,19 +1,23 @@
 # Workspace and Calendar Requirements
 
-Updated: 2026-10-21.
+Updated: 2026-10-25.
 Status: target requirements. Calendar, nested pages with flat typed blocks and page/calendar
-links, collections/tags and saved calendar views are implemented, backend only; see [notes](../development/notes.md),
+links, collections/tags and saved calendar views are implemented in the backend; see [notes](../development/notes.md),
 [relations](../development/relations.md), [workspace](../development/workspace.md)
 and [calendar views](../development/calendar-views.md).
 User databases, table/calendar views and mixed date projection are also implemented,
-backend only; see [database contracts](../development/databases.md).
+see [database contracts](../development/databases.md).
 Remaining capabilities are planned. See [open decisions](open-questions.md) before selecting
 remaining editor, membership or calendar details; personal scope is confirmed.
 Private materials, optional page attachments and basic full-text search are also
-implemented, backend only; see [materials/search](../development/materials.md).
-Standalone task create/read/list/update, status/priority, exact deadlines and effort
-are implemented, backend only; hierarchy/trash/dependencies/links, work blocks and
-availability remain planned. See [task delivery](../development/tasks.md).
+implemented; see [materials/search](../development/materials.md).
+The [frontend guide](../architecture/frontend.md) records the delivered block editor,
+organization, database views, materials/search and reminder/inbox UI, including its
+limits. Saved event views and mixed projection remain API-only.
+Tasks support create/read/list/update, status/priority, exact deadlines/effort,
+subtask hierarchy and recoverable branch trash in the same browser shell.
+Dependencies/links, work blocks and availability remain planned; see
+[task delivery](../development/tasks.md).
 
 ## 1. Vocabulary
 
@@ -97,7 +101,7 @@ An event appears in "Study" and "This week", with a linked standalone page.
 
 Collections/tags and membership/reverse APIs are implemented, including safe
 deletion and duplicate handling. Saved event views and database table/calendar
-views are implemented, backend only. Membership
+views are implemented. Database views have UI; saved event views remain API-only. Membership
 does not implicitly include nested pages, linked events or other organization.
 
 ### WS-06: User-defined databases
@@ -130,7 +134,7 @@ The user shows the database's "Planned date" property in a calendar view.
 - Display identities distinguish personal events, official occurrences, record-date
   projections and deadlines. No copied event is manufactured just for rendering.
 
-Database-record date projection and versioned moves are implemented, backend only;
+Database-record date projection and versioned moves are implemented in the backend;
 see [database contracts](../development/databases.md). Personal all-day events, task
 deadlines and recurrence remain not implemented; their scope stays under Q-05/07.
 

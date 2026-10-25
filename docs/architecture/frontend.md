@@ -1,6 +1,6 @@
-# Ukladen Frontend Foundation
+# Ukladen Frontend
 
-Status: shell, mandatory registration completion, browser email verification, email/Google login and registration, safe automatic/explicit Google linking, email password recovery, academic-group selection and a weekly calendar with personal-event create/edit/delete are implemented. Other business UI remains not implemented.
+Status: implemented — shared light/dark shell, authentication and registration completion, optional group selection, day/week personal calendar, tasks with subtasks/trash, page/block editor, materials, collections/tags, database table/calendar views, search, reminders/inbox and profile/avatar settings. The boundaries below distinguish these interfaces from future backend capabilities.
 
 `apps/web` uses Next.js App Router, React and strict TypeScript. The root layout
 provides a TanStack Query client created once per mounted provider. The frontend
@@ -100,8 +100,20 @@ users without an academic profile can choose to connect a BSUIR group or continu
 without one. Group selection uses the existing group catalogue, group-context,
 profile PATCH and schedule-sync endpoints. The calendar displays the authenticated
 user's resolved week and supports personal-event create/edit/delete. Profile actions
-open the group selector or revoke the current session. It does not implement tasks,
-page editing or saved views.
+open the group selector, settings or revoke the current session. AI remains disabled.
+Official event details are
+read-only; override editing and saved event-calendar views remain API-only.
+
+Tasks use the same desktop/mobile navigation, shared API client, per-identity
+query cache and native dialogs as the other workspace sections. The paginated
+list supports status/priority filters, detail/edit forms, exact deadlines/effort,
+arbitrary-depth subtasks and parent moves. Branch trash requires confirmation;
+only a trash-batch root can restore its batch, preserving earlier independent
+deletions. The backend validates hierarchy and optimistic versions. Version
+conflicts retain the editor draft until explicit reload. Deadline input uses
+the profile timezone and explicit DST disambiguation. Task surfaces consume the
+shared light/dark tokens; task dependencies, scheduling and reminders are not
+implemented. See [task contracts](../development/tasks.md).
 
 The workspace checks `/api/v1/users/me` before mounting private data. Each authenticated
 identity owns a separate query client and mounted forms; logout, session expiry and
@@ -118,7 +130,7 @@ An old `ready` state is not a new success. Polling continues after the three-min
 waiting notice and recovers when the worker finishes. The queue response is acceptance
 only; no upstream task identifier is invented.
 
-The week grid covers 00:00–24:00 in a scrollable region, initially scrolled to 08:00.
+The day/week grid covers 00:00–24:00 in a scrollable region, initially scrolled to 08:00.
 Events are clipped into overlapping day segments, including continuations from the
 previous week; opening a segment edits the original interval. Lane placement uses
 the clipped intervals, and card height follows duration without a maximum cap.
@@ -132,9 +144,81 @@ offset selection; nonexistent local times are rejected. Editing preserves the or
 instant, including seconds, when its displayed local time is unchanged. These
 conversions use platform `Intl`; no timezone dependency was added.
 
-`src/app` contains routing and the shell. `src/shared` contains the query provider
-and connection indicator. Feature/entity/widget directories will be introduced
-with real UI slices rather than empty scaffolding.
+## Design system and structure
+
+The A1 calendar/note symbol remains the product identity. `src/app/globals.css`
+defines semantic CSS variables for surfaces, plum text, lavender accent, borders,
+muted text, focus rings, destructive feedback and official-event teal. Components
+consume these tokens rather than inventing page palettes. `data-theme` selects
+light/dark/system; a small startup script prevents an incorrect initial theme.
+Only `ukladen-theme` is persisted locally. System mode follows the OS, and
+`prefers-reduced-motion` suppresses decorative transitions. System fonts avoid
+network font downloads. Use the existing spacing, radii, button and field classes.
+
+- `src/shared/api.ts`: same-origin cookie requests, fresh CSRF for writes, typed
+  errors and global session-expiry/registration-completion handling.
+- `src/shared/ui.tsx`: native dialog with Escape, focus containment/return and
+  backdrop dismissal; empty/loading/error/retry states, pagination and duplicate
+  submission protection with inline accessible action feedback.
+- `src/shared/theme.tsx`: theme control and external-store subscription.
+- `src/app/workspace/workspace.tsx`: session boundary, group/sync flow, sidebar,
+  topbar and original event renderer/forms. `navigation.tsx` owns section labels
+  and the inline SVG icon set. Section navigation stays inside `/workspace`.
+- `workspace/views.tsx`: dashboard, settings and section composition. The workspace
+  views, note editor and database editor load lazily. Panels under `workspace/panels`
+  own content forms, resources, organization and optional relations.
+- `workspace/workspace.css`: shared workspace and panel layout. Reuse its panels,
+  toolbar, form, list, action and confirmation patterns before adding variants.
+
+The desktop sidebar can collapse. At 900px and below it becomes an explicit mobile
+navigation dialog; page toolbars wrap, note lists stack and forms scroll within
+viewport-bounded dialogs. Dense calendars/tables scroll inside their own regions
+without making the document wider than the viewport. A day calendar is available
+alongside the week grid. Keyboard focus is visible, form labels are explicit and
+icon-only controls have accessible names. Native controls preserve platform input
+and keyboard behavior. No new runtime dependency was added: Tailwind, shadcn,
+Lucide, Motion and rich-editor packages are not required by this implementation.
+
+## Implemented workspace interfaces
+
+- Dashboard links to actual pages and resources; it does not fabricate activity.
+- Notes expose a paginated hierarchy, parent selection, recoverable trash and
+  versioned flat blocks: text/Markdown, headings, lists, checkboxes and links.
+  Editing/reordering preserves block UUIDs and Markdown format. Saves are explicit;
+  unsaved navigation is confirmed. Metadata and document saves use successive
+  versions in separate requests. A document failure retains the draft and the
+  successful metadata version; a conflict requires explicit reload instead of
+  overwriting another edit. Optional event backlinks/material attachments change
+  references only. Rich inline markup, nested blocks, history and collaboration
+  remain outside the current schema/UI.
+- Materials provide bookmarks, metadata, trash/restore, processing retry, downloads,
+  retained quotas and the existing reservation/raw-upload contract. An interrupted
+  upload rechecks metadata before retrying the same reservation. No remote fetching
+  or new file processing is performed in the browser.
+- Collections/tags expose explicit page/event membership and safe removal of
+  references. Page choices are bounded to 200; event choices use the loaded calendar
+  week. Member lists paginate. Broader selection needs a future search picker.
+- Databases expose definitions, seven typed property kinds, stable select-option
+  IDs, schema/version checks, recoverable fields/records and existing/new page
+  records. Saved table views support typed filters, sorting and visible columns;
+  date-bound calendar views support day/week/month. Editing fetches the full record
+  and PATCH sends touched fields only, preserving hidden/null values. Date-only
+  values stay dates; timed inputs require explicit offsets. Timed end midnight is
+  exclusive. Date edits use record forms; drag moves and mixed event/database
+  display remain API-only. No formulas or task behavior is implied by record fields.
+- Search uses the existing filtered full-text endpoint and renders snippets as text,
+  never HTML. Results open the selected page or material.
+- The inbox supports unread filtering/read marking. Event details create one-shot
+  reminders; the pending list displays the latest 50 and permits cancellation.
+  Task deadlines, recurring reminders and other delivery channels are unavailable.
+- Settings edit display name/timezone and upload/delete a private avatar. Timezone
+  changes refresh the session/calendar without rewriting event instants. Avatar
+  files use the existing raw API and limits, never public optimized-image caching.
+
+Actions show pending/success/error feedback and recoverable destructive operations
+require confirmation. No private query data, drafts or credentials are persisted in
+local/session storage. Request cancellation and the per-identity query boundary
+also cover all newly mounted panels.
 
 The current weekly calendar is rendered with React and CSS. Unused Zustand and
 FullCalendar packages were removed during the 2026-10-21 audit; they remain target
@@ -144,16 +228,17 @@ calculations. Permissions, schedule resolution and planning rules remain backend
 
 ## Target product responsibilities
 
-Status: partially implemented. Future business UI adds independent pages, official-event override
-editing, optional organization, block documents and database/calendar views.
-Personal-event editing already exists. Subjects
+Status: partially implemented. Future UI includes official-event override editing,
+saved event-calendar views, mixed date projection, task scheduling and AI after their
+backend slices. Subjects
 are optional navigation. Date labels and time reservations must be distinguishable.
 AI UI exposes supporting sources, recommendations, exact proposals/confirmation and
 explicit automatic-action permission management. Shared editing and formulas are deferred.
 
 Follow [workspace requirements](../product/workspace.md) and resolve editor/collaboration
 scope in [open decisions](../product/open-questions.md) before choosing UI contracts.
-The current calendar does not introduce an editor library or database-view system.
+The block editor preserves the existing document schema; database interfaces use
+the existing saved-view API without introducing a second query language.
 
 ## Current verification and runtime
 
@@ -161,7 +246,7 @@ ESLint uses Next.js's accessibility, React and TypeScript rules. `tsc --noEmit`
 provides type checking. Playwright runs Chromium tests against the built frontend:
 shell/connectivity success/failure, verification/reset link handling and workspace flows.
 Workspace tests cover account isolation/session expiry, registration/login and optional
-group onboarding, CSRF-protected personal CRUD, read-only official events, queued/fast
+group onboarding, CSRF-protected personal-event and task writes, read-only official events, queued/fast
 IIS imports and recovery, interval continuations, calendar timezones and DST inputs.
 Verification
 tests check one POST with cookies/CSRF/Origin, fragment/history cleanup, privacy
@@ -175,8 +260,25 @@ Continuation tests cover existing-account password confirmation, login before li
 initiation, desktop/mobile UI, retries, duplicate submits and untrusted error markers.
 Registration tests cover desktop/mobile password setup, mandatory verification,
 resend, polling, identity/session changes, error recovery and email-proof privacy.
-Browser tests mock API responses; backend tests cover real PostgreSQL/Redis/SMTP
-flows. Compose health verification checks the real backend separately.
+Workspace content tests additionally cover note UUID/version/conflict recovery,
+raw material uploads, hidden database fields, schema/option identities, typed saved
+view queries, existing-page records, date-only/end-exclusive calendar entries,
+reference removal without content deletion, search text safety, reminders, inbox,
+profile/avatar writes and private draft cleanup. Responsive tests capture calendar,
+note-editor and dialog screenshots at 1440, 834 and 390px, including dark mode.
+Browser tests mock API responses; they are not live storage/email/IIS integration
+checks. Backend tests cover PostgreSQL/Redis/SMTP separately. Verification history
+in backend guides describes the original backend slices, not a rerun during UI work.
+
+2026-10-22 frontend redesign verification: ESLint, TypeScript, production build,
+all 124 Chromium Playwright tests, `docker compose config --quiet` and local
+Markdown links passed. Screenshots were inspected at desktop/tablet/mobile sizes;
+a visually hidden table heading escaping its mobile scroll container was corrected.
+An additional local check matched 19 recorded browser mutations to actual FastAPI
+routes and validated their 13 JSON bodies with the backend Pydantic DTOs, without
+starting a backend lifespan or contacting external services. This checks transport
+compatibility, not live integration. Backend Ruff/Pyright/pytest were not rerun
+because backend code is unchanged.
 
 Rendering errors use App Router `error.tsx` and `global-error.tsx` fallbacks with
 a retry action and fixed JSON browser diagnostics. Failed health checks and email
@@ -199,3 +301,29 @@ The Dockerfile builds Next.js standalone output and serves it as the non-root
 `node` user. No extra UI framework, font download or bundling orchestrator is used.
 `npm run build` includes static assets in that standalone output; `npm start` runs
 the same standalone server used by Docker.
+
+Executed on 2026-10-25 for the task screen: frontend lint, TypeScript typecheck,
+production build, all **105 Playwright tests** (including four task flows), and
+quiet base Compose validation passed. Playwright used a temporary Chromium shell;
+no deployment or application database migration was performed. The tests mock
+task HTTP responses and do not replace backend PostgreSQL integration coverage.
+
+Executed on 2026-10-25 for task branch trash: frontend lint, TypeScript
+typecheck, production build, **106 Playwright tests** (including the trash and
+restore flow) and quiet base Compose validation passed. The browser test uses
+mock task HTTP responses; backend tests separately exercise PostgreSQL. No
+application database migration or deployment was performed.
+
+Executed on 2026-10-25 for workspace/task integration: frontend lint, TypeScript
+typecheck, production build and all **129 Chromium Playwright tests** passed.
+The combined suite covers task editing, conflicts, hierarchy, branch recovery,
+account isolation and the existing workspace panels. Task navigation and native
+dialogs were exercised at 1440, 834 and 390px; light/dark screenshots were
+visually inspected. Quiet base Compose validation also passed.
+
+Backend code is unchanged by this integration. Ruff, Ruff format check, Pyright
+and the default backend pytest suite passed: **1020 passed, 607 skipped,
+1 warning**. Native PostgreSQL/Redis/S3 integration services were not configured
+for this run; the warning is the existing Starlette/httpx deprecation. Earlier
+dated native-service results remain separate evidence. No application database
+migration, deployment or provider call was performed.

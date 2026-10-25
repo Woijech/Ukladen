@@ -48,6 +48,7 @@ test("registration, group import, personal CRUD and returning-user login work to
   expect(state.writes.find(write => write.path.includes("/personal-events/") && write.method === "PATCH")?.body).toMatchObject({ expected_version: 1, title: "Updated plan", description: "Prepare exercises" });
   await page.locator(".event-card").filter({ hasText: "Updated plan" }).click();
   await page.getByRole("button", { name: "Удалить", exact: true }).click();
+  await page.getByRole("button", { name: "Удалить событие", exact: true }).click();
   await expect(page.locator(".event-card")).toHaveCount(1);
   await expect(page.locator(".event-card")).toContainText("IIS lesson");
 

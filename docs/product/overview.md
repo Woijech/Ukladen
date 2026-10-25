@@ -1,6 +1,6 @@
 # Ukladen Product Overview
 
-Updated: 2026-10-21.
+Updated: 2026-10-25.
 Status: target product specification; only capabilities listed as implemented
 below exist. Product references describe intent, not feature parity with another app.
 
@@ -19,7 +19,7 @@ The target includes blocks, user-defined databases/properties and saved views.
 The owner confirmed pages, blocks and user-defined databases, with mandatory table
 and calendar views. Formulas are deferred. Remaining schema/editor details are in
 [open decisions](open-questions.md). Standalone nested pages with flat typed blocks
-and Markdown compatibility are implemented, backend only. Database/property/page-backed
+and Markdown compatibility are implemented with a flat block editor UI. Database/property/page-backed
 record APIs, saved table/calendar views, nonblocking date projection and mixed
 calendar display are implemented.
 See [database delivery status](../development/databases.md).
@@ -42,7 +42,7 @@ See [workspace requirements](workspace.md) for examples and acceptance cases.
 
 ## 3. Pages and knowledge
 
-Implemented, backend only: standalone nested pages, flat typed blocks, versions and recoverable
+Implemented in the backend: standalone nested pages, flat typed blocks, versions and recoverable
 branch trash, optional personal/official calendar links, user collections/tags and saved calendar views; see
 [notes](../development/notes.md), [relations](../development/relations.md) and
 [workspace](../development/workspace.md) and [calendar views](../development/calendar-views.md).
@@ -50,7 +50,7 @@ branch trash, optional personal/official calendar links, user collections/tags a
 Users can create standalone pages, nest pages, edit text/headings/lists/checkboxes/links
 and optionally link pages to events. Block IDs remain stable through edits and order
 changes; legacy Markdown is preserved without parsing. Optional material attachments
-are implemented; task/page-page links, rich formatting and editor UI remain future work.
+are implemented with UI; task/page-page links and rich formatting remain future work.
 
 User-defined databases organize page-backed records with typed properties. Table
 and calendar views are mandatory. List/board views are optional later work; formulas
@@ -62,7 +62,7 @@ view or membership must not silently destroy the underlying page.
 
 ## 4. Calendar
 
-Implemented, backend only: personal-event CRUD, per-user overrides of official
+Implemented in the backend: personal-event CRUD, per-user overrides of official
 occurrences, resolved interval reads with source freshness warnings and optional
 page links/backlinks.
 See [current calendar API](../development/calendar.md).
@@ -71,7 +71,9 @@ Collection/tag names, colors and explicit memberships are implemented in workspa
 Saved calendar views over authorized official/personal events are implemented,
 with per-source collection/tag filters and saved layout/sorting preferences.
 Database table/calendar views, date projection and versioned date moves are implemented.
-The weekly calendar UI and academic-group selection are implemented.
+The day/week calendar UI, database table/day/week/month views, collections/tags
+and academic-group selection are implemented. Saved event views and mixed projection
+remain API-only; see the [frontend guide](../architecture/frontend.md).
 Status: not implemented — per-event colors, all-day and
 recurring personal events, occupied/free intervals,
 conflict checks and task scheduling blocks.
@@ -114,11 +116,12 @@ External labels remain metadata, not authoritative grouping identities.
 
 ## 7. Tasks, planning and reminders
 
-Basic standalone task create/read/list/update, status/priority, exact deadlines and
-effort are implemented, backend only; see [tasks](../development/tasks.md).
-Task hierarchy/trash/dependencies/links, work blocks and availability are not implemented.
-Calendar reminders and durable
-in-app notifications are implemented, backend only; see [reminder contracts](../development/reminders.md).
+Task create/read/list/update, status/priority, exact deadlines/effort, subtask
+hierarchy and recoverable branch trash are implemented with a browser task screen;
+see [tasks](../development/tasks.md). Task dependencies/links, work blocks and
+availability are not implemented.
+Calendar reminders and durable in-app notifications are implemented with event
+reminder and inbox UI; see [reminder contracts](../development/reminders.md).
 
 Tasks exist independently of subjects and pages. The complete target includes status, priority,
 optional deadline, effort, dependencies, optional links and explicit calendar blocks.
@@ -136,7 +139,7 @@ and push channels require their own contracts and delivery decisions.
 ## 8. Materials, search and AI
 
 Status: private materials, page attachments and basic search are implemented,
-backend only. Files use S3-compatible storage, with ownership and processing metadata
+with materials/search UI. Files use S3-compatible storage, with ownership and processing metadata
 in PostgreSQL. Limits are 25 MiB/file and 1 GiB retained file storage/user. Text PDF,
 DOCX, PPTX, TXT and Markdown extraction runs asynchronously without OCR. Bookmarks
 store URLs without fetching them. Filtered full-text search covers authorized pages,
@@ -179,14 +182,16 @@ AI-00 is specified; AI and analytics runtime remain not implemented. See [AI arc
 | Date-bound calendar views, date moves and mixed calendar display | Implemented backend |
 | Rich/nested blocks and page-page knowledge links | Status: not implemented. |
 | One-shot calendar reminders and durable in-app notifications | Implemented backend |
-| Standalone task create/read/list/update, status/priority, exact deadline/effort and versions | Implemented backend |
-| Task hierarchy/trash/dependencies/links, work blocks, availability and task/deadline reminders | Status: not implemented. |
+| Task create/read/list/update, subtask hierarchy, recoverable branch trash, status/priority, exact deadline/effort and versions | Implemented backend and browser UI |
+| Task dependencies/links, work blocks, availability and task/deadline reminders | Status: not implemented. |
 | Private materials, page attachments and bounded document extraction | Implemented backend; no OCR |
 | Filtered PostgreSQL full-text search over pages/materials | Implemented backend |
 | Semantic search, AI and RAG | Status: not implemented. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
 | Weekly calendar, personal-event create/edit/delete, login/registration and group selection UI | Implemented |
-| Workspace pages, tasks, saved views, databases and remaining business UI | Status: not implemented. |
+| Flat block pages, materials/search, collections/tags, database saved views, reminders/inbox and profile/avatar UI | Implemented; see [frontend scope and limits](../architecture/frontend.md) |
+| Official override editing, saved event views and mixed calendar display UI | Status: not implemented; backend APIs exist. |
+| AI UI | Status: not implemented. |
 
 ## 10. Development approach
 

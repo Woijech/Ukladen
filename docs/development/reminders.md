@@ -1,8 +1,9 @@
 # Calendar reminders and in-app notifications
 
-Updated: 2026-10-15.
-Status: P-07 implemented, backend only. Tasks/deadlines depend on P-06 and are not
-implemented. There is no reminder UI, recurrence, email, Telegram or push channel.
+Updated: 2026-10-22.
+Status: P-07 backend implemented, with event reminder creation, pending cancellation
+and inbox UI; see the [frontend guide](../architecture/frontend.md). Tasks/deadlines
+depend on P-06 and are not implemented. Recurrence, email, Telegram and push remain unavailable.
 
 ## Ownership and trigger contract
 

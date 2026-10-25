@@ -1,11 +1,12 @@
 # Workspace Organization Backend
 
-Updated: 2026-10-15.
+Updated: 2026-10-22.
 Status: collections, tags, typed memberships, member lists and reverse lookups are
-implemented, backend only. Saved calendar views are also implemented; see
+implemented. Saved calendar views are also implemented; see
 [their API and filter lifecycle](calendar-views.md). User databases and table/calendar
 views with mixed date projection are implemented; see [database contracts](databases.md).
-The workspace UI is not implemented.
+Collections/tags and membership UI are implemented; saved event views remain API-only.
+See the [frontend guide](../architecture/frontend.md) for bounded selectors and UI scope.
 
 Collections and tags are independent personal definitions. No academic profile,
 page or event is required. Names are trimmed to 1–100 characters; NUL and invalid
