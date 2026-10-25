@@ -1,1 +1,1 @@
-"""External adapter boundary. Status: not implemented."""
+"""Local CPU embedding adapters."""
