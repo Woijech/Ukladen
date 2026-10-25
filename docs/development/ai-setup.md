@@ -173,7 +173,10 @@ Keep real keys and configured catalogs under ignored .secrets/ai/, never in shar
 3. Implement/test the normalized adapter behind LlmProvider. Explicitly reject modes
    it cannot support; use separate validated steps when its structured/tool/streaming
    features cannot be combined. No implicit fallback to another provider or payer.
-4. Perform one intentionally activated synthetic application smoke, recording actual
+4. Obtain the owner's explicit bounded real-request approval under
+   [the spending policy](../../AGENTS.md#owner-approval-for-real-api-usage) before
+   any real smoke, independently of key provisioning or activation. Perform only
+   the approved synthetic application smoke, recording actual
    attempts/usage and safe outcomes. Simulate 429/timeouts/refusals in fake tests;
    do not cause unnecessary real rate-limit requests. Private files are not probes.
 5. Activate real source processing only after ownership, secret handling, feature

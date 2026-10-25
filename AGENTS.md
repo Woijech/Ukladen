@@ -232,6 +232,34 @@ scoped, revocable grant checked during execution; they are not globally authoriz
 See `docs/adr/0005-support-scoped-ai-action-permissions.md` and `docs/architecture/ai.md`.
 This product capability does not grant the coding agent unrelated external actions.
 
+### Owner approval for real API usage
+
+The owner requires explicit approval before a coding agent, its scripts, tests or
+automations consume credits, tokens or limited quotas on the owner's AI/provider
+accounts configured for this project. This applies to OpenRouter/LLMs, embeddings,
+metered search and similar services, including free tiers, smoke tests, health probes
+and retries. Use fakes and synthetic credentials for routine development and verification.
+
+- A saved key, "I inserted it", "ready", a general implementation request or a
+  previous unrelated approval is not permission to make real provider requests.
+- Before real usage, state the purpose, provider/model, maximum request count
+  (including retries/tool-loop model calls), input/output bounds and monetary cap
+  where applicable. Explain quota consumption when cost cannot be estimated. Obtain
+  the owner's explicit confirmation for that concrete bounded operation first.
+- Keep execution within the approved scope and limits. Do not run extra probes,
+  benchmarks, model comparisons, paid fallbacks or retries beyond that approval.
+  A new purpose, model or exhausted budget requires new approval unless already
+  covered by the owner's explicit authorization. Stop immediately if revoked.
+- Do not enable real-provider flags, deploy/restart processes into real usage or
+  schedule background provider calls without approval covering that activation
+  and its spending scope. Never infer continuing automatic spending permission.
+- Do not read, print, log, commit or transmit secret values merely to check that
+  setup exists. Prefer file existence/permission checks and masked metadata.
+
+This is a coding-agent/operator instruction, not an implemented billing cap or a
+new per-message product confirmation flow. It does not make user-facing unlimited
+access a provider spending limit. See `docs/development/ai-connections.md`.
+
 ---
 
 ## 8. Redis and Celery

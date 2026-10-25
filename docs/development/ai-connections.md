@@ -255,6 +255,15 @@ not evidence that an old credential is still authorized.
 
 ## Activation and synthetic account smoke
 
+Owner approval policy (2026-10-25): agents must follow
+[AGENTS.md: owner approval for real API usage](../../AGENTS.md#owner-approval-for-real-api-usage).
+A saved provider key or confirmation that it was inserted does not authorize
+activation or even one real test request. Before a provider-consuming operation,
+obtain explicit approval for its purpose, provider/model, request/retry count,
+input/output bounds and applicable spending cap. Free-tier quotas also require
+approval. Routine verification uses fakes/synthetic credentials. This instruction
+adds no runtime spending cap or new user-facing confirmation prompt.
+
 Keep AI disabled until the reviewed migrations are applied to the intended target,
 maintenance is enabled and connection/privacy/account limits have been checked.
 The current owner's UUID is available from authenticated `GET /api/v1/users/me`;
@@ -273,8 +282,9 @@ docker compose --env-file .env.home -f docker-compose.yml -f docker-compose.home
 ~~~
 
 After explicit activation, use an authenticated owner session to list models, add a
-personal key if desired, and create a new selected chat. Submit one fixed synthetic
-message, inspect stored attempt/usage status and disconnect the test connection.
+personal key if desired, and create a new selected chat. Only with separately scoped
+real-request approval, submit one fixed synthetic message, inspect stored attempt/usage
+status and disconnect the test connection.
 Private pages/files are not probes. Use separate synthetic tool/JSON/stream checks
 before promoting those capabilities for an account. Simulate failures offline rather
 than deliberately exhausting real quotas. No live account smoke has run in this slice.
