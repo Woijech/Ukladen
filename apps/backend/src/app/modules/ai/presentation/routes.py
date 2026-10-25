@@ -48,6 +48,7 @@ from app.modules.auth.presentation.dependencies import (
     require_csrf,
 )
 from app.modules.search.application.evidence import EvidenceResult
+from app.modules.search.infrastructure.runtime import embedding_provider
 
 logger = logging.getLogger(__name__)
 router = APIRouter(
@@ -74,6 +75,9 @@ def get_ai(request: Request, settings: Config) -> AiService:
                 sessions,
                 request.app.state.academic_provider,
                 settings.schedule_sync_interval_seconds,
+                embeddings=embedding_provider(settings.search_embeddings_directory)
+                if settings.search_embeddings_directory
+                else None,
             ),
         ),
         provider=settings.ai_llm_provider,
@@ -123,6 +127,9 @@ def read_source(
         request.app.state.session_factory,
         request.app.state.academic_provider,
         settings.schedule_sync_interval_seconds,
+        embeddings=embedding_provider(settings.search_embeddings_directory)
+        if settings.search_embeddings_directory
+        else None,
     ).read(current.user_id, payload)
 
 

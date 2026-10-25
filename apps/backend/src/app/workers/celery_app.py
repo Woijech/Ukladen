@@ -15,6 +15,7 @@ celery_app = Celery(
         "app.modules.reminders.infrastructure.tasks",
         "app.modules.materials.infrastructure.tasks",
         "app.modules.ai.infrastructure.tasks",
+        "app.modules.search.infrastructure.tasks",
     ],
 )
 celery_app.conf.update(
@@ -29,6 +30,11 @@ celery_app.conf.update(
     beat_schedule={
         "reminders-dispatch-due": {"task": "reminders.dispatch_due", "schedule": 30.0},
         "materials-dispatch": {"task": "materials.dispatch", "schedule": 30.0},
+        **(
+            {"search-dispatch": {"task": "search.dispatch", "schedule": 30.0}}
+            if settings.search_embeddings_directory
+            else {}
+        ),
         **(
             {"ai-reconcile-runs": {"task": "ai.reconcile_runs", "schedule": 30.0}}
             if settings.ai_enabled or settings.ai_retention_enabled

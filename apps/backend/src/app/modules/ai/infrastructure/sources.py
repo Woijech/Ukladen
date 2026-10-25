@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.modules.academics.application.ports import AcademicProvider
 from app.modules.academics.application.profile import AcademicService
 from app.modules.academics.infrastructure.repository import SqlAlchemyAcademicProfileRepository
-from app.modules.ai.application.source_queries import ReadQuery
+from app.modules.ai.application.source_queries import ReadQuery, SearchRead
 from app.modules.ai.application.sources import WorkspaceSourceService
 from app.modules.calendar.application.composition import CalendarCompositionService
 from app.modules.calendar.application.service import CalendarService
@@ -51,8 +51,14 @@ from app.modules.workspace.infrastructure.databases import SqlAlchemyDatabases
 
 class SqlAlchemySourceReader:
     def __init__(
-        self, sessions: sessionmaker[Session], academics: AcademicProvider, stale_after_seconds: int
+        self,
+        sessions: sessionmaker[Session],
+        academics: AcademicProvider,
+        stale_after_seconds: int,
+        *,
+        embeddings=None,
     ) -> None:
+        self.embeddings = embeddings
         self.sessions, self.academics, self.stale_after_seconds = (
             sessions,
             academics,
@@ -92,6 +98,10 @@ class SqlAlchemySourceReader:
 
     def read(self, user_id: UUID, query: ReadQuery) -> EvidenceResult:
         try:
+            if isinstance(query, SearchRead) and self.embeddings is not None:
+                from app.modules.search.infrastructure.hybrid import HybridSearch
+
+                return HybridSearch(self.sessions, self.embeddings).read(user_id, query)
             with self.sessions() as database, database.begin():
                 database.connection(execution_options={"isolation_level": "REPEATABLE READ"})
                 database.execute(text("SET LOCAL statement_timeout = '5s'"))

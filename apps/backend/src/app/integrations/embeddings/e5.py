@@ -22,7 +22,20 @@ class E5EmbeddingProvider:
     def __init__(self, directory: Path) -> None:
         self.directory = directory
         self._lock = Lock()
+        self._tokenizer_cache: Tokenizer | None = None
         self._runtime: tuple[Tokenizer, ort.InferenceSession] | None = None
+
+    def count_tokens(self, text: str) -> int:
+        from tokenizers import Tokenizer
+
+        if self._tokenizer_cache is None:
+            remote, size, digest = FILES[0]
+            verify(self.directory / Path(remote).name, size, digest)
+            tokenizer = Tokenizer.from_file(str(self.directory / "tokenizer.json"))
+            tokenizer.no_truncation()
+            tokenizer.no_padding()
+            self._tokenizer_cache = tokenizer
+        return len(self._tokenizer_cache.encode("passage: " + text).ids)
 
     def _load(self) -> tuple[Tokenizer, ort.InferenceSession]:
         if self._runtime is None:
