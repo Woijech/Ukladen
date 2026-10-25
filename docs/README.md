@@ -32,6 +32,7 @@ Planned contracts do not override the current implemented API silently.
 - [ADR 0005](adr/0005-support-scoped-ai-action-permissions.md): confirmed/scoped automatic AI actions.
 - [ADR 0006](adr/0006-use-versioned-page-block-documents.md): notes block document schema and preserving migration.
 - [ADR 0007](adr/0007-use-page-backed-database-records.md): database record ownership, schema versions and recovery.
+- [ADR 0008](adr/0008-require-completed-registration.md): completed registration before workspace access.
 - [ADR 0009](adr/0009-specify-provider-neutral-ai-orchestration.md): provider-neutral AI orchestration, credentials and deterministic planning boundaries.
 
 ## Current implementation guides
@@ -40,7 +41,6 @@ Planned contracts do not override the current implemented API silently.
 - [Environment reference](development/environment.md): all implemented settings, sources and safe setup.
 - [Auth email delivery](development/auth-email.md).
 - [Google sign-in, registration completion and account linking](development/google-auth.md).
-- [ADR 0008: completed registration](adr/0008-require-completed-registration.md).
 - [User profile](development/user-profile.md) and [avatar](development/user-avatar.md).
 - [Academic profile](development/academic-profile.md).
 - [Public university reads](development/university-api.md).
@@ -59,18 +59,19 @@ Planned contracts do not override the current implemented API silently.
 These guides document existing behavior. Dated verification is evidence of that
 implementation task, not a guarantee that its checks were rerun during a later edit.
 
-## Planned AI delivery
+## AI implementation and planned delivery
 
 - [AI product specification](product/ai.md): owner-agreed chat, knowledge, planning, actions, provider choices and lifecycle.
 - [AI implementation plan](development/ai-implementation-plan.md): AI-00 through AI-12, dependencies and acceptance gates.
 - [AI-01 execution steps](development/ai-01-execution-plan.md): individually approved scopes, deliverables and verification.
 - [AI tool contracts](development/ai-tool-contracts.md): capabilities, typed boundaries, budgets and synthetic acceptance data.
+- [Synthetic AI acceptance fixtures](../apps/backend/tests/fixtures/ai/README.md): versioned specification cases and their implementation boundary.
 - [AI setup runbook](development/ai-setup.md): staged operator/BYOK providers, embeddings, web search and activation gates.
 - [AI persistence](development/ai-persistence.md): schema, owner checks, transaction boundaries and migration impact; tested on disposable data, unapplied to the app.
-- [AI-04 chat/settings/usage](development/ai-04.md): local streaming, stored-state recovery, source inspection, instructions and owner usage; activation pending.
-- [AI-06 retrieval and full-source processing](development/ai-06.md): local versioned chunks, recoverable index, hybrid search, located sources and durable analyses; unactivated.
-- [AI-05 CPU embeddings](development/ai-05.md): optional pinned ONNX runtime, disposable hardware proof and measured load limits; no production index.
 - [AI-03 source reads](development/ai-03.md): read-only workspace/calendar/database tools, current evidence and structured source references; unactivated.
+- [AI-04 chat/settings/usage](development/ai-04.md): local streaming, stored-state recovery, source inspection, instructions and owner usage; activation pending.
+- [AI-05 CPU embeddings](development/ai-05.md): optional pinned ONNX runtime, disposable hardware proof and measured load limits; no production index.
+- [AI-06 retrieval and full-source processing](development/ai-06.md): local versioned chunks, recoverable index, hybrid search, located sources and durable analyses; unactivated.
 - [AI model connections](development/ai-connections.md): optional OpenRouter catalog, restricted offerings, encrypted personal keys and AI-consumer-only secret setup; unactivated.
 - [AI chat/run API](development/ai-api.md): default-disabled fake chats/runs, idempotency, cancellation, accounting, bounded recovery, physical retention and minimal replay/context markers.
 
