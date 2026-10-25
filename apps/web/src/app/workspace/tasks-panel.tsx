@@ -3,7 +3,8 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { dateTimeLocal, localInstants, resolveLocalTime } from "./calendar-time";
-import { csrfToken, requestJson, RequestError, SessionExpiredError } from "./workspace-api";
+import { requestJson, writeJson, RequestError, SessionExpiredError } from "@/shared/api";
+import { Modal } from "@/shared/ui";
 import "./tasks-panel.css";
 
 type Status = "todo" | "in_progress" | "done" | "cancelled";
@@ -47,8 +48,7 @@ function formatDeadline(value: string, timeZone: string) {
 }
 
 async function writeTask(path: string, method: "POST" | "PATCH", payload: Record<string, unknown>) {
-  const token = await csrfToken();
-  return requestJson<Task>(path, { method, headers: { "Content-Type": "application/json", "X-CSRF-Token": token }, body: JSON.stringify(payload) });
+  return writeJson<Task>(path, method, payload);
 }
 
 function TaskForm({ task, parentId, timeZone, onClose, onSaved, onSessionEnd }: {
@@ -108,9 +108,8 @@ function TaskForm({ task, parentId, timeZone, onClose, onSaved, onSessionEnd }: 
     } finally { setBusy(false); }
   }
 
-  return <div className="task-backdrop" onMouseDown={event => { if (event.target === event.currentTarget && !busy) onClose(); }}>
-    <form className="task-dialog" role="dialog" aria-modal="true" aria-labelledby="task-form-title" onSubmit={submit}>
-      <button className="task-close" type="button" aria-label="Закрыть" disabled={busy} onClick={onClose}>×</button>
+  return <Modal title={snapshot ? "Изменить задачу" : parentId ? "Новая подзадача" : "Новая задача"} onClose={() => { if (!busy) onClose(); }}>
+    <form className="task-dialog" aria-labelledby="task-form-title" onSubmit={submit}>
       <span className="greeting">ЛИЧНЫЕ ЗАДАЧИ</span>
       <h2 id="task-form-title">{snapshot ? "Изменить задачу" : parentId ? "Новая подзадача" : "Новая задача"}</h2>
       <p className="task-hint">Срок не занимает время в календаре. Для подзадач действуют правила завершения родителя.</p>
@@ -130,7 +129,7 @@ function TaskForm({ task, parentId, timeZone, onClose, onSaved, onSessionEnd }: 
       {error && <div className="task-error" role="alert">{error}{conflict && <button type="button" disabled={busy} onClick={() => void reload()}>Загрузить актуальную версию</button>}</div>}
       <div className="task-dialog-actions"><button className="task-secondary" type="button" disabled={busy} onClick={onClose}>Отмена</button><button className="primary-button" disabled={busy}>{busy ? "Сохраняем…" : snapshot ? "Сохранить" : "Создать задачу"}</button></div>
     </form>
-  </div>;
+  </Modal>;
 }
 
 function ParentPicker({ task, onClose, onMoved, onSessionEnd }: { task: Task; onClose: () => void; onMoved: (saved: Task) => void; onSessionEnd: () => void }) {
@@ -146,9 +145,8 @@ function ParentPicker({ task, onClose, onMoved, onSessionEnd }: { task: Task; on
     finally { setBusy(false); }
   }
 
-  return <div className="task-backdrop" onMouseDown={event => { if (event.target === event.currentTarget && !busy) onClose(); }}>
-    <section className="task-dialog task-picker" role="dialog" aria-modal="true" aria-labelledby="task-picker-title">
-      <button className="task-close" type="button" aria-label="Закрыть" disabled={busy} onClick={onClose}>×</button>
+  return <Modal title="Выбрать родителя" onClose={() => { if (!busy) onClose(); }}>
+    <section className="task-dialog task-picker" aria-labelledby="task-picker-title">
       <h2 id="task-picker-title">Выбрать родителя</h2><p className="task-hint">Задачу нельзя вложить в себя или в собственную подзадачу.</p>
       <button type="button" className="task-picker-item" disabled={busy || task.parent_id === null} onClick={() => void move(null)}>Без родителя · отдельная задача</button>
       {query.isPending && <p role="status">Загружаем задачи…</p>}
@@ -157,7 +155,7 @@ function ParentPicker({ task, onClose, onMoved, onSessionEnd }: { task: Task; on
       {query.data && <div className="task-pagination"><button type="button" disabled={offset === 0 || busy} onClick={() => setOffset(Math.max(0, offset - pageSize))}>Назад</button><span>Страница {offset / pageSize + 1}</span><button type="button" disabled={query.data.items.length < pageSize || busy} onClick={() => setOffset(offset + pageSize)}>Далее</button></div>}
       {error && <div className="task-error" role="alert">{error}<button type="button" onClick={onClose}>Закрыть и обновить</button></div>}
     </section>
-  </div>;
+  </Modal>;
 }
 
 function TaskDetails({ id, timeZone, onSelect, onCreateChild, onEdit, onUpdated, onTrashed, onRestored, onSessionEnd }: {
@@ -256,7 +254,7 @@ export function TasksPanel({ timeZone, onSessionEnd }: { timeZone: string; onSes
     setNotice(next === "trash" ? "Задача и её активные подзадачи перемещены в корзину." : "Ветка задач восстановлена.");
   }
 
-  return <div className="content-wrap tasks-content">
+  return <div className="feature-page tasks-content">
     <div className="page-heading"><div><span className="greeting">ЛИЧНОЕ ПРОСТРАНСТВО</span><h1>Задачи</h1><p className="heading-subtitle">Планы, сроки и подзадачи — без привязки к учебной группе.</p></div><button className="primary-button task-new" onClick={() => setForm({ task: null, parentId: null })}>+ Новая задача</button></div>
     <div className="task-view-tabs" role="group" aria-label="Режим списка задач"><button type="button" aria-pressed={view === "active"} onClick={() => changeView("active")}>Активные</button><button type="button" aria-pressed={view === "trash"} onClick={() => changeView("trash")}>Корзина</button></div>
     {notice && <p className="task-notice" role="status">{notice}<button type="button" aria-label="Скрыть уведомление" onClick={() => setNotice("")}>×</button></p>}

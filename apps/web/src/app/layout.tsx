@@ -9,10 +9,22 @@ export const metadata: Metadata = {
   icons: { icon: { url: symbol.src, type: "image/png" }, apple: symbol.src },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ru">
-      <body><Providers>{children}</Providers></body>
+    <html lang="ru" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{document.documentElement.dataset.theme=localStorage.getItem('ukladen-theme')||'system'}catch{}",
+          }}
+        />
+      </head>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

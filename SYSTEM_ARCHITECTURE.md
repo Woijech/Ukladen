@@ -51,7 +51,7 @@ optional page/calendar links, collections/tags with typed memberships and saved
 calendar views and recoverable user databases/properties/page-backed records.
 Saved table/calendar database views, date projection and date moves are implemented.
 Additive mixed calendar display is implemented through application query ports.
-One-shot calendar reminders and durable in-app notifications are implemented, backend only.
+One-shot calendar reminders and durable in-app notifications are implemented.
 Private materials, bounded document extraction, page attachments and basic PostgreSQL
 full-text search are implemented; see [materials/search](docs/development/materials.md).
 Task create/read/list/update, subtask hierarchy and recoverable branch trash with
@@ -60,8 +60,12 @@ with a working frontend task screen; see [tasks](docs/development/tasks.md).
 Status: not implemented — task dependencies/links, task blocks,
 availability, semantic search, AI/RAG and authenticated IIS.
 The frontend implements login/registration, browser email verification and password
-recovery, academic-group selection, a weekly calendar with personal-event create/edit/delete,
-and task management (including subtasks). Other workspace business UI remains unimplemented.
+recovery, optional academic-group selection, day/week personal-event CRUD, flat block
+pages, materials, explicit organization, database table/calendar views, full-text
+search, reminders/inbox, tasks with subtasks/trash and profile/avatar settings. Its shared light/dark shell
+preserves the existing API, session and calendar contracts. Official override editing,
+saved event views and mixed date projection remain API-only. AI UI is not implemented.
+See the [frontend guide](docs/architecture/frontend.md).
 
 Detailed behavior: [product overview](docs/product/overview.md) and
 [workspace requirements](docs/product/workspace.md).

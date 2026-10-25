@@ -20,7 +20,7 @@ test("tasks can be created, edited, filtered and nested without an academic grou
   await expect(page.getByRole("region", { name: "Детали задачи" })).toContainText("Prepare report");
   expect(state.writes.find(write => write.path === "/api/v1/tasks" && write.method === "POST")?.body).toMatchObject({ title: "Prepare report", priority: "high", deadline_at: "2026-10-30T18:00:00.000Z", estimated_minutes: 90, parent_id: null });
 
-  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Изменить", exact: true }).click();
   await page.getByRole("dialog").getByLabel("Статус", { exact: true }).selectOption("in_progress");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
   await expect(page.getByRole("region", { name: "Детали задачи" })).toContainText("В работе");
@@ -45,7 +45,7 @@ test("version and hierarchy conflicts are visible and a draft is not silently ov
   await page.goto("/workspace");
   await page.getByRole("button", { name: "Задачи", exact: true }).click();
   await page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /Prepare report/ }).click();
-  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Изменить", exact: true }).click();
   await page.getByLabel("Название").fill("My local draft");
   state.tasks[0].version = 2;
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
@@ -87,7 +87,8 @@ test("mobile navigation exposes tasks", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await mockWorkspace(page);
   await page.goto("/workspace");
-  await page.getByRole("navigation", { name: "Разделы пространства" }).getByRole("button", { name: "Задачи" }).click();
+  await page.getByRole("button", { name: "Открыть навигацию" }).click();
+  await page.getByRole("dialog", { name: "Навигация", exact: true }).getByRole("button", { name: "Задачи", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Задачи" })).toBeVisible();
 });
 

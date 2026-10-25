@@ -46,12 +46,18 @@ Workspace organization exists;
 saved event views, user databases, table/calendar views and mixed date projection exist.
 Authenticated IIS is unverified/unimplemented.
 Frontend email/Google login/registration, explicit Google linking, browser email verification and password recovery,
-optional academic-group selection, weekly calendar personal-event create/edit/delete
+optional academic-group selection, day/week calendar personal-event create/edit/delete
 and task management are implemented.
 Session isolation, sync-result freshness, full-day interval rendering and explicit
 timezone handling have deterministic browser regressions; see
-[frontend](../architecture/frontend.md). Pages, materials/search, reminders/inbox,
-database/saved-view and other business UI remain not implemented.
+[frontend](../architecture/frontend.md). The separately requested frontend redesign
+adds the shared light/dark shell, flat block page editor, materials/search,
+collections/tags, database schemas/records/table and day/week/month saved views,
+reminders/inbox and profile/avatar settings. Official override editing, saved event
+views and mixed projection remain API-only. Tasks share the redesigned navigation,
+theme and dialogs. AI remains unavailable.
+The P-01–P-08 sections below preserve their original backend-slice scope; their
+verification history is not evidence of rerunning backend checks for the UI work.
 
 ## 3. P-01 standalone pages
 

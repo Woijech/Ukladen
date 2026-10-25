@@ -1,8 +1,9 @@
 # Notes Backend
 
-Updated: 2026-10-15.
-Status: implemented, backend only: independent nested pages, versioned block documents
-and recoverable trash. Editor UI, sharing, permanent deletion, revision history and
+Updated: 2026-10-22.
+Status: implemented: independent nested pages, versioned block documents
+and recoverable trash. A flat block editor UI is described in the
+[frontend guide](../architecture/frontend.md). Sharing, permanent deletion, revision history and
 export are not implemented. Page-backed user databases reference these pages through
 notes application services; see [database contracts](databases.md).
 

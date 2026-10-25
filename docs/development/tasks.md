@@ -228,6 +228,8 @@ runtime remain outside these backend increments and unimplemented.
 
 Status: implemented on 2026-10-25 in the existing `/workspace` shell. The sidebar
 and mobile navigation open a paginated task list with status/priority filters.
+The integrated workspace uses the shared navigation, API client, native dialogs
+and light/dark theme tokens alongside pages, databases, materials and other panels.
 Selecting a task shows its description, status, priority, deadline, effort, parent
 and direct children. The create/edit form covers all current task fields; the
 selected task can create a child, move beneath a chosen task or become a root.
@@ -243,3 +245,7 @@ The screen has active/trash list tabs, a confirmed branch-trash action and a
 restore action only for batch roots. Trashed task details are read-only; members
 explain why they cannot be restored individually. There is no
 task/calendar block, dependency, page link or reminder UI in this slice.
+
+The 2026-10-25 workspace integration preserves these task flows in the redesigned
+shell. Combined browser and responsive verification is recorded in the
+[frontend guide](../architecture/frontend.md#current-verification-and-runtime).

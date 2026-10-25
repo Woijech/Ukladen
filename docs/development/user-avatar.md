@@ -1,6 +1,7 @@
 # User Avatar API
 
-Status: implemented, backend only.
+Status: backend implemented, with profile settings UI; see the
+[frontend guide](../architecture/frontend.md).
 
 The users module supports one private avatar for the current authenticated user.
 Image bytes live in the existing S3-compatible bucket (SeaweedFS locally).
