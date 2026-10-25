@@ -128,7 +128,10 @@ def test_invalid_model_output_is_not_returned(tmp_path, monkeypatch, output) -> 
         provider.embed(["hello"], purpose="query")
 
 
-def test_download_checks_hash_and_never_publishes_partial_file(tmp_path, monkeypatch) -> None:
+@pytest.mark.parametrize("corrupted", [b"short", b"x" * 18, b"x" * 100])
+def test_download_checks_hash_and_never_publishes_partial_file(
+    tmp_path, monkeypatch, corrupted
+) -> None:
     data = b"synthetic artifact"
     digest = hashlib.sha256(data).hexdigest()
     monkeypatch.setattr(artifacts, "FILES", (("nested/model.onnx", len(data), digest),))
@@ -139,7 +142,7 @@ def test_download_checks_hash_and_never_publishes_partial_file(tmp_path, monkeyp
     artifacts.download(tmp_path)
     assert request.call_count == 1
     (tmp_path / "model.onnx").unlink()
-    request.return_value = io.BytesIO(b"corrupted")
+    request.return_value = io.BytesIO(corrupted)
     with pytest.raises(ValueError):
         artifacts.download(tmp_path)
     assert list(tmp_path.iterdir()) == []

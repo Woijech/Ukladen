@@ -1,0 +1,65 @@
+# Disposable AI-05 only. Use the documented project name and .env.example.
+x-proof-backend: &proof-backend
+  image: ukladen-backend:ai05-proof
+  build:
+    context: ./apps/backend
+    target: embeddings
+  env_file: !override [.env.example]
+  environment: &proof-environment
+    SCHEDULE_SYNC_ENABLED: "false"
+    AI_ENABLED: "false"
+    AI_RETENTION_ENABLED: "false"
+    AI_CONNECTIONS_FILE: null
+    AUTH_EMAIL_DELIVERY_MODE: fake
+    LOG_LEVEL: WARNING
+  restart: "no"
+
+services:
+  postgres:
+    ports: !override ["127.0.0.1:58432:5432"]
+    restart: "no"
+  redis:
+    ports: !override ["127.0.0.1:58479:6379"]
+    restart: "no"
+  seaweedfs:
+    ports: !override ["127.0.0.1:58433:8333"]
+    restart: "no"
+  migrate:
+    <<: *proof-backend
+  api:
+    <<: *proof-backend
+    command: python /proof/embedding_runtime.py serve /model --role api
+    ports: !override ["127.0.0.1:58400:8000"]
+    volumes:
+      - ./apps/backend/benchmarks:/proof:ro,z
+      - ${AI_PROOF_MODEL_DIRECTORY:?Set the verified AI-05 model directory}:/model:ro,z
+    mem_limit: 2g
+  worker:
+    <<: *proof-backend
+  material-worker:
+    <<: *proof-backend
+  beat:
+    <<: *proof-backend
+  embedding-proof-worker:
+    <<: *proof-backend
+    command: python /proof/embedding_runtime.py serve /model --role worker
+    ports: ["127.0.0.1:58401:8000"]
+    volumes:
+      - ./apps/backend/benchmarks:/proof:ro,z
+      - ${AI_PROOF_MODEL_DIRECTORY:?Set the verified AI-05 model directory}:/model:ro,z
+    mem_limit: 2g
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/_proof/state', timeout=5)"]
+      interval: 5s
+      timeout: 6s
+      retries: 10
+  web:
+    ports: !override ["127.0.0.1:58403:3000"]
+    restart: "no"
+  traefik:
+    ports: !override ["127.0.0.1:58408:80"]
+    restart: "no"
+
+networks:
+  default:
+    internal: true

@@ -114,12 +114,16 @@ See [reminder recovery](reminders.md) and [material processing](materials.md).
 From `apps/backend`:
 
 ```bash
-uv sync --frozen
+uv sync --frozen --extra embeddings
 uv run ruff check .
 uv run ruff format --check .
 uv run pyright
 uv run pytest
 ```
+
+The optional CPU extra is needed for embedding type/numerical checks; these ordinary
+tests use synthetic outputs and do not download weights or call inference providers.
+See the separately invoked [AI-05 hardware proof](ai-05.md).
 
 From `apps/web`:
 
