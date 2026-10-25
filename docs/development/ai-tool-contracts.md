@@ -70,8 +70,10 @@ not unrestricted tools or model-generated credentials.
 
 ## 3. Initial execution budgets
 
-These are implementation defaults for fakes/first adapters, not claims about provider
-capacity. Effective limits are the minimum of configured application, model and account
+These are implementation defaults for fakes/first adapters, not product quotas or
+claims about provider capacity. Owner-confirmed AI-06 long-source processing uses
+durable successive steps rather than applying foreground call/run totals to the
+entire document. Subscriptions and user usage allowances remain future-only. Effective limits are the minimum of configured application, model and account
 limits. Operators may tune them after fixed-fixture measurements; account monetary
 caps/terms are recorded before real activation. Unknown price/usage is not zero.
 

@@ -249,7 +249,13 @@ Use a dedicated embedding queue/consumer only after proof, preserving other work
 Fuse lexical/vector candidates and deduplicate deterministically; measure before
 adding ANN indexes or rerankers. Model changes require a new validated generation
 and rebuild, not mixed embedding spaces. Lexical mode survives indexing failures.
-Add bounded incremental full-source reads/coverage for summaries and document comparisons.
+Deliver automatic durable full-source processing (owner-selected option 2B) for
+summaries and document comparisons, including current lecture notes versus slides.
+Persist progress and coverage, support cancellation/restart, and preserve actual PDF
+page/PPTX slide locations. Model-sized steps are implementation boundaries, not user
+quotas or manual continuation gates. Hybrid search is AI-only; expose compact index
+states and retry. Subscriptions/paywalls/user quotas are future-only.
+See [AI-06 execution](ai-06.md).
 Test bilingual retrieval/citations, incomplete coverage, source edits/deletion and recovery.
 
 ## 11. AI-07: confirmed creates and requested edits

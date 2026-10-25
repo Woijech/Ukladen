@@ -92,6 +92,14 @@ locations. Never invent PDF pages. Full-source summaries/comparisons require rec
 coverage, bounded incremental reads or a partial-result warning. Top-k retrieval
 cannot prove that every mention or requirement was found.
 
+Owner decision (2026-10-25): AI-06 includes automatic long-document processing
+(option 2B), including comparing a current page of lecture notes with a presentation.
+Read all available extracted text in successive model-sized steps, persist progress,
+support cancellation/restart, and combine evidence without manual "continue" prompts.
+Record source versions and coverage; changes invalidate derived work. PDF page and
+PPTX slide locations must be real extraction metadata. DOCX uses text/section locations.
+This is selected implementation scope, not a claim that the processor exists yet.
+
 If local evidence is insufficient, say so before using general model knowledge and
 public web search as needed. Distinguish local evidence, external evidence and
 suggestions; cite retrieved web pages and never fabricate references for model
@@ -201,6 +209,16 @@ Technical safety bounds and provider/account limits still apply. Optional person
 connections remain additional. Local catalog/default UI and an unlimited access-policy
 boundary are implemented; application activation remains pending. Paid subscriptions
 and user quota persistence/enforcement are future work, not implemented.
+
+Development priority (owner-confirmed 2026-10-25): deliver the complete product
+capability before monetization. Do not implement subscriptions, paywalls, monthly
+request/token allowances or document-comparison quotas in current stages. Keep the
+existing unlimited access-policy seam and honest usage accounting for future work.
+Model context windows, parser security, bounded concurrency, individual transport
+timeouts and finite retries remain technical constraints, not product allowances.
+Long-source work must progress automatically across those boundaries instead of
+being cut short by the prototype foreground run/tool budget. This does not authorize
+real provider usage by coding agents; AGENTS.md approval rules still apply.
 
 Keys are server-side secrets. Operator keys are consumer-scoped deployment secrets;
 personal keys require owner-only encrypted persistence and a deployment-managed

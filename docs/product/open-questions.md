@@ -99,6 +99,18 @@ This developer workflow is distinct from product HITL.
 
 ## Remaining decisions
 
+AI-06 owner decisions (2026-10-25): implement the whole local slice autonomously in
+verified, incremental local commits. Index all active owned pages (including record
+pages) and supported extracted files; preserve explicit source scope. Hybrid search
+is AI-only; ordinary workspace search keeps its contract. On semantic failure retain
+lexical reads with a warning. Include actual PDF pages/PPTX slides, compact source
+index states/retry, and option 2B: automatic durable long-source analysis/comparison
+with progress/cancellation/recovery. No user quotas, subscriptions or paywalls now;
+future monetization may reuse the existing policy boundary. Technical bounds must
+not become an artificial partial-answer product policy. Local delivery does not
+authorize application deployment, production migrations or real provider calls.
+See [AI-06 execution](../development/ai-06.md) for progress and checks.
+
 AI-05 owner decisions (2026-10-25): after discussing Russian-language support and
 future provider replacement, the owner authorized local implementation, model/CPU
 dependency downloads, synthetic hardware checks and frequent local commits. Use
