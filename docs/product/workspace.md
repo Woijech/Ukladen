@@ -11,8 +11,9 @@ Remaining capabilities are planned. See [open decisions](open-questions.md) befo
 remaining editor, membership or calendar details; personal scope is confirmed.
 Private materials, optional page attachments and basic full-text search are also
 implemented, backend only; see [materials/search](../development/materials.md).
-Task create/read/list/update, subtask hierarchy, status/priority, exact deadlines and effort
-are implemented with a browser task screen; trash/dependencies/links, work blocks and
+Task create/read/list/update, subtask hierarchy, recoverable branch trash,
+status/priority, exact deadlines and effort are implemented with a browser task
+screen; dependencies/links, work blocks and
 availability remain planned. See [task delivery](../development/tasks.md).
 
 ## 1. Vocabulary

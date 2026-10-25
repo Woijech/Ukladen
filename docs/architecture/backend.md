@@ -45,9 +45,10 @@ collections/tags with membership and saved calendar views are implemented; see [
 and [calendar views](../development/calendar-views.md). Database/property/page-backed
 record APIs are implemented; see [the database guide](../development/databases.md).
 Saved table/calendar database views, date moves and mixed date projection are
-implemented. Task create/read/list/update and subtask hierarchy with versions,
-status/priority, exact deadlines and effort are implemented, backend only; see [tasks](../development/tasks.md).
-Task trash/dependencies, work blocks, availability, rich blocks and AI remain
+implemented. Task create/read/list/update, subtask hierarchy and recoverable
+branch trash with versions, status/priority, exact deadlines and effort are
+implemented, backend and browser UI; see [tasks](../development/tasks.md).
+Task dependencies, work blocks, availability, rich blocks and AI remain
 not implemented. The [workspace design](workspace.md) extends typed events
 with independent pages, optional links, user organization, properties and saved views.
 `notes` owns page bodies; the `workspace` boundary owns organization/property/view

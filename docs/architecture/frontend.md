@@ -103,10 +103,13 @@ user's resolved week and supports personal-event create/edit/delete. Profile act
 open the group selector or revoke the current session. The task navigation opens
 an owner-scoped list/detail view with status and priority filters, 30-item pagination,
 create/edit, optional deadlines/effort and arbitrary-depth subtasks. A selected task
-can be moved beneath another task or detached. The backend validates hierarchy and
+can be moved beneath another task or detached. Active tasks can be moved to the
+trash with a confirmation, and trash-batch roots can be restored from a separate
+list. Trashed members remain read-only and require restoring their batch root.
+The backend validates hierarchy and
 optimistic versions; version conflicts leave the draft intact until the user explicitly
 reloads. Deadline input uses the profile timezone and explicit DST disambiguation.
-No task deletion, scheduling, reminders, page editing or saved views are exposed.
+No permanent task deletion, scheduling, reminders, page editing or saved views are exposed.
 
 The workspace checks `/api/v1/users/me` before mounting private data. Each authenticated
 identity owns a separate query client and mounted forms; logout, session expiry and
@@ -210,3 +213,9 @@ production build, all **105 Playwright tests** (including four task flows), and
 quiet base Compose validation passed. Playwright used a temporary Chromium shell;
 no deployment or application database migration was performed. The tests mock
 task HTTP responses and do not replace backend PostgreSQL integration coverage.
+
+Executed on 2026-10-25 for task branch trash: frontend lint, TypeScript
+typecheck, production build, **106 Playwright tests** (including the trash and
+restore flow) and quiet base Compose validation passed. The browser test uses
+mock task HTTP responses; backend tests separately exercise PostgreSQL. No
+application database migration or deployment was performed.

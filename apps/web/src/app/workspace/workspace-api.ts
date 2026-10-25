@@ -17,6 +17,7 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
     if (response.status === 401) throw new SessionExpiredError(response.status, "Войдите в аккаунт, чтобы открыть личное пространство.");
     if (payload?.code === "task_version_conflict") throw new RequestError(response.status, "Задача изменилась в другой вкладке. Загрузите актуальную версию перед повторным сохранением.", payload.code);
     if (payload?.code === "task_hierarchy_conflict") throw new RequestError(response.status, "Так нельзя изменить иерархию или статус задачи. Проверьте вложенные задачи и завершённые ветки.", payload.code);
+    if (payload?.code === "task_trash_conflict") throw new RequestError(response.status, "Задача уже в корзине или восстановление доступно только через корень удалённой ветки.", payload.code);
     if (payload?.code === "task_not_found") throw new RequestError(response.status, "Задача не найдена или больше недоступна.", payload.code);
     if (response.status === 409) throw new RequestError(response.status, "Данные изменились. Обновите страницу и попробуйте ещё раз.", payload?.code);
     if (response.status === 403) throw new RequestError(response.status, "Сессия защиты устарела. Обновите страницу и повторите действие.", payload?.code);

@@ -90,3 +90,33 @@ test("mobile navigation exposes tasks", async ({ page }) => {
   await page.getByRole("navigation", { name: "Разделы пространства" }).getByRole("button", { name: "Задачи" }).click();
   await expect(page.getByRole("heading", { name: "Задачи" })).toBeVisible();
 });
+
+test("trash moves an active branch and restores only its batch root", async ({ page }) => {
+  const state = await mockWorkspace(page);
+  const root = task();
+  const child = task({ id: "22222222-2222-4222-8222-222222222222", title: "Child", parent_id: root.id });
+  const grandchild = task({ id: "33333333-3333-4333-8333-333333333333", title: "Grandchild", parent_id: child.id, trashed_at: "2026-10-15T12:00:00Z", trash_batch_id: "33333333-3333-4333-8333-333333333333", version: 2 });
+  state.tasks = [root, child, grandchild];
+  await page.goto("/workspace");
+  await page.getByRole("button", { name: "Задачи", exact: true }).click();
+  await page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /Prepare report/ }).click();
+  await page.getByRole("button", { name: "В корзину" }).click();
+  await expect(page.getByRole("group", { name: "Подтверждение удаления" })).toBeVisible();
+  await page.getByRole("button", { name: "Подтвердить" }).click();
+  await expect(page.getByRole("button", { name: "Корзина" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("region", { name: "Детали задачи" }).getByRole("button", { name: "Восстановить ветку" })).toBeVisible();
+  expect(state.tasks.map(item => item.trash_batch_id)).toEqual([root.id, root.id, grandchild.id]);
+  await page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /Child/ }).click();
+  await expect(page.getByRole("region", { name: "Детали задачи" })).toContainText("Восстановление доступно через корень");
+  await expect(page.getByRole("region", { name: "Детали задачи" }).getByRole("button", { name: "Восстановить ветку" })).toHaveCount(0);
+  await page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /Prepare report/ }).click();
+  await page.getByRole("button", { name: "Восстановить ветку" }).click();
+  await expect(page.getByRole("button", { name: "Активные" })).toHaveAttribute("aria-pressed", "true");
+  expect(state.tasks.map(item => item.trash_batch_id)).toEqual([null, null, grandchild.id]);
+  expect(state.writes.filter(write => write.path.endsWith("/trash") || write.path.endsWith("/restore")).map(write => write.body?.expected_version)).toEqual([1, 2]);
+  await page.getByRole("button", { name: "Корзина" }).click();
+  await page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /Grandchild/ }).click();
+  await page.getByRole("button", { name: "Восстановить ветку" }).click();
+  await expect(page.getByRole("button", { name: "Активные" })).toHaveAttribute("aria-pressed", "true");
+  expect(state.tasks.map(item => item.trash_batch_id)).toEqual([null, null, null]);
+});

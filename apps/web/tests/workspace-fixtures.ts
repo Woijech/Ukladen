@@ -8,7 +8,7 @@ export function calendarEvent(overrides = {}) {
 }
 
 export function task(overrides: Record<string, unknown> = {}) {
-  return { id: "11111111-1111-4111-8111-111111111111", parent_id: null as string | null, title: "Prepare report", description: null as string | null, status: "todo", priority: "normal", deadline_at: null as string | null, estimated_minutes: null as number | null, version: 1, created_at: "2026-10-16T12:00:00Z", updated_at: "2026-10-16T12:00:00Z", is_overdue: false, ...overrides };
+  return { id: "11111111-1111-4111-8111-111111111111", parent_id: null as string | null, title: "Prepare report", description: null as string | null, status: "todo", priority: "normal", deadline_at: null as string | null, estimated_minutes: null as number | null, version: 1, created_at: "2026-10-16T12:00:00Z", updated_at: "2026-10-16T12:00:00Z", trashed_at: null as string | null, trash_batch_id: null as string | null, is_overdue: false, ...overrides };
 }
 
 export async function mockWorkspace(page: Page) {
@@ -70,7 +70,7 @@ export async function mockWorkspace(page: Page) {
       const params = new URL(request.url()).searchParams;
       const offset = Number(params.get("offset") ?? 0);
       const limit = Number(params.get("limit") ?? 100);
-      const filtered = state.tasks.filter(item => (!params.get("status") || item.status === params.get("status")) && (!params.get("priority") || item.priority === params.get("priority")) && (!params.get("parent_id") || item.parent_id === params.get("parent_id")));
+      const filtered = state.tasks.filter(item => Boolean(item.trashed_at) === (params.get("trashed") === "true") && (!params.get("status") || item.status === params.get("status")) && (!params.get("priority") || item.priority === params.get("priority")) && (!params.get("parent_id") || item.parent_id === params.get("parent_id")));
       return route.fulfill({ json: { items: filtered.slice(offset, offset + limit).map(item => Object.fromEntries(Object.entries(item).filter(([key]) => key !== "description"))), limit, offset } });
     }
     if (path === "/api/v1/tasks" && method === "POST") {
@@ -80,7 +80,9 @@ export async function mockWorkspace(page: Page) {
       return route.fulfill({ status: 201, json: created });
     }
     if (path.startsWith("/api/v1/tasks/")) {
-      const current = state.tasks.find(item => item.id === path.split("/").at(-1));
+      const parts = path.split("/");
+      const operation = parts.at(-1);
+      const current = state.tasks.find(item => item.id === (operation === "trash" || operation === "restore" ? parts.at(-2) : operation));
       if (!current) return route.fulfill({ status: 404, json: { code: "task_not_found" } });
       if (method === "GET") return route.fulfill({ json: current });
       if (state.taskConflictOnce || request.postDataJSON().expected_version !== current.version) {
@@ -90,6 +92,21 @@ export async function mockWorkspace(page: Page) {
       if (state.taskHierarchyConflictOnce) {
         state.taskHierarchyConflictOnce = false;
         return route.fulfill({ status: 409, json: { code: "task_hierarchy_conflict" } });
+      }
+      if (operation === "trash" || operation === "restore") {
+        if (operation === "trash" && current.trashed_at || operation === "restore" && (!current.trashed_at || current.trash_batch_id !== current.id)) return route.fulfill({ status: 409, json: { code: "task_trash_conflict" } });
+        if (operation === "trash") {
+          const visit = (id: string) => {
+            const item = state.tasks.find(candidate => candidate.id === id);
+            if (!item) return;
+            if (!item.trashed_at) Object.assign(item, { trashed_at: "2026-10-16T12:00:00Z", trash_batch_id: current.id, version: item.version + 1 });
+            state.tasks.filter(candidate => candidate.parent_id === id).forEach(child => visit(child.id));
+          };
+          visit(current.id);
+        } else {
+          state.tasks.filter(item => item.trash_batch_id === current.id).forEach(item => Object.assign(item, { trashed_at: null, trash_batch_id: null, version: item.version + 1 }));
+        }
+        return route.fulfill({ json: current });
       }
       const changes = request.postDataJSON();
       delete changes.expected_version;

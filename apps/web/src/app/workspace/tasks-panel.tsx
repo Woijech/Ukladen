@@ -20,6 +20,8 @@ type TaskSummary = {
   version: number;
   created_at: string;
   updated_at: string;
+  trashed_at: string | null;
+  trash_batch_id: string | null;
   is_overdue: boolean;
 };
 type Task = TaskSummary & { description: string | null };
@@ -31,11 +33,12 @@ const pageSize = 30;
 const statusLabels: Record<Status, string> = { todo: "К выполнению", in_progress: "В работе", done: "Готово", cancelled: "Отменена" };
 const priorityLabels: Record<Priority, string> = { low: "Низкий", normal: "Обычный", high: "Высокий", urgent: "Срочный" };
 
-function taskListPath(offset: number, status: TaskFilter = "all", priority: PriorityFilter = "all", parentId?: string) {
+function taskListPath(offset: number, status: TaskFilter = "all", priority: PriorityFilter = "all", parentId?: string, trashed = false) {
   const params = new URLSearchParams({ limit: String(pageSize), offset: String(offset) });
   if (status !== "all") params.set("status", status);
   if (priority !== "all") params.set("priority", priority);
   if (parentId) params.set("parent_id", parentId);
+  if (trashed) params.set("trashed", "true");
   return `/api/v1/tasks?${params}`;
 }
 
@@ -157,43 +160,64 @@ function ParentPicker({ task, onClose, onMoved, onSessionEnd }: { task: Task; on
   </div>;
 }
 
-function TaskDetails({ id, timeZone, onSelect, onCreateChild, onEdit, onUpdated, onSessionEnd }: {
-  id: string; timeZone: string; onSelect: (id: string) => void; onCreateChild: (id: string) => void; onEdit: (task: Task) => void; onUpdated: (task: Task) => void; onSessionEnd: () => void;
+function TaskDetails({ id, timeZone, onSelect, onCreateChild, onEdit, onUpdated, onTrashed, onRestored, onSessionEnd }: {
+  id: string; timeZone: string; onSelect: (id: string) => void; onCreateChild: (id: string) => void; onEdit: (task: Task) => void; onUpdated: (task: Task) => void; onTrashed: (task: Task) => void; onRestored: (task: Task) => void; onSessionEnd: () => void;
 }) {
   const [childrenOffset, setChildrenOffset] = useState(0);
   const [showPicker, setShowPicker] = useState(false);
+  const [confirmTrash, setConfirmTrash] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState("");
   const detail = useQuery({ queryKey: ["task-detail", id], queryFn: ({ signal }) => requestJson<Task>(`/api/v1/tasks/${id}`, { signal }), retry: false });
-  const children = useQuery({ queryKey: ["task-children", id, childrenOffset], queryFn: ({ signal }) => requestJson<TaskList>(taskListPath(childrenOffset, "all", "all", id), { signal }), retry: false });
+  const children = useQuery({ queryKey: ["task-children", id, childrenOffset], queryFn: ({ signal }) => requestJson<TaskList>(taskListPath(childrenOffset, "all", "all", id), { signal }), enabled: detail.data?.trashed_at === null, retry: false });
   const parent = useQuery({ queryKey: ["task-detail", detail.data?.parent_id], queryFn: ({ signal }) => requestJson<Task>(`/api/v1/tasks/${detail.data?.parent_id}`, { signal }), enabled: Boolean(detail.data?.parent_id), retry: false });
   if (detail.isPending) return <section className="task-detail" role="status">Загружаем задачу…</section>;
   if (detail.isError) return <section className="task-detail"><div className="task-error" role="alert">{detail.error instanceof Error ? detail.error.message : "Не удалось открыть задачу."} <button onClick={() => void detail.refetch()}>Повторить</button></div></section>;
   const task = detail.data;
+  const canRestore = task.trashed_at !== null && task.trash_batch_id === task.id;
+
+  async function changeTrash(operation: "trash" | "restore") {
+    setBusy(true); setActionError("");
+    try {
+      const changed = await writeTask(`/api/v1/tasks/${task.id}/${operation}`, "POST", { expected_version: task.version });
+      if (operation === "trash") onTrashed(changed);
+      else onRestored(changed);
+    } catch (cause) {
+      if (cause instanceof SessionExpiredError) { onSessionEnd(); return; }
+      setActionError(cause instanceof Error ? cause.message : "Не удалось изменить задачу.");
+    } finally { setBusy(false); }
+  }
+
   return <section className="task-detail" aria-label="Детали задачи">
-    <div className="task-detail-top"><span className="greeting">ЗАДАЧА</span><button type="button" className="task-secondary" onClick={() => onEdit(task)}>Изменить</button></div>
+    <div className="task-detail-top"><span className="greeting">{task.trashed_at ? "КОРЗИНА" : "ЗАДАЧА"}</span>{!task.trashed_at && <button type="button" className="task-secondary" onClick={() => onEdit(task)}>Изменить</button>}</div>
     <h2>{task.title}</h2>
     {task.parent_id && <p className="task-parent">Подзадача: {parent.data ? <button type="button" onClick={() => onSelect(parent.data.id)}>{parent.data.title}</button> : parent.isError ? <span>родитель недоступен</span> : <span>загружаем…</span>}</p>}
     <div className="task-badges"><span className={`task-status status-${task.status}`}>{statusLabels[task.status]}</span><span>Приоритет: {priorityLabels[task.priority]}</span>{task.is_overdue && <span className="task-overdue">Срок прошёл</span>}</div>
     {task.description && <p className="task-description">{task.description}</p>}
     <dl className="task-meta"><div><dt>Срок</dt><dd>{task.deadline_at ? formatDeadline(task.deadline_at, timeZone) : "Не задан"}</dd></div><div><dt>Оценка</dt><dd>{task.estimated_minutes ? `${task.estimated_minutes} мин` : "Не задана"}</dd></div></dl>
-    <div className="task-detail-actions"><button className="task-secondary" type="button" onClick={() => onCreateChild(task.id)}>+ Подзадача</button><button className="task-secondary" type="button" onClick={() => setShowPicker(true)}>Перенести</button></div>
+    {task.trashed_at ? <div className="task-trash-info"><p>Задача в корзине с {formatDeadline(task.trashed_at, timeZone)}.</p>{canRestore ? <><button className="task-secondary" type="button" disabled={busy || Boolean(task.parent_id && (!parent.data || parent.data.trashed_at))} onClick={() => void changeTrash("restore")}>{busy ? "Восстанавливаем…" : "Восстановить ветку"}</button>{parent.data?.trashed_at && <p>Сначала восстановите родительскую ветку.</p>}</> : <p>Восстановление доступно через корень удалённой ветки.</p>}</div> : <><div className="task-detail-actions"><button className="task-secondary" type="button" onClick={() => onCreateChild(task.id)}>+ Подзадача</button><button className="task-secondary" type="button" onClick={() => setShowPicker(true)}>Перенести</button><button className="task-secondary task-danger" type="button" onClick={() => setConfirmTrash(true)}>В корзину</button></div>{confirmTrash && <div className="task-trash-confirm" role="group" aria-label="Подтверждение удаления"><p>Переместить задачу и её активные подзадачи в корзину?</p><button type="button" className="task-secondary task-danger" disabled={busy} onClick={() => void changeTrash("trash")}>{busy ? "Перемещаем…" : "Подтвердить"}</button><button type="button" className="task-secondary" disabled={busy} onClick={() => setConfirmTrash(false)}>Отмена</button></div>}</>}
+    {actionError && <div className="task-error" role="alert">{actionError}<button type="button" onClick={() => void detail.refetch()}>Обновить задачу</button></div>}
+    {!task.trashed_at && <>
     <div className="task-children-heading"><h3>Подзадачи</h3><span>Прямые дочерние задачи</span></div>
     {children.isPending && <p role="status">Загружаем подзадачи…</p>}
     {children.isError && <div className="task-error" role="alert">Не удалось загрузить подзадачи. <button onClick={() => void children.refetch()}>Повторить</button></div>}
     {children.data && (children.data.items.length ? <ul className="task-children">{children.data.items.map(child => <li key={child.id}><button type="button" onClick={() => onSelect(child.id)}><span>{child.title}</span><small>{statusLabels[child.status]}</small></button></li>)}</ul> : <p className="task-muted">Подзадач пока нет.</p>)}
     {children.data && (childrenOffset > 0 || children.data.items.length === pageSize) && <div className="task-pagination"><button type="button" disabled={childrenOffset === 0} onClick={() => setChildrenOffset(childrenOffset - pageSize)}>Назад</button><span>Страница {childrenOffset / pageSize + 1}</span><button type="button" disabled={children.data.items.length < pageSize} onClick={() => setChildrenOffset(childrenOffset + pageSize)}>Далее</button></div>}
     {showPicker && <ParentPicker task={task} onClose={() => { setShowPicker(false); void detail.refetch(); }} onMoved={saved => { setShowPicker(false); onUpdated(saved); }} onSessionEnd={onSessionEnd} />}
+    </>}
   </section>;
 }
 
 export function TasksPanel({ timeZone, onSessionEnd }: { timeZone: string; onSessionEnd: () => void }) {
   const client = useQueryClient();
+  const [view, setView] = useState<"active" | "trash">("active");
   const [status, setStatus] = useState<TaskFilter>("all");
   const [priority, setPriority] = useState<PriorityFilter>("all");
   const [offset, setOffset] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<{ task: Task | null; parentId: string | null } | null>(null);
   const [notice, setNotice] = useState("");
-  const list = useQuery({ queryKey: ["tasks-list", status, priority, offset], queryFn: ({ signal }) => requestJson<TaskList>(taskListPath(offset, status, priority), { signal }), retry: false });
+  const list = useQuery({ queryKey: ["tasks-list", view, status, priority, offset], queryFn: ({ signal }) => requestJson<TaskList>(taskListPath(offset, status, priority, undefined, view === "trash"), { signal }), retry: false });
 
   function updated(task: Task) {
     client.setQueryData(["task-detail", task.id], task);
@@ -209,18 +233,42 @@ export function TasksPanel({ timeZone, onSessionEnd }: { timeZone: string; onSes
     updated(task);
   }
 
+  function changeView(next: "active" | "trash") {
+    setView(next);
+    setSelectedId(null);
+    setOffset(0);
+    setStatus("all");
+    setPriority("all");
+    setNotice("");
+  }
+
+  function changedTrash(task: Task, next: "active" | "trash") {
+    client.setQueryData(["task-detail", task.id], task);
+    void client.invalidateQueries({ queryKey: ["task-detail"] });
+    void client.invalidateQueries({ queryKey: ["tasks-list"] });
+    void client.invalidateQueries({ queryKey: ["task-children"] });
+    void client.invalidateQueries({ queryKey: ["tasks-parent-picker"] });
+    setView(next);
+    setOffset(0);
+    setStatus("all");
+    setPriority("all");
+    setSelectedId(task.id);
+    setNotice(next === "trash" ? "Задача и её активные подзадачи перемещены в корзину." : "Ветка задач восстановлена.");
+  }
+
   return <div className="content-wrap tasks-content">
     <div className="page-heading"><div><span className="greeting">ЛИЧНОЕ ПРОСТРАНСТВО</span><h1>Задачи</h1><p className="heading-subtitle">Планы, сроки и подзадачи — без привязки к учебной группе.</p></div><button className="primary-button task-new" onClick={() => setForm({ task: null, parentId: null })}>+ Новая задача</button></div>
+    <div className="task-view-tabs" role="group" aria-label="Режим списка задач"><button type="button" aria-pressed={view === "active"} onClick={() => changeView("active")}>Активные</button><button type="button" aria-pressed={view === "trash"} onClick={() => changeView("trash")}>Корзина</button></div>
     {notice && <p className="task-notice" role="status">{notice}<button type="button" aria-label="Скрыть уведомление" onClick={() => setNotice("")}>×</button></p>}
     <div className="tasks-layout">
       <section className="task-list-card" aria-label="Список задач">
         <div className="task-list-filters"><label>Статус<select value={status} onChange={event => { setStatus(event.target.value as TaskFilter); setOffset(0); }}><option value="all">Все</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Приоритет<select value={priority} onChange={event => { setPriority(event.target.value as PriorityFilter); setOffset(0); }}><option value="all">Все</option>{Object.entries(priorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
         {list.isPending && <p className="task-list-message" role="status">Загружаем задачи…</p>}
         {list.isError && <div className="task-error" role="alert">{list.error instanceof Error ? list.error.message : "Не удалось загрузить задачи."}<button onClick={() => void list.refetch()}>Повторить</button></div>}
-        {list.data && (list.data.items.length ? <ul className="task-list">{list.data.items.map(task => <li key={task.id}><button type="button" className={`task-row ${selectedId === task.id ? "selected" : ""}`} aria-current={selectedId === task.id ? "true" : undefined} onClick={() => setSelectedId(task.id)}><span className="task-row-title">{task.parent_id && <span aria-label="Подзадача">↳ </span>}{task.title}</span><span className="task-row-info"><span className={`task-status status-${task.status}`}>{statusLabels[task.status]}</span><span>{priorityLabels[task.priority]}</span>{task.deadline_at && <span className={task.is_overdue ? "task-overdue" : ""}>{formatDeadline(task.deadline_at, timeZone)}</span>}</span></button></li>)}</ul> : <p className="task-list-message">{status === "all" && priority === "all" ? "Пока нет задач. Создайте первую." : "По этим фильтрам задач нет."}</p>)}
+        {list.data && (list.data.items.length ? <ul className="task-list">{list.data.items.map(task => <li key={task.id}><button type="button" className={`task-row ${selectedId === task.id ? "selected" : ""}`} aria-current={selectedId === task.id ? "true" : undefined} onClick={() => setSelectedId(task.id)}><span className="task-row-title">{task.parent_id && <span aria-label="Подзадача">↳ </span>}{task.title}</span><span className="task-row-info"><span className={`task-status status-${task.status}`}>{statusLabels[task.status]}</span><span>{priorityLabels[task.priority]}</span>{view === "trash" && <span>{task.trash_batch_id === task.id ? "Корень удалённой ветки" : "Часть удалённой ветки"}</span>}{task.deadline_at && <span className={task.is_overdue ? "task-overdue" : ""}>{formatDeadline(task.deadline_at, timeZone)}</span>}</span></button></li>)}</ul> : <p className="task-list-message">{status === "all" && priority === "all" ? view === "trash" ? "Корзина пуста." : "Пока нет задач. Создайте первую." : "По этим фильтрам задач нет."}</p>)}
         {list.data && (offset > 0 || list.data.items.length === pageSize) && <div className="task-pagination"><button type="button" disabled={offset === 0} onClick={() => setOffset(offset - pageSize)}>Назад</button><span>Страница {offset / pageSize + 1}</span><button type="button" disabled={list.data.items.length < pageSize} onClick={() => setOffset(offset + pageSize)}>Далее</button></div>}
       </section>
-      {selectedId ? <TaskDetails key={selectedId} id={selectedId} timeZone={timeZone} onSelect={setSelectedId} onCreateChild={parentId => setForm({ task: null, parentId })} onEdit={task => setForm({ task, parentId: null })} onUpdated={updated} onSessionEnd={onSessionEnd} /> : <section className="task-detail task-detail-empty"><h2>Выберите задачу</h2><p>Здесь появятся описание, срок и подзадачи.</p></section>}
+      {selectedId ? <TaskDetails key={selectedId} id={selectedId} timeZone={timeZone} onSelect={setSelectedId} onCreateChild={parentId => setForm({ task: null, parentId })} onEdit={task => setForm({ task, parentId: null })} onUpdated={updated} onTrashed={task => changedTrash(task, "trash")} onRestored={task => changedTrash(task, "active")} onSessionEnd={onSessionEnd} /> : <section className="task-detail task-detail-empty"><h2>Выберите задачу</h2><p>Здесь появятся описание, срок и подзадачи.</p></section>}
     </div>
     {form && <TaskForm task={form.task} parentId={form.parentId} timeZone={timeZone} onClose={() => setForm(null)} onSaved={saved} onSessionEnd={onSessionEnd} />}
   </div>;

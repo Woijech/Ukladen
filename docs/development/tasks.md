@@ -1,8 +1,9 @@
 # Tasks: Incremental P-06 Delivery
 
 Updated: 2026-10-25.
-Status: task create/read/list/update and owner-scoped subtask hierarchy implemented,
-with a browser task screen. Trash, dependencies, page links, work blocks and availability are not implemented.
+Status: task create/read/list/update, owner-scoped subtask hierarchy and recoverable
+branch trash are implemented with a browser task screen. Dependencies, page links,
+work blocks and availability are not implemented.
 
 ## First increment: independent task create/read/update
 
@@ -22,13 +23,14 @@ Checkboxes and database records do not create tasks or synchronize task status.
 | `deadline_at` | Optional exact timestamp with an explicit UTC offset, normalized to UTC |
 | `estimated_minutes` | Optional strict integer, 1–525600 |
 | `parent_id` | Optional same-owner task UUID; null denotes a root (second increment) |
+| `trashed_at`, `trash_batch_id` | Nullable paired branch-trash markers; server-managed |
 | `version` | Positive optimistic version; starts at 1 and increments on accepted updates |
 | `created_at`, `updated_at` | Server-generated timezone-aware timestamps |
 
 Reject NUL/invalid Unicode in text, unknown fields, naive/epoch/date-only deadlines,
 coercible effort/version values and explicit null for title/status/priority.
 Past deadlines are valid. `is_overdue` is derived at read time: deadline is before
-the server clock and status is `todo` or `in_progress`; it is not stored.
+the server clock, task is not trashed and status is `todo` or `in_progress`; it is not stored.
 All explicit status transitions, including reopening, are supported for standalone
 tasks. No automatic scheduling, completion or calendar entry is created.
 
@@ -42,14 +44,17 @@ All paths are under `/api/v1/tasks`:
 | GET | empty | Paginated summaries, without descriptions |
 | GET | `/{id}` | Owned task detail |
 | PATCH | `/{id}` | Partial update with `expected_version`; 200 task detail |
+| POST | `/{id}/trash` | Move the active branch to trash with `expected_version`; 200 task detail |
+| POST | `/{id}/restore` | Restore an owned trash-batch root with `expected_version`; 200 task detail |
 
-Lists accept optional `status`, `priority`, `parent_id` and `roots_only`, limit 1–200 (default 100), offset
+Lists accept optional `status`, `priority`, `parent_id`, `roots_only` and `trashed`, limit 1–200 (default 100), offset
 0–2147483647 (default 0), ordered by creation time then UUID. They return
 `{items, limit, offset}` without a total-count promise. Details contain all fields
 except the owner; summaries omit descriptions. Both include `parent_id` and `is_overdue`.
-The default list includes roots and descendants. `parent_id` selects direct children;
+The default list includes untrashed roots and descendants. `trashed=true` selects
+trashed tasks. `parent_id` selects direct children;
 `roots_only=true` selects roots. Supplying both is invalid; a missing or foreign
-parent ID returns the same 404.
+parent ID returns the same 404. Owned trashed detail remains readable for recovery.
 
 PATCH requires at least one editable field. Omitted fields are preserved; explicit
 null clears only description, deadline, effort or parent. ID/owner/timestamps/version are
@@ -71,7 +76,9 @@ storage and its owner/creation index. It refuses
 to downgrade populated task storage. User deletion cascades to owned tasks.
 Alembic `0023_task_hierarchy` adds an optional parent reference, owner/parent index,
 same-owner composite foreign key and self-parent check. Existing tasks remain roots.
-Downgrading refuses to discard non-null parent links.
+Downgrading refuses to discard non-null parent links. Alembic `0024_task_trash`
+adds the paired nullable markers, owner-scoped indexes and a check that both
+markers are set or both are null. It refuses to downgrade while any task is trashed.
 
 ### Example
 
@@ -93,8 +100,8 @@ X-CSRF-Token: <current token>
 
 Use the returned UUID with `GET /api/v1/tasks/{id}`. Change only supplied fields
 with PATCH, for example `{"expected_version":1,"status":"in_progress"}`.
-Re-read after a version conflict. Source IDs and deletion/lifecycle routes are not
-supported; no stub APIs advertise future functionality. Parent IDs are supported by
+Re-read after a version conflict. No physical DELETE or permanent purge route is
+provided. Parent IDs are supported by
 the second increment below.
 
 `is_overdue` uses the current server clock; it can change between reads without a
@@ -166,14 +173,46 @@ a recursive query within the caller's transaction.
 
 Cancelling a parent currently changes only that task's status and does not change
 descendants. A future branch-cancellation policy needs an explicit decision.
-These hierarchy rules do not add task trash, dependency edges or scheduling.
+These hierarchy rules do not add dependency edges or scheduling. Trashed descendants
+are excluded from completion checks; restoration revalidates completed ancestors.
+
+## Third increment: recoverable branch trash
+
+Status: implemented on 2026-10-25. `POST /{id}/trash` marks the selected task and
+its currently untrashed descendants with the selected task's ID as their
+`trash_batch_id`. Already trashed descendants retain their earlier batch markers.
+Each changed task receives a new version and `updated_at`; task content, parent,
+status and deadline are preserved. No task is physically deleted.
+
+Only the selected root of a trash batch can be restored with `POST /{id}/restore`.
+The operation restores only tasks bearing that batch ID. Descendants deleted
+earlier remain trashed and can be restored separately through their own batch
+roots after their parents are active again. Restoration rejects a trashed parent
+chain and rejects an open batch (`todo`/`in_progress`) beneath a `done` ancestor.
+Active task creation/moves cannot target a trashed parent, and trashed tasks
+cannot be edited or trashed again. Owner checks, CSRF and optimistic versions
+apply to both writes. A stale version returns `task_version_conflict`; invalid
+trash state returns `task_trash_conflict`; completed-ancestor violations return
+`task_hierarchy_conflict`. Missing and foreign tasks share `task_not_found`.
+
+There is no retention deadline, purge worker or permanent-delete API in this
+increment. Trash is recoverable until a later explicit policy is implemented.
+
+Executed on 2026-10-25 for branch trash: Ruff, Ruff format check, Pyright and
+the full backend pytest suite against disposable PostgreSQL 18 with pgvector
+and Redis 7: **1624 passed, 3 skipped, 1 warning**. The skipped cases require
+separate native S3 configuration; the warning is the existing Starlette/httpx
+deprecation. Migration preservation, branch batches, owner/CSRF/version guards
+and completed-ancestor behavior were exercised. Frontend lint, typecheck,
+production build and **106 Playwright tests** also passed; quiet base Compose
+configuration was validated. No application database migration or deployment
+was performed.
 
 ## Remaining manual P-06 increments
 
 Status: not implemented. These decisions are not delivered by the current task APIs:
 
 - Cycle-safe dependencies and optional page links. Dependencies warn rather than block.
-- Recoverable branch trash/restore; no physical task DELETE API.
 - Calendar occupied/free/conflict queries over the complete busy set; query-supplied
   availability windows, not saved working hours.
 - Versioned future-only manual task blocks. Completion/cancellation/trash cancels
@@ -200,5 +239,7 @@ writes, no-store reads and per-identity query cache. It handles version and hier
 conflicts explicitly; a stale editor draft is retained until the user chooses to
 reload. Deadline input and display use the profile timezone, including ambiguous
 and nonexistent local-time handling. Deadlines do not reserve calendar time.
-No delete/trash action is shown because the backend has no such route. There is no
+The screen has active/trash list tabs, a confirmed branch-trash action and a
+restore action only for batch roots. Trashed task details are read-only; members
+explain why they cannot be restored individually. There is no
 task/calendar block, dependency, page link or reminder UI in this slice.
