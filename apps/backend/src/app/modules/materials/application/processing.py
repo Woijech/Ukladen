@@ -9,6 +9,7 @@ from app.modules.materials.application.ports import (
     MaterialTextIndex,
     TextExtractor,
 )
+from app.modules.materials.domain.extraction import TextLocation
 from app.modules.materials.domain.materials import (
     DocumentExtractionError,
     Material,
@@ -22,6 +23,7 @@ class ExtractionResult:
     text: str = ""
     error_code: str | None = None
     retryable: bool = False
+    locations: tuple[TextLocation, ...] = ()
 
 
 class MaterialProcessingService:
@@ -81,7 +83,8 @@ class MaterialProcessingService:
                 raise MaterialStorageUnavailable()
             with body:
                 assert material.filename is not None
-                return ExtractionResult(self.extractor.extract(body, material.filename))
+                document = self.extractor.extract(body, material.filename)
+                return ExtractionResult(document.text, locations=document.locations)
         except DocumentExtractionError as error:
             return ExtractionResult(error_code=error.code)
         except MaterialStorageUnavailable:
@@ -104,7 +107,7 @@ class MaterialProcessingService:
             status = "pending" if result.retryable and current.attempts < 3 else "failed"
         else:
             try:
-                self.index.put(current.user_id, current.id, result.text)
+                self.index.put(current.user_id, current.id, result.text, result.locations)
                 error = "no_extractable_text" if not result.text else None
             except DocumentExtractionError as failure:
                 status, error = "failed", failure.code

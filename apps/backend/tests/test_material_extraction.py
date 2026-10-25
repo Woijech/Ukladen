@@ -46,9 +46,11 @@ def office_bytes(parts: dict[str, str]) -> bytes:
 
 def test_text_pdf_and_no_ocr_behavior() -> None:
     extractor = BoundedDocumentExtractor()
-    assert extractor.extract(BytesIO("Учебный текст".encode()), "lecture.md") == "Учебный текст"
-    assert "Searchable lecture" in extractor.extract(BytesIO(pdf_bytes()), "lecture.pdf")
-    assert extractor.extract(BytesIO(pdf_bytes(None)), "scan.pdf") == ""
+    assert (
+        extractor.extract(BytesIO("Учебный текст".encode()), "lecture.md").text == "Учебный текст"
+    )
+    assert "Searchable lecture" in extractor.extract(BytesIO(pdf_bytes()), "lecture.pdf").text
+    assert extractor.extract(BytesIO(pdf_bytes(None)), "scan.pdf").text == ""
 
 
 def test_docx_body_tables_and_embedded_images_are_not_ocr_processed() -> None:
@@ -79,7 +81,7 @@ def test_docx_body_tables_and_embedded_images_are_not_ocr_processed() -> None:
             "word/media/image.png": "not inspected",
         }
     )
-    text = BoundedDocumentExtractor().extract(BytesIO(content), "lecture.docx")
+    text = BoundedDocumentExtractor().extract(BytesIO(content), "lecture.docx").text
     assert "Lecture" in text and "Table value" in text and "not inspected" not in text
 
 
@@ -116,7 +118,7 @@ def test_pptx_respects_slide_order_and_reads_table_text() -> None:
         }
     )
     assert (
-        BoundedDocumentExtractor().extract(BytesIO(content), "lecture.pptx")
+        BoundedDocumentExtractor().extract(BytesIO(content), "lecture.pptx").text
         == "First table cell\nSecond"
     )
 
@@ -163,7 +165,7 @@ def test_parser_child_has_no_service_credentials() -> None:
         return original(*args, **kwargs)
 
     with patch("subprocess.run", inspect_child):
-        assert BoundedDocumentExtractor().extract(BytesIO(b"safe"), "lecture.txt") == "safe"
+        assert BoundedDocumentExtractor().extract(BytesIO(b"safe"), "lecture.txt").text == "safe"
 
 
 def test_encrypted_pdf_and_oversized_xml() -> None:
@@ -184,3 +186,17 @@ def test_parser_timeout_is_a_fixed_failure() -> None:
     with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("parser", 60)):
         with pytest.raises(DocumentExtractionError, match="document_limit"):
             BoundedDocumentExtractor().extract(BytesIO(b"safe"), "lecture.txt")
+
+
+def test_pdf_locations_are_real_and_empty_pages_keep_numbering() -> None:
+    from pypdf import PdfReader
+
+    writer, output = PdfWriter(), BytesIO()
+    writer.add_blank_page(612, 792)
+    writer.add_page(PdfReader(BytesIO(pdf_bytes("Located text"))).pages[0])
+    writer.write(output)
+    document = BoundedDocumentExtractor().extract(BytesIO(output.getvalue()), "lecture.pdf")
+    assert len(document.locations) == 1
+    location = document.locations[0]
+    assert (location.kind, location.number) == ("page", 2)
+    assert "Located text" in document.text[location.start : location.end]

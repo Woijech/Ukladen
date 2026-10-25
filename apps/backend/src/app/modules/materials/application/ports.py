@@ -1,6 +1,7 @@
 from typing import BinaryIO, Protocol
 from uuid import UUID
 
+from app.modules.materials.domain.extraction import ExtractedText, TextLocation
 from app.modules.materials.domain.materials import Material
 
 
@@ -22,10 +23,12 @@ class MaterialStorage(Protocol):
 
 
 class TextExtractor(Protocol):
-    def extract(self, body: BinaryIO, filename: str) -> str: ...
+    def extract(self, body: BinaryIO, filename: str) -> ExtractedText: ...
 
 
 class MaterialTextIndex(Protocol):
     """Derived text only; publication shares the material completion transaction."""
 
-    def put(self, user_id: UUID, material_id: UUID, body: str) -> None: ...
+    def put(
+        self, user_id: UUID, material_id: UUID, body: str, locations: tuple[TextLocation, ...] = ()
+    ) -> None: ...

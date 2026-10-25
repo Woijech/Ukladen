@@ -33,6 +33,7 @@ from app.core import config
 from app.core.config import Settings
 from app.integrations.storage.materials import S3MaterialStorage
 from app.modules.materials.application.processing import ExtractionResult
+from app.modules.materials.domain.extraction import ExtractedText
 from app.modules.materials.domain.materials import MaterialStorageUnavailable
 from app.modules.materials.infrastructure.extractor import BoundedDocumentExtractor
 from app.modules.materials.infrastructure.jobs import (
@@ -90,7 +91,7 @@ def test_parallel_workers_only_claim_once(
 ) -> None:
     material = upload(material_client)
     extractor = Mock()
-    extractor.extract.return_value = "lecture"
+    extractor.extract.return_value = ExtractedText("lecture")
     with ThreadPoolExecutor(max_workers=2) as pool:
         list(
             pool.map(
@@ -204,7 +205,7 @@ def test_trash_during_processing_does_not_publish_index(
             ).status_code
             == 200
         )
-        return "privatequartz"
+        return ExtractedText("privatequartz")
 
     extractor.extract.side_effect = trash
     process(concurrent_engine, material_client, material, extractor=extractor)

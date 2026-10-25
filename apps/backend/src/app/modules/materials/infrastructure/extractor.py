@@ -4,12 +4,14 @@ import posixpath
 import resource
 import subprocess
 import sys
+from dataclasses import asdict
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
-from typing import BinaryIO
+from typing import BinaryIO, Literal
 from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 
+from app.modules.materials.domain.extraction import ExtractedText, TextLocation
 from app.modules.materials.domain.materials import (
     MAX_FILE_BYTES,
     MAX_TEXT_BYTES,
@@ -47,7 +49,20 @@ def xml_part(archive: ZipFile, name: str) -> ET.Element:
     return ET.fromstring(data)
 
 
-def office_text(path: Path, extension: str) -> str:
+def located_text(parts, kind: Literal["page", "slide"]) -> ExtractedText:
+    texts = [bounded_text([part]) for part in parts]
+    text = bounded_text(texts)
+    # Preserve empty pages/slides in numbering; only text-bearing ranges are searchable.
+    locations, offset = [], 0
+    for number, part in enumerate(texts, 1):
+        if part:
+            start = text.find(part, offset)
+            locations.append(TextLocation(start, start + len(part), kind, number))
+            offset = start + len(part)
+    return ExtractedText(text, tuple(locations))
+
+
+def office_text(path: Path, extension: str) -> ExtractedText:
     with ZipFile(path) as archive:
         entries = archive.infolist()
         names = [entry.filename for entry in entries]
@@ -66,17 +81,20 @@ def office_text(path: Path, extension: str) -> str:
             raise DocumentExtractionError()
         if extension == ".docx":
             root = xml_part(archive, "word/document.xml")
-            return bounded_text(
-                (
-                    node.text or ""
-                    if node.tag == WORD + "t"
-                    else "\t"
-                    if node.tag == WORD + "tab"
-                    else "\n"
-                    for node in root.iter()
-                    if node.tag in {WORD + "t", WORD + "p", WORD + "tr", WORD + "tab", WORD + "br"}
-                ),
-                separator="",
+            return ExtractedText(
+                bounded_text(
+                    (
+                        node.text or ""
+                        if node.tag == WORD + "t"
+                        else "\t"
+                        if node.tag == WORD + "tab"
+                        else "\n"
+                        for node in root.iter()
+                        if node.tag
+                        in {WORD + "t", WORD + "p", WORD + "tr", WORD + "tab", WORD + "br"}
+                    ),
+                    separator="",
+                )
             )
         root = xml_part(archive, "ppt/presentation.xml")
         relationships = xml_part(archive, "ppt/_rels/presentation.xml.rels")
@@ -107,14 +125,14 @@ def office_text(path: Path, extension: str) -> str:
                     separator="",
                 )
             )
-        return bounded_text(parts)
+        return located_text(parts, "slide")
 
 
-def extract_text(path: Path, extension: str) -> str:
+def extract_text(path: Path, extension: str) -> ExtractedText:
     if extension not in MIME_TYPES or path.stat().st_size > MAX_FILE_BYTES:
         raise DocumentExtractionError("document_limit")
     if extension in {".txt", ".md"}:
-        return bounded_text([path.read_bytes().decode("utf-8-sig")])
+        return ExtractedText(bounded_text([path.read_bytes().decode("utf-8-sig")]))
     if extension in {".docx", ".pptx"}:
         return office_text(path, extension)
     from pypdf import PdfReader
@@ -124,13 +142,13 @@ def extract_text(path: Path, extension: str) -> str:
         raise DocumentExtractionError()
     if len(reader.pages) > MAX_PARTS:
         raise DocumentExtractionError("document_limit")
-    return bounded_text(page.extract_text() or "" for page in reader.pages)
+    return located_text((page.extract_text() or "" for page in reader.pages), "page")
 
 
 class BoundedDocumentExtractor:
     """Parse in a child with no service credentials and hard Linux resource limits."""
 
-    def extract(self, body: BinaryIO, filename: str) -> str:
+    def extract(self, body: BinaryIO, filename: str) -> ExtractedText:
         extension = PurePosixPath(filename).suffix.lower()
         if extension not in MIME_TYPES:
             raise DocumentExtractionError()
@@ -162,7 +180,11 @@ class BoundedDocumentExtractor:
                 payload = json.loads(data)
                 if payload["error"] is not None:
                     raise DocumentExtractionError(payload["error"])
-                return bounded_text([payload["text"]])
+                text = bounded_text([payload["text"]])
+                locations = tuple(TextLocation(**item) for item in payload.get("locations", []))
+                if any(not 0 <= item.start < item.end <= len(text) for item in locations):
+                    raise DocumentExtractionError()
+                return ExtractedText(text, locations)
             except subprocess.TimeoutExpired:
                 raise DocumentExtractionError("document_limit") from None
 
@@ -174,15 +196,23 @@ def child(source: str, extension: str, output: str) -> None:
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     logging.disable(logging.CRITICAL)
     try:
-        text, error = extract_text(Path(source), extension), None
+        document, error = extract_text(Path(source), extension), None
     except DocumentExtractionError as failure:
-        text, error = "", failure.code
+        document, error = ExtractedText(""), failure.code
     except MemoryError:
-        text, error = "", "document_limit"
+        document, error = ExtractedText(""), "document_limit"
     except Exception:
-        text, error = "", "invalid_document"
+        document, error = ExtractedText(""), "invalid_document"
     Path(output).write_text(
-        json.dumps({"text": text, "error": error}, ensure_ascii=False), encoding="utf-8"
+        json.dumps(
+            {
+                "text": document.text,
+                "locations": [asdict(item) for item in document.locations],
+                "error": error,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
     )
 
 

@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Index, Text, func, literal_column
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -12,6 +13,8 @@ class MaterialSearchDocumentModel(Base):
     material_id: Mapped[UUID] = mapped_column(primary_key=True)
     user_id: Mapped[UUID]
     body: Mapped[str] = mapped_column(Text)
+    locations: Mapped[list] = mapped_column(JSONB, server_default="[]")
+    extraction_revision: Mapped[int] = mapped_column(server_default="0")
 
     __table_args__ = (
         ForeignKeyConstraint(
