@@ -237,7 +237,8 @@ AI-02 implements the optional OpenRouter adapter/catalog and encrypted personal
 connections; live account activation remains pending. [AI-03 read tools](ai-03.md)
 are implemented locally. [AI-04](ai-04.md) adds streaming chat/settings/usage UI
 and supporting APIs. [AI-07](ai-07.md) adds locally implemented exact confirmed actions;
-automatic writes remain not implemented and application migrations are unapplied.
+AI-08 automatic writes are deferred indefinitely and application migrations are unapplied.
+[AI-09 local hardening](ai-09.md) covers the implemented AI-01–AI-07 subset.
 [AI-05](ai-05.md) adds a verified optional CPU embedding adapter and disposable
 hardware proof with explicit load limits. [AI-06](ai-06.md) implements local versioned indexing, AI-only hybrid retrieval and
 durable full-source processing. Activation and real-LLM quality remain pending.
@@ -255,7 +256,8 @@ retains concrete account/grant activation parameters, not unresolved core functi
 
 Follow [AI architecture](../architecture/ai.md): provider-neutral adapters and typed
 owner-scoped tools. Deliver read/help/recommendations first, exact confirmed writes
-second, and explicitly permitted automatic writes third. Both write paths require
+second. AI-08 automatic writes are deferred indefinitely by the 2026-10-26 owner
+decision; the following grant contract is future reference only. Both write paths require
 expected versions and durable idempotent execution. Automatic mode additionally needs
 persisted owner-issued grants, target/operation limits, expiry/revocation and execution
 checks; an unconfigured grant must not enable unrestricted writes.

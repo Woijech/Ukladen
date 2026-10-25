@@ -73,6 +73,7 @@ implementation task, not a guarantee that its checks were rerun during a later e
 - [AI-05 CPU embeddings](development/ai-05.md): optional pinned ONNX runtime, disposable hardware proof and measured load limits; no production index.
 - [AI-06 retrieval and full-source processing](development/ai-06.md): local versioned chunks, recoverable index, hybrid search, located sources and durable analyses; unactivated.
 - [AI-07 confirmed actions](development/ai-07.md): immutable previews, atomic owner-confirmed batches and independent replay receipts; default-disabled and unactivated.
+- [AI-09 release hardening](development/ai-09.md): agreed local scope, bilingual acceptance and separate live-model/activation gates.
 - [AI model connections](development/ai-connections.md): optional OpenRouter catalog, restricted offerings, encrypted personal keys and AI-consumer-only secret setup; unactivated.
 - [AI chat/run API](development/ai-api.md): default-disabled fake chats/runs, idempotency, cancellation, accounting, bounded recovery, physical retention and minimal replay/context markers.
 
@@ -86,7 +87,7 @@ implemented locally but unactivated. AI-03 source tools and lexical grounding ar
 implemented locally. AI-04 chat/settings/usage UI/API is implemented locally.
 AI-05 adds a locally verified optional CPU embedding runtime and synthetic hardware proof.
 AI-06 adds local hybrid retrieval and durable complete-source processing.
-AI-07 adds locally implemented confirmed actions. Activation, automatic actions and planning remain pending. Plans do not authorize later changes/deployment.
+AI-07 adds locally implemented confirmed actions. AI-08 is deferred indefinitely; AI-09 local hardening is in progress. Activation and planning remain pending. Plans do not authorize later changes/deployment.
 
 ## IIS contracts and future integration
 

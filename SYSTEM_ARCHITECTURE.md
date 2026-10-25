@@ -369,6 +369,12 @@ relations
 
 ## 4.7 AI / RAG
 
+Current delivery decision (2026-10-26): AI-08 automatic writes are deferred indefinitely.
+All current business-content writes require exact owner confirmation. The automatic-grant
+contracts below remain future reference, requiring a new owner decision. AI-09 hardens
+AI-01–AI-07 locally; real-model evaluation and application activation remain separate gates.
+See [AI-09 scope](docs/development/ai-09.md).
+
 AI is a separate logical module, initially inside the modular monolith.
 
 Responsibilities:

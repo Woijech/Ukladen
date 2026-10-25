@@ -11,7 +11,7 @@ workspace/calendar/database read tools with lexical search and source references
 model/connection settings, personal instructions and usage analytics UI/API locally.
 AI-06 adds local hybrid retrieval and durable complete-source processing; see
 [AI-06](../development/ai-06.md). [AI-07](../development/ai-07.md) adds locally implemented
-exact confirmed actions. Activation, automatic grants and planning remain pending. AI-00 specifies the target work; it does
+exact confirmed actions. Activation and planning remain pending; AI-08 automatic grants are deferred indefinitely. AI-00 specifies the target work; it does
 not enable integrations. This is the single AI specification linked from
 [the overview](overview.md). See [delivery](../development/ai-implementation-plan.md),
 [architecture](../architecture/ai.md), [tool contracts](../development/ai-tool-contracts.md)
@@ -21,8 +21,8 @@ and [setup](../development/ai-setup.md).
 
 Connect the user's knowledge, unfinished work and available time through one assistant:
 ordinary chat, grounded answers, note editing, task extraction, feasible schedules,
-confirmed actions, scoped automatic creates, personal instructions and opt-in proactive
-work. Academic examples never make an academic profile mandatory for personal use.
+confirmed actions, personal instructions and opt-in proactive work. Automatic creates
+are deferred indefinitely under the owner decision of 2026-10-26. Academic examples never make an academic profile mandatory for personal use.
 
 The owner's draft and decisions on 2026-10-21 select the full target below. Stages
 express dependencies, not permission to omit selected features. DeepSeek, GLM and
@@ -51,7 +51,7 @@ scope, not a currently enabled tool. Database querying remains separately option
 | AI-UC-10 | Implemented locally / AI-07 | Improve this note or explicitly move this personal event | Before/after preview, current versions and exact confirmation |
 | AI-UC-11 | Optional / existing workspace services | Show matching database records | Typed filters/properties; no SQL or schema mutation |
 | AI-UC-12 | Selected / P-06, AI-10 | Fit my preparation before Friday | Deterministic feasible sessions and confirmed atomic application |
-| AI-UC-13 | Selected, opt-in / AI-08 | Automatically create pages or tasks here | Scoped grant, trigger, limits and durable outcome; tasks also need AI-10 |
+| AI-UC-13 | Deferred indefinitely / AI-08 | Automatically create pages or tasks here | Scoped grant, trigger, limits and durable outcome; tasks also need AI-10 |
 | AI-UC-14 | Selected / AI-04 | Show how I use AI | Owner-only usage, model comparison and honest completeness/cost status |
 | AI-UC-15 | Selected / AI-10 | Extract assignments from my notes | Independent task proposals, source locations, deadlines and editable estimates |
 | AI-UC-16 | Selected / P-06, AI-10 | Replan unfinished preparation | Move eligible task sessions only; protect other events and minimize changes |
@@ -160,8 +160,10 @@ profile can plan around personal data without needing university schedule covera
 
 ## 7. Proposals, confirmation and automatic actions
 
-Support read-only help, recommendations, exact confirmed actions and scoped automatic
-actions under [ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md).
+Support read-only help, recommendations and exact confirmed actions. The owner deferred
+AI-08 indefinitely on 2026-10-26: all current business-content writes require exact
+confirmation. The historical automatic-action target in
+[ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md) is future reference only.
 Confirmation binds immutable targets, parameters, versions, constraints, effects and
 expiry to the owner. Edits invalidate previous confirmation. Pending state survives
 restart; rights, versions, source state and current capabilities are checked again.
@@ -171,8 +173,8 @@ transaction. Any changed target, constraint or relevant calendar state means app
 nothing, report conflict and request approval of a new preview. Availability/version
 serialization is required; graph checkpoints do not provide business atomicity.
 
-Under owner delegation, initial automatic writes are new-page/new-task creation in
-selected scopes. Task tools need AI-10. Existing-content edits, event/session moves
+If automatic actions are revisited through a new owner decision, the historical
+allowlist is new-page/new-task creation in selected scopes. Task tools need AI-10. Existing-content edits, event/session moves
 and deletes remain confirmed actions. This allowlist is not a real grant. Each actual
 grant needs authenticated owner configuration: operation, target/parameter limits,
 count limits, expiry and explicit trigger. Revoked/expired/out-of-scope grants fail.

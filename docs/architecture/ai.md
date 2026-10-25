@@ -17,7 +17,7 @@ remain pending. [AI-03 source tools](../development/ai-03.md) implement authoriz
 lexical search, page/material reads and calendar/database queries.
 [AI-07 confirmed actions](../development/ai-07.md) are implemented locally: exact previews,
 atomic normal-service writes and independent replay receipts; unactivated. Automatic writes
-and planning remain not implemented. [AI-04](../development/ai-04.md) adds streaming
+are deferred indefinitely; planning remains not implemented. [AI-04](../development/ai-04.md) adds streaming
 chat, current-source inspection, preferences and usage UI/API locally; activation remains pending.
 [AI-05](../development/ai-05.md) verifies an optional CPU embedding adapter and synthetic
 full-stack proof. [AI-06](../development/ai-06.md) adds local versioned indexing,
@@ -38,9 +38,9 @@ pages/materials, explanations of imported academic information and proposed chan
 AI must recognize that subjects/collections are optional and must never create an
 academic hierarchy just because two events share a source subject label.
 
-The owner confirmed reading/help, recommendations, confirmed execution and explicitly
-permitted automatic actions. Deliver read-only tools/recommendations first, confirmed
-writes next, then scoped automatic execution. RAG follows extraction/indexing.
+The current owner-approved scope is reading/help, recommendations and confirmed
+execution. AI-08 automatic actions are deferred indefinitely (2026-10-26); their
+contracts below are future reference and require a new owner decision. RAG follows extraction/indexing.
 Search or a calendar question must not mutate user data.
 
 ## 2. Boundaries
@@ -240,7 +240,7 @@ The AI-00 specification/acceptance data and offline AI-01 foundation are complet
 Owned offline runtime/usage persistence and chat/run endpoints are implemented;
 the optional OpenRouter adapter and AI-03 read tools are implemented but unactivated;
 [AI-04](../development/ai-04.md) implements streaming chat/settings/usage UI and
-owner-only usage summaries. Write tools remain not implemented.
+owner-only usage summaries. AI-07 implements confirmed page/event/reminder writes.
 `ai` owns implemented conversation/run/tool usage metadata and planned action metadata;
 `search` owns derived retrieval/index jobs. Existing safe logs remain operator
 diagnostics, not a source of prompts or cross-user product analytics.
@@ -276,3 +276,6 @@ contract, with disabled profiles and pending live account verification. See
 AI-07 implementation: see [confirmed action contracts](../development/ai-07.md) for the detached
 HITL review/commit bridge, 24-hour PostgreSQL proposals and content-free receipts retained until
 account deletion. Checkpoints are not execution authority. No new architecture boundary is introduced.
+
+AI-09 local hardening follows the [agreed acceptance scope](../development/ai-09.md);
+real-model evaluation and application activation remain separate gates.

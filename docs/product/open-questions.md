@@ -242,3 +242,23 @@ related actions, and delegated proposal lifetime to implementation judgment. Sel
 receipts remain until account deletion; proposal content follows the existing chat/activity
 lifecycle. See [AI-07](../development/ai-07.md). This does not authorize automatic grants,
 planning, real-provider requests, application migrations or deployment.
+
+## AI-08 deferral and AI-09 owner scope (2026-10-26)
+
+The owner approved choices 1A–7A, clarified 8A (a verified local result before later
+activation), and requested incremental implementation with local commits.
+
+AI-08 is deferred indefinitely, not cancelled as a possible future direction. Current
+business-content writes always require exact confirmation of the result. This decision
+supersedes AI-D-14 for current delivery; historical decisions and fixtures remain dated
+references, not authorization to implement grants.
+
+AI-09 covers the implemented AI-01–AI-07 subset, offline/native checks first, followed
+by a separately approved bounded real OpenRouter/model evaluation. Acceptance uses 40
+synthetic scenarios (28 Russian/12 English; 20 development/20 held-out), all safety and
+integrity checks passing and at least 90% later live-model quality with every failure
+reviewed. Fakes cannot establish model quality. Fix existing defects autonomously;
+new features or architecture changes need discussion. Rehearse provider replacement
+with a test double, add no second real adapter and use no private user data. Application
+migrations, restarts, activation, deployment and real-provider calls are not authorized.
+See [AI-09](../development/ai-09.md).

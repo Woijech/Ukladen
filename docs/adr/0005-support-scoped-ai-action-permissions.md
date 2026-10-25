@@ -44,3 +44,12 @@ The policy is not a grant. Confirmed multi-action plans must apply atomically af
 revalidation; changed preconditions apply nothing and require a new preview.
 See [ADR 0009](0009-specify-provider-neutral-ai-orchestration.md) and the current
 [product specification](../product/ai.md). No runtime is implemented by this clarification.
+
+
+## Delivery clarification (2026-10-26)
+
+The owner deferred AI-08 indefinitely. Current business-content writes always require
+an exact owner confirmation; AI-07 implements that path locally. Scoped automatic
+actions remain a possible future direction requiring a new owner decision, not work
+required before AI-09 release hardening. The historical grant contract above is retained.
+See [current scope](../development/ai-09.md).
