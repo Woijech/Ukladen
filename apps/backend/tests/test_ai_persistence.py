@@ -203,7 +203,7 @@ def test_migration_preserves_existing_user_and_refuses_populated_downgrade(
             command.downgrade(migration, "0021_google_email_confirmations")
         assert (
             connection.scalar(text("SELECT version_num FROM alembic_version"))
-            == "0030_ai_document_jobs"
+            == "0031_ai_action_proposals"
         )
         assert connection.scalar(select(func.count()).select_from(ConversationModel)) == 1
 

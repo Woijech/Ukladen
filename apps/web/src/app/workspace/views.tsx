@@ -30,6 +30,7 @@ type ViewProps = {
   timeZone: string;
   pageToOpen: string | null;
   onOpenPage: (id: string) => void;
+  onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
   onNavigate: (section: SectionKey) => void;
   onDirtyChange: (dirty: boolean) => void;
   onChooseGroup: () => void;
@@ -40,7 +41,7 @@ export function WorkspaceViews(props: ViewProps) {
   if (section === "ai")
     return (
       <Suspense fallback={<p role="status">Загрузка AI…</p>}>
-        <AiPanel onDirtyChange={props.onDirtyChange} />
+        <AiPanel onDirtyChange={props.onDirtyChange} onOpenPage={onOpenPage} onOpenEvent={props.onOpenEvent} />
       </Suspense>
     );
   if (section === "notes")

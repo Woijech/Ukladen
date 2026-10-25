@@ -1,6 +1,6 @@
 # AI Persistence Contracts
 
-Updated: 2026-10-24.
+Updated: 2026-10-26.
 Status: the completed offline AI-01 foundation implements and natively tests owned
 persistence, authenticated fake-only API accounting, bounded recovery and retention.
 The migrations have been applied only to disposable test schemas, never to the app.
@@ -158,3 +158,13 @@ races, rollback/concurrent sweeps and durable budgets across reviewed resumes.
 Step 8 adds native expiry/purge, independently timed journals, minimal receipts,
 preserved completed context, rollback, owner isolation, bounded/concurrent cleanup
 and late-result non-resurrection tests.
+
+
+## AI-07 confirmed-action extension
+
+[Revision 0031](../../apps/backend/alembic/versions/0031_ai_action_proposals.py) adds
+chat/run-owned immutable proposal payloads and independent content-free action receipts.
+Normal services and the receipt share the business transaction; a framework checkpoint
+cannot authorize or prove a commit. Content cleanup preserves replay protection and
+created objects. See the single [action storage/retention contract](ai-07.md#storage-and-retention).
+Application migration and activation remain pending.

@@ -291,3 +291,11 @@ The Dockerfile builds Next.js standalone output and serves it as the non-root
 `node` user. No extra UI framework, font download or bundling orchestrator is used.
 `npm run build` includes static assets in that standalone output; `npm start` runs
 the same standalone server used by Docker.
+
+
+AI-07 extends the local AI chat with exact before/after cards, one decision for a related
+batch, stored terminal outcomes and navigation to current pages/events. Cards appear after
+run completion and survive reload; confirmation does not call the model. Expired or stale
+proposals cannot apply, and source fingerprints expose changed official facts even when
+numeric versions match. See [confirmed action contracts](../development/ai-07.md).
+Activation remains pending.

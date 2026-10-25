@@ -385,3 +385,12 @@
     min-width: 580px;
   }
 }
+
+.ai-proposals { display: grid; gap: 1rem; }
+.ai-action-card { border: 1px solid var(--border); border-radius: 16px; padding: 1rem; }
+.ai-action-card h3, .ai-action-card h4 { margin: .5rem 0; }
+.ai-action-comparison { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1rem; }
+.ai-action-comparison > div { min-width: 0; padding: .75rem; background: var(--surface-alt); border-radius: 10px; }
+.ai-action-values, .ai-action-block { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ai-action-block { margin: .5rem 0; }
+.ai-action-buttons { display: flex; flex-wrap: wrap; gap: .75rem; }

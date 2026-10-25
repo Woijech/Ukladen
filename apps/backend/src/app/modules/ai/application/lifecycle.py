@@ -17,6 +17,7 @@ from app.modules.ai.application.access import (
     AiAccessStatus,
     UnlimitedAiAccessPolicy,
 )
+from app.modules.ai.application.actions import ActionService
 from app.modules.ai.application.agent import AgentInput, AgentResult, AgentRunner
 from app.modules.ai.application.connections import ConnectionAccess, ModelOption
 from app.modules.ai.application.persistence import AiRepository
@@ -109,11 +110,13 @@ class AiService:
         model: str = "fake-v1",
         connections: ConnectionAccess | None = None,
         access_policy: AiAccessPolicy | None = None,
+        actions: ActionService | None = None,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.transactions, self.runners = transactions, runners
         self.provider, self.model, self.now = provider, model, now
         self.connections = connections
+        self.actions = actions
         self.access_policy = (
             access_policy if access_policy is not None else UnlimitedAiAccessPolicy()
         )
@@ -360,6 +363,16 @@ class AiService:
         try:
             with self.runners(run, journal) as runner:
                 result = runner.run(request)
+            if result.status == "interrupted" and result.review and self.actions is not None:
+                self.actions.propose(run, result.review, result.sources)
+                result = AgentResult(
+                    status="completed",
+                    answer=(
+                        "Предложение готово. Проверь все изменения и нажми «Применить всё» "
+                        "или «Отклонить». До подтверждения данные не меняются."
+                    ),
+                    sources=result.sources,
+                )
         except Exception as error:
             log_failure(logger, "ai.execution_failed", error)
             result = AgentResult(status="failed")

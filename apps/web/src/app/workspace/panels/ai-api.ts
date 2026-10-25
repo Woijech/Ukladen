@@ -14,6 +14,7 @@ export type Source = {
   title: string;
   version: number;
   locator: string;
+  fingerprint?: string;
   parent_id: string | null;
 };
 export type Conversation = {

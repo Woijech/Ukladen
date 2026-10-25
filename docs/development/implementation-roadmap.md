@@ -1,6 +1,6 @@
 # Backend Implementation Roadmap
 
-Updated: 2026-10-24.
+Updated: 2026-10-26.
 Status: implementation roadmap; completed slices are marked below. This document does not authorize starting the
 next phase; request a concrete slice before implementing it. Pages/blocks/databases,
 mandatory table/calendar views, personal scope and AI execution modes are confirmed.
@@ -236,7 +236,8 @@ receipts and physical cleanup. See [final AI-01 verification](ai-01-execution-pl
 AI-02 implements the optional OpenRouter adapter/catalog and encrypted personal
 connections; live account activation remains pending. [AI-03 read tools](ai-03.md)
 are implemented locally. [AI-04](ai-04.md) adds streaming chat/settings/usage UI
-and supporting APIs. Write tools remain not implemented; application migrations are unapplied.
+and supporting APIs. [AI-07](ai-07.md) adds locally implemented exact confirmed actions;
+automatic writes remain not implemented and application migrations are unapplied.
 [AI-05](ai-05.md) adds a verified optional CPU embedding adapter and disposable
 hardware proof with explicit load limits. [AI-06](ai-06.md) implements local versioned indexing, AI-only hybrid retrieval and
 durable full-source processing. Activation and real-LLM quality remain pending.

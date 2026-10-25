@@ -160,6 +160,7 @@ stores metadata only. Existing objects and credentials must be preserved on upgr
 | `SCHEDULE_SYNC_ENABLED` | `true` | Boolean used by API, worker and Beat. False disables accepted/periodic imports; stored calendar reads and reminder/material maintenance continue. |
 | `SCHEDULE_SYNC_INTERVAL_SECONDS` | `3600` | Integer 60–86400; selected-group refresh threshold and calendar stale warning threshold. It is not Beat's polling period. |
 | `AI_ENABLED` | `false` | Opts in to authenticated chats after reviewed migrations. Explicit selected offerings can call real models; unselected chats stay fake. No startup DDL. |
+| `AI_ACTIONS_ENABLED` | `false` | Registers AI-07 proposals and permits exact owner decisions only when AI itself is enabled; requires migration 0031. Does not enable automatic actions or provider spending. |
 | `AI_RETENTION_ENABLED` | `false` | Continue migrated recovery/cleanup independently when chat is disabled. |
 | `AI_LLM_PROVIDER` | `fake` | Preserves the fake default; real selections come from the catalog rather than a global provider switch. |
 | `AI_LLM_MODEL` | `fake-v1` | Only fake-v1 is supported; other values are rejected. |

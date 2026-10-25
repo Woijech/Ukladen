@@ -93,6 +93,8 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "ai_messages",
         "ai_runs",
         "ai_document_jobs",
+        "ai_action_proposals",
+        "ai_action_receipts",
         "ai_run_receipts",
         "ai_provider_attempts",
         "ai_tool_executions",

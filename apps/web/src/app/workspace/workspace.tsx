@@ -2071,6 +2071,18 @@ function CalendarWorkspace({
               timeZone={timeZone}
               pageToOpen={pageToOpen}
               onOpenPage={openPage}
+              onOpenEvent={async (id, startsAt, source) => {
+                if (dirty) throw new Error("Отправь или очисти черновик перед переходом к событию.");
+                const day = dateKey(new Date(startsAt), timeZone);
+                const calendar = await requestJson<CalendarPayload>(
+                  `/api/v1/calendar/events?date_from=${day}&date_to=${day}&include_hidden=true`,
+                );
+                const item = calendar.events.find((event) => event.source === source && event.source_event_id === id);
+                if (!item) throw new Error("Событие изменилось или больше недоступно. Открой календарь для проверки.");
+                setSelected(day);
+                navigate("calendar");
+                openEvent(item);
+              }}
               onNavigate={navigate}
               onDirtyChange={setDirty}
               onChooseGroup={() => setShowGroupPicker(true)}

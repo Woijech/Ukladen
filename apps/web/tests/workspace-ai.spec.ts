@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import type { Proposal } from "../src/app/workspace/panels/ai-actions";
 import { login, mockWorkspace } from "./workspace-fixtures";
 
 const chatId = "11111111-2222-4333-8444-555555555555";
@@ -52,6 +53,8 @@ async function mockAi(page: Page) {
     writes: [] as { path: string; body: Record<string, unknown> | null }[],
     preferences: { instructions: "Отвечай кратко", version: 1 },
     documentProgress: null as null | { phase: string; processed_characters: number; total_characters: number; steps: number; error: string | null },
+    proposals: [] as Proposal[],
+    proposalCommits: 0,
     previewMissing: false,
     disconnect: false,
     connections: [
@@ -79,6 +82,23 @@ async function mockAi(page: Page) {
     if (method !== "GET") {
       expect(request.headers()["x-csrf-token"]).toBe("c".repeat(43));
       state.writes.push({ path, body });
+    }
+    if (path.endsWith("/proposals")) return route.fulfill({ json: state.proposals });
+    if (path.endsWith("/decision")) {
+      const proposal = state.proposals.find((item) => path.includes(item.id));
+      if (!proposal) return route.fulfill({ status: 404, json: {} });
+      expect(body?.digest).toBe(proposal.digest);
+      expect(Object.keys(body!).sort()).toEqual(["decision", "digest"]);
+      if (proposal.status === "pending") {
+        if (Date.parse(proposal.expires_at) <= Date.now()) proposal.status = "expired";
+        else if (body?.decision === "reject") proposal.status = "rejected";
+        else {
+          proposal.status = "applied";
+          state.proposalCommits++;
+          proposal.outcomes = proposal.effects.map((effect, index) => ({ operation: effect.operation, target_id: `${pageId.slice(0, -1)}${index}` }));
+        }
+      }
+      return route.fulfill({ json: proposal });
     }
     if (path.endsWith("/document-progress")) return route.fulfill({ json: state.documentProgress });
     if (path.endsWith("/index")) return route.fulfill({ json: { status: "ready", version: 1 } });
@@ -525,4 +545,70 @@ test("full-source processing requires sources, shows saved progress and cancels"
   await page.screenshot({ path: test.info().outputPath("full-source-progress.png"), fullPage: true });
   await page.getByRole("button", { name: "Остановить", exact: true }).click();
   await expect(page.getByText("Остановлено", { exact: true })).toBeVisible();
+});
+
+
+function actionProposal(): Proposal {
+  return {
+    id: "77777777-2222-4333-8444-555555555555", digest: "a".repeat(64), run_id: "run-proposal",
+    expires_at: new Date(Date.now() + 86400000).toISOString(), timezone: "Europe/Minsk",
+    status: "pending", outcomes: [], effects: [
+      { operation: "page_update", target_id: pageId, warnings: [], before: {
+        title: "До правки", document: { schema_version: 1, blocks: [{ id: "block", type: "text", text: "Исходный текст", text_format: "plain" }] },
+      }, after: { title: "После правки", document: { schema_version: 1, blocks: [{ id: "block", type: "text", text: "<script>window.injected=true</script>", text_format: "plain" }] } } },
+      { operation: "event_create", target_id: null, warnings: [], before: null, after: {
+        title: "Тренировка", starts_at: "2030-10-27T15:00:00Z", ends_at: "2030-10-27T16:30:00Z", blocks_time: true,
+      } },
+      { operation: "reminder_create", target_id: null, warnings: [], before: null, after: {
+        title: "Тренировка", event_action: 1, minutes_before: 30, due_at: "2030-10-27T14:30:00Z",
+      } },
+    ],
+  };
+}
+
+test("AI shows exact batch preview and applies only its confirmed digest", async ({ page }) => {
+  const state = await mockAi(page);
+  state.proposals = [actionProposal()];
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  const proposals = page.getByRole("region", { name: "Предложения действий" });
+  await expect(proposals.getByText("Исходный текст", { exact: true })).toBeVisible();
+  await expect(proposals.getByText("<script>window.injected=true</script>", { exact: true })).toBeVisible();
+  await expect(proposals.getByText(/Начало:.*18:00/)).toBeVisible();
+  await expect(proposals.getByText(/Уведомление:.*17:30/)).toBeVisible();
+  expect(state.proposalCommits).toBe(0);
+  expect(await page.evaluate(() => "injected" in window)).toBe(false);
+  await proposals.getByRole("button", { name: "Применить всё", exact: true }).click();
+  await expect(proposals.getByText("Все изменения применены", { exact: true })).toBeVisible();
+  expect(state.proposalCommits).toBe(1);
+  await page.reload();
+  await expect(page.getByText("Все изменения применены", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Применить всё", exact: true })).toHaveCount(0);
+  expect(state.proposalCommits).toBe(1);
+  await page.screenshot({ path: test.info().outputPath("confirmed-actions.png"), fullPage: true });
+});
+
+test("AI proposals reject and expire without applying", async ({ page }) => {
+  const state = await mockAi(page);
+  state.proposals = [actionProposal()];
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  await page.getByRole("button", { name: "Отклонить", exact: true }).click();
+  await expect(page.getByText("Отклонено", { exact: true })).toBeVisible();
+  expect(state.proposalCommits).toBe(0);
+  state.proposals[0].status = "expired";
+  state.proposals[0].expires_at = "2020-01-01T00:00:00Z";
+  await page.reload();
+  await expect(page.getByText("Срок подтверждения истёк", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Применить всё", exact: true })).toHaveCount(0);
+});
+
+
+test("a proposal appears when the same running submission completes", async ({ page }) => {
+  const state = await mockAi(page);
+  state.run = { id: "delayed-proposal", status: "running" };
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  await expect(page.getByRole("button", { name: "Остановить", exact: true })).toBeVisible();
+  state.proposals = [actionProposal()];
+  state.run = { ...state.run, status: "completed" };
+  await expect(page.getByRole("button", { name: "Применить всё", exact: true })).toBeVisible();
+  expect(state.proposalCommits).toBe(0);
 });

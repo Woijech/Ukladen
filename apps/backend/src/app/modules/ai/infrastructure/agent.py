@@ -91,6 +91,7 @@ class OfflineAgentRunner:
         tool_timeout: float = 10,
         sources: SourceTools | None = None,
         instructions: Callable[[], str] | None = None,
+        action_status: Callable[[str], str] | None = None,
     ) -> None:
         if (
             type(model_limit) is not int
@@ -108,6 +109,7 @@ class OfflineAgentRunner:
             raise ValueError("Invalid offline tool registration.")
         self.run_id = run_id
         self.sources = sources
+        self.action_status = action_status
         self.run_timeout = run_timeout
         self.bounds = BoundedCalls(model_limit, tool_timeout)
         middleware: list[AgentMiddleware[Any, Any]] = [
@@ -153,8 +155,64 @@ class OfflineAgentRunner:
             self.sources.scope = request.source_scope
         with tracing_context(enabled=False):
             config = self._config(request.conversation_id)
-            if self.graph.get_state(config).next:
-                raise InvalidAgentReview("Conversation has unfinished execution.")
+            state = self.graph.get_state(config)
+            if state.next:
+                interrupts = [item for task in state.tasks for item in task.interrupts]
+                if (
+                    self.action_status is None
+                    or len(interrupts) != 1
+                    or any(
+                        item["name"] != "propose_actions"
+                        for item in interrupts[0].value["action_requests"]
+                    )
+                ):
+                    raise InvalidAgentReview("Conversation has unfinished execution.")
+                receipt = self.action_status(interrupts[0].id)
+                messages = state.values["messages"]
+                pending = next(
+                    message for message in reversed(messages) if isinstance(message, AIMessage)
+                )
+                if not any(call["name"] == "propose_actions" for call in pending.tool_calls):
+                    raise InvalidAgentReview("Invalid proposal continuation.")
+                # Commit truth comes from the application; close HITL without a model/tool dispatch.
+                self.graph.update_state(
+                    config,
+                    {
+                        "messages": [
+                            pending.model_copy(
+                                update={
+                                    "content": "",
+                                    "tool_calls": [
+                                        call | {"args": {}} for call in pending.tool_calls
+                                    ],
+                                }
+                            ),
+                            *[
+                                ToolMessage(
+                                    content=receipt
+                                    if call["name"] == "propose_actions"
+                                    else (
+                                        "Deferred tool was not executed. "
+                                        "Read current sources again."
+                                    ),
+                                    tool_call_id=call["id"],
+                                    name=call["name"],
+                                    status="success"
+                                    if call["name"] == "propose_actions"
+                                    else "error",
+                                )
+                                for call in pending.tool_calls
+                            ],
+                            AIMessage(
+                                content=(
+                                    "Prior proposal handled by the application. "
+                                    "Read current sources before proposing changes."
+                                )
+                            ),
+                        ]
+                    },
+                    as_node="model",
+                )
             return self._invoke({"messages": [HumanMessage(content=request.message)]}, config)
 
     def resume(self, conversation_id: UUID, review: AgentReview) -> AgentResult:

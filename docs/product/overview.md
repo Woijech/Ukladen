@@ -1,6 +1,6 @@
 # Ukladen Product Overview
 
-Updated: 2026-10-24.
+Updated: 2026-10-26.
 Status: target product specification; only capabilities listed as implemented
 below exist. Product references describe intent, not feature parity with another app.
 
@@ -195,6 +195,7 @@ activation and real-provider answer quality remain unverified. See [AI architect
 | Offline AI chat/run lifecycle and accounting | AI-01 complete, fake-only and disabled by default; bounded execution/recovery, 30-day cleanup and minimal replay protection; migrations tested only on disposable data |
 | Optional real-model catalog and personal API connections | AI-02 backend implemented locally; default-disabled, migration/live activation pending |
 | AI workspace/calendar/database reads | AI-03 implemented locally; lexical search, current-source context and historical source references; default-disabled and unactivated |
+| Exact confirmed AI actions | AI-07 implemented locally: pages, personal events and reminders, atomic previews/confirmation; default-disabled and unactivated. |
 | Semantic retrieval / full-source analysis | AI-06 implemented locally; unactivated; real-LLM quality unverified. |
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
 | Weekly calendar, personal-event create/edit/delete, login/registration and group selection UI | Implemented |

@@ -1,6 +1,6 @@
 # AI Assistant Product Specification
 
-Updated: 2026-10-24.
+Updated: 2026-10-26.
 Status: agreed target specification. An [offline backend API](../development/ai-api.md)
 implements the completed offline AI-01 foundation: fake chats/runs, accounting,
 bounded recovery and 30-day cleanup, disabled by default and unmigrated in the app.
@@ -10,7 +10,8 @@ workspace/calendar/database read tools with lexical search and source references
 [AI-04](../development/ai-04.md) implements streaming chat, source inspection,
 model/connection settings, personal instructions and usage analytics UI/API locally.
 AI-06 adds local hybrid retrieval and durable complete-source processing; see
-[AI-06](../development/ai-06.md). Activation and planning remain pending. AI-00 specifies the target work; it does
+[AI-06](../development/ai-06.md). [AI-07](../development/ai-07.md) adds locally implemented
+exact confirmed actions. Activation, automatic grants and planning remain pending. AI-00 specifies the target work; it does
 not enable integrations. This is the single AI specification linked from
 [the overview](overview.md). See [delivery](../development/ai-implementation-plan.md),
 [architecture](../architecture/ai.md), [tool contracts](../development/ai-tool-contracts.md)
@@ -44,10 +45,10 @@ scope, not a currently enabled tool. Database querying remains separately option
 | AI-UC-04 | Selected / AI-06 | Explain this lab using my materials | Retrieved evidence; distinguish explanations and unsupported claims |
 | AI-UC-05 | Selected / AI-06 | Compare these complete documents | Coverage-aware processing; top-k snippets do not prove completeness |
 | AI-UC-06 | Selected / AI-06 | Ask me questions about this lecture | Questions/feedback; saving results is a separate action |
-| AI-UC-07 | Selected / AI-07 | Create an event tomorrow at 18:00 | Exact date/time, preview and confirmed personal event |
-| AI-UC-08 | Selected / AI-07 | Save this outline as a page | Exact title/blocks and one confirmed independent page |
-| AI-UC-09 | Selected / AI-07 | Remind me before this event | Authorized target, exact trigger and confirmed reminder |
-| AI-UC-10 | Selected / AI-07 | Improve this note or explicitly move this personal event | Before/after preview, current versions and exact confirmation |
+| AI-UC-07 | Implemented locally / AI-07 | Create an event tomorrow at 18:00 | Exact date/time, preview and confirmed personal event |
+| AI-UC-08 | Implemented locally / AI-07 | Save this outline as a page | Exact title/blocks and one confirmed independent page |
+| AI-UC-09 | Implemented locally / AI-07 | Remind me before this event | Authorized target, exact trigger and confirmed reminder |
+| AI-UC-10 | Implemented locally / AI-07 | Improve this note or explicitly move this personal event | Before/after preview, current versions and exact confirmation |
 | AI-UC-11 | Optional / existing workspace services | Show matching database records | Typed filters/properties; no SQL or schema mutation |
 | AI-UC-12 | Selected / P-06, AI-10 | Fit my preparation before Friday | Deterministic feasible sessions and confirmed atomic application |
 | AI-UC-13 | Selected, opt-in / AI-08 | Automatically create pages or tasks here | Scoped grant, trigger, limits and durable outcome; tasks also need AI-10 |
@@ -273,8 +274,10 @@ User content/secrets are excluded from diagnostics/usage by default.
 
 Expired/deleted chats must be immediately inaccessible to reads/runs. Cleanup erases
 all chat-owned copies and prevents queued work resurrecting content. Define backup/restore
-handling before production. Finalize minimal replay-record purge with AI-07; analytics
-cleanup must not make an old confirmation executable again.
+handling before production. AI-07 retains content-free action receipts until account deletion; analytics
+cleanup cannot make an old confirmation executable again. Proposal lifetime is 24 hours
+in PostgreSQL, without a waiting process/model call. Related actions are confirmed and
+committed as one batch; see [the implementation contract](../development/ai-07.md).
 
 ## 11. Acceptance and exclusions
 

@@ -25,6 +25,7 @@ from app.modules.notes.domain.blocks import PageDocument, document_markdown
 from app.modules.notes.domain.pages import PageNotFound
 from app.modules.search.application.evidence import EvidenceResult, SourceReference
 from app.modules.search.application.service import SearchService
+from app.modules.search.domain.evidence import source_fingerprint
 from app.modules.search.domain.search import SearchQuery
 from app.modules.workspace.application.database_views import DatabaseViewService
 
@@ -131,6 +132,15 @@ class WorkspaceSourceService:
                     raise PageNotFound()
                 document = PageDocument(blocks)
             text = document_markdown(document)
+            from app.modules.notes.domain.blocks import document_value
+
+            structured = json_value(document_value(document))
+            # Keep typed block identities available for exact edits within the existing tool bound.
+            structured_preview = (
+                {"document": structured}
+                if len(json.dumps(structured, ensure_ascii=False).encode()) <= 10000
+                else {}
+            )
             end = min(query.offset + query.limit, len(text))
             return EvidenceResult(
                 data=json_value(
@@ -138,6 +148,7 @@ class WorkspaceSourceService:
                         "text": text[query.offset : end],
                         "total_characters": len(text),
                         "block_ids": [str(block.id) for block in document.blocks][:100],
+                        **structured_preview,
                     }
                 ),
                 sources=(
@@ -353,6 +364,7 @@ class WorkspaceSourceService:
                     else item.version,
                     title=item.title,
                     locator=f"dates:{query.date_from}:{query.date_to}",
+                    fingerprint=source_fingerprint(asdict(item)),
                     parent_id=str(item.database_id)
                     if isinstance(item, RecordDateProjection)
                     else None,

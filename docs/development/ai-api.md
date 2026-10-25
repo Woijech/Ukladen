@@ -1,6 +1,6 @@
 # AI Chat and Run API
 
-Updated: 2026-10-24.
+Updated: 2026-10-26.
 Status: the completed AI-01 foundation implements authenticated transport, admission,
 accounting, bounded execution, recovery and 30-day cleanup. Disabled by default.
 Migrations 0022/0023 were tested on disposable databases;
@@ -153,7 +153,7 @@ invent an answer from a checkpoint. Exact submission replay returns the stored f
 state; a new submission can proceed using completed predecessor context. Reviewed fake
 interrupts still resume through the framework with explicit decisions, fresh ownership
 checks and the durable attempt budget. There is no public resume endpoint or automatic
-approval; the production action/review bridge remains AI-07.
+approval; the production action/review bridge is implemented locally under [AI-07](ai-07.md), default-disabled and unactivated.
 
 ## Physical retention and replay protection
 

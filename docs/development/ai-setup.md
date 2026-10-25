@@ -1,6 +1,6 @@
 # AI Setup and Provider Switching Runbook
 
-Updated: 2026-10-25.
+Updated: 2026-10-26.
 Status: AI-01 is complete within its offline scope: harness, owned persistence,
 authenticated fake API, durable accounting, bounded recovery and retention cleanup.
 Disabled by default; migrations are tested on disposable data and unapplied to the
@@ -268,6 +268,10 @@ Do not add a serving microservice, reranker or ANN index without measured need.
 Record executed hardware results rather than claiming a target was met.
 
 ## E. AI-07/08: confirmed writes and scoped automatic creates
+
+AI-07 is implemented locally, default-disabled and unactivated; see [contracts](ai-07.md).
+`AI_ACTIONS_ENABLED=false` remains the default. Migrate reviewed revision 0031 before
+separately requested activation. Enabling confirmed actions never grants automatic writes.
 
 Enable each write capability only after normal-service previews, version checks,
 exact confirmation, transaction/idempotency and lost-response tests pass. Start on

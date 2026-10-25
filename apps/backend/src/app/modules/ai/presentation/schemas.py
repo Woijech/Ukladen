@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
+from app.modules.ai.application.actions import ActionEffect, ActionOutcome
 from app.modules.ai.application.agent import AgentInput
 from app.modules.ai.application.connections import require_key
 from app.modules.ai.application.lifecycle import RunSnapshot
@@ -210,3 +211,17 @@ class DocumentProgressResponse(BaseModel):
 class IndexStatusResponse(BaseModel):
     status: str
     version: int
+
+
+class ProposalResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    run_id: UUID
+    digest: str
+    created_at: datetime
+    expires_at: datetime
+    status: str
+    timezone: str
+    effects: tuple[ActionEffect, ...]
+    outcomes: tuple[ActionOutcome, ...]
+    sources: tuple[SourceReference, ...]

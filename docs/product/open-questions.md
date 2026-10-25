@@ -1,6 +1,6 @@
 # Product Decisions and Open Questions
 
-Updated: 2026-10-25.
+Updated: 2026-10-26.
 Status: decision register. Owner-confirmed scope is distinguished from open design
 choices. Proposed defaults are not owner confirmation; resolve relevant unknowns
 before implementing incompatible schemas, integrations or behavior.
@@ -232,3 +232,13 @@ material count, parser/time/text limits and recovery behavior are implementation
 defaults, documented in [materials/search](../development/materials.md). These do
 not resolve future semantic retrieval, provider budgets, malware isolation or
 production capacity. OCR is explicitly excluded by the owner.
+
+
+## AI-07 owner scope (2026-10-26)
+
+The owner confirmed the complete five-operation AI-07 scope and one atomic confirmation for
+related actions, and delegated proposal lifetime to implementation judgment. Selected lifetime:
+24 hours in PostgreSQL, without a waiting model/process or held connection. Content-free replay
+receipts remain until account deletion; proposal content follows the existing chat/activity
+lifecycle. See [AI-07](../development/ai-07.md). This does not authorize automatic grants,
+planning, real-provider requests, application migrations or deployment.

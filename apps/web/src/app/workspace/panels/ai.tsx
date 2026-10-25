@@ -40,6 +40,7 @@ import {
 import { AiSettings } from "./ai-settings";
 import { SourcePicker, SourceViewer } from "./ai-sources";
 import { AiUsage, RunDetails } from "./ai-usage";
+import { ActionProposals } from "./ai-actions";
 import "./ai.css";
 
 const toolLabels: Record<string, string> = {
@@ -51,11 +52,15 @@ const toolLabels: Record<string, string> = {
   read_database: "Смотрю структуру базы",
   query_database: "Читаю записи",
   fake_double: "Проверяю тестовый инструмент",
+  propose_actions: "Готовлю предложение изменений",
 };
 
 export function AiPanel({
+  onOpenPage, onOpenEvent,
   onDirtyChange,
 }: {
+  onOpenPage: (id: string) => void;
+  onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
   onDirtyChange: (dirty: boolean) => void;
 }) {
   const path = usePathname();
@@ -122,6 +127,7 @@ export function AiPanel({
         <AiUsage />
       ) : (
         <ChatArea
+          onOpenPage={onOpenPage} onOpenEvent={onOpenEvent}
           selected={selected}
           onChoose={(id) =>
             go(
@@ -154,10 +160,13 @@ export function AiPanel({
 }
 
 function ChatArea({
+  onOpenPage, onOpenEvent,
   selected,
   onChoose,
   onDirtyChange,
 }: {
+  onOpenPage: (id: string) => void;
+  onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
   selected: string | null;
   onChoose: (id: string | null) => void;
   onDirtyChange: (dirty: boolean) => void;
@@ -237,7 +246,7 @@ function ChatArea({
             </p>
           </aside>
           {selected ? (
-            <Chat key={selected} id={selected} onDirtyChange={onDirtyChange} />
+            <Chat key={selected} id={selected} onDirtyChange={onDirtyChange} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
           ) : (
             <div className="ai-welcome">
               <Image src={symbol} alt="" width={72} height={72} />
@@ -474,9 +483,12 @@ function NewChat({
 }
 
 function Chat({
+  onOpenPage, onOpenEvent,
   id,
   onDirtyChange,
 }: {
+  onOpenPage: (id: string) => void;
+  onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
   id: string;
   onDirtyChange: (dirty: boolean) => void;
 }) {
@@ -686,8 +698,8 @@ function Chat({
           >
             {messages.length === 0 && (
               <p className="muted">
-                Начни с вопроса. AI пока может читать данные и объяснять, а
-                изменения появятся в следующих этапах.
+                Начни с вопроса или попроси подготовить изменения. Действия
+                выполняются только после подтверждения точного предпросмотра.
               </p>
             )}
             {messages.map((message) => (
@@ -733,6 +745,7 @@ function Chat({
                 <div className="ai-message-text">{draft.text}</div>
               </article>
             )}
+            <ActionProposals chatId={id} runId={run?.id} running={!!running} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
             <div ref={bottom} />
           </div>
           {run && (

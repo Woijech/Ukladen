@@ -8,7 +8,7 @@
 >
 > **Important:** This document intentionally does **not** define concrete BSUIR IIS response fields, exact external API payloads, full SQL schema, or detailed endpoint DTOs. Those contracts are separate documents.
 
-Updated: 2026-10-24. Target features are not implemented unless explicitly marked.
+Updated: 2026-10-26. Target features are not implemented unless explicitly marked.
 Read the [documentation index](docs/README.md), [open decisions](docs/product/open-questions.md)
 and [implementation roadmap](docs/development/implementation-roadmap.md) for a concrete slice.
 [ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md) records optional organization.
@@ -1297,9 +1297,9 @@ locally, with owner/version validation and recoverable jobs; activation remains 
 ## Phase 5 — AI tools and grounded actions
 
 Status: read/help and retrieval are implemented locally under AI-01–06, unactivated.
-Exact confirmed actions,
-then explicitly permitted automatic actions with revocable scopes and idempotent
-execution. RAG follows indexing. A calendar-only AI read slice
+[AI-07 exact confirmed actions](docs/development/ai-07.md) are implemented locally,
+default-disabled and unactivated. Next: explicitly permitted automatic actions with
+revocable scopes and idempotent execution. RAG follows indexing. A calendar-only AI read slice
 can be requested earlier; do not force unrelated feature dependencies.
 
 ## IIS scope — public now, private later

@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from app.core.logging import log_failure
 from app.modules.academics.presentation.routes import no_store
 from app.modules.ai.application.access import AiAccessStatus
+from app.modules.ai.application.actions import ActionService, Proposal, ProposalDecision
 from app.modules.ai.application.connections import ConnectionAccess, ModelOption
 from app.modules.ai.application.lifecycle import AiService
 from app.modules.ai.application.source_queries import SourceQuery
@@ -20,6 +21,7 @@ from app.modules.ai.domain.state import (
     AiPersistenceUnavailable,
     InvalidAiState,
 )
+from app.modules.ai.infrastructure.actions import SqlAlchemyActionTransactions
 from app.modules.ai.infrastructure.connections import FileConnectionConfiguration
 from app.modules.ai.infrastructure.lifecycle import PostgresAgentRunners, SqlAlchemyAiTransactions
 from app.modules.ai.infrastructure.providers import OpenRouterModels
@@ -40,6 +42,7 @@ from app.modules.ai.presentation.schemas import (
     MessageSubmit,
     PreferencesResponse,
     PreferencesUpdate,
+    ProposalResponse,
     RunResponse,
 )
 from app.modules.ai.presentation.streaming import stream_response
@@ -68,27 +71,69 @@ def get_ai(request: Request, settings: Config) -> AiService:
         if settings.ai_connections_file is not None
         else None
     )
+    sources = SqlAlchemySourceReader(
+        sessions,
+        request.app.state.academic_provider,
+        settings.schedule_sync_interval_seconds,
+        embeddings=embedding_provider(settings.search_embeddings_directory)
+        if settings.search_embeddings_directory
+        else None,
+    )
+    actions = (
+        ActionService(SqlAlchemyActionTransactions(sources), connections=access)
+        if settings.ai_actions_enabled
+        else None
+    )
     return AiService(
         transactions,
         PostgresAgentRunners(
             sessions,
             real_models=OpenRouterModels(transactions, access) if access else None,
-            sources=SqlAlchemySourceReader(
-                sessions,
-                request.app.state.academic_provider,
-                settings.schedule_sync_interval_seconds,
-                embeddings=embedding_provider(settings.search_embeddings_directory)
-                if settings.search_embeddings_directory
-                else None,
-            ),
+            sources=sources,
+            actions_enabled=settings.ai_actions_enabled,
         ),
         provider=settings.ai_llm_provider,
         model=settings.ai_llm_model,
         connections=access,
+        actions=actions,
     )
 
 
 Ai = Annotated[AiService, Depends(get_ai)]
+
+
+def get_actions(service: Ai, settings: Config) -> ActionService:
+    if not settings.ai_actions_enabled or service.actions is None:
+        raise HTTPException(503, "AI actions are disabled.")
+    return service.actions
+
+
+Actions = Annotated[ActionService, Depends(get_actions)]
+
+
+@router.get("/conversations/{conversation_id}/proposals", response_model=list[ProposalResponse])
+def list_proposals(
+    conversation_id: UUID,
+    current: CurrentSession,
+    service: Actions,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=10000),
+) -> list[Proposal]:
+    return service.list(current.user_id, conversation_id, limit, offset)
+
+
+@router.post(
+    "/proposals/{proposal_id}/decision",
+    response_model=ProposalResponse,
+    dependencies=[Depends(require_csrf)],
+)
+def decide_proposal(
+    proposal_id: UUID,
+    payload: ProposalDecision,
+    current: CurrentSession,
+    service: Actions,
+) -> Proposal:
+    return service.decide(current.user_id, proposal_id, payload)
 
 
 @router.get("/access", response_model=AiAccessStatus)

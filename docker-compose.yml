@@ -133,6 +133,7 @@ services:
       <<: *backend-environment
       SEARCH_EMBEDDINGS_DIRECTORY: /model
       AI_ENABLED: "false"
+      AI_ACTIONS_ENABLED: "false"
       AI_RETENTION_ENABLED: "false"
       AI_CONNECTIONS_FILE: null
     volumes:

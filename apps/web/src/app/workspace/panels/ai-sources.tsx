@@ -298,7 +298,7 @@ export function SourceViewer({
       <ActionFeedback {...action} />
       <p className="muted">
         Текущее содержимое. В ответе использовалась версия {source.version}.
-        {current && current.version !== source.version
+        {current && (current.version !== source.version || (source.fingerprint && current.fingerprint !== source.fingerprint))
           ? " Источник изменился после ответа."
           : ""}
       </p>

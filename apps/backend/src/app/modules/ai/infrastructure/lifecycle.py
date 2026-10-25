@@ -18,6 +18,7 @@ from app.modules.ai.application.persistence import AiRepository
 from app.modules.ai.application.recovery import RUN_TIMEOUT
 from app.modules.ai.application.sources import SourceReader
 from app.modules.ai.domain.state import AiConflict, AiPersistenceUnavailable, Run
+from app.modules.ai.infrastructure.action_tools import action_tool
 from app.modules.ai.infrastructure.checkpoints import owned_offline_runner
 from app.modules.ai.infrastructure.fake_tools import fake_double
 from app.modules.ai.infrastructure.grounding import SourceTools
@@ -72,6 +73,7 @@ class PostgresAgentRunners:
         *,
         real_models: OpenRouterModels | None = None,
         sources: SourceReader | None = None,
+        actions_enabled: bool = False,
     ) -> None:
         with sessions() as database:
             engine = database.get_bind()
@@ -80,10 +82,37 @@ class PostgresAgentRunners:
         self.engine, self.model, self.sessions = engine, model, sessions
         self.real_models = real_models
         self.sources = sources
+        self.actions_enabled = actions_enabled
 
     def instructions(self, user_id: UUID) -> str:
         with SqlAlchemyAiTransactions(self.sessions)(user_id) as repository:
             return repository.preferences(user_id).instructions
+
+    def action_status(self, run: Run, interrupt_id: str) -> str:
+        from sqlalchemy import select
+
+        from app.modules.ai.infrastructure.action_models import ActionProposalModel
+        from app.modules.ai.infrastructure.actions import SqlAlchemyActions
+
+        with self.sessions.begin() as database:
+            row = database.scalar(
+                select(ActionProposalModel).where(
+                    ActionProposalModel.user_id == run.user_id,
+                    ActionProposalModel.conversation_id == run.conversation_id,
+                    ActionProposalModel.interrupt_id == interrupt_id,
+                )
+            )
+            proposal = SqlAlchemyActions(database).get(run.user_id, row.id) if row else None
+            if proposal is None:
+                return "Prior proposal is unavailable. No permission to execute it."
+            status = (
+                "expired"
+                if proposal.status == "pending" and datetime.now(UTC) >= proposal.expires_at
+                else proposal.status
+            )
+            return f"Application proposal {proposal.id}: {status}. Outcomes: " + str(
+                [item.model_dump(mode="json") for item in proposal.outcomes]
+            )
 
     @contextmanager
     def __call__(self, run: Run, journal: ExecutionJournal) -> Iterator[AgentRunner]:
@@ -119,16 +148,25 @@ class PostgresAgentRunners:
                         source_tools.analysis_context = lambda scope: AnalysisContext(
                             self.sessions
                         ).read(run.user_id, run.conversation_id, scope)
+                    tools = (
+                        [fake_double]
+                        if run.offering_id is None
+                        else source_tools.build_tools()
+                        if source_tools
+                        else []
+                    )
+                    if self.actions_enabled:
+                        tools.append(action_tool())
                     yield owned_offline_runner(
                         connection,
                         run.user_id,
                         run.conversation_id,
                         model,
-                        [fake_double]
-                        if run.offering_id is None
-                        else source_tools.build_tools()
-                        if source_tools
-                        else [],
+                        tools,
+                        review_tools=frozenset({"propose_actions"})
+                        if self.actions_enabled
+                        else frozenset(),
+                        action_status=lambda interrupt_id: self.action_status(run, interrupt_id),
                         run_id=run.id,
                         journal=journal,
                         sources=source_tools,

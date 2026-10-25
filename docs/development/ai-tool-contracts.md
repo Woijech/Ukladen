@@ -1,8 +1,8 @@
 # AI-00 Tool and Execution Contracts
 
-Updated: 2026-10-22.
+Updated: 2026-10-26.
 Status: [AI-03](ai-03.md) implements the read-only lexical/page/material/calendar/database
-subset. Other capabilities remain specified, not implemented. AI-01 supplies
+subset. [AI-07](ai-07.md) implements exact confirmed page/event/reminder actions. Other capabilities remain specified, not implemented. AI-01 supplies
 the [offline lifecycle](ai-api.md) and synthetic tools/accounting. This is the target contract beneath
 [AI product requirements](../product/ai.md), not an existing API/SDK/tool registry.
 Transport DTOs/migrations are finalized with each implementing stage. No real model,
@@ -101,7 +101,7 @@ A proposal includes owner, immutable operation list, parameter digest, targets a
 expected versions, source references, applicable constraint/preference/capability
 versions, availability snapshot, assumptions, effects and expiry. Technical initial
 proposal expiry is 24 hours, also bounded by chat/source/connection validity; exact
-storage/replay purge is finalized before AI-07. Expired/unknown proposal IDs never
+storage/replay purge is defined by [AI-07](ai-07.md#storage-and-retention): content follows the chat/activity lifecycle and content-free receipts remain until account deletion. Expired/unknown proposal IDs never
 become fresh executions. Changing payload requires a new proposal and confirmation.
 
 Execute the whole plan and execution outcome in a shared database transaction. Recheck

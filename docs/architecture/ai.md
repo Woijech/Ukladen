@@ -1,6 +1,6 @@
 # AI, Retrieval and Application Tools
 
-Updated: 2026-10-25.
+Updated: 2026-10-26.
 Status: AI-01 is complete within its offline scope, using a fake-only LangChain harness with neutral DTOs, typed
 synthetic tools, review pauses and per-invocation limits. Owned persistence adapters
 and preserving Alembic revisions are natively tested on disposable PostgreSQL; no application
@@ -14,7 +14,10 @@ defines the independent clocks and maintenance-only setting. Receipts cannot gra
 An optional [OpenRouter adapter/catalog and encrypted personal connections](../development/ai-connections.md)
 are implemented locally under AI-02; application migration and live account activation
 remain pending. [AI-03 source tools](../development/ai-03.md) implement authorized
-lexical search, page/material reads and calendar/database queries. Write tools are not implemented. [AI-04](../development/ai-04.md) adds streaming
+lexical search, page/material reads and calendar/database queries.
+[AI-07 confirmed actions](../development/ai-07.md) are implemented locally: exact previews,
+atomic normal-service writes and independent replay receipts; unactivated. Automatic writes
+and planning remain not implemented. [AI-04](../development/ai-04.md) adds streaming
 chat, current-source inspection, preferences and usage UI/API locally; activation remains pending.
 [AI-05](../development/ai-05.md) verifies an optional CPU embedding adapter and synthetic
 full-stack proof. [AI-06](../development/ai-06.md) adds local versioned indexing,
@@ -269,3 +272,7 @@ verified in AI-02 before activation. AI-01 proved only the offline framework/run
 AI-02 now implements encrypted credential storage/rotation and the OpenRouter
 contract, with disabled profiles and pending live account verification. See
 [connection limits and activation](../development/ai-connections.md).
+
+AI-07 implementation: see [confirmed action contracts](../development/ai-07.md) for the detached
+HITL review/commit bridge, 24-hour PostgreSQL proposals and content-free receipts retained until
+account deletion. Checkpoints are not execution authority. No new architecture boundary is introduced.

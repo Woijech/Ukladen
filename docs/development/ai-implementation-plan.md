@@ -1,6 +1,6 @@
 # AI Implementation Plan
 
-Updated: 2026-10-25.
+Updated: 2026-10-26.
 Status: AI-00 and the offline AI-01 foundation are delivered: a fake-only harness,
 owned persistence, authenticated chat/run API, durable accounting, bounded execution,
 conservative recovery and physical retention cleanup. Tested on disposable
@@ -10,7 +10,7 @@ activation/live account verification remain pending. AI-03 adds implemented
 [authorized source reads](ai-03.md). [AI-04](ai-04.md) adds locally implemented
 streaming chat/settings/usage UI and API. [AI-05](ai-05.md) adds an optional CPU embedding
 runtime with synthetic hardware proof. [AI-06](ai-06.md) adds local hybrid retrieval
-and durable complete-source processing; later stages remain not implemented. See the dated final verification in the
+and durable complete-source processing. [AI-07](ai-07.md) adds locally implemented confirmed actions; later stages remain not implemented. See the dated final verification in the
 [execution record](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 No P-06, real provider traffic or deployment is included.
 
@@ -33,7 +33,7 @@ numeric order is not an implicit dependency or authorization to start another st
 | AI-04 | Implemented local streaming chats, cancellation, sources, instructions/model settings and usage UI; unactivated | AI-01/02/03 | [Contract and verification](ai-04.md) |
 | AI-05 | Implemented optional CPU embedding runtime/hardware proof; no production activation | AI-00; owner approved downloads/local proof on 2026-10-25 | [Pinned runtime, full-stack measurements and load limits](ai-05.md) |
 | AI-06 | Implemented locally: versioned chunks, hybrid retrieval and durable complete-source analysis; unactivated | AI-03/05; pgvector/index jobs | Retrieval quality, lifecycle/recovery and coverage checks |
-| AI-07 | Exact confirmed creates and requested edits | AI-01/03/04; each target service must exist | Normal-service writes, versions, commit/replay and previews |
+| AI-07 | Implemented locally: exact confirmed creates and requested edits; unactivated | AI-01/03/04; each target service must exist | Normal-service writes, versions, commit/replay and previews |
 | AI-08 | Opt-in automatic page/task creates with scoped grants | AI-07; tasks also need AI-10 | Revocation/expiry/limits/queued-job checks |
 | AI-09 | Release hardening and provider replacement rehearsal | Every capability being released | Evals, failure/recovery, secret/retention and owner acceptance |
 | AI-10 | Task extraction, deterministic planning/replanning and atomic plan application | P-06; AI-03/04/07; AI-06 for semantic material retrieval | Feasible/infeasible plans, protected events, races and atomic rollback |
@@ -261,6 +261,12 @@ Test bilingual retrieval/citations, incomplete coverage, source edits/deletion a
 
 ## 11. AI-07: confirmed creates and requested edits
 
+Status: implemented locally; default-disabled and unactivated. See [AI-07 contracts](ai-07.md).
+Owner selected the full five-operation scope, atomic related batches and delegated lifetime;
+24-hour disk-backed proposals require no waiting agent/model calls. Minimal receipts persist
+until account deletion. Existing chat/30-day content cleanup does not remove replay protection.
+The following acceptance requirements describe the implemented slice.
+
 Start with new pages, personal events and reminders, then selected note edits and
 explicit personal-event changes. Each operation requires the existing module service,
 exact before/after preview, immutable proposal, expected versions, expiry and owned
@@ -268,8 +274,8 @@ confirmation. No automatic write merely because a user enabled AI.
 
 Persist outcomes/idempotency with business commits; response loss returns the stored
 outcome on retry. Revalidate owner/capability/source truth. Editing invalidates prior
-confirmation. Set proposal expiry and minimal replay-record purge explicitly before
-migrations; normal 30-day analytics/chat cleanup cannot make old IDs executable.
+confirmation. Proposal expiry and minimal replay-record purge are defined in the AI-07 guide;
+normal 30-day analytics/chat cleanup cannot make old IDs executable.
 After commit, cancellation/provider failure cannot erase the successful result.
 
 Task/relationship writes wait for actual target services. Multi-action application
