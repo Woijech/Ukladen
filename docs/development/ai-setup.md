@@ -1,6 +1,6 @@
 # AI Setup and Provider Switching Runbook
 
-Updated: 2026-10-24.
+Updated: 2026-10-25.
 Status: AI-01 is complete within its offline scope: harness, owned persistence,
 authenticated fake API, durable accounting, bounded recovery and retention cleanup.
 Disabled by default; migrations are tested on disposable data and unapplied to the
@@ -8,12 +8,13 @@ running application. See [final verification](ai-01-execution-plan.md#13-final-a
 AI-02 adds optional [OpenRouter models and encrypted credentials](ai-connections.md),
 implemented locally but unactivated. [AI-03 source reads](ai-03.md) are implemented
 locally. [AI-04](ai-04.md) adds locally implemented streaming chat, source viewing,
-preferences and usage UI/API; embedding workers remain unimplemented.
+preferences and usage UI/API. [AI-05](ai-05.md) adds optional local CPU embeddings and
+a disposable proof worker; production embedding/index jobs remain unimplemented.
 See [current API and recovery limits](ai-api.md). No provider request or deployment was made.
 
 Use [product scope](../product/ai.md), [stages](ai-implementation-plan.md),
 [contracts](ai-tool-contracts.md) and [ADR 0009](../adr/0009-specify-provider-neutral-ai-orchestration.md).
-LLM, embeddings and web search have separate planned adapter boundaries. The operator may offer
+LLM and embeddings have separate implemented adapter boundaries; web search remains planned. The operator may offer
 several supported models and users may connect personal supported API accounts.
 AI-02 verifies the OpenRouter contract for the owner-selected DeepSeek V4.1 Flash
 profile and an optional free example; live account behavior remains unverified.
@@ -235,6 +236,10 @@ or running a background job does not renew retention. Content-free activity expi
 chat-derived context, preserving created business objects and minimal replay protection.
 
 ## D. AI-05/06: prove embeddings, then build the index
+
+AI-05 is delivered through the [CPU runtime/proof guide](ai-05.md). Its pinned ONNX
+candidate meets the initial targets at the documented bounded load, not continuous
+saturation. Steps 5–7 below remain AI-06; no production embedding queue is installed.
 
 1. Local CPU E5-small is a candidate from the earlier plan, not a mandatory LLM
    dependency. Prove Python 3.14 CPU packages and container compatibility before

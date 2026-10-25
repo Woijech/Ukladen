@@ -1,6 +1,6 @@
 # AI, Retrieval and Application Tools
 
-Updated: 2026-10-24.
+Updated: 2026-10-25.
 Status: AI-01 is complete within its offline scope, using a fake-only LangChain harness with neutral DTOs, typed
 synthetic tools, review pauses and per-invocation limits. Owned persistence adapters
 and preserving Alembic revisions are natively tested on disposable PostgreSQL; no application
@@ -16,7 +16,9 @@ are implemented locally under AI-02; application migration and live account acti
 remain pending. [AI-03 source tools](../development/ai-03.md) implement authorized
 lexical search, page/material reads and calendar/database queries. Semantic retrieval,
 write tools are not implemented. [AI-04](../development/ai-04.md) adds streaming
-chat, current-source inspection, preferences and usage UI/API locally; activation remains pending. See the
+chat, current-source inspection, preferences and usage UI/API locally; activation remains pending.
+[AI-05](../development/ai-05.md) verifies an optional CPU embedding adapter and synthetic
+full-stack proof. Semantic indexing/retrieval remains AI-06. See the
 [offline harness](../development/ai-setup.md#a1-implemented-offline-harness) and
 [final verification](../development/ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 The [persistence guide](../development/ai-persistence.md) records the tested internal schema,
@@ -55,8 +57,10 @@ services own validation, transactions, permissions and concurrency checks.
 LLM, embedding and web-search providers are separate adapters under `app/integrations`.
 The owner selected provider-neutral tools, an operator model catalog and user-owned
 API connections. No particular LLM provider/model is required; the old Groq baseline
-is superseded. CPU E5-small remains an embedding implementation candidate pending
-runtime proof. Without a configured catalog default the scripted offline model
+is superseded. AI-05 verifies pinned CPU E5-small ONNX inference behind the search-owned
+embedding port; the runtime is optional and not registered in production retrieval.
+Alternative local/API models keep this boundary and require separate index generations.
+Without a configured catalog default the scripted offline model
 remains the default. A configured default uses the operator's connection; the current
 provisioning example selects public DeepSeek V4.1 Flash 1017. Explicitly listed
 disabled models are visible but cannot execute. `AiAccessPolicy` checks new-run

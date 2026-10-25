@@ -1,6 +1,6 @@
 # Product Decisions and Open Questions
 
-Updated: 2026-10-22.
+Updated: 2026-10-25.
 Status: decision register. Owner-confirmed scope is distinguished from open design
 choices. Proposed defaults are not owner confirmation; resolve relevant unknowns
 before implementing incompatible schemas, integrations or behavior.
@@ -98,6 +98,15 @@ Steps 1/2/3 were subsequently authorized; later changing steps still need approv
 This developer workflow is distinct from product HITL.
 
 ## Remaining decisions
+
+AI-05 owner decisions (2026-10-25): after discussing Russian-language support and
+future provider replacement, the owner authorized local implementation, model/CPU
+dependency downloads, synthetic hardware checks and frequent local commits. Use
+the current development machine; no different target was supplied. Implement the
+provider-neutral embedding boundary, preserving the option of another model/API.
+Model replacement requires re-embedding into a separate generation under AI-06.
+No real metered provider calls, application activation or later AI stage is included.
+See the [implemented CPU proof and its load limits](../development/ai-05.md).
 
 AI-04 owner decisions (2026-10-24): implement a separate AI area, using Notion's
 documented chat history and model/source controls as interaction references; preserve

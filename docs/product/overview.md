@@ -140,7 +140,9 @@ in PostgreSQL. Limits are 25 MiB/file and 1 GiB retained file storage/user. Text
 DOCX, PPTX, TXT and Markdown extraction runs asynchronously without OCR. Bookmarks
 store URLs without fetching them. Filtered full-text search covers authorized pages,
 material titles and extracted text; see [contracts](../development/materials.md).
-Chunking, embeddings, semantic search and RAG remain not implemented. AI-02 adds an
+Chunking, indexed embeddings, semantic search and RAG remain not implemented.
+[AI-05](../development/ai-05.md) verifies an optional local CPU embedding runtime
+independently of the future index. AI-02 adds an
 optional [OpenRouter catalog and encrypted connections](../development/ai-connections.md),
 implemented locally but unactivated. AI-03 adds [authorized source reads](../development/ai-03.md),
 including pages, file excerpts, resolved calendar and typed database records.

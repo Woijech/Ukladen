@@ -19,7 +19,7 @@ from fastapi import FastAPI, HTTPException
 from starlette.concurrency import run_in_threadpool
 
 from app.integrations.embeddings.e5 import E5EmbeddingProvider
-from app.modules.search.application.embeddings import EmbeddingUnavailable
+from app.modules.search.application.embeddings import EmbeddingUnavailable, InvalidEmbeddingInput
 
 DOCUMENTS = (
     "Нормализация реляционных баз данных устраняет избыточность и аномалии обновления. "
@@ -179,6 +179,22 @@ def quality(directory: Path) -> dict:
         ordered = sorted(range(len(scores)), key=lambda index: (-scores[index], index))
         ranks.append(ordered.index(expected) + 1)
     tokenizer, _ = provider._load()
+    count = 1
+    while len(tokenizer.encode("query: " + "word " * count).ids) < 512:
+        count += 1
+    boundary = "word " * count
+    assert len(tokenizer.encode("query: " + boundary).ids) == 512
+    start = monotonic()
+    provider.embed([boundary], purpose="query")
+    boundary_query_ms = (monotonic() - start) * 1000
+    oversized = boundary + " word word"
+    assert len(tokenizer.encode("query: " + oversized).ids) > 512
+    try:
+        provider.embed([oversized], purpose="query")
+    except InvalidEmbeddingInput:
+        pass
+    else:
+        raise AssertionError("Oversized real-tokenizer input was not rejected.")
     return {
         "profile": asdict(provider.profile),
         "cases": len(ranks),
@@ -189,6 +205,9 @@ def quality(directory: Path) -> dict:
         "packages": {name: version(name) for name in ("onnxruntime", "tokenizers", "numpy")},
         "query_tokens": [len(tokenizer.encode("query: " + query).ids) for query, _ in QUERIES],
         "index_tokens": [len(tokenizer.encode("passage: " + text).ids) for text in INDEX_BATCH],
+        "boundary_query_tokens": 512,
+        "boundary_query_ms": boundary_query_ms,
+        "oversized_rejected": True,
     }
 
 

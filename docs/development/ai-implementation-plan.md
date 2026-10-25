@@ -1,6 +1,6 @@
 # AI Implementation Plan
 
-Updated: 2026-10-24.
+Updated: 2026-10-25.
 Status: AI-00 and the offline AI-01 foundation are delivered: a fake-only harness,
 owned persistence, authenticated chat/run API, durable accounting, bounded execution,
 conservative recovery and physical retention cleanup. Tested on disposable
@@ -8,7 +8,8 @@ PostgreSQL/Redis, disabled by default and unapplied to the running app.
 AI-02 now adds the optional [OpenRouter catalog and encrypted connections](ai-connections.md);
 activation/live account verification remain pending. AI-03 adds implemented
 [authorized source reads](ai-03.md). [AI-04](ai-04.md) adds locally implemented
-streaming chat/settings/usage UI and API; subsequent stages remain not implemented; see the dated final verification in the
+streaming chat/settings/usage UI and API. [AI-05](ai-05.md) adds an optional CPU embedding
+runtime with synthetic hardware proof; subsequent stages remain not implemented. See the dated final verification in the
 [execution record](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 No P-06, real provider traffic or deployment is included.
 
@@ -29,7 +30,7 @@ numeric order is not an implicit dependency or authorization to start another st
 | AI-02 | Implemented optional OpenRouter catalog, supported adapter and encrypted personal connections; live activation pending | AI-01; owner-selected OpenRouter/DeepSeek; account gate remains | Synthetic HTTP/native secret/quota/isolation checks; [contract](ai-connections.md) |
 | AI-03 | Implemented authorized page/material/calendar/database tools and lexical grounding; unactivated | AI-01/02; existing application services | Native ownership/lifecycle, synthetic provider/API, current-context and citation checks; [contract](ai-03.md) |
 | AI-04 | Implemented local streaming chats, cancellation, sources, instructions/model settings and usage UI; unactivated | AI-01/02/03 | [Contract and verification](ai-04.md) |
-| AI-05 | Embedding runtime/hardware proof | AI-00; model download only if requested | Compatible packages, pinned model and measured full-stack cost |
+| AI-05 | Implemented optional CPU embedding runtime/hardware proof; no production activation | AI-00; owner approved downloads/local proof on 2026-10-25 | [Pinned runtime, full-stack measurements and load limits](ai-05.md) |
 | AI-06 | Versioned chunks, hybrid retrieval, complete-source coverage support | AI-03/05; pgvector/index jobs | Retrieval quality, lifecycle/recovery and coverage checks |
 | AI-07 | Exact confirmed creates and requested edits | AI-01/03/04; each target service must exist | Normal-service writes, versions, commit/replay and previews |
 | AI-08 | Opt-in automatic page/task creates with scoped grants | AI-07; tasks also need AI-10 | Revocation/expiry/limits/queued-job checks |
@@ -39,7 +40,7 @@ numeric order is not an implicit dependency or authorization to start another st
 | AI-12 | Opt-in proactive reviews and in-app delivery | AI-04; AI-10 for task/workload reviews | Bounded/deduplicated triggers, disable/restart and quiet unchanged runs |
 
 AI-01/02/03/04 form a lexical prototype, not the complete agreed assistant. Add
-AI-05/06 and AI-11 for the selected semantic/multi-document/fallback experience.
+AI-06 and AI-11 after the delivered AI-05 proof for the selected semantic/multi-document/fallback experience.
 AI-07 adds writes; P-06 and AI-10 are mandatory for the selected planning scenario.
 AI-08/12 remain user opt-in capabilities, not omitted target features. Run AI-09
 checks for every promoted capability. Stop at each requested stage's completion report.
@@ -79,7 +80,7 @@ by the delivered stage, with no empty future plugin system.
 | Operator connection/model catalog | Versioned supported provider/model entries, capability profile and secret reference; AI-02 |
 | Personal connection | Owner-scoped encrypted credential, supported adapter/model and disconnect state; AI-02 |
 | AI_ENABLED_CAPABILITIES | Empty until corresponding tools/services are delivered |
-| AI_EMBEDDING_PROVIDER / AI_EMBEDDING_MODEL | disabled / unset until AI-05 proof; local CPU E5-small is a candidate, not a provider coupling |
+| AI_EMBEDDING_PROVIDER / AI_EMBEDDING_MODEL | Still planned/unset; AI-05 takes an explicit local directory in operator tooling, without production activation settings |
 | AI_AUTOMATIC_ACTIONS_ENABLED | false; enabling dispatch never creates a grant |
 | Web search connection | Disabled until an explicit adapter, credentials and bounded egress exist; AI-11 |
 | Run/input/tool budgets | Versioned defaults in [tool contracts](ai-tool-contracts.md#3-initial-execution-budgets) |
@@ -218,7 +219,12 @@ retention, credential masking and desktop/mobile keyboard behavior.
 
 ## 9. AI-05: embedding runtime proof
 
-Local CPU multilingual E5-small remains an implementation candidate. Prove compatible
+Status: implemented locally; [runtime contract, reproducible proof and measured limits](ai-05.md).
+Python 3.14 CPU ONNX inference is verified. Bounded query/indexing load meets the initial
+latency targets; continuous saturation exceeded the API-impact target. No production
+index or load/capacity guarantee is implied. The original scope follows.
+
+Local CPU multilingual E5-small was the implementation candidate. Prove compatible
 CPU packages under Python 3.14/Docker before choosing dependencies; no silent downgrade
 or CUDA install. Pin model/tokenizer revision, dimensions, normalization and tokenizer
 budgets. Use the model's documented query/document prefixes when required.

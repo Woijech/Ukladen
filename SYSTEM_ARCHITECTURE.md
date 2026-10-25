@@ -650,6 +650,8 @@ AI-02 adds optional real model connections and AI-03 adds [authorized source too
 including typed database queries and current-source context rebuilding. They are
 implemented locally but unactivated. [AI-04](docs/development/ai-04.md) adds streaming chats,
 current-source inspection, personal instructions and owner usage with historical price metadata.
+[AI-05](docs/development/ai-05.md) adds an optional pinned CPU embedding adapter and
+synthetic full-stack hardware proof; no production index or embedding queue is activated.
 Semantic retrieval and write actions remain later stages.
 Own conversations, personal instructions, proposals/grants and usage as each feature
 is delivered; keep SDK/framework types behind

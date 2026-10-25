@@ -236,6 +236,8 @@ AI-02 implements the optional OpenRouter adapter/catalog and encrypted personal
 connections; live account activation remains pending. [AI-03 read tools](ai-03.md)
 are implemented locally. [AI-04](ai-04.md) adds streaming chat/settings/usage UI
 and supporting APIs. Write tools remain not implemented; application migrations are unapplied.
+[AI-05](ai-05.md) adds a verified optional CPU embedding adapter and disposable
+hardware proof with explicit load limits. Production indexing/hybrid retrieval remains AI-06.
 Dependencies: only the application tools actually used; task planning requires P-06.
 The [detailed AI plan](ai-implementation-plan.md) splits work into AI-00 through AI-12,
 with the [owner-agreed product specification](../product/ai.md),

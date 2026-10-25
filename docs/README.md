@@ -1,6 +1,6 @@
 # Ukladen Documentation Index
 
-Updated: 2026-10-24.
+Updated: 2026-10-25.
 
 ## Contract and reading order
 
@@ -68,6 +68,7 @@ implementation task, not a guarantee that its checks were rerun during a later e
 - [AI setup runbook](development/ai-setup.md): staged operator/BYOK providers, embeddings, web search and activation gates.
 - [AI persistence](development/ai-persistence.md): schema, owner checks, transaction boundaries and migration impact; tested on disposable data, unapplied to the app.
 - [AI-04 chat/settings/usage](development/ai-04.md): local streaming, stored-state recovery, source inspection, instructions and owner usage; activation pending.
+- [AI-05 CPU embeddings](development/ai-05.md): optional pinned ONNX runtime, disposable hardware proof and measured load limits; no production index.
 - [AI-03 source reads](development/ai-03.md): read-only workspace/calendar/database tools, current evidence and structured source references; unactivated.
 - [AI model connections](development/ai-connections.md): optional OpenRouter catalog, restricted offerings, encrypted personal keys and API-only secret setup; unactivated.
 - [AI chat/run API](development/ai-api.md): default-disabled fake chats/runs, idempotency, cancellation, accounting, bounded recovery, physical retention and minimal replay/context markers.
@@ -80,6 +81,7 @@ bounded recovery, 30-day cleanup and minimal replay/context receipts.
 The optional AI-02 OpenRouter adapter/catalog and encrypted credentials are
 implemented locally but unactivated. AI-03 source tools and lexical grounding are
 implemented locally. AI-04 chat/settings/usage UI/API is implemented locally.
+AI-05 adds a locally verified optional CPU embedding runtime and synthetic hardware proof.
 Activation, semantic retrieval, actions and planning remain pending. Plans do not authorize later changes/deployment.
 
 ## IIS contracts and future integration
