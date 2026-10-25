@@ -113,6 +113,12 @@ class PostgresAgentRunners:
                         ).tools
                         else None
                     )
+                    if source_tools is not None:
+                        from app.modules.ai.infrastructure.document_context import AnalysisContext
+
+                        source_tools.analysis_context = lambda scope: AnalysisContext(
+                            self.sessions
+                        ).read(run.user_id, run.conversation_id, scope)
                     yield owned_offline_runner(
                         connection,
                         run.user_id,

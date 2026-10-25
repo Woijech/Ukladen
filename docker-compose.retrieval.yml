@@ -1,0 +1,17 @@
+# Optional local CPU retrieval. Start only with the explicitly authorized application activation.
+services:
+  api:
+    image: ukladen-backend:embeddings
+    build:
+      context: ./apps/backend
+      target: embeddings
+    environment:
+      SEARCH_EMBEDDINGS_DIRECTORY: /model
+    volumes:
+      - ${SEARCH_EMBEDDINGS_DIRECTORY:-./.local/embedding-model}:/model:ro,z
+  worker:
+    environment:
+      SEARCH_EMBEDDINGS_DIRECTORY: /model
+  beat:
+    environment:
+      SEARCH_EMBEDDINGS_DIRECTORY: /model

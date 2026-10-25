@@ -259,6 +259,20 @@ class SqlAlchemyAiRepository:
             )
         ]
 
+    def create_document_job(self, run: Run, question: str, selection: dict) -> None:
+        from app.modules.ai.infrastructure.document_models import DocumentJobModel
+
+        self.session.add(
+            DocumentJobModel(
+                run_id=run.id,
+                user_id=run.user_id,
+                conversation_id=run.conversation_id,
+                question=question,
+                selection=selection,
+            )
+        )
+        self.session.flush()
+
     def delete_conversation(self, user_id: UUID, conversation_id: UUID) -> None:
         self.session.execute(
             delete(ConversationModel).where(

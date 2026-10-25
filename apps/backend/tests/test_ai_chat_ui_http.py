@@ -231,3 +231,50 @@ def test_recent_history_pages_backwards_without_losing_the_latest_answer(
     assert [item["sequence"] for item in recent] == list(range(6, 56))
     older = ai_client.get(path, params={"recent": True, "before": 6, "limit": 50}).json()["items"]
     assert [item["sequence"] for item in older] == list(range(1, 6))
+
+
+def test_complete_source_http_admission_progress_replay_and_result(ai_client: TestClient) -> None:
+    from app.modules.ai.application.documents import DocumentAnalysisService
+    from app.modules.ai.infrastructure.document_jobs import SqlAlchemyDocumentSteps
+    from app.modules.ai.infrastructure.document_runtime import DocumentAgentModel
+
+    page = ai_client.post(
+        "/api/v1/notes/pages",
+        headers=csrf_headers(ai_client),
+        json={"title": "Lecture notes", "content": "Complete source text " * 150},
+    )
+    assert page.status_code == 201, page.text
+    page_id = page.json()["id"]
+    chat = create(ai_client)
+    payload = {
+        "submission_id": str(uuid4()),
+        "message": "Summarize the complete notes.",
+        "source_scope": {"page_ids": [page_id]},
+        "full_sources": True,
+    }
+    path = f"/api/v1/ai/conversations/{chat['id']}/messages"
+    response = ai_client.post(path, headers=csrf_headers(ai_client), json=payload)
+    assert response.status_code == 200, response.text
+    run = response.json()
+    assert run["status"] == "queued" and run["attempts"] == []
+    repeated = ai_client.post(path, headers=csrf_headers(ai_client), json=payload)
+    assert repeated.json() == run
+    progress_path = f"/api/v1/ai/runs/{run['id']}/document-progress"
+    assert ai_client.get(progress_path).json()["processed_characters"] == 0
+    index_path = f"/api/v1/ai/sources/page/{page_id}/index"
+    assert ai_client.get(index_path).json()["status"] == "unavailable"
+    assert ai_client.post(index_path + "/retry").status_code == 403
+    application = cast(FastAPI, ai_client.app)
+    sessions = application.state.session_factory
+    service = AiService(SqlAlchemyAiTransactions(sessions), PostgresAgentRunners(sessions))
+    steps = SqlAlchemyDocumentSteps(sessions, service)
+    processor = DocumentAnalysisService(steps, DocumentAgentModel(steps))
+    from uuid import UUID
+
+    for _ in range(30):
+        if not processor.process(UUID(run["id"])):
+            break
+    assert ai_client.get(progress_path).json()["phase"] == "completed"
+    history = ai_client.get(path).json()["items"]
+    assert [item["role"] for item in history] == ["user", "assistant"]
+    assert history[-1]["sources"][0]["id"] == page_id

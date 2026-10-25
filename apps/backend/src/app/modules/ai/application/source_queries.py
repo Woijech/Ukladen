@@ -1,8 +1,8 @@
 from datetime import date
-from typing import Literal, Self
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 
 class ReadQuery(BaseModel):
@@ -10,22 +10,16 @@ class ReadQuery(BaseModel):
 
 
 class SourceScope(ReadQuery):
-    page_ids: tuple[UUID, ...] = Field(default=(), max_length=20)
-    material_ids: tuple[UUID, ...] = Field(default=(), max_length=20)
-    database_ids: tuple[UUID, ...] = Field(default=(), max_length=20)
+    page_ids: tuple[UUID, ...] = ()
+    material_ids: tuple[UUID, ...] = ()
+    database_ids: tuple[UUID, ...] = ()
     calendar: bool = Field(default=False, strict=True)
-
-    @model_validator(mode="after")
-    def bounded_selection(self) -> Self:
-        if len(self.page_ids) + len(self.material_ids) + len(self.database_ids) > 20:
-            raise ValueError("Select at most 20 explicit sources.")
-        return self
 
 
 class SearchRead(ReadQuery):
     query: str = Field(min_length=1, max_length=200)
     source: Literal["page", "material"] | None = None
-    source_ids: tuple[UUID, ...] = Field(default=(), max_length=20)
+    source_ids: tuple[UUID, ...] = ()
     offset: int = Field(default=0, ge=0, le=1000, strict=True)
     limit: int = Field(default=5, ge=1, le=8, strict=True)
 

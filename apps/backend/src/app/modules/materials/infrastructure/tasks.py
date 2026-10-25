@@ -26,7 +26,13 @@ def run_job(material_id: str | None = None) -> None:
             try:
                 sessions = create_session_factory(engine)
                 if identifier is None:
-                    dispatch_materials(sessions, storage, celery_app)
+                    dispatch_materials(
+                        sessions,
+                        storage,
+                        celery_app,
+                        reextract_legacy=settings.ai_enabled
+                        or settings.search_embeddings_directory is not None,
+                    )
                 else:
                     process_material(sessions, storage, BoundedDocumentExtractor(), identifier)
             finally:

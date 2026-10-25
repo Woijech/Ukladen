@@ -92,7 +92,7 @@ def test_unknown_usage_is_distinct_from_known_zero_and_metadata_excludes_content
     for changes in (
         {"input_tokens": -1},
         {"output_tokens": True},
-        {"number": 5},
+        {"number": 0},
         {"error_code": "private exception"},
         {"error_code": "timeout"},
         {"finished_at": NOW - timedelta(seconds=1)},

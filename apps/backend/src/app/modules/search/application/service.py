@@ -35,7 +35,6 @@ class SearchService:
             or not 0 <= query.offset <= 1000
             or (query.source == "page" and (query.kind or query.extension))
             or (query.kind == "link" and query.extension)
-            or len(query.source_ids) > 20
             or any(not isinstance(item, UUID) for item in query.source_ids)
         ):
             raise InvalidSearchInput()

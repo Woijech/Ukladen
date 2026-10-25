@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.modules.academics.application.ports import AcademicProvider
 from app.modules.academics.application.profile import AcademicService
 from app.modules.academics.infrastructure.repository import SqlAlchemyAcademicProfileRepository
-from app.modules.ai.application.source_queries import ReadQuery, SearchRead
+from app.modules.ai.application.source_queries import MaterialRead, ReadQuery, SearchRead
 from app.modules.ai.application.sources import WorkspaceSourceService
 from app.modules.calendar.application.composition import CalendarCompositionService
 from app.modules.calendar.application.service import CalendarService
@@ -106,7 +106,33 @@ class SqlAlchemySourceReader:
                 database.connection(execution_options={"isolation_level": "REPEATABLE READ"})
                 database.execute(text("SET LOCAL statement_timeout = '5s'"))
                 database.execute(text("SET TRANSACTION READ ONLY"))
-                return self.service(database).read(user_id, query)
+                result = self.service(database).read(user_id, query)
+                if isinstance(query, MaterialRead) and result.status == "ok":
+                    from app.modules.search.infrastructure.source_documents import (
+                        SqlAlchemySourceDocuments,
+                    )
+
+                    document = SqlAlchemySourceDocuments(database).read(
+                        user_id, "material", query.material_id
+                    )
+                    if document:
+                        end = min(query.offset + query.limit, len(document.text))
+                        places = [
+                            location
+                            for start, stop, location in document.locations
+                            if start < end and stop > query.offset
+                        ]
+                        if places:
+                            locator = ";".join(places)[:180] + f";chars:{query.offset}:{end}"
+                            result = result.model_copy(
+                                update={
+                                    "sources": tuple(
+                                        source.model_copy(update={"locator": locator})
+                                        for source in result.sources
+                                    )
+                                }
+                            )
+                return result
         except PageNotFound, PageConflict, MaterialNotFound, WorkspaceNotFound, ProfileUnavailable:
             return EvidenceResult(status="not_found")
         except (

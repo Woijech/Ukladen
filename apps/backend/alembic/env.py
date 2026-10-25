@@ -6,6 +6,7 @@ from app.core.logging import configure_logging, log_failure
 from app.db.session import Base, create_database_engine
 from app.modules.academics.infrastructure import orm as academics_orm  # noqa: F401
 from app.modules.ai.infrastructure import checkpoint_schema as ai_checkpoint_schema  # noqa: F401
+from app.modules.ai.infrastructure import document_models as ai_document_models  # noqa: F401
 from app.modules.ai.infrastructure import orm as ai_orm  # noqa: F401
 from app.modules.auth.infrastructure import orm as auth_orm  # noqa: F401
 from app.modules.calendar.infrastructure import orm as calendar_orm  # noqa: F401

@@ -183,7 +183,7 @@ class ProviderAttempt:
 
     def __post_init__(self) -> None:
         require_execution(self.status, self.started_at, self.finished_at, self.error_code)
-        if not 1 <= self.number <= 4 or self.status == "rejected":
+        if type(self.number) is not int or self.number < 1 or self.status == "rejected":
             raise InvalidAiState("Invalid provider attempt.")
         for tokens in (self.input_tokens, self.output_tokens):
             if tokens is not None and (type(tokens) is not int or not 0 <= tokens <= 2**63 - 1):

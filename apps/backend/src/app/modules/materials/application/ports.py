@@ -29,6 +29,8 @@ class TextExtractor(Protocol):
 class MaterialTextIndex(Protocol):
     """Derived text only; publication shares the material completion transaction."""
 
+    def needs_locations(self, user_id: UUID, material_id: UUID) -> bool: ...
+
     def put(
         self, user_id: UUID, material_id: UUID, body: str, locations: tuple[TextLocation, ...] = ()
     ) -> None: ...

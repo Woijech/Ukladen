@@ -4,14 +4,18 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from celery import Celery
+from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.logging import log_failure
 from app.modules.materials.application.ports import MaterialStorage, TextExtractor
 from app.modules.materials.application.processing import MaterialProcessingService
 from app.modules.materials.application.service import MaterialService
+from app.modules.materials.infrastructure.extractor import BoundedDocumentExtractor
+from app.modules.materials.infrastructure.orm import MaterialModel
 from app.modules.materials.infrastructure.repository import SqlAlchemyMaterialRepository
 from app.modules.search.infrastructure.documents import SqlAlchemyMaterialTextIndex
+from app.modules.search.infrastructure.orm import MaterialSearchDocumentModel
 from app.modules.users.infrastructure.repository import SqlAlchemyUserAuthentication
 
 logger = logging.getLogger(__name__)
@@ -66,7 +70,30 @@ def dispatch_materials(
     celery: Celery,
     *,
     now: Callable[[], datetime] = lambda: datetime.now(UTC),
+    reextract_legacy: bool = False,
 ) -> None:
+    if reextract_legacy:
+        with sessions() as database:
+            old = list(
+                database.execute(
+                    select(MaterialModel.user_id, MaterialModel.id)
+                    .join(
+                        MaterialSearchDocumentModel,
+                        MaterialSearchDocumentModel.material_id == MaterialModel.id,
+                    )
+                    .where(
+                        MaterialModel.status == "ready",
+                        MaterialModel.trashed_at.is_(None),
+                        MaterialSearchDocumentModel.extraction_revision == 0,
+                    )
+                    .limit(100)
+                )
+            )
+        for user_id, material_id in old:
+            with sessions.begin() as database:
+                processing_service(
+                    database, storage, BoundedDocumentExtractor(), now
+                ).reextract_legacy(user_id, material_id)
     with sessions.begin() as database:
         repository = SqlAlchemyMaterialRepository(database)
         cleanup, orphans = repository.cleanup_candidates(now()), repository.orphan_ids()

@@ -264,7 +264,7 @@ class ProviderAttemptModel(Base):
             name="fk_ai_attempts_owner",
         ),
         UniqueConstraint("run_id", "number", name="uq_ai_attempts_number"),
-        CheckConstraint("number BETWEEN 1 AND 4", name="ck_ai_attempts_number"),
+        CheckConstraint("number >= 1", name="ck_ai_attempts_number"),
         CheckConstraint(
             "status IN ('started', 'succeeded', 'failed', 'interrupted')",
             name="ck_ai_attempts_status",

@@ -1,6 +1,7 @@
 from dataclasses import asdict
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
@@ -13,6 +14,17 @@ from app.modules.search.infrastructure.orm import MaterialSearchDocumentModel
 class SqlAlchemyMaterialTextIndex:
     def __init__(self, session: Session) -> None:
         self.session = session
+
+    def needs_locations(self, user_id: UUID, material_id: UUID) -> bool:
+        return (
+            self.session.scalar(
+                select(MaterialSearchDocumentModel.extraction_revision).where(
+                    MaterialSearchDocumentModel.user_id == user_id,
+                    MaterialSearchDocumentModel.material_id == material_id,
+                )
+            )
+            == 0
+        )
 
     def put(
         self, user_id: UUID, material_id: UUID, body: str, locations: tuple[TextLocation, ...] = ()

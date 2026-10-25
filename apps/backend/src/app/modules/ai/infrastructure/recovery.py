@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.modules.ai.application.recovery import RUN_TIMEOUT, stop_run
+from app.modules.ai.infrastructure.document_models import DocumentJobModel
 from app.modules.ai.infrastructure.orm import RunModel
 from app.modules.ai.infrastructure.repository import SqlAlchemyAiRepository
 from app.modules.users.infrastructure.orm import UserModel
@@ -17,7 +18,13 @@ def reconcile_runs(sessions: sessionmaker[Session], *, now: datetime | None = No
         candidates = list(
             database.execute(
                 select(RunModel.user_id, RunModel.id)
-                .where(RunModel.status.in_(("queued", "running")), RunModel.created_at <= cutoff)
+                .where(
+                    RunModel.status.in_(("queued", "running")),
+                    RunModel.created_at <= cutoff,
+                    ~select(DocumentJobModel.run_id)
+                    .where(DocumentJobModel.run_id == RunModel.id)
+                    .exists(),
+                )
                 .order_by(RunModel.created_at, RunModel.id)
                 .limit(100)
             )

@@ -33,6 +33,7 @@ class AgentInput(BaseModel):
     conversation_id: UUID
     message: str = Field(min_length=1, max_length=16384)
     source_scope: SourceScope | None = None
+    full_sources: bool = False
 
     @field_validator("message")
     @classmethod

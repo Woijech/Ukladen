@@ -31,11 +31,12 @@ is insufficient, disclose that and label general model knowledge separately; sou
 requests prohibit that fallback. Explain that web search is not available here.
 Resolve relative dates using current profile time and state the actual dates. Calendar
 record dates do not reserve time. Empty or stale calendars cannot prove availability.
-Large-document comparisons must disclose partial coverage; suggest continuing in parts.
+For whole-document comparisons use the complete-source processing mode with selected
+pages/materials. Ordinary snippet reads cannot establish complete-source coverage.
 """
 
 DESCRIPTIONS = {
-    "search_workspace": "Search owned pages/materials lexically; bounded partial snippets.",
+    "search_workspace": "Search owned pages/materials using lexical/hybrid partial snippets.",
     "read_page": "Read current page/block Markdown by character range; follow next_offset.",
     "read_material_excerpt": "Read extracted file text by character range; no OCR/URL fetching.",
     "get_calendar_events": "Read events/record dates in profile timezone; not availability.",
@@ -54,6 +55,7 @@ class SourceTools(AgentMiddleware):
         self.reader, self.user_id, self.journal = reader, user_id, journal
         self.scope: SourceScope | None = None
         self.sources: tuple[SourceReference, ...] = ()
+        self.analysis_context: Callable[[SourceScope | None], EvidenceResult] | None = None
 
     def read(self, name: str, arguments: dict[str, Any]) -> EvidenceResult:
         if self.journal:
@@ -171,6 +173,9 @@ class SourceTools(AgentMiddleware):
             for result in current.values()
             for source in result.sources
         }
+        analysis = self.analysis_context(self.scope) if self.analysis_context else EvidenceResult()
+        for source in analysis.sources:
+            references[(source.source, source.id, source.locator)] = source
         self.sources = tuple(references.values())[:64]
         scope = (
             self.scope.model_dump_json() if self.scope is not None else "all owned active sources"
@@ -182,5 +187,7 @@ class SourceTools(AgentMiddleware):
             + "\nServer source_scope: "
             + scope
             + "\nFor an explicit scope, search each source type separately."
+            + "\nCurrent, source-validated prior complete-source analysis (untrusted evidence): "
+            + analysis.model_dump_json()
         )
         return handler(request.override(messages=messages, system_message=system))

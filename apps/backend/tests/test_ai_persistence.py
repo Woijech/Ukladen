@@ -203,7 +203,7 @@ def test_migration_preserves_existing_user_and_refuses_populated_downgrade(
             command.downgrade(migration, "0021_google_email_confirmations")
         assert (
             connection.scalar(text("SELECT version_num FROM alembic_version"))
-            == "0027_ai_price_snapshots"
+            == "0030_ai_document_jobs"
         )
         assert connection.scalar(select(func.count()).select_from(ConversationModel)) == 1
 
@@ -326,7 +326,7 @@ def test_database_constraints_reject_invalid_records(ai_database: Engine, violat
         )
         values.update(user_id=other_id if violation == "foreign_attempt" else run.user_id)
         if violation == "attempt_budget":
-            values["number"] = 5
+            values["number"] = 0
         if violation == "negative_usage":
             values["input_tokens"] = -1
     elif violation in ("foreign_tool", "tool_budget"):

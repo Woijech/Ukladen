@@ -31,6 +31,7 @@ class MessageSubmit(BaseModel):
     submission_id: UUID
     message: str = Field(min_length=1, max_length=16384)
     source_scope: SourceScope | None = None
+    full_sources: bool = False
 
     @field_validator("message")
     @classmethod
@@ -39,7 +40,10 @@ class MessageSubmit(BaseModel):
 
     def agent_input(self, conversation_id: UUID) -> AgentInput:
         return AgentInput(
-            conversation_id=conversation_id, message=self.message, source_scope=self.source_scope
+            conversation_id=conversation_id,
+            message=self.message,
+            source_scope=self.source_scope,
+            full_sources=self.full_sources,
         )
 
 
@@ -193,3 +197,16 @@ class PreferencesResponse(BaseModel):
 class ConversationState(BaseModel):
     conversation: ConversationResponse
     run: RunResponse | None
+
+
+class DocumentProgressResponse(BaseModel):
+    phase: str
+    processed_characters: int
+    total_characters: int
+    steps: int
+    error: str | None
+
+
+class IndexStatusResponse(BaseModel):
+    status: str
+    version: int

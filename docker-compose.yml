@@ -114,6 +114,33 @@ services:
       timeout: 10s
       retries: 5
 
+  ai-document-worker:
+    <<: *backend
+    profiles: [ai]
+    command: celery -A app.workers.celery_app:celery_app worker --loglevel=INFO --queues=ai-documents --concurrency=1 --prefetch-multiplier=1
+    depends_on:
+      api: { condition: service_healthy }
+
+  embedding-worker:
+    <<: *backend
+    image: ukladen-backend:embeddings
+    build:
+      context: ./apps/backend
+      target: embeddings
+    profiles: [embeddings]
+    command: celery -A app.workers.celery_app:celery_app worker --loglevel=INFO --queues=embeddings --concurrency=1 --prefetch-multiplier=1
+    environment:
+      <<: *backend-environment
+      SEARCH_EMBEDDINGS_DIRECTORY: /model
+      AI_ENABLED: "false"
+      AI_RETENTION_ENABLED: "false"
+      AI_CONNECTIONS_FILE: null
+    volumes:
+      - ${SEARCH_EMBEDDINGS_DIRECTORY:-./.local/embedding-model}:/model:ro,z
+    mem_limit: 2g
+    depends_on:
+      api: { condition: service_healthy }
+
   web:
     logging: *logging
     image: ukladen-web:local

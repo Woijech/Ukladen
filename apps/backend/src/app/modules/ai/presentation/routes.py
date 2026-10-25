@@ -1,6 +1,6 @@
 import logging
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, Response
@@ -33,6 +33,8 @@ from app.modules.ai.presentation.schemas import (
     ConversationList,
     ConversationResponse,
     ConversationState,
+    DocumentProgressResponse,
+    IndexStatusResponse,
     MessageList,
     MessageResponse,
     MessageSubmit,
@@ -133,6 +135,84 @@ def read_source(
     ).read(current.user_id, payload)
 
 
+@router.get("/runs/{run_id}/document-progress", response_model=DocumentProgressResponse | None)
+def document_progress(
+    run_id: UUID, request: Request, current: CurrentSession, service: Ai
+) -> dict | None:
+    from app.modules.ai.infrastructure.document_jobs import SqlAlchemyDocumentSteps
+
+    return SqlAlchemyDocumentSteps(request.app.state.session_factory, service).progress(
+        current.user_id, run_id
+    )
+
+
+@router.get("/sources/{source}/{source_id}/index", response_model=IndexStatusResponse)
+def source_index_status(
+    source: Literal["page", "material"],
+    source_id: UUID,
+    request: Request,
+    settings: Config,
+    current: CurrentSession,
+    service: Ai,
+) -> dict:
+    from app.modules.search.infrastructure.status import index_status
+
+    status = index_status(
+        request.app.state.session_factory,
+        settings.search_embeddings_directory,
+        current.user_id,
+        source,
+        source_id,
+    )
+    if status is None:
+        raise AiNotFound()
+    return status
+
+
+@router.post(
+    "/sources/{source}/{source_id}/index/retry",
+    response_model=IndexStatusResponse,
+    dependencies=[Depends(require_csrf)],
+)
+def retry_source_index(
+    source: Literal["page", "material"],
+    source_id: UUID,
+    request: Request,
+    settings: Config,
+    current: CurrentSession,
+    service: Ai,
+) -> dict:
+    from app.modules.search.infrastructure.indexing import SqlAlchemyIndexStore
+    from app.modules.search.infrastructure.status import index_status
+
+    if (
+        index_status(
+            request.app.state.session_factory,
+            settings.search_embeddings_directory,
+            current.user_id,
+            source,
+            source_id,
+        )
+        is None
+    ):
+        raise AiNotFound()
+    if settings.search_embeddings_directory:
+        provider = embedding_provider(settings.search_embeddings_directory)
+        SqlAlchemyIndexStore(request.app.state.session_factory, provider.profile).retry(
+            current.user_id, source, source_id
+        )
+    status = index_status(
+        request.app.state.session_factory,
+        settings.search_embeddings_directory,
+        current.user_id,
+        source,
+        source_id,
+    )
+    if status is None:
+        raise AiNotFound()
+    return status
+
+
 @router.get("/preferences", response_model=PreferencesResponse)
 def preferences(current: CurrentSession, service: Ai) -> PreferencesResponse:
     return PreferencesResponse.model_validate(service.preferences(current.user_id))
@@ -172,7 +252,7 @@ def submit_stream(
 ) -> StreamingResponse:
     request = payload.agent_input(conversation_id)
     run, created = service.admit(current.user_id, request, payload.submission_id)
-    return stream_response(service, run, request, created)
+    return stream_response(service, run, request, created and not request.full_sources)
 
 
 @router.post(

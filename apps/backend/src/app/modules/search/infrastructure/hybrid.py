@@ -1,6 +1,7 @@
 from collections import defaultdict
 from uuid import UUID
 
+from pydantic import JsonValue, ValidationError
 from sqlalchemy import and_, cast, func, literal, or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -185,15 +186,53 @@ class HybridSearch:
             warnings = ["snippets_are_not_full_sources"]
             if warning:
                 warnings.append(warning)
-            if not located:
+            incomplete = False
+            for kind, model in (("page", PageModel), ("material", MaterialModel)):
+                if query.source and query.source != kind:
+                    continue
+                ready = (
+                    select(IndexSourceModel.source_id)
+                    .where(
+                        IndexSourceModel.user_id == user_id,
+                        IndexSourceModel.source == kind,
+                        IndexSourceModel.source_id == model.id,
+                        IndexSourceModel.generation == self.generation,
+                        IndexSourceModel.version == model.version,
+                        IndexSourceModel.status == "ready",
+                    )
+                    .exists()
+                )
+                missing = select(model.id).where(
+                    model.user_id == user_id, model.trashed_at.is_(None), ~ready
+                )
+                if kind == "material":
+                    missing = missing.where(MaterialModel.kind == "file")
+                if query.source_ids:
+                    missing = missing.where(model.id.in_(query.source_ids))
+                incomplete |= database.scalar(missing.limit(1)) is not None
+            if incomplete:
                 warnings.append("index_pending_or_unavailable")
-            result = EvidenceResult(
-                data=data,
-                sources=tuple(references),
-                coverage="partial",
-                warnings=tuple(warnings),
-                next_offset=query.offset + len(selected)
-                if query.offset + len(selected) < len(ordered)
-                else None,
-            )
-            return result
+            for preview_bytes in (600, 200, 0):
+                bounded_data: list[JsonValue] = [
+                    dict(
+                        item,
+                        snippet=item["snippet"]
+                        .encode()[:preview_bytes]
+                        .decode("utf-8", errors="ignore"),
+                    )
+                    for item in data
+                ]
+                try:
+                    return EvidenceResult(
+                        data=bounded_data,
+                        sources=tuple(references),
+                        coverage="partial",
+                        warnings=tuple(warnings),
+                        next_offset=query.offset + len(selected)
+                        if query.offset + len(selected) < len(ordered)
+                        else None,
+                    )
+                except ValidationError:
+                    if preview_bytes == 0:
+                        raise
+            raise AssertionError("Evidence construction did not finish.")

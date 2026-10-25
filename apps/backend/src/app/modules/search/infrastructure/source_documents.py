@@ -17,6 +17,48 @@ class SqlAlchemySourceDocuments:
     def __init__(self, database: Session):
         self.database = database
 
+    def needs_locations(self, user_id: UUID, source_id: UUID) -> bool:
+        row = self.database.execute(
+            select(MaterialModel.filename, MaterialSearchDocumentModel.extraction_revision)
+            .join(
+                MaterialSearchDocumentModel,
+                MaterialSearchDocumentModel.material_id == MaterialModel.id,
+            )
+            .where(
+                MaterialModel.id == source_id,
+                MaterialModel.user_id == user_id,
+                MaterialModel.trashed_at.is_(None),
+            )
+        ).one_or_none()
+        if row is None:
+            return False
+        filename, revision = row
+        return (
+            revision == 0 and filename is not None and filename.lower().endswith((".pdf", ".pptx"))
+        )
+
+    def material_state(self, user_id: UUID, source_id: UUID) -> str | None:
+        return self.database.scalar(
+            select(MaterialModel.status).where(
+                MaterialModel.id == source_id,
+                MaterialModel.user_id == user_id,
+                MaterialModel.trashed_at.is_(None),
+                MaterialModel.kind == "file",
+            )
+        )
+
+    def identity(self, user_id: UUID, source: str, source_id: UUID) -> tuple[int, str] | None:
+        model = PageModel if source == "page" else MaterialModel
+        statement = select(model.version, model.title).where(
+            model.id == source_id, model.user_id == user_id, model.trashed_at.is_(None)
+        )
+        if source == "material":
+            statement = statement.where(
+                MaterialModel.status == "ready", MaterialModel.kind == "file"
+            )
+        row = self.database.execute(statement).one_or_none()
+        return (row[0], row[1]) if row else None
+
     def read(self, user_id: UUID, source: str, source_id: UUID) -> SourceDocument | None:
         if not SqlAlchemyUserAuthentication(self.database).is_active(user_id):
             return None

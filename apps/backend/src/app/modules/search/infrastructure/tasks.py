@@ -1,17 +1,25 @@
+import logging
 from uuid import UUID
 
-from sqlalchemy import delete, exists, select
+from sqlalchemy import exists, select
 
 from app.core.config import get_settings
+from app.core.logging import log_failure
 from app.db.session import create_database_engine, create_session_factory
 from app.modules.materials.infrastructure.orm import MaterialModel
 from app.modules.notes.infrastructure.orm import PageModel
 from app.modules.search.application.indexing import IndexingService
 from app.modules.search.infrastructure.index_models import IndexSourceModel
 from app.modules.search.infrastructure.indexing import SqlAlchemyIndexStore
-from app.modules.search.infrastructure.orm import MaterialSearchDocumentModel
 from app.modules.search.infrastructure.runtime import embedding_provider
 from app.workers.celery_app import celery_app
+
+
+class IndexUnavailable(Exception):
+    pass
+
+
+logger = logging.getLogger(__name__)
 
 
 @celery_app.task(name="search.dispatch", ignore_result=True, store_errors_even_if_ignored=False)
@@ -26,24 +34,6 @@ def dispatch() -> None:
         store = SqlAlchemyIndexStore(sessions, provider.profile)
         store.register()
         with sessions.begin() as database:
-            # Existing PDFs/slides are re-extracted once to obtain real locations.
-            old = database.scalars(
-                select(MaterialModel)
-                .join(
-                    MaterialSearchDocumentModel,
-                    MaterialSearchDocumentModel.material_id == MaterialModel.id,
-                )
-                .where(
-                    MaterialModel.status == "ready",
-                    MaterialModel.trashed_at.is_(None),
-                    MaterialSearchDocumentModel.extraction_revision == 0,
-                )
-                .limit(100)
-                .with_for_update(of=MaterialModel, skip_locked=True)
-            )
-            for material in old:
-                material.status, material.attempts = "pending", 0
-                material.version += 1
             index = IndexSourceModel
             active_page = exists(
                 select(PageModel.id).where(
@@ -59,18 +49,27 @@ def dispatch() -> None:
                     MaterialModel.trashed_at.is_(None),
                 )
             )
-            database.execute(
-                delete(index).where(
-                    ((index.source == "page") & ~active_page)
-                    | ((index.source == "material") & ~active_material)
+            expired = list(
+                database.scalars(
+                    select(index)
+                    .where(
+                        ((index.source == "page") & ~active_page)
+                        | ((index.source == "material") & ~active_material)
+                    )
+                    .limit(100)
                 )
             )
+            for row in expired:
+                database.delete(row)
         for user_id, source, source_id in store.candidates():
             celery_app.send_task(
                 "search.process",
                 kwargs={"user_id": str(user_id), "source": source, "source_id": str(source_id)},
                 queue="embeddings",
             )
+    except Exception as error:
+        log_failure(logger, "search.index_task_failed", error)
+        raise IndexUnavailable("Search indexing is unavailable.") from None
     finally:
         engine.dispose()
 
@@ -93,5 +92,8 @@ def process(user_id: str, source: str, source_id: str) -> None:
         IndexingService(store, provider, provider.count_tokens).process(
             UUID(user_id), source, UUID(source_id)
         )
+    except Exception as error:
+        log_failure(logger, "search.index_task_failed", error)
+        raise IndexUnavailable("Search indexing is unavailable.") from None
     finally:
         engine.dispose()

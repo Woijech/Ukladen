@@ -440,3 +440,28 @@ def test_native_s3_redis_task_to_search(
             redis.delete(*keys)
         redis.close()
         app.close()
+
+
+def test_legacy_extraction_is_requeued_by_materials_and_preserves_original(
+    material_client: TestClient, concurrent_engine: Engine
+) -> None:
+    body = pdf_bytes("A located lecture")
+    material = upload(material_client, body, "lecture.pdf", "application/pdf")
+    process(concurrent_engine, material_client, material)
+    with Session(concurrent_engine) as database, database.begin():
+        text = database.get(MaterialSearchDocumentModel, UUID(material["id"]))
+        assert text is not None and text.locations[0]["number"] == 1
+        text.extraction_revision, text.locations = 0, []
+    dispatch_materials(
+        sessionmaker(concurrent_engine),
+        storage(material_client),
+        Mock(spec=Celery),
+        reextract_legacy=True,
+    )
+    assert state(concurrent_engine, material) == "pending"
+    process(concurrent_engine, material_client, material)
+    assert state(concurrent_engine, material) == "ready"
+    assert material_client.get(f"{BASE}/{material['id']}/content").content == body
+    with Session(concurrent_engine) as database:
+        text = database.get(MaterialSearchDocumentModel, UUID(material["id"]))
+        assert text and text.extraction_revision == 1 and text.locations[0]["kind"] == "page"

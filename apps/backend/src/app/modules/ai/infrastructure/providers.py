@@ -13,8 +13,10 @@ from app.modules.ai.domain.state import Run
 
 
 class OpenRouterModels:
-    def __init__(self, transactions: AiTransactions, access: ConnectionAccess) -> None:
-        self.transactions, self.access = transactions, access
+    def __init__(
+        self, transactions: AiTransactions, access: ConnectionAccess, *, background: bool = False
+    ) -> None:
+        self.transactions, self.access, self.background = transactions, access, background
 
     def credential(self, run: Run) -> str:
         with self.transactions(run.user_id, write=True) as repository:
@@ -23,7 +25,7 @@ class OpenRouterModels:
             if (
                 current is None
                 or current.status != "running"
-                or now >= current.created_at + RUN_TIMEOUT
+                or (not self.background and now >= current.created_at + RUN_TIMEOUT)
             ):
                 raise ConnectionUnavailable("Model execution is no longer active.")
             _, key = self.access.check(repository, run.user_id, current, now)
@@ -39,12 +41,18 @@ class OpenRouterModels:
             repository.block_connection(scope, datetime.now(UTC) + timedelta(seconds=seconds))
 
     @contextmanager
-    def __call__(self, run: Run) -> Iterator[BaseChatModel]:
+    def __call__(self, run: Run, *, before_dispatch=None) -> Iterator[BaseChatModel]:
         if run.offering_id is None:
             raise ConnectionUnavailable("No real model selected.")
         profile = self.access.configuration.offering(run.user_id, run.offering_id)
+
+        def credential() -> str:
+            if before_dispatch:
+                before_dispatch()
+            return self.credential(run)
+
         model, client = openrouter_model(
-            profile, lambda: self.credential(run), lambda seconds: self.backoff(run, seconds)
+            profile, credential, lambda seconds: self.backoff(run, seconds)
         )
         with client:
             yield model

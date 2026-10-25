@@ -261,12 +261,21 @@ class AiService:
 
     def submit(self, user_id: UUID, request: AgentInput, submission_id: UUID) -> RunSnapshot:
         run, created = self.admit(user_id, request, submission_id)
-        if created:
+        if created and not request.full_sources:
             self.execute(run, request)
         return self.get_run(user_id, run.id)
 
     def admit(self, user_id: UUID, request: AgentInput, submission_id: UUID) -> tuple[Run, bool]:
         payload: list[object] = [str(request.conversation_id), request.message]
+        if request.full_sources:
+            if (
+                request.source_scope is None
+                or not (request.source_scope.page_ids or request.source_scope.material_ids)
+                or request.source_scope.calendar
+                or request.source_scope.database_ids
+            ):
+                raise InvalidAiState("Select pages/materials for complete-source processing.")
+            payload.append("full_sources")
         if request.source_scope is not None:
             payload.append(request.source_scope.model_dump(mode="json"))
         digest = hashlib.sha256(
@@ -318,6 +327,11 @@ class AiService:
                     updated_at=now,
                 )
                 repository.create_run(run)
+                if request.full_sources:
+                    assert request.source_scope is not None
+                    repository.create_document_job(
+                        run, request.message, request.source_scope.model_dump(mode="json")
+                    )
                 repository.append_message(
                     Message(
                         id=uuid4(),
@@ -405,14 +419,14 @@ class AiService:
 
 
 class RunJournal:
-    def __init__(self, service: AiService, run: Run) -> None:
-        self.service, self.run = service, run
+    def __init__(self, service: AiService, run: Run, *, background: bool = False) -> None:
+        self.service, self.run, self.background = service, run, background
 
     def current(self, repository: AiRepository) -> Run:
         run = repository.get_run(self.run.user_id, self.run.id)
         if run is None or run.status != "running" or run.conversation_id is None:
             raise AiConflict("Execution is no longer active.")
-        if self.service.now() >= run.created_at + RUN_TIMEOUT:
+        if not self.background and self.service.now() >= run.created_at + RUN_TIMEOUT:
             raise TimeoutError("AI execution deadline exceeded.")
         self.service.conversation(repository, run.user_id, run.conversation_id)
         return run
@@ -425,7 +439,7 @@ class RunJournal:
         with self.service.transactions(self.run.user_id, write=True) as repository:
             run = self.current(repository)
             number = len(repository.attempts(run.user_id, run.id)) + 1
-            if number > 4:
+            if number > 4 and not self.background:
                 raise AiConflict("Provider attempt budget exhausted.")
             if run.offering_id is not None:
                 self.service.connection_access().check(

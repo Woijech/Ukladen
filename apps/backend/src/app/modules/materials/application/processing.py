@@ -40,6 +40,28 @@ class MaterialProcessingService:
         self.repository, self.users, self.storage = repository, users, storage
         self.extractor, self.index, self.now = extractor, index, now
 
+    def reextract_legacy(self, user_id: UUID, material_id: UUID) -> None:
+        if not self.users.lock_active(user_id):
+            return
+        current = self.repository.get(user_id, material_id)
+        if (
+            current is not None
+            and current.kind == "file"
+            and current.status == "ready"
+            and current.trashed_at is None
+            and self.index.needs_locations(user_id, material_id)
+        ):
+            self.repository.save(
+                replace(
+                    current,
+                    status="pending",
+                    attempts=0,
+                    version=current.version + 1,
+                    updated_at=self.now(),
+                ),
+                current.version,
+            )
+
     def claim(self, user_id: UUID, material_id: UUID) -> Material | None:
         if not self.users.lock_active(user_id):
             return None
