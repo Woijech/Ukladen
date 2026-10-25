@@ -139,3 +139,54 @@ def test_semantic_migrations_match_metadata(database_connection: Connection):
     command.downgrade(migration_config(database_connection), "0028_material_locations")
     command.upgrade(migration_config(database_connection), "head")
     command.check(migration_config(database_connection))
+
+
+def test_embedding_replacement_keeps_generations_separate_and_lexical_fallback(concurrent_engine):
+    from dataclasses import replace
+    from unittest.mock import patch
+
+    from sqlalchemy import select
+
+    from app.modules.search.infrastructure.index_models import SearchChunkModel
+
+    owner, page = uuid4(), uuid4()
+    sessions = sessionmaker(concurrent_engine, expire_on_commit=False)
+    with sessions.begin() as database:
+        database.add(UserModel(id=owner, email="generation-replacement@example.com"))
+        database.flush()
+        database.add(
+            PageModel(
+                id=page,
+                user_id=owner,
+                title="Synthetic lecture",
+                document=document_value(markdown_document("database normalization")),
+            )
+        )
+    original = Embeddings()
+    original_store = SqlAlchemyIndexStore(sessions, original.profile)
+    original_store.register()
+    IndexingService(original_store, original, len).process(owner, "page", page)
+    query = SearchRead(query="semantic-only-query-without-a-lexical-match")
+    assert HybridSearch(sessions, original).read(owner, query).sources
+
+    replacement = Embeddings()
+    replacement.profile = replace(original.profile, model="different-topics", revision="v2")
+    replacement_store = SqlAlchemyIndexStore(sessions, replacement.profile)
+    replacement_store.register()
+    assert replacement_store.generation != original_store.generation
+    pending = HybridSearch(sessions, replacement).read(owner, query)
+    assert not pending.sources and "index_pending_or_unavailable" in pending.warnings
+    assert HybridSearch(sessions, original).read(owner, query).sources
+    IndexingService(replacement_store, replacement, len).process(owner, "page", page)
+    assert HybridSearch(sessions, replacement).read(owner, query).sources[0].id == str(page)
+    with sessions() as database:
+        assert set(database.scalars(select(SearchChunkModel.generation))) == {
+            original_store.generation,
+            replacement_store.generation,
+        }
+    with patch.object(
+        replacement, "embed", side_effect=RuntimeError("Synthetic inference failure")
+    ):
+        result = HybridSearch(sessions, replacement).read(owner, SearchRead(query="normalization"))
+    assert result.sources[0].id == str(page)
+    assert "semantic_unavailable_lexical_fallback" in result.warnings

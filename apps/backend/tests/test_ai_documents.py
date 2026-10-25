@@ -196,3 +196,42 @@ def test_disabled_owner_stops_background_work_without_model_dispatch(concurrent_
     with sessions() as database:
         job = database.get(DocumentJobModel, run.id)
         assert job and job.phase == "failed" and job.error == "owner_unavailable"
+
+
+def test_worker_recovery_closes_unknown_attempt_and_fences_late_completion(concurrent_engine):
+    from app.modules.ai.application.lifecycle import RunJournal
+
+    sessions, service, owner, _, run, request = setup(concurrent_engine, "Synthetic facts. " * 200)
+    now = datetime.now(UTC)
+    steps = SqlAlchemyDocumentSteps(sessions, service, now=lambda: now)
+    interrupted = steps.claim(run.id)
+    assert interrupted
+    current = service.get_run(owner, run.id).run
+    attempt = RunJournal(service, current, background=True).start_attempt()
+    assert run.id not in steps.candidates()
+    now += timedelta(minutes=3)
+    assert run.id in SqlAlchemyDocumentSteps(sessions, service, now=lambda: now).candidates()
+    replacement = steps.claim(run.id)
+    assert replacement and replacement.lease != interrupted.lease
+    assert replacement.next_offset == interrupted.next_offset
+    snapshot = service.get_run(owner, run.id)
+    closed = next(item for item in snapshot.attempts if item.id == attempt.id)
+    assert closed.status == "interrupted"
+    assert closed.input_tokens is None and closed.output_tokens is None
+    assert not steps.complete(interrupted, "Late duplicate result")
+    assert steps.complete(replacement, "Current source summary")
+    for _ in range(100):
+        fresh_steps = SqlAlchemyDocumentSteps(sessions, service, now=lambda: now)
+        if not DocumentAnalysisService(fresh_steps, DocumentAgentModel(fresh_steps)).process(
+            run.id
+        ):
+            break
+    else:
+        pytest.fail("Recovered document processing did not converge.")
+    final = service.get_run(owner, run.id)
+    assert final.run.status == "completed"
+    progress = steps.progress(owner, run.id)
+    assert progress and progress["processed_characters"] == progress["total_characters"]
+    assert len(service.history(owner, request.conversation_id, 0, 100)) == 2
+    assert len(final.attempts) > 1
+    assert not DocumentAnalysisService(steps, DocumentAgentModel(steps)).process(run.id)
