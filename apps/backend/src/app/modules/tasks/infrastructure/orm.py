@@ -63,3 +63,28 @@ class TaskModel(Base):
         Index("ix_tasks_owner_trash", "user_id", "trashed_at", "created_at", "id"),
         Index("ix_tasks_owner_trash_batch", "user_id", "trash_batch_id"),
     )
+
+
+class TaskDependencyModel(Base):
+    __tablename__ = "task_dependencies"
+
+    task_id: Mapped[UUID] = mapped_column(primary_key=True)
+    predecessor_id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["task_id", "user_id"],
+            ["tasks.id", "tasks.user_id"],
+            name="fk_task_dependencies_task_owner",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["predecessor_id", "user_id"],
+            ["tasks.id", "tasks.user_id"],
+            name="fk_task_dependencies_predecessor_owner",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("task_id != predecessor_id", name="ck_task_dependencies_not_self"),
+        Index("ix_task_dependencies_reverse", "user_id", "predecessor_id", "task_id"),
+    )

@@ -120,8 +120,9 @@ External labels remain metadata, not authoritative grouping identities.
 
 Task create/read/list/update, status/priority, exact deadlines/effort, subtask
 hierarchy and recoverable branch trash are implemented with a browser task screen;
-see [tasks](../development/tasks.md). Task dependencies/links, work blocks and
-availability are not implemented.
+see [tasks](../development/tasks.md). Task dependencies and explicit page links
+are implemented locally in the backend. Their UI, work blocks and availability
+are not implemented.
 Calendar reminders and durable in-app notifications are implemented with event
 reminder and inbox UI; see [reminder contracts](../development/reminders.md).
 
@@ -194,7 +195,8 @@ activation and real-provider answer quality remain unverified. See [AI architect
 | Rich/nested blocks and page-page knowledge links | Status: not implemented. |
 | One-shot calendar reminders and durable in-app notifications | Implemented backend |
 | Task create/read/list/update, subtask hierarchy, recoverable branch trash, status/priority, exact deadline/effort and versions | Implemented backend and browser UI |
-| Task dependencies/links, work blocks, availability and task/deadline reminders | Status: not implemented. |
+| Task dependencies and explicit page links | Implemented locally in the backend; browser controls pending |
+| Task work blocks, availability and task/deadline reminders | Status: not implemented. |
 | Private materials, page attachments and bounded document extraction | Implemented backend; no OCR |
 | Filtered PostgreSQL full-text search over pages/materials | Implemented backend |
 | Offline AI chat/run lifecycle and accounting | AI-01 complete, fake-only and disabled by default; bounded execution/recovery, 30-day cleanup and minimal replay protection; migrations tested only on disposable data |

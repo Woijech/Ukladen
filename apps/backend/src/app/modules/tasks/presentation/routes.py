@@ -13,6 +13,7 @@ from app.modules.auth.presentation.dependencies import (
     get_current_session,
     require_csrf,
 )
+from app.modules.tasks.application.dependencies import TaskDependencyConflict, TaskDependencyService
 from app.modules.tasks.application.service import TaskService
 from app.modules.tasks.domain.tasks import (
     InvalidTaskInput,
@@ -23,9 +24,11 @@ from app.modules.tasks.domain.tasks import (
     TaskTrashConflict,
     TaskVersionConflict,
 )
+from app.modules.tasks.infrastructure.dependencies import SqlAlchemyTaskDependencies
 from app.modules.tasks.infrastructure.repository import SqlAlchemyTaskRepository
 from app.modules.tasks.presentation.schemas import (
     TaskCreate,
+    TaskDependencyListResponse,
     TaskListResponse,
     TaskPatch,
     TaskResponse,
@@ -47,6 +50,72 @@ def get_tasks(database: Database) -> TaskService:
 
 
 Tasks = Annotated[TaskService, Depends(get_tasks)]
+
+
+@router.get("/{task_id}/dependencies", response_model=TaskDependencyListResponse)
+def task_dependencies(
+    task_id: UUID,
+    current: CurrentSession,
+    database: Database,
+    tasks: Tasks,
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    offset: Annotated[int, Query(ge=0, le=2**31 - 1)] = 0,
+) -> TaskDependencyListResponse:
+    with database.begin():
+        database.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+        items, unresolved = TaskDependencyService(tasks, SqlAlchemyTaskDependencies(database)).list(
+            current.user_id, task_id, limit, offset
+        )
+        return TaskDependencyListResponse(
+            items=[TaskSummaryResponse.from_task(item, tasks.now()) for item in items],
+            limit=limit,
+            offset=offset,
+            has_unresolved_dependencies=unresolved,
+        )
+
+
+@router.put(
+    "/{task_id}/dependencies/{predecessor_id}",
+    response_model=TaskResponse,
+    dependencies=[Depends(require_csrf)],
+)
+def add_task_dependency(
+    task_id: UUID,
+    predecessor_id: UUID,
+    payload: TaskVersionRequest,
+    current: CurrentSession,
+    database: Database,
+    tasks: Tasks,
+) -> TaskResponse:
+    with database.begin():
+        result = TaskDependencyService(tasks, SqlAlchemyTaskDependencies(database)).change(
+            current.user_id, task_id, predecessor_id, payload.expected_version
+        )
+        response = TaskResponse.from_task(result, tasks.now())
+    logger.info("tasks.dependency_added", extra={"user_id": str(current.user_id)})
+    return response
+
+
+@router.delete(
+    "/{task_id}/dependencies/{predecessor_id}",
+    response_model=TaskResponse,
+    dependencies=[Depends(require_csrf)],
+)
+def remove_task_dependency(
+    task_id: UUID,
+    predecessor_id: UUID,
+    payload: TaskVersionRequest,
+    current: CurrentSession,
+    database: Database,
+    tasks: Tasks,
+) -> TaskResponse:
+    with database.begin():
+        result = TaskDependencyService(tasks, SqlAlchemyTaskDependencies(database)).change(
+            current.user_id, task_id, predecessor_id, payload.expected_version, remove=True
+        )
+        response = TaskResponse.from_task(result, tasks.now())
+    logger.info("tasks.dependency_removed", extra={"user_id": str(current.user_id)})
+    return response
 
 
 @router.post("", status_code=201, response_model=TaskResponse, dependencies=[Depends(require_csrf)])
@@ -167,6 +236,8 @@ def install_tasks(application: FastAPI) -> None:
             status, detail, code = 409, "Task hierarchy conflict.", "task_hierarchy_conflict"
         elif isinstance(error, TaskTrashConflict):
             status, detail, code = 409, "Task trash conflict.", "task_trash_conflict"
+        elif isinstance(error, TaskDependencyConflict):
+            status, detail, code = 409, "Task dependency cycle.", "task_dependency_conflict"
         else:
             status, detail, code = 409, "Task changed. Reload and retry.", "task_version_conflict"
         log_failure(logger, "tasks.operation_rejected", error, level=logging.WARNING, reason=code)
@@ -182,6 +253,7 @@ def install_tasks(application: FastAPI) -> None:
         TaskHierarchyConflict,
         TaskTrashConflict,
         TaskVersionConflict,
+        TaskDependencyConflict,
     ):
         application.add_exception_handler(error_type, task_error)
     application.include_router(router)

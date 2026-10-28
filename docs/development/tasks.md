@@ -1,9 +1,10 @@
 # Tasks: Incremental P-06 Delivery
 
-Updated: 2026-10-25.
+Updated: 2026-10-28.
 Status: task create/read/list/update, owner-scoped subtask hierarchy and recoverable
-branch trash are implemented with a browser task screen. Dependencies, page links,
-work blocks and availability are not implemented.
+branch trash are implemented with a browser task screen. Cycle-safe dependencies
+and explicit page links are implemented in the backend under AI-10. Their browser
+controls, work blocks and availability are not implemented.
 
 ## First increment: independent task create/read/update
 
@@ -217,7 +218,6 @@ was performed.
 
 Status: not implemented. These decisions are not delivered by the current task APIs:
 
-- Cycle-safe dependencies and optional page links. Dependencies warn rather than block.
 - Calendar occupied/free/conflict queries over the complete busy set; query-supplied
   availability windows, not saved working hours.
 - Versioned future-only manual task blocks. Completion/cancellation/trash cancels
@@ -228,6 +228,49 @@ Status: not implemented. These decisions are not delivered by the current task A
 
 Automatic planning, saved work preferences, task/deadline reminders and all AI
 runtime remain outside these backend increments and unimplemented.
+
+## Fourth increment: dependencies and page links
+
+Status: implemented locally, backend only, on 2026-10-28 under the owner-approved
+[AI-10 delivery](ai-10.md). Migration `0033_task_dependencies` follows the merged
+AI/task head and adds same-owner dependency edges; `0034_task_page_links` adds
+explicit relations owned by `relations`. Neither migration changes existing task
+content, IDs or versions. Populated downgrade refuses to discard either relation.
+These migrations are not applied to the running application.
+
+`GET /api/v1/tasks/{id}/dependencies` lists predecessor task summaries, including
+trash state, with normal limit/offset pagination and a global
+`has_unresolved_dependencies` flag independent of the selected page. Only an active,
+untrashed predecessor with status `done` satisfies the dependency. Cancelled or
+trashed predecessors remain unresolved until the user changes/removes the relation.
+No status propagation or completion restriction is added: the flag is advisory for
+manual work; the future planner must respect dependency order.
+
+`PUT` and `DELETE /api/v1/tasks/{id}/dependencies/{predecessor_id}` take the ordinary
+`expected_version` body and return the updated task. A changed edge increments only
+the dependent task's version; duplicate PUT/absent DELETE with the current version
+are no-ops. Both endpoints must be owned. New edges require untrashed endpoints;
+removal may target a trashed predecessor. Editing a trashed dependent task remains
+forbidden. Self-dependencies and transitive cycles return 409 with
+`code=task_dependency_conflict`. Recursive traversal includes retained trash links,
+and the shared owner lock serializes opposite concurrent additions and other task
+edits. Parent relationships do not automatically create dependencies.
+
+Explicit page relations:
+
+| Method | Path | Result |
+| --- | --- | --- |
+| PUT | `/api/v1/relations/tasks/{task_id}/pages/{page_id}` | Idempotently link owned active endpoints; return page metadata |
+| DELETE | Same path | Unlink only; 204; absent/foreign relation is 404 |
+| GET | `/api/v1/relations/tasks/{task_id}/pages` | Paginated linked page metadata |
+| GET | `/api/v1/relations/pages/{page_id}/tasks` | Paginated linked task summaries |
+
+Reads retain trash metadata without exposing page bodies/task descriptions. Trash
+preserves links, and unlinking works while either endpoint is trashed. No content,
+status, title, deadline or version propagates between endpoints. Owner-qualified
+foreign keys enforce both endpoint owners; account deletion removes relations.
+Session, CSRF/Origin, no-store and caller-owned transaction rules are unchanged.
+Extraction provenance and material source locations remain later AI-10 work.
 
 ## Browser task screen
 

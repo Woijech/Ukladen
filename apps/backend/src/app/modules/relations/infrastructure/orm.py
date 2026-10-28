@@ -88,3 +88,28 @@ class PageMaterialLinkModel(Base):
         ),
         Index("ix_page_material_links_reverse", "user_id", "material_id", "page_id"),
     )
+
+
+class TaskPageLinkModel(Base):
+    __tablename__ = "task_page_links"
+
+    task_id: Mapped[UUID] = mapped_column(primary_key=True)
+    page_id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["task_id", "user_id"],
+            ["tasks.id", "tasks.user_id"],
+            name="fk_task_page_links_task_owner",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["page_id", "user_id"],
+            ["note_pages.id", "note_pages.user_id"],
+            name="fk_task_page_links_page_owner",
+            ondelete="CASCADE",
+        ),
+        Index("ix_task_page_links_reverse", "user_id", "page_id", "task_id"),
+    )

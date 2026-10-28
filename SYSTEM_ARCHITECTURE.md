@@ -57,7 +57,8 @@ full-text search are implemented; see [materials/search](docs/development/materi
 Task create/read/list/update, subtask hierarchy and recoverable branch trash with
 status/priority, exact deadlines/effort and optimistic versions are implemented,
 with a working frontend task screen; see [tasks](docs/development/tasks.md).
-Status: not implemented — task dependencies/links, task blocks, availability and
+Task dependencies and explicit page links are implemented locally in the backend.
+Status: not implemented — task blocks, availability and
 authenticated IIS. AI-06 semantic retrieval and complete-source analysis are
 implemented locally but unactivated; see [AI-06](docs/development/ai-06.md).
 AI-03 read tools are implemented locally but unactivated; see the AI section below.
@@ -569,8 +570,8 @@ See [workspace architecture](docs/architecture/workspace.md).
 
 Status: task create/read/list/update, subtask hierarchy, recoverable branch trash,
 status/priority, exact deadlines, effort and optimistic versions are implemented
-with a browser task screen. Dependencies/page links, work blocks and scheduling
-remain not implemented; see
+with a browser task screen. Dependencies and explicit page links are implemented
+locally in the backend. Their UI, work blocks and scheduling remain not implemented; see
 [task contracts](docs/development/tasks.md). Tasks are independent typed objects; ordinary note
 checkboxes/database rows do not synchronize them. Deterministic planning is a task
 application service using calendar-owned availability, not business logic in an LLM.

@@ -102,3 +102,7 @@ class TaskListResponse(BaseModel):
     items: list[TaskSummaryResponse]
     limit: int
     offset: int
+
+
+class TaskDependencyListResponse(TaskListResponse):
+    has_unresolved_dependencies: bool

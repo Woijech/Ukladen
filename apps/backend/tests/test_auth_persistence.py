@@ -117,6 +117,8 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "checkpoint_blobs",
         "checkpoint_writes",
         "tasks",
+        "task_dependencies",
+        "task_page_links",
     }
     assert set(inspect(database_connection).get_table_names()) == expected
     command.check(config)

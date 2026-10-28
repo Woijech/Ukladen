@@ -16,7 +16,8 @@ organization, database views, materials/search and reminder/inbox UI, including 
 limits. Saved event views and mixed projection remain API-only.
 Tasks support create/read/list/update, status/priority, exact deadlines/effort,
 subtask hierarchy and recoverable branch trash in the same browser shell.
-Dependencies/links, work blocks and availability remain planned; see
+Dependencies and explicit page links are implemented locally in the backend.
+Their UI, work blocks and availability remain planned; see
 [task delivery](../development/tasks.md).
 
 ## 1. Vocabulary

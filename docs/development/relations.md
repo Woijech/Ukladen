@@ -1,10 +1,12 @@
 # Page and Calendar Links
 
-Updated: 2026-10-22.
+Updated: 2026-10-28.
 Status: page/calendar links implemented, with event and page backlink UI.
 See the [frontend guide](../architecture/frontend.md). Optional page/material links
-are implemented separately in [materials](materials.md). Page-page knowledge links,
-task links and database relations are not implemented. Collections/tags and their typed
+are implemented separately in [materials](materials.md). Page-page knowledge links
+and database relations are not implemented. Explicit task/page links are implemented
+locally in the backend; see the [task link contract](tasks.md#fourth-increment-dependencies-and-page-links).
+Collections/tags and their typed
 membership are implemented separately in [workspace](workspace.md).
 
 ## Behavior and ownership

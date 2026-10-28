@@ -40,8 +40,9 @@ existing services just to match target vocabulary. A package marker is not a fea
 
 Standalone task create/read/list/update, subtask hierarchy and branch trash are
 implemented with a browser UI; see [tasks](tasks.md).
-Task dependencies/links, work blocks and calendar free slots/conflicts are not
-implemented. AI-06 semantic retrieval and complete-source analysis are implemented
+Task dependencies and explicit page links are implemented locally in the backend;
+their UI, work blocks and calendar free slots/conflicts are not implemented.
+AI-06 semantic retrieval and complete-source analysis are implemented
 locally but unactivated.
 AI-02 adds optional [OpenRouter models and encrypted connections](ai-connections.md),
 implemented locally but unactivated. [AI-04](ai-04.md) adds a locally implemented
@@ -187,9 +188,11 @@ Status: partially implemented — task create/read/list/update, status/priority,
 exact deadlines/effort, optimistic versions, owner-scoped subtask hierarchy,
 recoverable branch trash, authenticated APIs and task management UI are implemented;
 see [task contracts](tasks.md).
-Dependencies/page links,
-manual blocks and availability are not implemented. The owner selected manual-only
-incremental delivery; automatic planning and saved work preferences remain later work.
+Dependencies and explicit page links are now implemented locally in the backend
+under [AI-10](ai-10.md). Their UI, manual blocks and availability are not implemented.
+The owner originally selected manual-only
+incremental delivery; the 2026-10-28 owner request now authorizes the full local
+AI-10 flow. Automatic planning and saved work preferences are still not implemented.
 Dependencies: existing calendar; optional page links after P-02.
 Can be requested earlier independently of databases. Q-07 is resolved: independent
 typed tasks with optional source links and no automatic checkbox/record synchronization.

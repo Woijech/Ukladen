@@ -186,6 +186,7 @@ def test_migration_preserves_existing_user_and_refuses_populated_downgrade(
         connection.execute(insert(UserModel).values(id=user_id, email="existing@example.com"))
         command.upgrade(migration, "head")
         command.check(migration)
+        current_revision = connection.scalar(text("SELECT version_num FROM alembic_version"))
         assert (
             connection.scalar(select(UserModel.email).where(UserModel.id == user_id))
             == "existing@example.com"
@@ -202,8 +203,7 @@ def test_migration_preserves_existing_user_and_refuses_populated_downgrade(
         with pytest.raises(DBAPIError, match="Cannot downgrade"), connection.begin_nested():
             command.downgrade(migration, "0021_google_email_confirmations")
         assert (
-            connection.scalar(text("SELECT version_num FROM alembic_version"))
-            == "0032_merge_ai_tasks"
+            connection.scalar(text("SELECT version_num FROM alembic_version")) == current_revision
         )
         assert connection.scalar(select(func.count()).select_from(ConversationModel)) == 1
 
