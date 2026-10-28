@@ -1,8 +1,8 @@
 # Notes Backend
 
-Updated: 2026-10-22.
+Updated: 2026-10-28.
 Status: implemented: independent nested pages, versioned block documents
-and recoverable trash. A flat block editor UI is described in the
+and recoverable trash. The page tree and block editor UI are described in the
 [frontend guide](../architecture/frontend.md). Sharing, permanent deletion, revision history and
 export are not implemented. Page-backed user databases reference these pages through
 notes application services; see [database contracts](databases.md).
@@ -138,3 +138,71 @@ Verified on 2026-10-12: full backend pytest with disposable PostgreSQL/Redis —
 1164 passed, 1 S3 avatar-storage test skipped. Ruff, Ruff format, Pyright,
 `docker compose config`, local documentation links and diff checks passed.
 No frontend changes or running-stack migration/deployment were performed.
+
+
+## Page workspace UI (2026-10-28)
+
+Implemented on the existing API: a nested, collapsible page list alongside a quiet
+page canvas, ancestor breadcrumbs, root/child creation and page actions. The client
+fetches summary batches of 200 until complete before assembling the hierarchy; it
+never presents one API batch as a complete tree or a global search. Bodies load only
+for the selected page. The tree becomes a collapsible compact list on narrow screens.
+Creation asks for a nonblank title and opens the created page with title focus.
+A private `/workspace?page=<UUID>` link opens that page through normal session and
+ownership checks; copying a link does not grant another account access.
+
+One searchable block picker serves `/` in an empty paragraph, the trailing writing
+line and insertion buttons. Arrow keys, Enter and Escape work from the search field.
+Available types are text, headings H1–H6, bulleted/numbered lists, checkboxes and links.
+Plain paragraphs split on Enter; Shift+Enter inserts a newline. Existing Markdown
+wrappers retain their source and format. Lists render native markers and add items
+with Enter; Backspace removes an empty item while retaining at least one item.
+Native drag handles and explicit up/down actions reorder the same UUIDs. Deleting
+a block requires confirmation. Safe conversion is limited to single-line plain text
+and headings, heading levels, and list styles; structured values and Markdown are
+not silently flattened.
+
+Saves remain manual, including Ctrl/Cmd+S, with compact pending/dirty/error/saved
+feedback and duplicate-submit protection. Page navigation offers save-and-go,
+continue editing and explicit draft discard; browser unload protection remains.
+Metadata and document writes still use successive page versions. If metadata saves
+but the document fails, the draft and advanced version remain available for retry.
+Conflicts require an explicit reload to replace the local draft. Page actions include
+copy link, parent selection excluding descendants, recoverable branch trash and
+restore. A trashed descendant directs the user to its trash-batch root.
+
+Calendar backlinks and existing material attachment controls remain below the body;
+removing a material reference preserves the material. No global search, automatic
+save, page-page link schema, editor library, backend migration or new dependency was
+introduced by this UI slice. Large libraries currently require all page summaries
+for the tree/parent picker; lazy branch loading is a future performance improvement.
+
+## Further Notion-style capabilities
+
+This is a capability inventory, not authorization for the next slice. Detailed
+requirements stay in [workspace requirements](../product/workspace.md), with
+unresolved choices in [Q-06/Q-08](../product/open-questions.md).
+
+| Capability | Status in Ukladen | Work needed next |
+| --- | --- | --- |
+| Page tree, independent pages, breadcrumbs, typed flat blocks, recoverable trash | Implemented | Current UI and existing notes API |
+| Rich text, colors, nested/advanced blocks, quotes/code/toggles/columns | Requires a separate product decision | Q-08: versioned block/inline schema, validation, migration, rendering and editor behavior |
+| Inline images and embeds | Requires a separate product decision | Block references to owned materials, media access and remote embedding policy; attachments already exist separately |
+| Links/backlinks | Partially implemented | Calendar backlinks, material references and ordinary HTTP link blocks exist; typed page-page links/backlinks need relations API and persistence within the current architecture |
+| Revision history | Partially implemented | Optimistic version checks exist, retained revisions do not; Q-06 must define retention and restore semantics before storage/API work |
+| User databases and table/calendar views | Implemented | Existing independent database area with typed properties, saved queries and page-backed records |
+| Additional database list/board views | Absent; fits current architecture | Extend saved layout contracts and UI over existing records; no record copies |
+| Formulas and rollups | Requires a separate product decision | Owner-deferred; expression/dependency rules, query cost and relation contracts |
+| Templates | Absent; fits current architecture | Explicit copy semantics, fresh block IDs and template storage/API; no implicit academic grouping |
+| Import/export | Absent; fits current architecture | Explicit formats, compatibility/size rules and loss reporting; derived Markdown is not an export subsystem |
+| Comments | Requires a separate product decision | Personal annotation versus shared discussion, anchors, authorship and lifecycle |
+| Simultaneous editing and shared spaces | Requires a separate product/architecture decision | Owner-deferred; collaborator identity, synchronization, conflict protocol and ownership changes |
+| Sharing/permissions and publishing | Requires a separate product/architecture decision | Owner-deferred; audience, revocation, public data exposure and access enforcement; copied links stay private |
+| Global search | Partially implemented | Existing server full-text search over owned pages/materials in the search area; broader task/property coverage needs an explicit slice |
+| AI | Partially implemented | Local chat, reads, retrieval and confirmed proposals exist but remain default-disabled/unactivated; real-provider checks and activation need separate authorization |
+| Integrations | Partially implemented | Public IIS schedule/context exists; other calendar providers and private IIS need separate requested scopes and verified contracts |
+
+UI verification on 2026-10-28: frontend lint, typecheck, production build, all 151
+mocked-API Chromium tests, Compose validation and changed-document file links passed.
+Light/dark desktop/tablet/mobile screenshots were inspected. The older backend
+verification above remains separate; no live backend or provider request was used.

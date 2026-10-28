@@ -144,7 +144,16 @@ Nesting and collection membership stay distinct.
 
 Q-08 remains open only for future rich inline formatting, nested blocks and editor
 choices. Material references are implemented in P-08; export/history/collaboration remain
-separate requested slices. This backend API does not implement an editor UI.
+separate requested slices. The separately requested 2026-10-28 frontend slice now
+provides a collapsible page tree, breadcrumbs, child creation, a shared slash/plus
+block picker, keyboard/native drag reordering and guarded manual saves over this API.
+See the [notes capability inventory](notes.md#further-notion-style-capabilities).
+Further rich blocks/media require Q-08 schema/rendering decisions; revision retention
+requires Q-06; page-page links need typed relations persistence/API. Templates,
+import/export and new database views fit existing module boundaries but need their
+own concrete scopes/contracts. Comments, sharing/publication, collaboration and
+formulas remain separate owner decisions. AI activation and private/external provider
+integrations retain their existing authorization and verified-contract gates.
 
 ## 7. P-05 user databases, properties and calendar projection
 

@@ -989,12 +989,16 @@ function CalendarWorkspace({
   onboarding: boolean;
 }) {
   const queryClient = useQueryClient();
-  const [section, setSection] = useState<SectionKey>(initialSection);
+  const [linkedPage] = useState(() => {
+    const value = new URLSearchParams(window.location.search).get("page");
+    return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ? value : null;
+  });
+  const [section, setSection] = useState<SectionKey>(linkedPage ? "notes" : initialSection);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavigation, setMobileNavigation] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [pendingSection, setPendingSection] = useState<SectionKey | null>(null);
-  const [pageToOpen, setPageToOpen] = useState<string | null>(null);
+  const [pageToOpen, setPageToOpen] = useState<string | null>(linkedPage);
   function navigate(next: SectionKey) {
     if (next === section) {
       setMobileNavigation(false);

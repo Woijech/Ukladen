@@ -182,15 +182,19 @@ Lucide, Motion and rich-editor packages are not required by this implementation.
 ## Implemented workspace interfaces
 
 - Dashboard links to actual pages and resources; it does not fabricate activity.
-- Notes expose a paginated hierarchy, parent selection, recoverable trash and
-  versioned flat blocks: text/Markdown, headings, lists, checkboxes and links.
-  Editing/reordering preserves block UUIDs and Markdown format. Saves are explicit;
-  unsaved navigation is confirmed. Metadata and document saves use successive
-  versions in separate requests. A document failure retains the draft and the
-  successful metadata version; a conflict requires explicit reload instead of
-  overwriting another edit. Optional event backlinks/material attachments change
-  references only. Rich inline markup, nested blocks, history and collaboration
-  remain outside the current schema/UI.
+- Notes expose a nested collapsible page tree, root/child creation, ancestor
+  breadcrumbs and a centered block canvas. Summary batches are assembled into the
+  complete tree; bodies load on selection. On phones the tree is a compact toggled
+  list. A shared searchable slash/plus picker supports text, H1–H6, native bulleted/
+  numbered lists, checkboxes and HTTP links. Native drag handles and up/down actions
+  retain UUIDs; block removal is confirmed. Safe text/heading and list-style changes
+  preserve data. Manual saves and Ctrl/Cmd+S retain page versions, duplicate-submit
+  guards, partial-save recovery and explicit conflict reload. Page navigation offers
+  save, stay or discard, with browser unload protection. Compact page menus expose
+  parent moves, private links and branch trash/restore. Existing event backlinks and
+  material references remain below the body. See [notes UI and future capability
+  inventory](../development/notes.md#page-workspace-ui-2026-10-28). Rich formatting,
+  nested blocks, revision history and collaboration remain outside the schema/UI.
 - Materials provide bookmarks, metadata, trash/restore, processing retry, downloads,
   retained quotas and the existing reservation/raw-upload contract. An interrupted
   upload rechecks metadata before retrying the same reservation. No remote fetching
@@ -337,3 +341,14 @@ and the default backend pytest suite passed: **1020 passed, 607 skipped,
 for this run; the warning is the existing Starlette/httpx deprecation. Earlier
 dated native-service results remain separate evidence. No application database
 migration, deployment or provider call was performed.
+
+Executed on 2026-10-28 for the notes page workspace: frontend lint, TypeScript
+checking, production build and all **151 Chromium Playwright tests** passed, along
+with quiet Compose validation, changed-document local file links and diff checks.
+The suite includes hierarchy across metadata batches, child creation, dirty-page
+navigation, version conflicts/partial-save retries, native unload cancellation,
+slash/plus keyboard controls, stable block IDs, list editing, drag ordering, link
+editing/copying and deep-tree overflow. Light/dark screenshots were inspected at
+1440, 834 and 390px. Browser tests mock HTTP responses; backend Ruff/Pyright/pytest
+and live backend integration were not rerun because backend code/contracts are
+unchanged. No application deployment, migration or real AI-provider call occurred.
