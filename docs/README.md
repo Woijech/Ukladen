@@ -75,6 +75,7 @@ implementation task, not a guarantee that its checks were rerun during a later e
 - [AI-06 retrieval and full-source processing](development/ai-06.md): local versioned chunks, recoverable index, hybrid search, located sources and durable analyses; unactivated.
 - [AI-07 confirmed actions](development/ai-07.md): immutable previews, atomic owner-confirmed batches and independent replay receipts; default-disabled and unactivated.
 - [AI-09 release hardening](development/ai-09.md): agreed local scope, bilingual acceptance and separate live-model/activation gates.
+- [AI-10 task planning](development/ai-10.md): confirmed owner decisions and incremental local delivery; implementation started.
 - [AI model connections](development/ai-connections.md): optional OpenRouter catalog, restricted offerings, encrypted personal keys and AI-consumer-only secret setup; unactivated.
 - [AI chat/run API](development/ai-api.md): default-disabled fake chats/runs, idempotency, cancellation, accounting, bounded recovery, physical retention and minimal replay/context markers.
 

@@ -207,6 +207,17 @@ requires evidence, sanitized fixtures and adapter contract tests.
 
 ## Recording later decisions
 
+AI-10 owner scope (2026-10-28): the owner approved the complete local backend and
+browser flow, including missing P-06 prerequisites, with incremental verification
+and local commits. Save weekly work windows with request-specific overrides; use
+explicit progress rather than elapsed-session deductions; allow proposals to move
+any future unpinned task session, including manual ones; allow explicitly confirmed
+partial plans with visible unmet work. Work/break defaults remain editable 45/15.
+Dependencies constrain the planner but only warn in manual workflows. Preserve
+protected events, exact confirmation and atomic revalidation. See the
+[AI-10 delivery contract](../development/ai-10.md) for sequence and actual status.
+No real provider usage or application activation is authorized by this scope.
+
 Record the answer, date and affected requirements here. Update architecture/ADR when
 boundaries or authorization change, then affected roadmap/product sections. Keep
 current implementation status separate from confirmed future scope.

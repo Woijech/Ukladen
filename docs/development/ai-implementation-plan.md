@@ -317,6 +317,9 @@ worker/broker restart and embedding generation replacement on disposable data.
 
 ## 14. AI-10: extraction, planning and atomic replanning
 
+Implementation started under the [owner-approved local delivery contract](ai-10.md)
+on 2026-10-28. Its delivery log distinguishes completed increments from planned work.
+
 Requires P-06 task CRUD/status/subtasks/dependencies/source-link interfaces, work blocks,
 occupied/free intervals, conflict checks and structured work preferences. LLM extraction
 returns validated proposals with real source locations, ambiguity and labeled estimates.
