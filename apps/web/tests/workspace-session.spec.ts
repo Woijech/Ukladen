@@ -7,8 +7,10 @@ test("switching accounts discards cached weeks and private forms even while the 
   await page.goto("/workspace");
   await expect(page.locator(".event-card")).toContainText("Private plan");
   await page.locator(".event-card").click();
+  await page.getByRole("button", { name: "Изменить событие", exact: true }).click();
   await expect(page.getByLabel("Описание", { exact: false })).toHaveValue("Private description");
   await page.getByRole("button", { name: "Отмена", exact: true }).click();
+  await page.getByRole("button", { name: /К календарю/ }).click();
   await page.getByRole("button", { name: "Следующая неделя" }).click();
   await page.locator(".account-button").click();
   await page.getByRole("button", { name: "Выйти из аккаунта" }).click();

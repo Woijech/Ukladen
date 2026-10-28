@@ -72,7 +72,9 @@ Saved calendar views over authorized official/personal events are implemented,
 with per-source collection/tag filters and saved layout/sorting preferences.
 Database table/calendar views, date projection and versioned date moves are implemented.
 The day/week calendar UI, database table/day/week/month views, collections/tags
-and academic-group selection are implemented. Saved event views and mixed projection
+and academic-group selection are implemented. Calendar entries open a detail screen
+with explicit note/material/event context. Personal event boundaries can be resized
+on the grid with pointer or keyboard controls; official occurrences stay read-only. Saved event views and mixed projection
 remain API-only; see the [frontend guide](../architecture/frontend.md).
 Status: not implemented — per-event colors, all-day and
 recurring personal events, occupied/free intervals,

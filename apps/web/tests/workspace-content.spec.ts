@@ -1,6 +1,13 @@
+import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
-import { mockWorkspace, calendarEvent, profile, task } from "./workspace-fixtures";
+import {
+  mockWorkspace,
+  navigateSection as section,
+  calendarEvent,
+  profile,
+  task,
+} from "./workspace-fixtures";
 
 const pageId = "11111111-2222-4333-8444-555555555555";
 const databaseId = "22222222-2222-4333-8444-555555555555";
@@ -122,7 +129,9 @@ async function contentWorkspace(page: Page) {
   };
   const state = {
     note,
+    pages: [note],
     conflict: false,
+    failDocumentOnce: false,
     forbidden: false,
     writes: [] as {
       path: string;
@@ -193,48 +202,60 @@ async function contentWorkspace(page: Page) {
       });
     if (path === "/api/v1/notes/pages") {
       if (method === "POST") {
-        Object.assign(note, {
-          title: body!.title,
+        const created = {
+          ...note,
+          id: randomUUID(),
+          title: String(body!.title),
+          parent_id: body!.parent_id as string | null,
           version: 1,
           document: { schema_version: 1, blocks: [] },
-        });
-        return route.fulfill({ status: 201, json: note });
+        };
+        state.pages.push(created);
+        return route.fulfill({ status: 201, json: created });
       }
+      const items = state.pages.filter(
+        (item) =>
+          (url.searchParams.get("trashed") === "true") === !!item.trashed_at,
+      );
+      const offset = Number(url.searchParams.get("offset") ?? 0);
       return list(
-        (url.searchParams.get("trashed") === "true") === !!note.trashed_at
-          ? [note]
-          : [],
+        items.slice(
+          offset,
+          offset + Number(url.searchParams.get("limit") ?? 50),
+        ),
       );
     }
-    if (path === `/api/v1/notes/pages/${pageId}/document`) {
-      if (state.conflict) return route.fulfill({ status: 409, json: {} });
-      expect(body!.expected_version).toBe(note.version);
-      note.document = body!.document as typeof note.document;
-      note.version++;
-      return route.fulfill({
-        json: {
-          page_id: pageId,
-          version: note.version,
-          document: note.document,
-        },
-      });
-    }
-    if (path === `/api/v1/notes/pages/${pageId}`) {
-      if (method === "PATCH") {
-        expect(body!.expected_version).toBe(note.version);
-        Object.assign(note, body);
-        note.version++;
+    const noteMatch = path.match(
+      /^\/api\/v1\/notes\/pages\/([^/]+)(?:\/(document|trash|restore))?$/,
+    );
+    if (noteMatch) {
+      const current = state.pages.find((item) => item.id === noteMatch[1]);
+      if (!current) return route.fulfill({ status: 404, json: {} });
+      if (method !== "GET") {
+        if (state.conflict) return route.fulfill({ status: 409, json: {} });
+        expect(body!.expected_version).toBe(current.version);
+        if (noteMatch[2] === "document") {
+          if (state.failDocumentOnce) {
+            state.failDocumentOnce = false;
+            return route.fulfill({ status: 503, json: {} });
+          }
+          current.document = body!.document as typeof note.document;
+        } else if (noteMatch[2] === "trash" || noteMatch[2] === "restore") {
+          current.trashed_at =
+            noteMatch[2] === "trash" ? "2026-10-16T12:00:00Z" : null;
+        } else Object.assign(current, body);
+        current.version++;
       }
-      return route.fulfill({ json: note });
-    }
-    if (
-      path === `/api/v1/notes/pages/${pageId}/trash` ||
-      path === `/api/v1/notes/pages/${pageId}/restore`
-    ) {
-      expect(body!.expected_version).toBe(note.version);
-      note.version++;
-      note.trashed_at = path.endsWith("trash") ? "2026-10-16T12:00:00Z" : null;
-      return route.fulfill({ json: note });
+      return route.fulfill({
+        json:
+          noteMatch[2] === "document"
+            ? {
+                page_id: current.id,
+                version: current.version,
+                document: current.document,
+              }
+            : current,
+      });
     }
     if (path === `/api/v1/relations/pages/${pageId}/materials`)
       return list(state.attachments);
@@ -425,49 +446,35 @@ async function contentWorkspace(page: Page) {
   return { workspace, state };
 }
 
-async function section(page: Page, name: string) {
-  if (
-    await page
-      .getByRole("button", { name: "Открыть навигацию", exact: true })
-      .isVisible()
-  ) {
-    await page
-      .getByRole("button", { name: "Открыть навигацию", exact: true })
-      .click();
-    await page
-      .getByRole("dialog", { name: "Навигация", exact: true })
-      .getByRole("button", { name, exact: true })
-      .click();
-  } else
-    await page
-      .locator(".sidebar")
-      .getByRole("button", { name, exact: true })
-      .click();
-}
 
 test("block editing preserves IDs and Markdown format, supports reorder, guards navigation and saves with versions", async ({
   page,
 }) => {
   const { state } = await contentWorkspace(page);
   await section(page, "Заметки");
-  await page.getByRole("button", { name: /Идеи для проекта/ }).click();
+  await page
+    .getByRole("button", { name: "Идеи для проекта", exact: true })
+    .click();
   await page.getByLabel("Текст блока 1").fill("Новый текст");
   await section(page, "Материалы");
   await expect(
     page.getByRole("dialog", { name: "Несохранённые изменения" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Остаться", exact: true }).click();
-  await page.getByLabel("Тип нового блока").selectOption("checkbox");
   await page
-    .getByRole("button", { name: "Добавить блок", exact: false })
+    .getByRole("button", { name: "Добавить блок", exact: true })
     .click();
+  await page.getByLabel("Найти тип блока").fill("Чекбокс");
+  await page.getByLabel("Найти тип блока").press("Enter");
   await page.getByLabel("Пункт 2", { exact: true }).fill("Проверить идею");
   await page.getByLabel("Отметить пункт 2").check();
+  await page.getByLabel("Действия блока 2", { exact: true }).click();
   await page.getByRole("button", { name: "Поднять блок 2" }).click();
   await page.getByRole("button", { name: "Сохранить страницу" }).click();
   await expect(
     page.getByRole("button", { name: "Сохранить страницу" }),
   ).toBeDisabled();
+  await expect(page.locator(".note-meta")).toContainText("Сохранено");
   const saved = state.writes.find((item) =>
     item.path.endsWith("/document"),
   )!.body!;
@@ -498,7 +505,9 @@ test("a conflicting note save retains the draft and explicit reload adopts the l
   const { state } = await contentWorkspace(page);
   state.conflict = true;
   await section(page, "Заметки");
-  await page.getByRole("button", { name: /Идеи для проекта/ }).click();
+  await page
+    .getByRole("button", { name: "Идеи для проекта", exact: true })
+    .click();
   await page.getByLabel("Текст блока 1").fill("Несохранённая идея");
   await page.getByRole("button", { name: "Сохранить страницу" }).click();
   await expect(page.locator(".form-error")).toContainText("Данные изменились");
@@ -524,8 +533,14 @@ test("note trash is confirmed and restoring refreshes the write version", async 
 }) => {
   const { state } = await contentWorkspace(page);
   await section(page, "Заметки");
-  await page.getByRole("button", { name: /Идеи для проекта/ }).click();
-  await page.getByRole("button", { name: "В корзину", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Идеи для проекта", exact: true })
+    .click();
+  await page.getByLabel("Действия страницы", { exact: true }).click();
+  await page
+    .locator(".note-topbar")
+    .getByRole("button", { name: "В корзину", exact: true })
+    .click();
   expect(state.writes).toHaveLength(0);
   await page
     .getByRole("dialog")
@@ -687,7 +702,9 @@ test("expired sessions discard private note content and mounted editors", async 
 }) => {
   const { state, workspace } = await contentWorkspace(page);
   await section(page, "Заметки");
-  await page.getByRole("button", { name: /Идеи для проекта/ }).click();
+  await page
+    .getByRole("button", { name: "Идеи для проекта", exact: true })
+    .click();
   await page.getByLabel("Текст блока 1").fill("Секретный черновик");
   state.forbidden = true;
   workspace.authenticated = false;
@@ -711,7 +728,12 @@ for (const viewport of [
   }, info) => {
     await page.setViewportSize(viewport);
     const { workspace } = await contentWorkspace(page);
-    workspace.tasks = [task({ title: "План проекта", description: "Задачи рядом с заметками и материалами" })];
+    workspace.tasks = [
+      task({
+        title: "План проекта",
+        description: "Задачи рядом с заметками и материалами",
+      }),
+    ];
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -722,16 +744,30 @@ for (const viewport of [
       animations: "disabled",
     });
     await section(page, "Задачи");
-    await page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /План проекта/ }).click();
-    await expect(page.getByRole("region", { name: "Детали задачи" })).toContainText("Задачи рядом с заметками и материалами");
-    await page.screenshot({ path: info.outputPath("tasks-light.png"), animations: "disabled" });
+    await page
+      .getByRole("region", { name: "Список задач" })
+      .getByRole("button", { name: /План проекта/ })
+      .click();
+    await expect(
+      page.getByRole("region", { name: "Детали задачи" }),
+    ).toContainText("Задачи рядом с заметками и материалами");
+    await page.screenshot({
+      path: info.outputPath("tasks-light.png"),
+      animations: "disabled",
+    });
     await page.getByRole("button", { name: "Новая задача" }).click();
-    const taskDialog = page.getByRole("dialog", { name: "Новая задача", exact: true });
+    const taskDialog = page.getByRole("dialog", {
+      name: "Новая задача",
+      exact: true,
+    });
     await expect(taskDialog).toBeVisible();
     const taskBox = await taskDialog.boundingBox();
     expect(taskBox!.width).toBeLessThan(viewport.width);
     expect(taskBox!.height).toBeLessThan(viewport.height);
-    await page.screenshot({ path: info.outputPath("task-dialog.png"), animations: "disabled" });
+    await page.screenshot({
+      path: info.outputPath("task-dialog.png"),
+      animations: "disabled",
+    });
     await page.keyboard.press("Escape");
     await expect(taskDialog).toHaveCount(0);
     if (viewport.width > 900) {
@@ -754,7 +790,9 @@ for (const viewport of [
     expect(box!.height).toBeLessThan(viewport.height);
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
-    await page.getByRole("button", { name: /Идеи для проекта/ }).click();
+    await page
+      .getByRole("button", { name: "Идеи для проекта", exact: true })
+      .click();
     await expect(page.locator(".note-editor")).toBeVisible();
     await page.screenshot({
       path: info.outputPath("note-editor.png"),
@@ -772,9 +810,17 @@ for (const viewport of [
       animations: "disabled",
     });
     await section(page, "Задачи");
-    await expect(page.getByRole("region", { name: "Список задач" })).toContainText("План проекта");
-    await expect(page.locator(".task-list-card")).toHaveCSS("background-color", "rgb(32, 28, 38)");
-    await page.screenshot({ path: info.outputPath("tasks-dark.png"), animations: "disabled" });
+    await expect(
+      page.getByRole("region", { name: "Список задач" }),
+    ).toContainText("План проекта");
+    await expect(page.locator(".task-list-card")).toHaveCSS(
+      "background-color",
+      "rgb(32, 28, 38)",
+    );
+    await page.screenshot({
+      path: info.outputPath("tasks-dark.png"),
+      animations: "disabled",
+    });
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -798,6 +844,7 @@ test("calendar source filters only change display, and day view keeps original e
   await page.getByRole("menuitemradio", { name: /День/ }).click();
   await expect(page.locator(".day-column")).toHaveCount(1);
   await page.locator(".event-card").click();
+  await page.getByRole("button", { name: "Изменить событие", exact: true }).click();
   await expect(page.getByLabel("Начало", { exact: true })).toHaveValue(
     "2026-10-16T14:00",
   );
@@ -808,7 +855,6 @@ test("event reminders bind to the original event and use the real one-shot API",
 }) => {
   const { state, workspace } = await contentWorkspace(page);
   await page.locator(".event-card.personal-event").click();
-  await page.getByRole("button", { name: /Заметки и напоминания/ }).click();
   await page.getByRole("button", { name: "Напомнить", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Напоминание создано");
   expect(
@@ -970,7 +1016,9 @@ test("page attachment removal preserves material and block content", async ({
     },
   ];
   await section(page, "Заметки");
-  await page.getByRole("button", { name: /Идеи для проекта/ }).click();
+  await page
+    .getByRole("button", { name: "Идеи для проекта", exact: true })
+    .click();
   await page.getByRole("button", { name: /Связанные материалы/ }).click();
   await page.getByLabel("Добавить из библиотеки").selectOption(materialId);
   await expect(page.locator(".note-relations .relation-row")).toContainText(
@@ -1014,6 +1062,7 @@ test("profile edits refresh calendar timezone without changing event instants", 
     page.getByRole("button", { name: "Профиль в боковой панели" }),
   ).toContainText("Александра");
   await page.locator(".event-card.personal-event").click();
+  await page.getByRole("button", { name: "Изменить событие", exact: true }).click();
   await expect(page.locator(".calendar-timezone")).toContainText(
     "Europe/Minsk",
   );
@@ -1149,4 +1198,506 @@ test("mobile content panels and database view controls remain reachable", async 
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+});
+
+test("slash and plus share a searchable keyboard block menu and preserve IDs through conversion and deletion", async ({
+  page,
+}) => {
+  const { state } = await contentWorkspace(page);
+  await section(page, "Заметки");
+  await page
+    .getByRole("button", { name: "Идеи для проекта", exact: true })
+    .click();
+  await page.getByLabel("Новый блок", { exact: true }).press("/");
+  const search = page.getByLabel("Найти тип блока");
+  await search.fill("Заголовок");
+  await search.press("ArrowUp");
+  await search.press("Enter");
+  await page.getByLabel("Заголовок блока 2").fill("Итоги");
+  await expect(page.getByRole("heading", { level: 6 })).toBeVisible();
+  const headingId = await page
+    .locator(".block-heading")
+    .getAttribute("data-block-id");
+  await page.getByLabel("Действия блока 2", { exact: true }).click();
+  await page.getByLabel("Тип блока 2", { exact: true }).selectOption("text");
+  await expect(page.getByLabel("Текст блока 2")).toHaveValue("Итоги");
+  await page.getByLabel("Действия блока 2", { exact: true }).press("Escape");
+  await page.getByLabel("Текст блока 2").fill("");
+  await page.getByLabel("Текст блока 2").press("/");
+  await search.fill("несуществующий блок");
+  await expect(page.getByText("Блок не найден")).toBeVisible();
+  await search.press("Escape");
+  await expect(page.getByLabel("Текст блока 2")).toBeFocused();
+  await page.getByLabel("Текст блока 2").press("/");
+  await search.fill("Нумерованный");
+  await search.press("Enter");
+  await page.getByLabel("Список 2, пункт 1").fill("Первый");
+  await page.getByLabel("Список 2, пункт 1").press("Enter");
+  await page.getByLabel("Список 2, пункт 2").fill("Второй");
+  await expect(page.locator(".note-list")).toHaveJSProperty("tagName", "OL");
+  await page.getByLabel("Действия блока 1", { exact: true }).click();
+  await page.getByLabel("Удалить блок 1", { exact: true }).click();
+  await page.getByRole("button", { name: "Отмена", exact: true }).click();
+  await expect(page.getByLabel("Текст блока 1")).toHaveValue(
+    "Сохранённый текст",
+  );
+  await page.getByLabel("Действия блока 1", { exact: true }).click();
+  await page.getByLabel("Удалить блок 1", { exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Удалить блок", exact: true })
+    .getByRole("button", { name: "Удалить блок", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Сохранить страницу", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Сохранить страницу", exact: true }),
+  ).toBeDisabled();
+  await expect(page.locator(".note-meta")).toContainText("Сохранено");
+  expect(state.note.document.blocks).toEqual([
+    {
+      id: headingId,
+      type: "list",
+      style: "numbered",
+      items: ["Первый", "Второй"],
+    },
+  ]);
+});
+
+test("page hierarchy spans API batches, supports collapse, nested creation and guarded breadcrumb navigation", async ({
+  page,
+}) => {
+  const { state } = await contentWorkspace(page);
+  const rootId = "aaaaaaaa-2222-4333-8444-555555555555";
+  state.pages.push(
+    ...Array.from({ length: 199 }, (_, i) => ({
+      ...state.note,
+      id: randomUUID(),
+      title: `Страница ${i}`,
+      document: { schema_version: 1, blocks: [] },
+    })),
+  );
+  state.pages.push({
+    ...state.note,
+    id: rootId,
+    title: "Личное",
+    document: { schema_version: 1, blocks: [] },
+  });
+  state.note.parent_id = rootId;
+  await section(page, "Заметки");
+  const tree = page.getByRole("list", { name: "Дерево страниц", exact: true });
+  await expect(
+    tree.getByRole("button", { name: "Идеи для проекта", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Свернуть Личное", exact: true })
+    .click();
+  await expect(
+    tree.getByRole("button", { name: "Идеи для проекта", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Развернуть Личное", exact: true })
+    .click();
+  await tree
+    .getByRole("button", { name: "Идеи для проекта", exact: true })
+    .click();
+  await page.getByLabel("Текст блока 1").fill("Черновик родителя");
+  await page
+    .getByRole("button", {
+      name: "Добавить страницу в Идеи для проекта",
+      exact: true,
+    })
+    .click();
+  await page
+    .getByLabel("Название страницы", { exact: true })
+    .last()
+    .fill("Новая идея");
+  await page.getByRole("button", { name: "Создать", exact: true }).click();
+  const guard = page.getByRole("dialog", {
+    name: "Несохранённые изменения",
+    exact: true,
+  });
+  await expect(guard).toBeVisible();
+  await expect(page.getByLabel("Текст блока 1")).toHaveValue(
+    "Черновик родителя",
+  );
+  await guard
+    .getByRole("button", { name: "Сохранить и перейти", exact: true })
+    .click();
+  await expect(
+    page.getByLabel("Название страницы", { exact: true }),
+  ).toHaveValue("Новая идея");
+  await expect(
+    page.getByLabel("Название страницы", { exact: true }),
+  ).toBeFocused();
+  const created = state.pages.find((item) => item.title === "Новая идея")!;
+  expect(created.parent_id).toBe(pageId);
+  expect(state.note.document.blocks[0].text).toBe("Черновик родителя");
+  await expect(
+    page.getByRole("navigation", { name: "Положение страницы" }),
+  ).toContainText("Личное");
+  await expect(
+    page.getByRole("navigation", { name: "Положение страницы" }),
+  ).toContainText("Идеи для проекта");
+  await page.getByLabel("Новый блок", { exact: true }).fill("Новый черновик");
+  await page
+    .getByRole("navigation", { name: "Положение страницы" })
+    .getByRole("button", { name: "Личное", exact: true })
+    .click();
+  await guard
+    .getByRole("button", { name: "Продолжить редактирование", exact: true })
+    .click();
+  await expect(page.getByLabel("Текст блока 1")).toHaveValue("Новый черновик");
+  await page
+    .getByRole("navigation", { name: "Положение страницы" })
+    .getByRole("button", { name: "Личное", exact: true })
+    .click();
+  await guard
+    .getByRole("button", { name: "Перейти без сохранения", exact: true })
+    .click();
+  await expect(
+    page.getByLabel("Название страницы", { exact: true }),
+  ).toHaveValue("Личное");
+});
+
+test("metadata success followed by document failure retains the draft and retries with the advanced version", async ({
+  page,
+}) => {
+  const { state } = await contentWorkspace(page);
+  await section(page, "Заметки");
+  await page
+    .getByRole("button", { name: "Идеи для проекта", exact: true })
+    .click();
+  await page
+    .getByLabel("Название страницы", { exact: true })
+    .fill("Новое название");
+  await page.getByLabel("Текст блока 1").fill("Важный черновик");
+  state.failDocumentOnce = true;
+  await page
+    .getByRole("button", { name: "Сохранить страницу", exact: true })
+    .click();
+  await expect(page.locator(".note-meta")).toContainText("Ошибка сохранения");
+  await expect(page.locator(".note-meta")).toContainText("v4");
+  await expect(page.getByLabel("Текст блока 1")).toHaveValue("Важный черновик");
+  await page.keyboard.press("Control+s");
+  await expect(
+    page.getByRole("button", { name: "Сохранить страницу", exact: true }),
+  ).toBeDisabled();
+  await expect(page.locator(".note-meta")).toContainText("Сохранено");
+  expect(state.note.document.blocks[0].text).toBe("Важный черновик");
+  expect(state.note.title).toBe("Новое название");
+  expect(state.writes.map((item) => item.body?.expected_version)).toEqual([
+    3, 4, 4, 5,
+  ]);
+});
+
+test("dragging blocks preserves their IDs and a copied page link opens the owned page", async ({
+  page,
+  context,
+}) => {
+  const { state } = await contentWorkspace(page);
+  const secondId = randomUUID();
+  state.note.document.blocks.push({
+    id: secondId,
+    type: "text",
+    text: "Второй абзац",
+    text_format: "plain",
+  });
+  await section(page, "Заметки");
+  await page
+    .getByRole("button", { name: "Идеи для проекта", exact: true })
+    .click();
+  await page.getByLabel("Текст блока 2").focus();
+  await page
+    .getByLabel("Действия блока 2", { exact: true })
+    .dragTo(page.locator(".block-row").first());
+  await page.keyboard.press("Control+s");
+  await expect(
+    page.getByRole("button", { name: "Сохранить страницу", exact: true }),
+  ).toBeDisabled();
+  await expect(page.locator(".note-meta")).toContainText("Сохранено");
+  expect(state.note.document.blocks.map((item) => item.id)).toEqual([
+    secondId,
+    blockId,
+  ]);
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.getByLabel("Действия страницы", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "Копировать ссылку", exact: true })
+    .click();
+  await expect(
+    page.getByText("Ссылка скопирована", { exact: true }),
+  ).toBeVisible();
+  const link = await page.evaluate(() => navigator.clipboard.readText());
+  expect(link).toBe(`http://127.0.0.1:3001/workspace?page=${pageId}`);
+  await page.goto(link);
+  await expect(
+    page.getByLabel("Название страницы", { exact: true }),
+  ).toHaveValue("Идеи для проекта");
+  await expect(page.getByLabel("Текст блока 1")).toHaveValue("Второй абзац");
+  await page.getByLabel("Новый блок", { exact: true }).press("/");
+  await page.getByLabel("Найти тип блока").fill("Ссылка");
+  await page.getByLabel("Найти тип блока").press("Enter");
+  await expect(page.getByLabel("Подпись ссылки 3")).toBeFocused();
+  await page.getByLabel("Подпись ссылки 3").fill("Ресурс");
+  await page.getByLabel("Адрес ссылки 3").fill("https://example.com/resource");
+  await page.keyboard.press("Control+s");
+  await expect(page.locator(".note-meta")).toContainText("Сохранено");
+  expect(state.note.document.blocks[2]).toMatchObject({
+    type: "link",
+    text: "Ресурс",
+    url: "https://example.com/resource",
+  });
+  await page.reload();
+  await expect(page.getByRole("link", { name: "Ресурс ↗" })).toHaveAttribute(
+    "href",
+    "https://example.com/resource",
+  );
+  await expect(page.getByLabel("Адрес ссылки 3")).toBeHidden();
+  await page.locator(".note-link-edit > summary").click();
+  await expect(page.getByLabel("Адрес ссылки 3")).toHaveValue(
+    "https://example.com/resource",
+  );
+  await page.evaluate(() =>
+    Object.defineProperty(navigator, "clipboard", {
+      value: undefined,
+      configurable: true,
+    }),
+  );
+  await page.getByLabel("Действия страницы", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "Копировать ссылку", exact: true })
+    .click();
+  await expect(
+    page.getByText("Не удалось скопировать ссылку", { exact: true }),
+  ).toBeVisible();
+});
+
+test("saving blocks duplicate submits and navigation until the request completes", async ({
+  page,
+}) => {
+  await contentWorkspace(page);
+  let release!: () => void;
+  const wait = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let submits = 0;
+  await page.route("**/api/v1/notes/pages/*/document", async (route) => {
+    submits++;
+    await wait;
+    await route.fallback();
+  });
+  await section(page, "Заметки");
+  await page
+    .getByRole("button", { name: "Идеи для проекта", exact: true })
+    .click();
+  await page.getByLabel("Текст блока 1").fill("Сохранить один раз");
+  await page.keyboard.press("Control+s");
+  await expect(page.locator(".note-meta")).toContainText("Сохраняем");
+  await page.keyboard.press("Control+s");
+  await expect(
+    page.getByRole("button", { name: "Сохранить страницу", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Идеи для проекта", exact: true }),
+  ).toBeDisabled();
+  await expect.poll(() => submits).toBe(1);
+  release();
+  await expect(page.locator(".note-meta")).toContainText("Сохранено");
+});
+
+test("page navigation retains a conflicting or invalid draft and moving excludes descendants", async ({
+  page,
+}) => {
+  const { state } = await contentWorkspace(page);
+  const childId = randomUUID();
+  state.pages.push({
+    ...state.note,
+    id: childId,
+    parent_id: pageId,
+    title: "Дочерняя",
+    document: { schema_version: 1, blocks: [] },
+  });
+  await section(page, "Заметки");
+  await page
+    .getByRole("button", { name: "Идеи для проекта", exact: true })
+    .click();
+  await page.getByLabel("Действия страницы", { exact: true }).click();
+  await page
+    .locator(".note-topbar")
+    .getByRole("button", { name: "Переместить", exact: true })
+    .click();
+  await expect(
+    page
+      .getByLabel("Родительская страница")
+      .getByRole("option", { name: "Дочерняя", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Готово", exact: true }).click();
+  await page.getByLabel("Текст блока 1").fill("Не терять");
+  await page
+    .getByRole("list", { name: "Дерево страниц", exact: true })
+    .getByRole("button", { name: "Дочерняя", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Несохранённые изменения",
+    exact: true,
+  });
+  state.conflict = true;
+  await dialog
+    .getByRole("button", { name: "Сохранить и перейти", exact: true })
+    .click();
+  await expect(dialog.getByRole("alert")).toContainText("Данные изменились");
+  await dialog
+    .getByRole("button", { name: "Продолжить редактирование", exact: true })
+    .click();
+  await expect(page.getByLabel("Текст блока 1")).toHaveValue("Не терять");
+  state.conflict = false;
+  await page.getByLabel("Название страницы", { exact: true }).fill("   ");
+  await page
+    .getByRole("list", { name: "Дерево страниц", exact: true })
+    .getByRole("button", { name: "Дочерняя", exact: true })
+    .click();
+  await dialog
+    .getByRole("button", { name: "Сохранить и перейти", exact: true })
+    .click();
+  await expect(dialog.getByRole("alert")).toContainText("Проверь название");
+  expect(state.writes).toHaveLength(1);
+  await dialog
+    .getByRole("button", { name: "Продолжить редактирование", exact: true })
+    .click();
+  await page
+    .getByLabel("Название страницы", { exact: true })
+    .fill("Идеи для проекта");
+  await page.getByLabel("Текст блока 1").fill("Сохранить перед закрытием");
+  const closed = page.waitForEvent("dialog");
+  const closing = page.close({ runBeforeUnload: true });
+  const unload = await closed;
+  expect(unload.type()).toBe("beforeunload");
+  await unload.dismiss();
+  await closing;
+  await expect(page.getByLabel("Текст блока 1")).toHaveValue(
+    "Сохранить перед закрытием",
+  );
+  await page.route(`**/api/v1/notes/pages/${childId}`, (route) =>
+    route.fulfill({ status: 503, json: {} }),
+  );
+  await page
+    .getByRole("list", { name: "Дерево страниц", exact: true })
+    .getByRole("button", { name: "Дочерняя", exact: true })
+    .click();
+  await dialog
+    .getByRole("button", { name: "Сохранить и перейти", exact: true })
+    .click();
+  await expect(page.locator(".note-canvas .ui-error")).toContainText(
+    "Не удалось загрузить данные",
+  );
+  await expect(
+    page.getByRole("button", { name: "Идеи для проекта", exact: true }),
+  ).toBeEnabled();
+  await page
+    .getByRole("button", { name: "Идеи для проекта", exact: true })
+    .click();
+  await expect(page.getByLabel("Текст блока 1")).toHaveValue(
+    "Сохранить перед закрытием",
+  );
+});
+
+for (const width of [1440, 834, 390]) {
+  test(`notes canvas and block menu fit light and dark themes at ${width}px`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const { state } = await contentWorkspace(page);
+    state.pages.push({
+      ...state.note,
+      id: randomUUID(),
+      parent_id: pageId,
+      title: "Следующие шаги",
+    });
+    Object.assign(state.note, {
+      document: {
+        schema_version: 1,
+        blocks: [
+          { id: randomUUID(), type: "heading", level: 2, text: "План проекта" },
+          {
+            id: blockId,
+            type: "text",
+            text_format: "plain",
+            text: "Все идеи начинаются с чистой страницы. Здесь можно собрать мысли, расставить акценты и наметить следующий шаг.",
+          },
+          {
+            id: randomUUID(),
+            type: "list",
+            style: "bulleted",
+            items: ["Исследовать задачу", "Собрать первые наброски"],
+          },
+          {
+            id: randomUUID(),
+            type: "checkbox",
+            checked: true,
+            text: "Обсудить идею",
+          },
+          {
+            id: randomUUID(),
+            type: "link",
+            text: "Материалы проекта",
+            url: "https://example.com/project",
+          },
+        ],
+      },
+    });
+    await section(page, "Заметки");
+    await page
+      .getByRole("button", { name: "Идеи для проекта", exact: true })
+      .click();
+    if (width === 390) {
+      await page.getByRole("button", { name: /^Страницы ↑$/ }).click();
+      await expect(page.locator(".page-tree")).toBeHidden();
+    }
+    await expect(
+      page.getByLabel("Название страницы", { exact: true }),
+    ).toBeVisible();
+    for (const theme of ["light", "dark"]) {
+      const toggle = page.getByRole("button", { name: /Тема:/ }).first();
+      while ((await page.locator("html").getAttribute("data-theme")) !== theme)
+        await toggle.click();
+      await page.screenshot({
+        path: info.outputPath(`notes-${theme}.png`),
+        fullPage: true,
+      });
+      await page
+        .getByRole("button", { name: "Добавить блок", exact: true })
+        .click();
+      await expect(page.getByLabel("Найти тип блока")).toBeFocused();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width);
+      const menu = await page
+        .getByRole("dialog", { name: "Добавить блок", exact: true })
+        .boundingBox();
+      expect(menu!.x).toBeGreaterThanOrEqual(0);
+      expect(menu!.x + menu!.width).toBeLessThanOrEqual(width);
+      await page.screenshot({
+        path: info.outputPath(`notes-menu-${theme}.png`),
+        fullPage: true,
+      });
+      await page.keyboard.press("Escape");
+    }
+  });
+}
+
+test("deep page nesting scrolls within the sidebar without widening the document", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const { state } = await contentWorkspace(page);
+  let parent = pageId;
+  for (let depth = 0; depth < 30; depth++) {
+    const id = randomUUID();
+    state.pages.push({ ...state.note, id, parent_id: parent, title: `Уровень ${depth}`, document: { schema_version: 1, blocks: [] } });
+    parent = id;
+  }
+  await section(page, "Заметки");
+  await expect(page.getByRole("button", { name: "Уровень 29", exact: true })).toBeAttached();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440);
+  const tree = page.locator(".page-tree");
+  expect(await tree.evaluate((element) => element.scrollWidth)).toBeGreaterThan(await tree.evaluate((element) => element.clientWidth));
 });

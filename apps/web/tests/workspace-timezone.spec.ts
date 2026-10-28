@@ -30,10 +30,12 @@ for (const browserZone of ["UTC", "America/Los_Angeles"]) {
       await expect(card).toHaveCSS("top", "27px");
       await expect(card).toContainText("00:30");
       await card.click();
+      await page.getByRole("button", { name: "Изменить событие", exact: true }).click();
       await expect(page.getByLabel("Начало", { exact: true })).toHaveValue("2026-10-12T00:30");
       await page.getByRole("button", { name: "Сохранить", exact: true }).click();
       await expect(page.locator(".event-modal")).toHaveCount(0);
       expect(state.writes.find(write => write.method === "PATCH")?.body).toMatchObject({ starts_at: "2026-10-11T21:30:00.000Z", ends_at: "2026-10-11T22:00:00.000Z" });
+      await page.getByRole("button", { name: "К календарю", exact: false }).click();
       await expect(card).toHaveCSS("top", "27px");
     });
     test("today and week boundaries follow the profile instead of the device", async ({ page }) => {

@@ -65,7 +65,10 @@ adds the shared light/dark shell, flat block page editor, materials/search,
 collections/tags, database schemas/records/table and day/week/month saved views,
 reminders/inbox and profile/avatar settings. Official override editing, saved event
 views and mixed projection remain API-only. Tasks share the redesigned navigation,
-theme and dialogs. AI-04 UI is implemented locally; AI remains default-disabled.
+theme and dialogs. The 2026-10-28 calendar UI follow-up reduces primary navigation
+to calendar/notes/tasks with More for other sections, adds contextual event detail
+screens and versioned personal-event boundary resizing on the existing calendar API.
+No backend phase, official override editor or new relation schema is included. AI-04 UI is implemented locally; AI remains default-disabled.
 The P-01–P-08 sections below preserve their original backend-slice scope; their
 verification history is not evidence of rerunning backend checks for the UI work.
 
@@ -144,7 +147,16 @@ Nesting and collection membership stay distinct.
 
 Q-08 remains open only for future rich inline formatting, nested blocks and editor
 choices. Material references are implemented in P-08; export/history/collaboration remain
-separate requested slices. This backend API does not implement an editor UI.
+separate requested slices. The separately requested 2026-10-28 frontend slice now
+provides a collapsible page tree, breadcrumbs, child creation, a shared slash/plus
+block picker, keyboard/native drag reordering and guarded manual saves over this API.
+See the [notes capability inventory](notes.md#further-notion-style-capabilities).
+Further rich blocks/media require Q-08 schema/rendering decisions; revision retention
+requires Q-06; page-page links need typed relations persistence/API. Templates,
+import/export and new database views fit existing module boundaries but need their
+own concrete scopes/contracts. Comments, sharing/publication, collaboration and
+formulas remain separate owner decisions. AI activation and private/external provider
+integrations retain their existing authorization and verified-contract gates.
 
 ## 7. P-05 user databases, properties and calendar projection
 
