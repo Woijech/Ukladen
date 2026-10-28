@@ -50,6 +50,8 @@ export async function request(
       throw new RequestError(response.status, "Задача изменилась в другой вкладке. Загрузите актуальную версию перед повторным сохранением.", payload.code);
     if (payload?.code === "task_hierarchy_conflict")
       throw new RequestError(response.status, "Так нельзя изменить иерархию или статус задачи. Проверьте вложенные задачи и завершённые ветки.", payload.code);
+    if (payload?.code === "task_dependency_conflict")
+      throw new RequestError(response.status, "Эта зависимость создаёт цикл. Выберите другого предшественника.", payload.code);
     if (payload?.code === "task_trash_conflict")
       throw new RequestError(response.status, "Задача уже в корзине или восстановление доступно только через корень удалённой ветки.", payload.code);
     if (payload?.code === "task_not_found")

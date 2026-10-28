@@ -9,7 +9,8 @@ export type Source = {
     | "database_record"
     | "personal"
     | "official"
-    | "record_date";
+    | "record_date"
+    | "task";
   id: string;
   title: string;
   version: number;
@@ -94,12 +95,14 @@ export type Scope = {
   page_ids: string[];
   material_ids: string[];
   database_ids: string[];
+  task_ids: string[];
   calendar: boolean;
 };
 export const emptyScope = (): Scope => ({
   page_ids: [],
   material_ids: [],
   database_ids: [],
+  task_ids: [],
   calendar: false,
 });
 export const activeRun = (run?: Run | null) =>

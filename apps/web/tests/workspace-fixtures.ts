@@ -8,7 +8,7 @@ export function calendarEvent(overrides = {}) {
 }
 
 export function task(overrides: Record<string, unknown> = {}) {
-  return { id: "11111111-1111-4111-8111-111111111111", parent_id: null as string | null, title: "Prepare report", description: null as string | null, status: "todo", priority: "normal", deadline_at: null as string | null, estimated_minutes: null as number | null, version: 1, created_at: "2026-10-16T12:00:00Z", updated_at: "2026-10-16T12:00:00Z", trashed_at: null as string | null, trash_batch_id: null as string | null, is_overdue: false, ...overrides };
+  return { id: "11111111-1111-4111-8111-111111111111", parent_id: null as string | null, title: "Prepare report", description: null as string | null, status: "todo", priority: "normal", deadline_at: null as string | null, estimated_minutes: null as number | null, remaining_minutes: null as number | null, version: 1, created_at: "2026-10-16T12:00:00Z", updated_at: "2026-10-16T12:00:00Z", trashed_at: null as string | null, trash_batch_id: null as string | null, is_overdue: false, ...overrides };
 }
 
 export async function mockWorkspace(page: Page) {
@@ -78,6 +78,11 @@ export async function mockWorkspace(page: Page) {
     }
     if (method === "GET" && (path === "/api/v1/notes/pages" || path.startsWith("/api/v1/relations/")))
       return route.fulfill({ json: { items: [], limit: 200, offset: 0 } });
+    if (method === "GET" && path === "/api/v1/tasks/planning/calendar") return route.fulfill({ json: { sessions: [], deadlines: [] } });
+    if (method === "GET" && path === "/api/v1/tasks/planning/sessions") return route.fulfill({ json: [] });
+    if (method === "GET" && path === "/api/v1/tasks/planning/preferences") return route.fulfill({ json: { version: 0, windows: [], session_minutes: 45, break_minutes: 15 } });
+    if (method === "GET" && /^\/api\/v1\/tasks\/[^/]+\/dependencies$/.test(path)) return route.fulfill({ json: { items: [], limit: 20, offset: 0, has_unresolved_dependencies: false } });
+    if (method === "GET" && path.endsWith("/origin")) return route.fulfill({ json: null });
     if (path === "/api/v1/tasks" && method === "GET") {
       const params = new URL(request.url()).searchParams;
       const offset = Number(params.get("offset") ?? 0);

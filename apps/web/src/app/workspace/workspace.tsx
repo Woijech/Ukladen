@@ -37,6 +37,7 @@ import {
   startOfWeek,
 } from "./calendar-time";
 import "./workspace.css";
+import { CalendarTaskSessions } from "./task-planning";
 
 const WorkspaceViews = dynamic(
   () => import("./views").then((module) => module.WorkspaceViews),
@@ -2034,6 +2035,7 @@ function CalendarWorkspace({
                     </button>
                   </div>
                 )}
+                <CalendarTaskSessions from={range.from} to={range.to} timezone={timeZone} />
                 {!!calendarQuery.data?.warnings.length && (
                   <p className="schedule-warning">
                     Учебное расписание может быть неактуальным. Проверь источник

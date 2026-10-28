@@ -6,6 +6,8 @@ import { dateTimeLocal, localInstants, resolveLocalTime } from "./calendar-time"
 import { requestJson, writeJson, RequestError, SessionExpiredError } from "@/shared/api";
 import { Modal } from "@/shared/ui";
 import "./tasks-panel.css";
+import { PlanningButton } from "./task-planning";
+import { TaskRelations } from "./task-relations";
 
 type Status = "todo" | "in_progress" | "done" | "cancelled";
 type Priority = "low" | "normal" | "high" | "urgent";
@@ -18,6 +20,7 @@ type TaskSummary = {
   priority: Priority;
   deadline_at: string | null;
   estimated_minutes: number | null;
+  remaining_minutes: number | null;
   version: number;
   created_at: string;
   updated_at: string;
@@ -61,6 +64,7 @@ function TaskForm({ task, parentId, timeZone, onClose, onSaved, onSessionEnd }: 
   const [priority, setPriority] = useState<Priority>(task?.priority ?? "normal");
   const [deadline, setDeadline] = useState(task?.deadline_at ? dateTimeLocal(new Date(task.deadline_at), timeZone) : "");
   const [deadlineChoice, setDeadlineChoice] = useState("");
+  const [remaining, setRemaining] = useState(task?.remaining_minutes?.toString() ?? "");
   const [estimate, setEstimate] = useState(task?.estimated_minutes?.toString() ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -76,6 +80,7 @@ function TaskForm({ task, parentId, timeZone, onClose, onSaved, onSessionEnd }: 
     setDeadline(current.deadline_at ? dateTimeLocal(new Date(current.deadline_at), timeZone) : "");
     setDeadlineChoice("");
     setEstimate(current.estimated_minutes?.toString() ?? "");
+    setRemaining(current.remaining_minutes?.toString() ?? "");
     setConflict(false);
     setError("");
   }
@@ -96,6 +101,7 @@ function TaskForm({ task, parentId, timeZone, onClose, onSaved, onSessionEnd }: 
         title: title.trim(), description: description || null, status, priority,
         deadline_at: deadline ? resolveLocalTime(deadline, timeZone, deadlineChoice, snapshot?.deadline_at ?? undefined) : null,
         estimated_minutes: estimate ? Number(estimate) : null,
+        remaining_minutes: remaining === "" ? null : Number(remaining),
       };
       if (snapshot) payload.expected_version = snapshot.version;
       else payload.parent_id = parentId;
@@ -125,6 +131,7 @@ function TaskForm({ task, parentId, timeZone, onClose, onSaved, onSessionEnd }: 
         <div><label htmlFor="task-deadline">Срок <span className="optional">необязательно</span></label><input id="task-deadline" type="datetime-local" value={deadline} onChange={event => { setDeadline(event.target.value); setDeadlineChoice(""); }}/>{deadline && deadlineOptions.length === 0 && <small className="task-field-error">Такого местного времени нет.</small>}{deadlineOptions.length > 1 && <select aria-label="Смещение срока" required value={deadlineChoice} onChange={event => setDeadlineChoice(event.target.value)}><option value="" disabled>Выберите смещение</option>{deadlineOptions.map(value => <option key={value} value={value}>{new Intl.DateTimeFormat("ru-RU", { timeZone, hour: "2-digit", minute: "2-digit", timeZoneName: "shortOffset" }).format(new Date(value))}</option>)}</select>}</div>
         <div><label htmlFor="task-estimate">Оценка, минуты <span className="optional">необязательно</span></label><input id="task-estimate" type="number" min={1} max={525600} step={1} value={estimate} onChange={event => setEstimate(event.target.value)} placeholder="90" /></div>
       </div>
+      <label htmlFor="task-remaining">Осталось работы, минуты</label><input id="task-remaining" type="number" min={0} max={525600} step={1} value={remaining} onChange={event => setRemaining(event.target.value)} placeholder="Уточните для планирования" /><p className="task-hint">Не меняется автоматически после сессий. Для родителя с подзадачами планируется работа подзадач.</p>
       <p className="task-timezone">Часовой пояс: {timeZone}</p>
       {error && <div className="task-error" role="alert">{error}{conflict && <button type="button" disabled={busy} onClick={() => void reload()}>Загрузить актуальную версию</button>}</div>}
       <div className="task-dialog-actions"><button className="task-secondary" type="button" disabled={busy} onClick={onClose}>Отмена</button><button className="primary-button" disabled={busy}>{busy ? "Сохраняем…" : snapshot ? "Сохранить" : "Создать задачу"}</button></div>
@@ -158,7 +165,8 @@ function ParentPicker({ task, onClose, onMoved, onSessionEnd }: { task: Task; on
   </Modal>;
 }
 
-function TaskDetails({ id, timeZone, onSelect, onCreateChild, onEdit, onUpdated, onTrashed, onRestored, onSessionEnd }: {
+function TaskDetails({ id, timeZone, onSelect, onCreateChild, onEdit, onUpdated, onTrashed, onRestored, onSessionEnd, onOpenPage }: {
+  onOpenPage: (id: string) => void;
   id: string; timeZone: string; onSelect: (id: string) => void; onCreateChild: (id: string) => void; onEdit: (task: Task) => void; onUpdated: (task: Task) => void; onTrashed: (task: Task) => void; onRestored: (task: Task) => void; onSessionEnd: () => void;
 }) {
   const [childrenOffset, setChildrenOffset] = useState(0);
@@ -196,6 +204,9 @@ function TaskDetails({ id, timeZone, onSelect, onCreateChild, onEdit, onUpdated,
     {task.trashed_at ? <div className="task-trash-info"><p>Задача в корзине с {formatDeadline(task.trashed_at, timeZone)}.</p>{canRestore ? <><button className="task-secondary" type="button" disabled={busy || Boolean(task.parent_id && (!parent.data || parent.data.trashed_at))} onClick={() => void changeTrash("restore")}>{busy ? "Восстанавливаем…" : "Восстановить ветку"}</button>{parent.data?.trashed_at && <p>Сначала восстановите родительскую ветку.</p>}</> : <p>Восстановление доступно через корень удалённой ветки.</p>}</div> : <><div className="task-detail-actions"><button className="task-secondary" type="button" onClick={() => onCreateChild(task.id)}>+ Подзадача</button><button className="task-secondary" type="button" onClick={() => setShowPicker(true)}>Перенести</button><button className="task-secondary task-danger" type="button" onClick={() => setConfirmTrash(true)}>В корзину</button></div>{confirmTrash && <div className="task-trash-confirm" role="group" aria-label="Подтверждение удаления"><p>Переместить задачу и её активные подзадачи в корзину?</p><button type="button" className="task-secondary task-danger" disabled={busy} onClick={() => void changeTrash("trash")}>{busy ? "Перемещаем…" : "Подтвердить"}</button><button type="button" className="task-secondary" disabled={busy} onClick={() => setConfirmTrash(false)}>Отмена</button></div>}</>}
     {actionError && <div className="task-error" role="alert">{actionError}<button type="button" onClick={() => void detail.refetch()}>Обновить задачу</button></div>}
     {!task.trashed_at && <>
+    <p>Осталось работы: {task.remaining_minutes == null ? "не указано" : `${task.remaining_minutes} мин`}</p>
+    <PlanningButton timezone={timeZone} taskId={task.id} label="Сессии и планирование задачи" />
+    <TaskRelations task={task} onSelectTask={onSelect} onOpenPage={onOpenPage} />
     <div className="task-children-heading"><h3>Подзадачи</h3><span>Прямые дочерние задачи</span></div>
     {children.isPending && <p role="status">Загружаем подзадачи…</p>}
     {children.isError && <div className="task-error" role="alert">Не удалось загрузить подзадачи. <button onClick={() => void children.refetch()}>Повторить</button></div>}
@@ -206,7 +217,7 @@ function TaskDetails({ id, timeZone, onSelect, onCreateChild, onEdit, onUpdated,
   </section>;
 }
 
-export function TasksPanel({ timeZone, onSessionEnd }: { timeZone: string; onSessionEnd: () => void }) {
+export function TasksPanel({ timeZone, onSessionEnd, onOpenPage }: { timeZone: string; onSessionEnd: () => void; onOpenPage: (id: string) => void }) {
   const client = useQueryClient();
   const [view, setView] = useState<"active" | "trash">("active");
   const [status, setStatus] = useState<TaskFilter>("all");
@@ -256,6 +267,7 @@ export function TasksPanel({ timeZone, onSessionEnd }: { timeZone: string; onSes
 
   return <div className="feature-page tasks-content">
     <div className="page-heading"><div><span className="greeting">ЛИЧНОЕ ПРОСТРАНСТВО</span><h1>Задачи</h1><p className="heading-subtitle">Планы, сроки и подзадачи — без привязки к учебной группе.</p></div><button className="primary-button task-new" onClick={() => setForm({ task: null, parentId: null })}>+ Новая задача</button></div>
+    <PlanningButton timezone={timeZone} />
     <div className="task-view-tabs" role="group" aria-label="Режим списка задач"><button type="button" aria-pressed={view === "active"} onClick={() => changeView("active")}>Активные</button><button type="button" aria-pressed={view === "trash"} onClick={() => changeView("trash")}>Корзина</button></div>
     {notice && <p className="task-notice" role="status">{notice}<button type="button" aria-label="Скрыть уведомление" onClick={() => setNotice("")}>×</button></p>}
     <div className="tasks-layout">
@@ -266,7 +278,7 @@ export function TasksPanel({ timeZone, onSessionEnd }: { timeZone: string; onSes
         {list.data && (list.data.items.length ? <ul className="task-list">{list.data.items.map(task => <li key={task.id}><button type="button" className={`task-row ${selectedId === task.id ? "selected" : ""}`} aria-current={selectedId === task.id ? "true" : undefined} onClick={() => setSelectedId(task.id)}><span className="task-row-title">{task.parent_id && <span aria-label="Подзадача">↳ </span>}{task.title}</span><span className="task-row-info"><span className={`task-status status-${task.status}`}>{statusLabels[task.status]}</span><span>{priorityLabels[task.priority]}</span>{view === "trash" && <span>{task.trash_batch_id === task.id ? "Корень удалённой ветки" : "Часть удалённой ветки"}</span>}{task.deadline_at && <span className={task.is_overdue ? "task-overdue" : ""}>{formatDeadline(task.deadline_at, timeZone)}</span>}</span></button></li>)}</ul> : <p className="task-list-message">{status === "all" && priority === "all" ? view === "trash" ? "Корзина пуста." : "Пока нет задач. Создайте первую." : "По этим фильтрам задач нет."}</p>)}
         {list.data && (offset > 0 || list.data.items.length === pageSize) && <div className="task-pagination"><button type="button" disabled={offset === 0} onClick={() => setOffset(offset - pageSize)}>Назад</button><span>Страница {offset / pageSize + 1}</span><button type="button" disabled={list.data.items.length < pageSize} onClick={() => setOffset(offset + pageSize)}>Далее</button></div>}
       </section>
-      {selectedId ? <TaskDetails key={selectedId} id={selectedId} timeZone={timeZone} onSelect={setSelectedId} onCreateChild={parentId => setForm({ task: null, parentId })} onEdit={task => setForm({ task, parentId: null })} onUpdated={updated} onTrashed={task => changedTrash(task, "trash")} onRestored={task => changedTrash(task, "active")} onSessionEnd={onSessionEnd} /> : <section className="task-detail task-detail-empty"><h2>Выберите задачу</h2><p>Здесь появятся описание, срок и подзадачи.</p></section>}
+      {selectedId ? <TaskDetails key={selectedId} id={selectedId} timeZone={timeZone} onOpenPage={onOpenPage} onSelect={setSelectedId} onCreateChild={parentId => setForm({ task: null, parentId })} onEdit={task => setForm({ task, parentId: null })} onUpdated={updated} onTrashed={task => changedTrash(task, "trash")} onRestored={task => changedTrash(task, "active")} onSessionEnd={onSessionEnd} /> : <section className="task-detail task-detail-empty"><h2>Выберите задачу</h2><p>Здесь появятся описание, срок и подзадачи.</p></section>}
     </div>
     {form && <TaskForm task={form.task} parentId={form.parentId} timeZone={timeZone} onClose={() => setForm(null)} onSaved={saved} onSessionEnd={onSessionEnd} />}
   </div>;

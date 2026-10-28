@@ -10,6 +10,7 @@ const kinds = {
   page_ids: "Страницы",
   material_ids: "Материалы",
   database_ids: "Базы данных",
+  task_ids: "Задачи",
 };
 type Kind = keyof typeof kinds;
 
@@ -23,17 +24,18 @@ export function SourcePicker({
   onClose: () => void;
 }) {
   const [automatic, setAutomatic] = useState(value === null);
-  const [scope, setScope] = useState(value ?? emptyScope());
+  const [scope, setScope] = useState(value ? { ...emptyScope(), ...value } : emptyScope());
   const [kind, setKind] = useState<Kind>("page_ids");
   const [offset, setOffset] = useState(0);
   const count =
     scope.page_ids.length +
     scope.material_ids.length +
-    scope.database_ids.length;
+    scope.database_ids.length + scope.task_ids.length;
   const paths = {
     page_ids: "/api/v1/notes/pages",
     material_ids: "/api/v1/materials",
     database_ids: "/api/v1/workspace/databases",
+    task_ids: "/api/v1/tasks",
   };
   const list = useQuery({
     queryKey: ["ai-source-options", kind, offset],
@@ -178,6 +180,9 @@ const labels: Record<string, string> = {
   kind: "Тип",
   status: "Статус",
   description: "Описание",
+  remaining_minutes: "Осталось работы, мин", estimated_minutes: "Оценка, мин",
+  deadline_at: "Срок", priority: "Приоритет", predecessors: "Предшественники",
+  has_unresolved_dependencies: "Есть незавершённые предшественники",
 };
 
 function SourceContent({ value }: { value: unknown }): ReactNode {
@@ -250,6 +255,7 @@ export function SourceViewer({
     queryFn: async ({ signal }) => {
       let payload: Record<string, unknown>;
       if (source.source === "page") payload = { page_id: source.id, offset };
+      else if (source.source === "task") payload = { task_id: source.id, offset };
       else if (source.source === "material")
         payload = { material_id: source.id, offset };
       else if (source.source === "database")

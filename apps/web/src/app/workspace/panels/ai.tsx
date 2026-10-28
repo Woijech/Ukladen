@@ -591,7 +591,7 @@ function Chat({
           ...(scope === null ? {} : { source_scope: scope }),
         };
     if (!payload) return;
-    if (payload.full_sources && (!payload.source_scope || !(payload.source_scope.page_ids.length + payload.source_scope.material_ids.length) || payload.source_scope.database_ids.length || payload.source_scope.calendar)) {
+    if (payload.full_sources && (!payload.source_scope || !(payload.source_scope.page_ids.length + payload.source_scope.material_ids.length) || payload.source_scope.database_ids.length || payload.source_scope.task_ids.length || payload.source_scope.calendar)) {
       setError("Для полного разбора выбери страницы и файлы в источниках запроса.");
       return;
     }
@@ -799,7 +799,7 @@ function Chat({
               >
                 {scope === null
                   ? "Все источники"
-                  : `Источники: ${scope.page_ids.length + scope.material_ids.length + scope.database_ids.length}${scope.calendar ? " + календарь" : ""}`}
+                  : `Источники: ${scope.page_ids.length + scope.material_ids.length + scope.database_ids.length + scope.task_ids.length}${scope.calendar ? " + календарь" : ""}`}
               </button>
               {running ? (
                 <button

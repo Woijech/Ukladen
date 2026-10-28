@@ -306,6 +306,7 @@ test("AI sends selected sources once and opens current safe source text", async 
     page_ids: [pageId],
     material_ids: [],
     database_ids: [],
+    task_ids: [],
     calendar: false,
   });
   await page
@@ -610,5 +611,60 @@ test("a proposal appears when the same running submission completes", async ({ p
   state.proposals = [actionProposal()];
   state.run = { ...state.run, status: "completed" };
   await expect(page.getByRole("button", { name: "Применить всё", exact: true })).toBeVisible();
+  expect(state.proposalCommits).toBe(0);
+});
+
+test("AI task proposals show provenance and estimates, and edits require a new preview", async ({ page }) => {
+  const state = await mockAi(page);
+  const source = { ...reference, source: "page" as const };
+  const proposedTask = { title: "Read chapter", description: null, priority: "high", deadline_at: null, estimated_minutes: 45, remaining_minutes: 45, parent_id: null };
+  const original = actionProposal();
+  original.batch = { actions: [{ operation: "task_create", task: proposedTask, estimate_kind: "estimate", sources: [source], uncertainties: ["Deadline is unclear"] }] };
+  original.effects = [{ operation: "task_create", target_id: null, before: null, after: { task: proposedTask, estimate_kind: "estimate", sources: [source], uncertainties: ["Deadline is unclear"], possible_duplicates: [{ id: "duplicate-task", title: "Read similar chapter", status: "todo" }] }, warnings: [] }];
+  state.proposals = [original];
+  await page.route("**/api/v1/ai/proposals/*/revise", async route => {
+    const body = route.request().postDataJSON();
+    expect(route.request().headers()["x-csrf-token"]).toBe("c".repeat(43));
+    expect(body.actions[0].sources).toEqual([source]);
+    const revised: Proposal = { ...original, id: "revision-task", digest: "c".repeat(64), batch: body, effects: [{ ...original.effects[0], after: { ...original.effects[0].after, task: body.actions[0].task, estimate_kind: body.actions[0].estimate_kind } }] };
+    state.proposals = [revised, { ...original, status: "superseded" }];
+    return route.fulfill({ json: revised });
+  });
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  const proposals = page.getByRole("region", { name: "Предложения действий" });
+  await expect(proposals.getByText("Read similar chapter", { exact: true })).toBeVisible();
+  await expect(proposals.getByText(/Продолжительность предложена как оценка/)).toBeVisible();
+  await expect(proposals.getByText(/Deadline is unclear/)).toBeVisible();
+  expect(state.proposalCommits).toBe(0);
+  await proposals.getByRole("button", { name: "Уточнить задачи" }).click();
+  const editor = page.getByRole("dialog", { name: "Уточнить предложенные задачи" });
+  await editor.getByLabel("Название", { exact: true }).fill("Read corrected chapter");
+  await editor.getByLabel("Осталось работы, мин", { exact: true }).fill("30");
+  await editor.getByRole("button", { name: "Подготовить новый просмотр" }).click();
+  await expect(editor).toHaveCount(0);
+  expect(state.proposalCommits).toBe(0);
+  await expect(proposals.getByText("Read corrected chapter", { exact: true })).toBeVisible();
+  await proposals.getByRole("button", { name: "Применить всё", exact: true }).click();
+  await expect(proposals.getByText("Все изменения применены", { exact: true })).toBeVisible();
+  expect(state.proposalCommits).toBe(1);
+  expect(state.writes.find(item => item.path.endsWith("/decision"))?.body?.digest).toBe("c".repeat(64));
+});
+
+test("AI plan preview requires explicit partial acceptance and blocks unverified coverage", async ({ page }) => {
+  const state = await mockAi(page);
+  const proposal = actionProposal();
+  proposal.batch = { actions: [{ operation: "task_plan_apply", plan_id: "plan", digest: "b".repeat(64), accept_partial: true }] };
+  proposal.effects = [{ operation: "task_plan_apply", target_id: "plan", before: null, warnings: [], after: { id: "plan", digest: "b".repeat(64), expires_at: "2030-01-01T12:00:00Z", timezone: "UTC", status: "pending", verified: true, sessions: [{ task_id: "task", starts_at: "2026-10-17T09:00:00Z", ends_at: "2026-10-17T09:45:00Z", retained_id: null }], task_titles: { task: "Read chapter" }, cancelled_sessions: [], unplaced: [{ task_id: "task", minutes: 45, reason: "not_placed_in_allowed_windows" }], warnings: [] } }];
+  state.proposals = [proposal];
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  const apply = page.getByRole("button", { name: "Применить всё", exact: true });
+  await expect(apply).toBeDisabled();
+  await page.getByLabel("Подтверждаю частичный план и показанный остаток").check();
+  await expect(apply).toBeEnabled();
+  state.proposals[0].effects[0].after.verified = false;
+  await page.reload();
+  await page.getByLabel("Подтверждаю частичный план и показанный остаток").check();
+  await expect(page.getByText("Условный план. Применение недоступно.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Применить всё", exact: true })).toBeDisabled();
   expect(state.proposalCommits).toBe(0);
 });
