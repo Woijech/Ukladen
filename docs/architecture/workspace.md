@@ -1,6 +1,6 @@
 # Workspace Backend Architecture
 
-Updated: 2026-10-16.
+Updated: 2026-10-28.
 Status: pages, flat typed blocks, hierarchy, branch trash, page/calendar links and
 collections/tags with typed memberships and saved calendar views are implemented, backend only; see
 [notes](../development/notes.md), [relations](../development/relations.md) and
@@ -11,6 +11,11 @@ Remaining capabilities are a target design under
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md), with current APIs documented separately. The owner confirmed pages/blocks/databases and mandatory table/calendar views,
 with personal ownership. Formulas and collaboration are deferred; remaining details
 are recorded as open decisions.
+
+AI-10 adds local backend task dependencies, task/page relations and read-only
+personal/official availability queries. Work blocks and planning remain unimplemented;
+see [task contracts](../development/tasks.md) and
+[availability coverage limits](../development/calendar-availability.md).
 
 ## 1. Preserve the existing system
 

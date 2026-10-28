@@ -58,8 +58,9 @@ Task create/read/list/update, subtask hierarchy and recoverable branch trash wit
 status/priority, exact deadlines/effort and optimistic versions are implemented,
 with a working frontend task screen; see [tasks](docs/development/tasks.md).
 Task dependencies and explicit page links are implemented locally in the backend.
-Status: not implemented — task blocks, availability and
-authenticated IIS. AI-06 semantic retrieval and complete-source analysis are
+Personal/official busy/free/conflict queries are implemented locally in the backend;
+expected IIS coverage is explicitly unverified. Task blocks and authenticated IIS
+are not implemented. AI-06 semantic retrieval and complete-source analysis are
 implemented locally but unactivated; see [AI-06](docs/development/ai-06.md).
 AI-03 read tools are implemented locally but unactivated; see the AI section below.
 The frontend implements login/registration, browser email verification and password
@@ -552,8 +553,10 @@ resolved personal calendar
 ```
 
 Status: backend personal events, per-user overrides and resolved calendar reads are
-implemented; see [calendar contracts](docs/development/calendar.md). Free-slot/conflict
-queries and task blocks are not implemented. The frontend supports weekly resolved
+implemented; see [calendar contracts](docs/development/calendar.md). Read-only
+[personal/official availability queries](docs/development/calendar-availability.md)
+are implemented locally; task blocks and availability UI are not implemented.
+The frontend supports weekly resolved
 reads and personal-event create/edit/delete. User tags and
 collections and saved calendar views are implemented in workspace. All-day/recurring
 personal events remain not implemented. Nonblocking database-date projections and
@@ -639,8 +642,9 @@ DOC/PPT conversion and remote-page fetching are not implemented. See
 Status: implemented, backend only: optional page links/backlinks to personal events
 and official occurrences, including retained historical references, plus owner-scoped
 page/material attachments. See the [calendar relations API](docs/development/relations.md)
-and [material relations API](docs/development/materials.md). Page-page and task links
-are not implemented. Unlinking does not delete either endpoint.
+and [material relations API](docs/development/materials.md). Explicit task/page links
+are implemented locally in the backend under AI-10. Page-page links are not implemented.
+Unlinking does not delete either endpoint.
 Validate both endpoint ownership/access through application interfaces; a generic
 type-plus-UUID reference does not by itself provide foreign-key integrity.
 
@@ -1298,9 +1302,10 @@ additive mixed calendar display. One-shot calendar reminders and durable in-app
 notifications are also implemented; see [reminders](docs/development/reminders.md).
 See [database delivery status](docs/development/databases.md) and
 [ADR 0007](docs/adr/0007-use-page-backed-database-records.md). Task
-create/read/list/update, subtask hierarchy and branch trash are implemented; task dependencies,
-availability/conflicts, explicit work blocks and task/deadline reminders
-remain not implemented.
+create/read/list/update, subtask hierarchy and branch trash are implemented. Task
+dependencies, explicit page links and read-only personal/official availability are
+implemented locally in the backend. Explicit work blocks, task/deadline reminders,
+saved work preferences and planning remain not implemented.
 Planning can be requested independently of database features.
 
 ## Phase 4 — knowledge and retrieval

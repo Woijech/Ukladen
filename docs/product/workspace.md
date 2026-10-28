@@ -17,7 +17,8 @@ limits. Saved event views and mixed projection remain API-only.
 Tasks support create/read/list/update, status/priority, exact deadlines/effort,
 subtask hierarchy and recoverable branch trash in the same browser shell.
 Dependencies and explicit page links are implemented locally in the backend.
-Their UI, work blocks and availability remain planned; see
+Their UI and work blocks remain planned. Read-only personal/official availability
+queries are implemented locally; see
 [task delivery](../development/tasks.md).
 
 ## 1. Vocabulary
@@ -150,7 +151,9 @@ The user hides a lesson while planning around a busy appointment.
 - Source failures, staleness and missing coverage accompany planning results.
 - Conflicts can be reported without forbidding intentional overlap.
 
-Hidden/skipped resolution is implemented; availability queries are not implemented.
+Hidden/skipped resolution and local personal/official availability queries are
+implemented; see [coverage limits](../development/calendar-availability.md).
+Task work blocks and availability UI are not implemented.
 
 ### WS-09: Synchronization without losing personal work
 

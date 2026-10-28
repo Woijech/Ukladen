@@ -4,7 +4,8 @@ Updated: 2026-10-28.
 Status: task create/read/list/update, owner-scoped subtask hierarchy and recoverable
 branch trash are implemented with a browser task screen. Cycle-safe dependencies
 and explicit page links are implemented in the backend under AI-10. Their browser
-controls, work blocks and availability are not implemented.
+controls and work blocks are not implemented. Read-only personal/official
+[availability queries](calendar-availability.md) are implemented locally.
 
 ## First increment: independent task create/read/update
 
@@ -218,8 +219,8 @@ was performed.
 
 Status: not implemented. These decisions are not delivered by the current task APIs:
 
-- Calendar occupied/free/conflict queries over the complete busy set; query-supplied
-  availability windows, not saved working hours.
+- Extend the local personal/official [availability queries](calendar-availability.md)
+  with task work blocks when their storage exists; windows are currently query inputs.
 - Versioned future-only manual task blocks. Completion/cancellation/trash cancels
   future blocks; elapsed sessions never complete tasks automatically.
 - Explicit acknowledgement and locked revalidation for overlaps and uncertain IIS
@@ -248,7 +249,7 @@ manual work; the future planner must respect dependency order.
 
 `PUT` and `DELETE /api/v1/tasks/{id}/dependencies/{predecessor_id}` take the ordinary
 `expected_version` body and return the updated task. A changed edge increments only
-the dependent task's version; duplicate PUT/absent DELETE with the current version
+the dependent task's version; duplicate PUT/absent-edge DELETE with the current version
 are no-ops. Both endpoints must be owned. New edges require untrashed endpoints;
 removal may target a trashed predecessor. Editing a trashed dependent task remains
 forbidden. Self-dependencies and transitive cycles return 409 with

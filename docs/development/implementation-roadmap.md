@@ -41,7 +41,8 @@ existing services just to match target vocabulary. A package marker is not a fea
 Standalone task create/read/list/update, subtask hierarchy and branch trash are
 implemented with a browser UI; see [tasks](tasks.md).
 Task dependencies and explicit page links are implemented locally in the backend;
-their UI, work blocks and calendar free slots/conflicts are not implemented.
+their UI and work blocks are not implemented. Read-only personal/official
+[availability queries](calendar-availability.md) are implemented locally.
 AI-06 semantic retrieval and complete-source analysis are implemented
 locally but unactivated.
 AI-02 adds optional [OpenRouter models and encrypted connections](ai-connections.md),
@@ -189,7 +190,9 @@ exact deadlines/effort, optimistic versions, owner-scoped subtask hierarchy,
 recoverable branch trash, authenticated APIs and task management UI are implemented;
 see [task contracts](tasks.md).
 Dependencies and explicit page links are now implemented locally in the backend
-under [AI-10](ai-10.md). Their UI, manual blocks and availability are not implemented.
+under [AI-10](ai-10.md), alongside read-only personal/official availability queries.
+Their UI and manual blocks are not implemented. Expected IIS coverage remains
+explicitly unverified until a verified schedule coverage contract exists.
 The owner originally selected manual-only
 incremental delivery; the 2026-10-28 owner request now authorizes the full local
 AI-10 flow. Automatic planning and saved work preferences are still not implemented.

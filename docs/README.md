@@ -46,6 +46,7 @@ Planned contracts do not override the current implemented API silently.
 - [Public university reads](development/university-api.md).
 - [Official schedule](development/schedule.md).
 - [Personal calendar](development/calendar.md).
+- [Calendar availability](development/calendar-availability.md): local read-only busy/free/conflict queries and explicit coverage uncertainty.
 - [Tasks delivery contract](development/tasks.md): incremental manual P-06 scope and status.
 - [Reminders and in-app notifications](development/reminders.md).
 - [Materials, page attachments and basic search](development/materials.md).
