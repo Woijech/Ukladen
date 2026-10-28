@@ -524,4 +524,8 @@ def test_openapi_exposes_only_delivered_operations(calendar_client: TestClient) 
         f"{BASE}/{{task_id}}/restore",
         f"{BASE}/{{task_id}}/dependencies",
         f"{BASE}/{{task_id}}/dependencies/{{predecessor_id}}",
+        f"{BASE}/planning/preferences",
+        f"{BASE}/planning/sessions",
+        f"{BASE}/planning/sessions/check",
+        f"{BASE}/planning/sessions/{{session_id}}",
     }

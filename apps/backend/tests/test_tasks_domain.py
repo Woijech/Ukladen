@@ -52,6 +52,7 @@ def test_task_normalization_preserves_description_and_normalizes_deadline() -> N
         "priority": "normal",
         "deadline_at": datetime(2026, 10, 1, 15, tzinfo=UTC),
         "estimated_minutes": None,
+        "remaining_minutes": None,
         "parent_id": None,
     }
     parent = uuid4()

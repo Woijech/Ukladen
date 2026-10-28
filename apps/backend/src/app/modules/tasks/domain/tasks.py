@@ -15,6 +15,7 @@ TASK_FIELDS = {
     "priority",
     "deadline_at",
     "estimated_minutes",
+    "remaining_minutes",
     "parent_id",
 }
 
@@ -46,6 +47,7 @@ class TaskValues(TypedDict):
     priority: TaskPriority
     deadline_at: datetime | None
     estimated_minutes: int | None
+    remaining_minutes: int | None
     parent_id: UUID | None
 
 
@@ -86,6 +88,9 @@ def task_values(values: Mapping[str, object]) -> TaskValues:
     effort = values.get("estimated_minutes")
     if effort is not None and (type(effort) is not int or not 1 <= effort <= 525600):
         raise InvalidTaskInput()
+    remaining = values.get("remaining_minutes")
+    if remaining is not None and (type(remaining) is not int or not 0 <= remaining <= 525600):
+        raise InvalidTaskInput()
     parent_id = values.get("parent_id")
     if parent_id is not None and not isinstance(parent_id, UUID):
         raise InvalidTaskInput()
@@ -96,6 +101,7 @@ def task_values(values: Mapping[str, object]) -> TaskValues:
         priority=cast(TaskPriority, priority),
         deadline_at=deadline,
         estimated_minutes=cast(int | None, effort),
+        remaining_minutes=cast(int | None, remaining),
         parent_id=cast(UUID | None, parent_id),
     )
 
@@ -119,6 +125,7 @@ class TaskSummary:
     version: int
     created_at: datetime
     updated_at: datetime
+    remaining_minutes: int | None = None
     parent_id: UUID | None = None
     trashed_at: datetime | None = None
     trash_batch_id: UUID | None = None

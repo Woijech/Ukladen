@@ -6,6 +6,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from app.modules.calendar.application.service import CalendarService
+from app.modules.calendar.application.work_sessions import WorkSessionBusy, WorkSessionQuery
 from app.modules.calendar.domain.availability import TimeInterval, free_intervals, merge_intervals
 from app.modules.calendar.domain.events import InvalidCalendarInput, ResolvedEvent
 from app.modules.schedule.application.storage import ScheduleState
@@ -21,7 +22,7 @@ class CalendarConflictEntry:
 class CalendarAvailability:
     occupied: list[TimeInterval]
     free: list[TimeInterval]
-    events: list[ResolvedEvent]
+    events: list[ResolvedEvent | WorkSessionBusy]
     conflicts: list[CalendarConflictEntry]
     timezone: str
     source: ScheduleState | None
@@ -31,8 +32,10 @@ class CalendarAvailability:
 
 
 class CalendarAvailabilityService:
-    def __init__(self, calendar: CalendarService) -> None:
-        self.calendar = calendar
+    def __init__(
+        self, calendar: CalendarService, work_sessions: WorkSessionQuery | None = None
+    ) -> None:
+        self.calendar, self.work_sessions = calendar, work_sessions
 
     def read(
         self,
@@ -44,6 +47,7 @@ class CalendarAvailabilityService:
         minimum_minutes: int = 15,
         candidates: list[TimeInterval] | None = None,
         exclude_personal_event_id: UUID | None = None,
+        exclude_work_session_ids: frozenset[UUID] = frozenset(),
     ) -> CalendarAvailability:
         requested = TimeInterval(starts_at, ends_at)
         candidates = candidates if candidates is not None else []
@@ -67,7 +71,7 @@ class CalendarAvailabilityService:
             (requested.ends_at - timedelta(microseconds=1)).astimezone(zone).date(),
             include_hidden=True,
         )
-        events = [
+        events: list[ResolvedEvent | WorkSessionBusy] = [
             item
             for item in result.events
             if item.blocks_time
@@ -77,6 +81,12 @@ class CalendarAvailabilityService:
                 item.source == "personal" and item.source_event_id == exclude_personal_event_id
             )
         ]
+        if self.work_sessions is not None:
+            events.extend(
+                item
+                for item in self.work_sessions.busy(user_id, requested.starts_at, requested.ends_at)
+                if item.source_event_id not in exclude_work_session_ids
+            )
         intervals = [
             TimeInterval(
                 max(item.starts_at, requested.starts_at), min(item.ends_at, requested.ends_at)

@@ -29,6 +29,7 @@ class TaskModel(Base):
     priority: Mapped[str] = mapped_column(String(16), server_default="normal")
     deadline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     estimated_minutes: Mapped[int | None]
+    remaining_minutes: Mapped[int | None]
     version: Mapped[int] = mapped_column(server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -49,6 +50,7 @@ class TaskModel(Base):
             "priority IN ('low', 'normal', 'high', 'urgent')", name="ck_tasks_priority"
         ),
         CheckConstraint("estimated_minutes BETWEEN 1 AND 525600", name="ck_tasks_effort"),
+        CheckConstraint("remaining_minutes BETWEEN 0 AND 525600", name="ck_tasks_remaining"),
         CheckConstraint("version > 0", name="ck_tasks_version"),
         Index("ix_tasks_owner_created", "user_id", "created_at", "id"),
         UniqueConstraint("id", "user_id", name="uq_tasks_id_user"),

@@ -20,6 +20,7 @@ from app.modules.schedule.infrastructure import orm as schedule_orm  # noqa: F40
 from app.modules.search.infrastructure import index_models as search_index_models  # noqa: F401
 from app.modules.search.infrastructure import orm as search_orm  # noqa: F401
 from app.modules.tasks.infrastructure import orm as tasks_orm  # noqa: F401
+from app.modules.tasks.infrastructure import planning as tasks_planning  # noqa: F401
 from app.modules.users.infrastructure import orm as users_orm  # noqa: F401
 from app.modules.workspace.infrastructure import orm as workspace_orm  # noqa: F401
 

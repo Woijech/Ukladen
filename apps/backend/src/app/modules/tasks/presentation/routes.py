@@ -227,6 +227,10 @@ def restore_task(
 
 
 def install_tasks(application: FastAPI) -> None:
+    from app.modules.tasks.presentation.planning import router as planning_router
+
+    application.include_router(planning_router)
+
     def task_error(request: Request, error: Exception) -> JSONResponse:
         if isinstance(error, InvalidTaskInput):
             status, detail, code = 422, "Invalid task input.", "invalid_task_input"

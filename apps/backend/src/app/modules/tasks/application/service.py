@@ -139,6 +139,8 @@ class TaskService:
         ):
             raise TaskHierarchyConflict()
         self.repository.save(task, expected_version)
+        if task.status in ("done", "cancelled"):
+            self.repository.cancel_future_sessions(user_id, self.now())
         return task
 
     def trash(self, user_id: UUID, task_id: UUID, expected_version: int) -> Task:
@@ -150,6 +152,7 @@ class TaskService:
         if task.trashed_at is not None:
             raise TaskTrashConflict()
         self.repository.trash_branch(user_id, task_id, self.now())
+        self.repository.cancel_future_sessions(user_id, self.now())
         result = self.repository.get(user_id, task_id)
         assert result is not None
         return result

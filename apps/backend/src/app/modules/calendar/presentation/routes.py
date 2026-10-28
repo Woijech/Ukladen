@@ -51,6 +51,7 @@ from app.modules.calendar.presentation.schemas import (
 )
 from app.modules.schedule.application.queries import ScheduleQueryService
 from app.modules.schedule.infrastructure.storage import SqlAlchemyScheduleStore
+from app.modules.tasks.infrastructure.planning import SqlAlchemyPlanning
 from app.modules.users.infrastructure.repository import SqlAlchemyProfileRepository
 
 logger = logging.getLogger(__name__)
@@ -89,7 +90,7 @@ def read_availability(
 ) -> AvailabilityResponse:
     with database.begin():
         database.connection(execution_options={"isolation_level": "REPEATABLE READ"})
-        result = CalendarAvailabilityService(calendar).read(
+        result = CalendarAvailabilityService(calendar, SqlAlchemyPlanning(database)).read(
             current.user_id,
             payload.starts_at,
             payload.ends_at,
