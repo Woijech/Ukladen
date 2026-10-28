@@ -164,6 +164,14 @@ def list_tasks(
         )
 
 
+@router.get("/{task_id}/origin")
+def task_origin(
+    task_id: UUID, current: CurrentSession, database: Database, tasks: Tasks
+) -> dict | None:
+    with database.begin():
+        return tasks.origin(current.user_id, task_id)
+
+
 @router.get("/{task_id}", response_model=TaskResponse)
 def get_task(
     task_id: UUID, current: CurrentSession, database: Database, tasks: Tasks

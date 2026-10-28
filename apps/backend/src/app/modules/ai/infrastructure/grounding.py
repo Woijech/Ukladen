@@ -9,6 +9,8 @@ from langchain_core.tools import BaseTool, StructuredTool
 from app.modules.ai.application.lifecycle import ExecutionJournal
 from app.modules.ai.application.source_queries import (
     READ_QUERIES,
+    PlanRead,
+    PlanStatusRead,
     SourceScope,
     restrict_source_query,
 )
@@ -35,11 +37,30 @@ is insufficient, disclose that and label general model knowledge separately; sou
 requests prohibit that fallback. Explain that web search is not available here.
 Resolve relative dates using current profile time and state the actual dates. Calendar
 record dates do not reserve time. Empty or stale calendars cannot prove availability.
-For whole-document comparisons use the complete-source processing mode with selected
+For task extraction, read the selected sources, preserve exact references/locations,
+label estimates and ambiguities, suggest duplicates, and propose independent tasks for
+review. Batches hold at most eight actions; disclose unproposed remainder and do not
+claim exhaustive extraction from partial reads. Never infer progress from elapsed sessions.
+For planning use the deterministic
+preview_task_plan tool, never model-generated free-time claims. Confirm only the stored
+plan_id/digest via task_plan_apply; unknown expected coverage blocks application.
+For whole-document comparisons or extraction use complete-source processing with selected
 pages/materials. Ordinary snippet reads cannot establish complete-source coverage.
 """
 
 DESCRIPTIONS = {
+    "get_calendar_availability": (
+        "Compute busy/free intervals in allowed windows; respect verified and coverage warnings."
+    ),
+    "read_tasks": (
+        "Read owned task summaries or task details, remaining work and "
+        "dependencies; follow next_offset."
+    ),
+    "preview_task_plan": (
+        "Compute a derived plan preview; never applies sessions. Ask for "
+        "missing windows/remainder. Next propose task_plan_apply using "
+        "returned plan_id/digest for owner confirmation."
+    ),
     "search_workspace": "Search owned pages/materials using lexical/hybrid partial snippets.",
     "read_page": (
         "Read current page/block Markdown and bounded typed document/IDs; follow next_offset."
@@ -60,6 +81,7 @@ class SourceTools(AgentMiddleware):
     ):
         self.reader, self.user_id, self.journal = reader, user_id, journal
         self.scope: SourceScope | None = None
+        self.plan_cache: dict[str, tuple[UUID, str]] = {}
         self.sources: tuple[SourceReference, ...] = ()
         self.analysis_context: Callable[[SourceScope | None], EvidenceResult] | None = None
 
@@ -72,11 +94,20 @@ class SourceTools(AgentMiddleware):
             return EvidenceResult(
                 status="invalid", warnings=("check_arguments_and_scoped_source_type",)
             )
+        plan_key = query.model_dump_json() if isinstance(query, PlanRead) else None
+        if plan_key is not None and plan_key in self.plan_cache:
+            identifier, digest = self.plan_cache[plan_key]
+            query = PlanStatusRead(plan_id=identifier, digest=digest)
         result = (
             self.reader.read(self.user_id, query)
             if query is not None
             else EvidenceResult(status="not_found")
         )
+        if plan_key is not None and result.status == "ok" and isinstance(result.data, dict):
+            self.plan_cache[plan_key] = (
+                UUID(str(result.data["plan_id"])),
+                str(result.data["digest"]),
+            )
         if self.journal:
             self.journal.check()
         return result

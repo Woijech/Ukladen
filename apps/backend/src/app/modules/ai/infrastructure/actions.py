@@ -25,10 +25,22 @@ from app.modules.ai.domain.state import AiConflict, AiPersistenceUnavailable
 from app.modules.ai.infrastructure.action_models import ActionProposalModel, ActionReceiptModel
 from app.modules.ai.infrastructure.repository import SqlAlchemyAiRepository
 from app.modules.ai.infrastructure.sources import SqlAlchemySourceReader
+from app.modules.ai.infrastructure.task_origins import SqlAlchemyTaskOrigins
+from app.modules.calendar.application.availability import CalendarAvailabilityService
+from app.modules.relations.application.task_links import TaskRelationService
+from app.modules.relations.infrastructure.task_links import SqlAlchemyTaskPageLinks
 from app.modules.reminders.application.service import ReminderService
 from app.modules.reminders.infrastructure.repository import SqlAlchemyReminderRepository
 from app.modules.schedule.infrastructure.orm import OfficialScheduleEventModel
 from app.modules.search.domain.evidence import SourceReference
+from app.modules.tasks.application.dependencies import TaskDependencyService
+from app.modules.tasks.application.planning import PlanningService
+from app.modules.tasks.application.plans import PlanService
+from app.modules.tasks.application.service import TaskService
+from app.modules.tasks.infrastructure.dependencies import SqlAlchemyTaskDependencies
+from app.modules.tasks.infrastructure.planning import SqlAlchemyPlanning
+from app.modules.tasks.infrastructure.plans import SqlAlchemyPlans
+from app.modules.tasks.infrastructure.repository import SqlAlchemyTaskRepository
 from app.modules.users.domain.profile import ProfileUnavailable
 from app.modules.users.infrastructure.repository import (
     SqlAlchemyProfileRepository,
@@ -193,6 +205,17 @@ class SqlAlchemyActionTransactions:
                             )
                         )
                     for source in sources:
+                        if source.source == "task":
+                            task = TaskService(SqlAlchemyTaskRepository(database), users).get(
+                                user_id, UUID(source.id)
+                            )
+                            if (
+                                task.trashed_at is not None
+                                or task.version != source.version
+                                or task.title != source.title
+                            ):
+                                raise AiConflict("Task source changed.")
+                            continue
                         if source.source == "personal":
                             current = calendar.get_personal_event(user_id, UUID(source.id))
                             valid = (
@@ -240,6 +263,11 @@ class SqlAlchemyActionTransactions:
                                     (item.source, item.id, item.version, item.title)
                                     == (source.source, source.id, source.version, source.title)
                                     and (
+                                        source.source != "database_record"
+                                        or not source.locator.startswith("schema:")
+                                        or source.locator == item.locator
+                                    )
+                                    and (
                                         source.fingerprint is None
                                         or item.fingerprint == source.fingerprint
                                     )
@@ -257,6 +285,18 @@ class SqlAlchemyActionTransactions:
                         if not valid:
                             raise AiConflict("Source changed; request a new preview.")
 
+                tasks = TaskService(SqlAlchemyTaskRepository(database), users)
+                planning_repository = SqlAlchemyPlanning(database)
+                planning = PlanningService(
+                    tasks,
+                    planning_repository,
+                    CalendarAvailabilityService(calendar, planning_repository),
+                )
+                origins = SqlAlchemyTaskOrigins(
+                    database,
+                    tasks,
+                    TaskRelationService(SqlAlchemyTaskPageLinks(database), workspace.notes, tasks),
+                )
                 yield ActionContext(
                     SqlAlchemyAiRepository(database),
                     SqlAlchemyActions(database),
@@ -266,6 +306,10 @@ class SqlAlchemyActionTransactions:
                     profile.timezone,
                     lock_events,
                     validate_sources,
+                    tasks,
+                    TaskDependencyService(tasks, SqlAlchemyTaskDependencies(database)),
+                    PlanService(planning, SqlAlchemyPlans(database)),
+                    origins.save,
                 )
         except IntegrityError:
             raise AiConflict("Action state changed or a constraint rejected the request.") from None

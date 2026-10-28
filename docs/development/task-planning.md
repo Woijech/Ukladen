@@ -1,7 +1,7 @@
 # Task work planning
 
-Status: work-session and preference foundation implemented locally on 2026-10-28.
-Planner, AI integration and browser controls are in progress under [AI-10](ai-10.md).
+Status: implemented locally, including browser controls and AI integration under
+[AI-10](ai-10.md). Application activation and real-model quality remain unverified.
 
 Tasks expose nullable `remaining_minutes` independently of the original estimate.
 Existing records and newly estimated tasks retain an unknown remainder until the
@@ -75,3 +75,49 @@ Expected but unknown/stale official coverage permits conditional previews only.
 The verified IIS contract currently provides no completeness proof; a ready
 status or term dates cannot lift that restriction. Users without academic profiles
 can apply plans against their personal calendar and task sessions.
+
+## Browser and calendar display
+
+The Tasks screen exposes dependencies and page links, explicit remaining minutes,
+weekly preferences, planning and manual session controls. Plan previews show current
+protected sessions and the exact old reservations to cancel. Changes require a new
+preview; partial work has a separate acceptance checkbox. Session placement has its
+own check/confirmation and optional explicit manual acknowledgement of conflicts.
+
+`GET /api/v1/tasks/planning/calendar` is an additive owner-scoped projection with
+`starts_at`, `ends_at`, `include_sessions` (default true) and `include_deadlines`
+(default false). It returns titled active sessions and optional nonblocking open-task
+deadlines. Calendar display filters change no underlying busy calculations. Legacy
+`/calendar/events` response types remain unchanged. The browser shows this task
+projection separately from official/personal occurrences and opens session controls
+from it. Full dates, timezone and pin state remain visible.
+
+## AI-10 bridge
+
+The existing LangChain/LangGraph runner registers `read_tasks`,
+`get_calendar_availability` and `preview_task_plan`. The last saves a derived preview,
+never business writes; its per-run cache revalidates the stored preview before reuse.
+Task reads include current status, explicit remainder, versions, bounded dependency
+facts and historical provenance. Explicit source scopes can select task IDs; full
+page/material processing cannot silently broaden to task/calendar sources.
+
+`propose_actions` supports `task_create`, `task_update` and `task_plan_apply` alongside
+the existing AI-07 operations. Creation carries a typed draft, real read references
+and locations, estimate origin, uncertainties and advisory duplicates. Earlier
+create actions can be referenced by parent/predecessor indices. Task updates use
+ordinary service validation and expected versions. One complete task plan is its
+own batch. Confirmation uses normal task/planning/relations services in the same
+transaction as the AI-07 receipt. No model executes during confirmation.
+
+`POST /api/v1/ai/proposals/{id}/revise` creates a new immutable preview, superseding
+the old pending one. It does not apply edits. The browser edits extracted task title,
+body, priority, deadline, estimate and remainder before a new explicit confirmation.
+Existing source evidence must still validate; changed sources require fresh reads.
+Batches retain the existing 8-action / 16 KiB argument bound. Larger or partially read
+sources require bounded further processing/proposals with explicit coverage limits.
+
+Migrations 0037/0038 retain task provenance and allow independently reviewed proposal
+revisions. Populated downgrades are refused. Provenance survives chat cleanup;
+relations and task creation are atomic. Possible duplicates never merge automatically.
+Source record validation includes the page/schema locator even when its record
+version is unchanged. No checkbox or database-record synchronization is introduced.

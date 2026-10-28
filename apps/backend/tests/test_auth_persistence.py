@@ -119,6 +119,10 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "tasks",
         "task_dependencies",
         "task_page_links",
+        "task_work_sessions",
+        "task_work_preferences",
+        "task_plans",
+        "task_origins",
     }
     assert set(inspect(database_connection).get_table_names()) == expected
     command.check(config)

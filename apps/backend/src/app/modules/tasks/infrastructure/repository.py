@@ -13,7 +13,7 @@ from app.modules.tasks.domain.tasks import (
     TaskSummary,
     TaskVersionConflict,
 )
-from app.modules.tasks.infrastructure.orm import TaskModel
+from app.modules.tasks.infrastructure.orm import TaskModel, TaskOriginModel
 
 
 def task_summary(row: TaskModel) -> TaskSummary:
@@ -38,6 +38,14 @@ def task_summary(row: TaskModel) -> TaskSummary:
 class SqlAlchemyTaskRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
+
+    def origin(self, user_id: UUID, task_id: UUID) -> dict | None:
+        row = self.session.scalar(
+            select(TaskOriginModel).where(
+                TaskOriginModel.user_id == user_id, TaskOriginModel.task_id == task_id
+            )
+        )
+        return row.provenance if row else None
 
     def create(self, task: Task) -> None:
         self.session.add(TaskModel(**asdict(task)))

@@ -9,7 +9,14 @@ class SourceReference(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     source: Literal[
-        "page", "material", "personal", "official", "record_date", "database", "database_record"
+        "page",
+        "material",
+        "personal",
+        "official",
+        "record_date",
+        "database",
+        "database_record",
+        "task",
     ]
     id: str = Field(min_length=1, max_length=128)
     version: int = Field(ge=0)

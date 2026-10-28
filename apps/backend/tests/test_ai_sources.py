@@ -236,3 +236,43 @@ def test_large_database_option_lists_are_readable_through_schema_pagination(ai_d
     assert page.status == "ok" and page.next_offset == 5 and page.coverage == "partial"
     assert isinstance(page.data, dict)
     assert isinstance(page.data["options"], list) and len(page.data["options"]) == 5
+
+
+@pytest.mark.parametrize("changed", ["page", "schema"])
+def test_record_extraction_revalidates_page_and_schema_even_when_record_version_is_unchanged(
+    ai_database: Engine, changed: str
+):
+    from app.modules.ai.domain.state import AiConflict
+    from app.modules.ai.infrastructure.actions import SqlAlchemyActionTransactions
+
+    conversation, _ = seed(ai_database)
+    owner, reader = conversation.user_id, source_reader(ai_database)
+    with Session(ai_database) as session, session.begin():
+        services = reader.service(session)
+        database = services.views.databases.create(owner, "Source facts")
+        prop = services.views.content.create_property(owner, database.id, 1, "Assignment", "text")
+        record = services.views.content.create_record(
+            owner,
+            database.id,
+            prop.schema_version,
+            {str(prop.property.id): "Read chapter 3"},
+            title="Homework",
+        )
+    reference = reader.read(owner, DatabaseReadQuery(database_id=database.id)).sources[0]
+    transactions = SqlAlchemyActionTransactions(reader)
+    with transactions(owner) as unit:
+        unit.validate_sources((reference,))
+    with Session(ai_database) as session, session.begin():
+        services = reader.service(session)
+        if changed == "page":
+            services.notes.update(
+                owner, record.page.id, {"content": "Changed body"}, record.page.version
+            )
+        else:
+            services.views.content.create_property(
+                owner, database.id, prop.schema_version, "Extra", "text"
+            )
+    current = reader.read(owner, DatabaseReadQuery(database_id=database.id)).sources[0]
+    assert current.version == reference.version and current.locator != reference.locator
+    with pytest.raises(AiConflict), transactions(owner) as unit:
+        unit.validate_sources((reference,))

@@ -28,6 +28,7 @@ class WorkPlan:
     unplaced: list[UnplacedWork]
 
 
+# shortcut: greedy placement may leave feasible work unplaced; replace after measured misses.
 def plan_work(
     tasks: list[TaskSummary],
     dependencies: list[tuple[UUID, UUID]],

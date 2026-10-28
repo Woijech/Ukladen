@@ -276,11 +276,15 @@ class AiService:
                 or not (request.source_scope.page_ids or request.source_scope.material_ids)
                 or request.source_scope.calendar
                 or request.source_scope.database_ids
+                or request.source_scope.task_ids
             ):
                 raise InvalidAiState("Select pages/materials for complete-source processing.")
             payload.append("full_sources")
         if request.source_scope is not None:
-            payload.append(request.source_scope.model_dump(mode="json"))
+            scoped_payload = request.source_scope.model_dump(mode="json")
+            if not request.source_scope.task_ids:
+                scoped_payload.pop("task_ids")
+            payload.append(scoped_payload)
         digest = hashlib.sha256(
             json.dumps(
                 payload,

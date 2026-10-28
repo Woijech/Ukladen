@@ -78,6 +78,10 @@ class TaskService:
             raise TaskNotFound()
         return task
 
+    def origin(self, user_id: UUID, task_id: UUID) -> dict | None:
+        self.get(user_id, task_id)
+        return self.repository.origin(user_id, task_id)
+
     def list(
         self,
         user_id: UUID,
@@ -110,14 +114,14 @@ class TaskService:
             user_id, status, priority, limit, offset, parent_id, roots_only, trashed
         )
 
-    def update(
+    def prepare_update(
         self,
         user_id: UUID,
         task_id: UUID,
         changes: Mapping[str, object],
         expected_version: int,
     ) -> Task:
-        self._require_user(user_id, write=True)
+        self._require_user(user_id)
         current = self.repository.get(user_id, task_id)
         if current is None:
             raise TaskNotFound()
@@ -138,6 +142,13 @@ class TaskService:
             user_id, task_id
         ):
             raise TaskHierarchyConflict()
+        return task
+
+    def update(
+        self, user_id: UUID, task_id: UUID, changes: Mapping[str, object], expected_version: int
+    ) -> Task:
+        self._require_user(user_id, write=True)
+        task = self.prepare_update(user_id, task_id, changes, expected_version)
         self.repository.save(task, expected_version)
         if task.status in ("done", "cancelled"):
             self.repository.cancel_future_sessions(user_id, self.now())

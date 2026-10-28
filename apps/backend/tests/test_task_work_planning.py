@@ -198,3 +198,30 @@ def test_competing_manual_sessions_serialize(calendar_client: TestClient):
 
     with ThreadPoolExecutor(max_workers=2) as workers:
         assert sorted(workers.map(create, range(2))) == [201, 409]
+
+
+def test_additive_task_calendar_dates_are_nonblocking_and_filters_are_display_only(
+    calendar_client: TestClient,
+):
+    client = calendar_client
+    task = create_task(client, remaining_minutes=90, deadline_at=START.isoformat())
+    session = client.post(
+        PLANNING + "/sessions", headers=csrf_headers(client), json=session_payload(client, task)
+    ).json()
+    params = {"starts_at": START.isoformat(), "ends_at": (START + timedelta(days=1)).isoformat()}
+    display = client.get(PLANNING + "/calendar", params=params | {"include_deadlines": "true"})
+    assert display.status_code == 200, display.text
+    assert display.json()["sessions"][0]["task_id"] == task["id"]
+    assert display.json()["sessions"][0]["source_event_id"] == session["id"]
+    assert display.json()["deadlines"][0]["blocks_time"] is False
+    assert client.get(PLANNING + "/calendar", params=params).json()["deadlines"] == []
+    assert (
+        client.get(PLANNING + "/calendar", params=params | {"include_sessions": "false"}).json()[
+            "sessions"
+        ]
+        == []
+    )
+    available = client.post(
+        "/api/v1/calendar/availability", headers=csrf_headers(client), json=params | {"windows": []}
+    ).json()
+    assert len(available["events"]) == 1 and available["events"][0]["source"] == "task_session"

@@ -15,8 +15,9 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app.db.session import Base
-from app.modules.calendar.application.work_sessions import WorkSessionBusy
+from app.modules.calendar.application.work_sessions import TaskDeadline, WorkSessionBusy
 from app.modules.tasks.domain.planning import WeeklyWindow, WorkPreferences, WorkSession
+from app.modules.tasks.domain.tasks import InvalidTaskInput
 from app.modules.tasks.infrastructure.orm import TaskModel
 
 
@@ -139,9 +140,41 @@ class SqlAlchemyPlanning:
         )
         return [
             WorkSessionBusy(
-                f"task_session:{row.id}", row.id, title, row.starts_at, row.ends_at, row.version
+                f"task_session:{row.id}",
+                row.id,
+                title,
+                row.starts_at,
+                row.ends_at,
+                row.version,
+                task_id=row.task_id,
+                pinned=row.pinned,
             )
             for row, title in rows
+        ]
+
+    def deadlines(
+        self, user_id: UUID, starts_at: datetime, ends_at: datetime
+    ) -> list[TaskDeadline]:
+        rows = list(
+            self.database.scalars(
+                select(TaskModel)
+                .where(
+                    TaskModel.user_id == user_id,
+                    TaskModel.trashed_at.is_(None),
+                    TaskModel.status.in_(("todo", "in_progress")),
+                    TaskModel.deadline_at >= starts_at,
+                    TaskModel.deadline_at < ends_at,
+                )
+                .order_by(TaskModel.deadline_at, TaskModel.id)
+                .limit(10001)
+            )
+        )
+        if len(rows) > 10000:
+            raise InvalidTaskInput("Too many calendar task dates; narrow the interval.")
+        return [
+            TaskDeadline(row.id, row.title, row.deadline_at, row.version)
+            for row in rows
+            if row.deadline_at is not None
         ]
 
     def lock_schedule(self, user_id: UUID) -> None:

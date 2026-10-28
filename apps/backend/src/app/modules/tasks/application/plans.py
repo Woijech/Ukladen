@@ -47,6 +47,13 @@ class SessionPlacement(DatedWindow):
     retained_id: UUID | None = None
 
 
+class ExistingSession(DatedWindow):
+    id: UUID
+    task_id: UUID
+    pinned: bool
+    version: int
+
+
 class Unplaced(PlanInput):
     task_id: UUID
     minutes: int | None
@@ -62,6 +69,9 @@ class PlanPreview(PlanInput):
     fingerprint: str
     digest: str
     sessions: tuple[SessionPlacement, ...]
+    task_titles: dict[str, str] = Field(default_factory=dict)
+    previous_sessions: tuple[ExistingSession, ...] = ()
+    protected_sessions: tuple[ExistingSession, ...] = ()
     cancelled_sessions: tuple[UUID, ...]
     unplaced: tuple[Unplaced, ...]
     warnings: tuple[str, ...]
@@ -139,6 +149,9 @@ class PlanService:
         ]
         movable_ids = frozenset(item.id for item in movable)
         fixed = [item for item in future if not item.cancelled and item.id not in movable_ids]
+        selected_fixed = [item for item in fixed if item.task_id in selected]
+        if len(movable) + len(selected_fixed) > 1024:
+            raise InvalidTaskInput("Too many existing sessions; narrow the selected tasks.")
         availability = self.planning.availability.read(
             user_id,
             span.starts_at,
@@ -187,6 +200,15 @@ class PlanService:
             fingerprint=state,
             digest="",
             sessions=tuple(SessionPlacement(**asdict(item)) for item in result.sessions),
+            task_titles={str(identifier): by_id[identifier].title for identifier in selected},
+            previous_sessions=tuple(
+                ExistingSession(**{key: getattr(item, key) for key in ExistingSession.model_fields})
+                for item in movable
+            ),
+            protected_sessions=tuple(
+                ExistingSession(**{key: getattr(item, key) for key in ExistingSession.model_fields})
+                for item in selected_fixed
+            ),
             cancelled_sessions=tuple(item.id for item in movable if item.id not in retained),
             unplaced=tuple(Unplaced(**asdict(item)) for item in result.unplaced),
             warnings=tuple(warnings),

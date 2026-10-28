@@ -2,10 +2,17 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
+from app.modules.calendar.application.work_sessions import TaskDeadline, WorkSessionBusy
 from app.modules.tasks.domain.planning import WorkPreferences, WorkSession
 
 
 class PlanningRepository(Protocol):
+    def busy(
+        self, user_id: UUID, starts_at: datetime, ends_at: datetime
+    ) -> list[WorkSessionBusy]: ...
+    def deadlines(
+        self, user_id: UUID, starts_at: datetime, ends_at: datetime
+    ) -> list[TaskDeadline]: ...
     def preferences(self, user_id: UUID) -> WorkPreferences: ...
     def save_preferences(self, user_id: UUID, preferences: WorkPreferences) -> None: ...
     def sessions(

@@ -9,7 +9,12 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from app.core.logging import log_failure
 from app.modules.academics.presentation.routes import no_store
 from app.modules.ai.application.access import AiAccessStatus
-from app.modules.ai.application.actions import ActionService, Proposal, ProposalDecision
+from app.modules.ai.application.actions import (
+    ActionBatch,
+    ActionService,
+    Proposal,
+    ProposalDecision,
+)
 from app.modules.ai.application.connections import ConnectionAccess, ModelOption
 from app.modules.ai.application.lifecycle import AiService
 from app.modules.ai.application.source_queries import SourceQuery
@@ -134,6 +139,17 @@ def decide_proposal(
     service: Actions,
 ) -> Proposal:
     return service.decide(current.user_id, proposal_id, payload)
+
+
+@router.post(
+    "/proposals/{proposal_id}/revise",
+    response_model=ProposalResponse,
+    dependencies=[Depends(require_csrf)],
+)
+def revise_proposal(
+    proposal_id: UUID, payload: ActionBatch, current: CurrentSession, service: Actions
+) -> Proposal:
+    return service.revise(current.user_id, proposal_id, payload)
 
 
 @router.get("/access", response_model=AiAccessStatus)

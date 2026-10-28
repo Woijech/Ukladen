@@ -216,3 +216,53 @@ def apply_plan(
 ) -> PlanPreview:
     with database.begin():
         return plans.apply(current.user_id, plan_id, **payload.model_dump())
+
+
+class CalendarSessionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    source_event_id: UUID
+    task_id: UUID
+    title: str
+    starts_at: AwareDatetime
+    ends_at: AwareDatetime
+    pinned: bool
+    version: int
+
+
+class CalendarDeadlineResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    task_id: UUID
+    title: str
+    deadline_at: AwareDatetime
+    blocks_time: bool
+    version: int
+
+
+class TaskCalendarResponse(BaseModel):
+    sessions: list[CalendarSessionResponse]
+    deadlines: list[CalendarDeadlineResponse]
+
+
+@router.get("/calendar", response_model=TaskCalendarResponse)
+def task_calendar(
+    starts_at: AwareDatetime,
+    ends_at: AwareDatetime,
+    current: CurrentSession,
+    database: Database,
+    planning: Planning,
+    include_sessions: bool = True,
+    include_deadlines: bool = False,
+) -> TaskCalendarResponse:
+    with database.begin():
+        database.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+        sessions, deadlines = planning.calendar(
+            current.user_id,
+            starts_at,
+            ends_at,
+            include_sessions=include_sessions,
+            include_deadlines=include_deadlines,
+        )
+        return TaskCalendarResponse(
+            sessions=[CalendarSessionResponse.model_validate(item) for item in sessions],
+            deadlines=[CalendarDeadlineResponse.model_validate(item) for item in deadlines],
+        )

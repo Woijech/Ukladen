@@ -6,6 +6,7 @@ from app.modules.calendar.application.availability import (
     CalendarAvailability,
     CalendarAvailabilityService,
 )
+from app.modules.calendar.application.work_sessions import TaskDeadline, WorkSessionBusy
 from app.modules.calendar.domain.availability import TimeInterval
 from app.modules.tasks.application.planning_ports import PlanningRepository
 from app.modules.tasks.application.service import TaskService
@@ -50,6 +51,28 @@ class PlanningService:
         if interval.ends_at - interval.starts_at > timedelta(days=366):
             raise InvalidTaskInput()
         return self.repository.sessions(user_id, interval.starts_at, interval.ends_at)
+
+    def calendar(
+        self,
+        user_id: UUID,
+        starts_at: datetime,
+        ends_at: datetime,
+        *,
+        include_sessions: bool = True,
+        include_deadlines: bool = False,
+    ) -> tuple[list[WorkSessionBusy], list[TaskDeadline]]:
+        self.tasks._require_user(user_id)
+        interval = TimeInterval(starts_at, ends_at)
+        if interval.ends_at - interval.starts_at > timedelta(days=366):
+            raise InvalidTaskInput()
+        return (
+            self.repository.busy(user_id, interval.starts_at, interval.ends_at)
+            if include_sessions
+            else [],
+            self.repository.deadlines(user_id, interval.starts_at, interval.ends_at)
+            if include_deadlines
+            else [],
+        )
 
     def session(self, user_id: UUID, session_id: UUID) -> WorkSession:
         self.tasks._require_user(user_id)

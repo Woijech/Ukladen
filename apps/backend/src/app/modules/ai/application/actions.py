@@ -23,6 +23,11 @@ from pydantic import (
 from app.modules.ai.application.agent import PendingReview
 from app.modules.ai.application.connections import ConnectionAccess
 from app.modules.ai.application.persistence import AiRepository
+from app.modules.ai.application.task_actions import (
+    PlanApplyAction,
+    TaskCreateAction,
+    TaskUpdateAction,
+)
 from app.modules.ai.domain.state import AiConflict, AiNotFound, Run
 from app.modules.calendar.application.service import CalendarService
 from app.modules.calendar.domain.events import PERSONAL_FIELDS, personal_values
@@ -32,6 +37,10 @@ from app.modules.notes.domain.pages import page_title
 from app.modules.reminders.application.service import ReminderService
 from app.modules.reminders.domain.reminders import trigger_time
 from app.modules.search.domain.evidence import SourceReference
+from app.modules.tasks.application.dependencies import TaskDependencyService
+from app.modules.tasks.application.plans import PlanService
+from app.modules.tasks.application.service import TaskService
+from app.modules.tasks.domain.tasks import TASK_FIELDS, task_values
 
 
 class ActionInput(BaseModel):
@@ -134,7 +143,14 @@ class ReminderCreate(ActionInput):
 
 
 Operation = Annotated[
-    PageCreate | PageUpdate | EventCreate | EventUpdate | ReminderCreate,
+    PageCreate
+    | PageUpdate
+    | EventCreate
+    | EventUpdate
+    | ReminderCreate
+    | TaskCreateAction
+    | TaskUpdateAction
+    | PlanApplyAction,
     Field(discriminator="operation"),
 ]
 
@@ -144,8 +160,32 @@ class ActionBatch(ActionInput):
 
     @model_validator(mode="after")
     def valid_batch(self) -> Self:
+        if (
+            any(isinstance(action, PlanApplyAction) for action in self.actions)
+            and len(self.actions) != 1
+        ):
+            raise ValueError("Confirm a complete task plan as a single batch.")
         targets: set[tuple[str, UUID]] = set()
         for index, action in enumerate(self.actions):
+            if isinstance(action, TaskCreateAction):
+                indices = (
+                    *action.predecessor_actions,
+                    *((action.parent_action,) if action.parent_action is not None else ()),
+                )
+                if any(
+                    type(target) is not int
+                    or not 0 <= target < index
+                    or not isinstance(self.actions[target], TaskCreateAction)
+                    for target in indices
+                ):
+                    raise ValueError(
+                        "Task relationships must reference earlier task-create actions."
+                    )
+            if isinstance(action, TaskUpdateAction):
+                key = ("task", action.task_id)
+                if key in targets:
+                    raise ValueError("Each task may be edited only once per proposal.")
+                targets.add(key)
             if isinstance(action, (PageUpdate, EventUpdate)):
                 key = (
                     ("page", action.page_id)
@@ -226,6 +266,10 @@ class ActionContext:
     timezone: str
     lock_events: Callable[[ActionBatch], None]
     validate_sources: Callable[[tuple[SourceReference, ...]], None]
+    tasks: TaskService | None = None
+    dependencies: TaskDependencyService | None = None
+    plans: PlanService | None = None
+    save_task_origin: Callable[[UUID, UUID, TaskCreateAction], None] | None = None
 
 
 class ActionTransactions(Protocol):
@@ -278,6 +322,12 @@ class ActionService:
         if len(review.actions) != 1 or review.actions[0].tool_name != "propose_actions":
             raise AiConflict("Only one complete action batch may be reviewed.")
         batch = ActionBatch.model_validate(review.actions[0].arguments)
+        if any(
+            isinstance(action, TaskCreateAction)
+            and any(source not in sources for source in action.sources)
+            for action in batch.actions
+        ):
+            raise AiConflict("Task sources must match current tool-read evidence.")
         with self.transactions(run.user_id) as unit:
             if run.conversation_id is None:
                 raise AiNotFound()
@@ -318,6 +368,53 @@ class ActionService:
             unit.proposals.supersede(run.user_id, run.conversation_id)
             unit.proposals.put(run.user_id, proposal)
             return proposal
+
+    def revise(self, user_id: UUID, proposal_id: UUID, batch: ActionBatch) -> Proposal:
+        with self.transactions(user_id) as unit:
+            original = unit.proposals.get(user_id, proposal_id)
+            if original is None:
+                raise AiNotFound()
+            self.context(unit, user_id, original.conversation_id)
+            if self.expiry(original).status != "pending":
+                raise AiConflict("Only a current pending preview may be revised.")
+            run = unit.ai.get_run(user_id, original.run_id)
+            if run is None or run.status != "completed":
+                raise AiConflict("Proposal execution is unavailable.")
+            self.capability(unit, user_id, run)
+            if any(
+                isinstance(action, TaskCreateAction)
+                and any(source not in original.sources for source in action.sources)
+                for action in batch.actions
+            ):
+                raise AiConflict("Use existing read evidence or request a fresh source read.")
+            unit.lock_events(batch)
+            unit.validate_sources(original.sources)
+            effects = self.preview(unit, user_id, batch)
+            payload = {
+                "batch": batch.model_dump(mode="json"),
+                "effects": [item.model_dump(mode="json") for item in effects],
+                "sources": [item.model_dump(mode="json") for item in original.sources],
+                "timezone": unit.timezone,
+            }
+            encoded = json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()
+            if len(encoded) > 2 * 1024 * 1024:
+                raise ValueError("Preview exceeds the transport bound.")
+            now = self.now()
+            revised = original.model_copy(
+                update={
+                    "id": uuid4(),
+                    "interrupt_id": f"revision:{uuid4()}",
+                    "batch": batch,
+                    "effects": effects,
+                    "digest": hashlib.sha256(encoded).hexdigest(),
+                    "timezone": unit.timezone,
+                    "created_at": now,
+                    "expires_at": now + timedelta(hours=24),
+                }
+            )
+            unit.proposals.supersede(user_id, original.conversation_id)
+            unit.proposals.put(user_id, revised)
+            return revised
 
     def list(self, user_id: UUID, conversation_id: UUID, limit: int, offset: int) -> list[Proposal]:
         with self.transactions(user_id) as unit:
@@ -424,6 +521,97 @@ class ActionService:
                 after = json_object(personal_values(values))
                 if before is not None and before["starts_at"] != after["starts_at"]:
                     warnings = ("existing_reminders_will_be_cancelled",)
+            elif isinstance(action, (TaskCreateAction, TaskUpdateAction)):
+                if unit.tasks is None:
+                    raise AiConflict("Task actions are unavailable.")
+                if isinstance(action, TaskUpdateAction):
+                    task = unit.tasks.get(user_id, action.task_id)
+                    if task.version != action.expected_version or task.trashed_at is not None:
+                        raise AiConflict("Task changed; request a new preview.")
+                    before = json_object(asdict(task))
+                    before.pop("user_id", None)
+                    updated = unit.tasks.prepare_update(
+                        user_id,
+                        task.id,
+                        action.changes.model_dump(exclude_unset=True),
+                        action.expected_version,
+                    )
+                    after = json_object({name: getattr(updated, name) for name in TASK_FIELDS})
+                    after["parent_versions"] = {
+                        str(item.id): item.version
+                        for item in unit.tasks._ancestors(user_id, updated.parent_id, task.id)
+                    }
+                    target = task.id
+                else:
+                    values = action.task.model_dump()
+                    ancestors = unit.tasks._ancestors(user_id, action.task.parent_id, uuid4())
+                    if any(item.status == "done" for item in ancestors):
+                        raise AiConflict("Cannot create open work beneath a completed task.")
+                    unit.validate_sources(action.sources)
+                    duplicates = {}
+                    scan_partial = False
+                    for offset in range(0, 2000, 200):
+                        candidates = unit.tasks.list(user_id, limit=200, offset=offset)
+                        for candidate in candidates:
+                            if candidate.id in action.possible_duplicate_ids or " ".join(
+                                candidate.title.casefold().split()
+                            ) == " ".join(action.task.title.casefold().split()):
+                                duplicates[str(candidate.id)] = {
+                                    "id": str(candidate.id),
+                                    "title": candidate.title,
+                                    "version": candidate.version,
+                                    "status": candidate.status,
+                                }
+                        if len(candidates) < 200:
+                            break
+                        scan_partial = offset == 1800
+                    for identifier in action.possible_duplicate_ids:
+                        candidate = unit.tasks.get(user_id, identifier)
+                        duplicates[str(candidate.id)] = {
+                            "id": str(candidate.id),
+                            "title": candidate.title,
+                            "version": candidate.version,
+                            "status": candidate.status,
+                            "trashed": candidate.trashed_at is not None,
+                        }
+                    predecessors = [
+                        unit.tasks.get(user_id, identifier) for identifier in action.predecessor_ids
+                    ]
+                    if any(item.trashed_at is not None for item in predecessors):
+                        raise AiConflict("Predecessor is in trash.")
+                    after = json_object(
+                        {
+                            "task": task_values(values),
+                            "parent_action": action.parent_action,
+                            "parent_versions": {str(item.id): item.version for item in ancestors},
+                            "predecessor_ids": action.predecessor_ids,
+                            "predecessor_actions": action.predecessor_actions,
+                            "predecessor_versions": {
+                                str(item.id): item.version for item in predecessors
+                            },
+                            "sources": [
+                                source.model_dump(mode="json") for source in action.sources
+                            ],
+                            "estimate_kind": action.estimate_kind,
+                            "uncertainties": action.uncertainties,
+                            "possible_duplicates": list(duplicates.values()),
+                        }
+                    )
+                    warnings = (
+                        "independent_task_no_checkbox_sync",
+                        "duplicate_detection_is_advisory",
+                    ) + (("duplicate_scan_partial",) if scan_partial else ())
+            elif isinstance(action, PlanApplyAction):
+                if unit.plans is None:
+                    raise AiConflict("Task planning is unavailable.")
+                plan = unit.plans.validate(user_id, action.plan_id, action.digest)
+                if plan.status != "pending":
+                    raise AiConflict("Plan has already been handled.")
+                after = json_object(plan.model_dump(mode="json"))
+                target = plan.id
+                warnings = plan.warnings + (
+                    ("partial_plan_requires_explicit_acceptance",) if plan.unplaced else ()
+                )
             else:
                 if action.event_action is not None:
                     event_effect = effects[action.event_action]
@@ -514,6 +702,36 @@ class ActionService:
                     action.event_id,
                     action.changes.model_dump(exclude_unset=True),
                     action.expected_version,
+                )
+            elif isinstance(action, TaskCreateAction):
+                if unit.tasks is None or unit.dependencies is None or unit.save_task_origin is None:
+                    raise AiConflict("Task actions are unavailable.")
+                values = action.task.model_dump()
+                if action.parent_action is not None:
+                    values["parent_id"] = outcomes[action.parent_action].target_id
+                result = unit.tasks.create(user_id, values)
+                for predecessor_id in (
+                    *action.predecessor_ids,
+                    *(outcomes[index].target_id for index in action.predecessor_actions),
+                ):
+                    result = unit.dependencies.change(
+                        user_id, result.id, predecessor_id, result.version
+                    )
+                unit.save_task_origin(user_id, result.id, action)
+            elif isinstance(action, TaskUpdateAction):
+                if unit.tasks is None:
+                    raise AiConflict("Task actions are unavailable.")
+                result = unit.tasks.update(
+                    user_id,
+                    action.task_id,
+                    action.changes.model_dump(exclude_unset=True),
+                    action.expected_version,
+                )
+            elif isinstance(action, PlanApplyAction):
+                if unit.plans is None:
+                    raise AiConflict("Task planning is unavailable.")
+                result = unit.plans.apply(
+                    user_id, action.plan_id, action.digest, accept_partial=action.accept_partial
                 )
             else:
                 event_id = (

@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
-from app.modules.ai.application.actions import ActionEffect, ActionOutcome
+from app.modules.ai.application.actions import ActionBatch, ActionEffect, ActionOutcome
 from app.modules.ai.application.agent import AgentInput
 from app.modules.ai.application.connections import require_key
 from app.modules.ai.application.lifecycle import RunSnapshot
@@ -222,6 +222,7 @@ class ProposalResponse(BaseModel):
     expires_at: datetime
     status: str
     timezone: str
+    batch: ActionBatch
     effects: tuple[ActionEffect, ...]
     outcomes: tuple[ActionOutcome, ...]
     sources: tuple[SourceReference, ...]

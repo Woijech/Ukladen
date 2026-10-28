@@ -12,6 +12,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -89,4 +90,16 @@ class TaskDependencyModel(Base):
         ),
         CheckConstraint("task_id != predecessor_id", name="ck_task_dependencies_not_self"),
         Index("ix_task_dependencies_reverse", "user_id", "predecessor_id", "task_id"),
+    )
+
+
+class TaskOriginModel(Base):
+    __tablename__ = "task_origins"
+    task_id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    provenance: Mapped[dict] = mapped_column(JSONB)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["task_id", "user_id"], ["tasks.id", "tasks.user_id"], ondelete="CASCADE"
+        ),
     )
