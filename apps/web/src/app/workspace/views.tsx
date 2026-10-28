@@ -22,6 +22,9 @@ const DatabasesPanel = dynamic(() =>
 const AiPanel = dynamic(() =>
   import("./panels/ai").then((module) => module.AiPanel),
 );
+const TasksPanel = dynamic(() =>
+  import("./tasks-panel").then((module) => module.TasksPanel),
+);
 import { OrganizationPanel, type EventTarget } from "./panels/organization";
 import type { SectionKey } from "./navigation";
 
@@ -34,6 +37,7 @@ type ViewProps = {
   onNavigate: (section: SectionKey) => void;
   onDirtyChange: (dirty: boolean) => void;
   onChooseGroup: () => void;
+  onSessionEnd: () => void;
   events: EventTarget[];
 };
 export function WorkspaceViews(props: ViewProps) {
@@ -44,6 +48,8 @@ export function WorkspaceViews(props: ViewProps) {
         <AiPanel onDirtyChange={props.onDirtyChange} onOpenPage={onOpenPage} onOpenEvent={props.onOpenEvent} />
       </Suspense>
     );
+  if (section === "tasks")
+    return <TasksPanel timeZone={timeZone} onSessionEnd={props.onSessionEnd} />;
   if (section === "notes")
     return (
       <NotesPanel

@@ -155,9 +155,11 @@ into Alembic metadata. Review every generated migration.
 
 Public IIS adapters/schedule synchronization and private avatar/material APIs are
 implemented; see [university reads](university-api.md), [schedule](schedule.md),
-[avatars](user-avatar.md) and [materials](materials.md). Private IIS, AI model/tools,
-semantic retrieval and other future business contracts remain unimplemented and
-require their requested slices and verified integration evidence.
+[avatars](user-avatar.md) and [materials](materials.md). Task CRUD, hierarchy and
+recoverable trash are implemented; dependencies, work blocks and availability remain
+future slices. AI tools, confirmed actions and semantic retrieval are implemented
+locally but default-disabled and unactivated; see [AI setup](ai-setup.md).
+Private IIS contracts remain unimplemented and require verified integration evidence.
 Structured application logs and container rotation are implemented; see
 [logging and debugging](logging.md). Remote observability services and managed
 production deployment are not implemented.

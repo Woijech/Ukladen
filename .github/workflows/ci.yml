@@ -31,6 +31,7 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       AUTH_TEST_DATABASE_URL: postgresql+psycopg://ukladen:ci-only-password@localhost:5432/ukladen
+      AI_TEST_DATABASE_URL: postgresql+psycopg://ukladen:ci-only-password@localhost:5432/ukladen
       AUTH_TEST_REDIS_URL: redis://localhost:6379/15
       AVATAR_TEST_S3_ENDPOINT: http://localhost:58333
       AVATAR_TEST_S3_ACCESS_KEY: ci-only-storage-key

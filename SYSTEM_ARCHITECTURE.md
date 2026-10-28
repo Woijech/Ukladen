@@ -8,7 +8,7 @@
 >
 > **Important:** This document intentionally does **not** define concrete BSUIR IIS response fields, exact external API payloads, full SQL schema, or detailed endpoint DTOs. Those contracts are separate documents.
 
-Updated: 2026-10-26. Target features are not implemented unless explicitly marked.
+Updated: 2026-10-28. Target features are not implemented unless explicitly marked.
 Read the [documentation index](docs/README.md), [open decisions](docs/product/open-questions.md)
 and [implementation roadmap](docs/development/implementation-roadmap.md) for a concrete slice.
 [ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md) records optional organization.
@@ -54,17 +54,21 @@ Additive mixed calendar display is implemented through application query ports.
 One-shot calendar reminders and durable in-app notifications are implemented.
 Private materials, bounded document extraction, page attachments and basic PostgreSQL
 full-text search are implemented; see [materials/search](docs/development/materials.md).
-Status: not implemented — tasks, availability and authenticated IIS. AI-06 semantic
-retrieval and complete-source analysis are implemented locally but unactivated; see
-[AI-06](docs/development/ai-06.md).
+Task create/read/list/update, subtask hierarchy and recoverable branch trash with
+status/priority, exact deadlines/effort and optimistic versions are implemented,
+with a working frontend task screen; see [tasks](docs/development/tasks.md).
+Status: not implemented — task dependencies/links, task blocks, availability and
+authenticated IIS. AI-06 semantic retrieval and complete-source analysis are
+implemented locally but unactivated; see [AI-06](docs/development/ai-06.md).
 AI-03 read tools are implemented locally but unactivated; see the AI section below.
 The frontend implements login/registration, browser email verification and password
 recovery, optional academic-group selection, day/week personal-event CRUD, flat block
 pages, materials, explicit organization, database table/calendar views, full-text
-search, reminders/inbox and profile/avatar settings. Its shared light/dark shell
+search, reminders/inbox, tasks with subtasks/trash and profile/avatar settings. Its shared light/dark shell
 preserves the existing API, session and calendar contracts. Official override editing,
-saved event views and mixed date projection remain API-only. Tasks require their future
-backend. The AI-04 chat/settings/usage UI is implemented locally; AI remains default-disabled and unactivated. See the [frontend guide](docs/architecture/frontend.md).
+saved event views and mixed date projection remain API-only. The AI-04
+chat/settings/usage UI is implemented locally; AI remains default-disabled and
+unactivated. See the [frontend guide](docs/architecture/frontend.md).
 
 Detailed behavior: [product overview](docs/product/overview.md) and
 [workspace requirements](docs/product/workspace.md).
@@ -563,7 +567,11 @@ See [workspace architecture](docs/architecture/workspace.md).
 
 ## 5.6 tasks
 
-Status: not implemented. Tasks are independent typed objects; ordinary note
+Status: task create/read/list/update, subtask hierarchy, recoverable branch trash,
+status/priority, exact deadlines, effort and optimistic versions are implemented
+with a browser task screen. Dependencies/page links, work blocks and scheduling
+remain not implemented; see
+[task contracts](docs/development/tasks.md). Tasks are independent typed objects; ordinary note
 checkboxes/database rows do not synchronize them. Deterministic planning is a task
 application service using calendar-owned availability, not business logic in an LLM.
 
@@ -1288,7 +1296,8 @@ record APIs, saved table/calendar views, date projection, versioned date moves a
 additive mixed calendar display. One-shot calendar reminders and durable in-app
 notifications are also implemented; see [reminders](docs/development/reminders.md).
 See [database delivery status](docs/development/databases.md) and
-[ADR 0007](docs/adr/0007-use-page-backed-database-records.md). Typed tasks,
+[ADR 0007](docs/adr/0007-use-page-backed-database-records.md). Task
+create/read/list/update, subtask hierarchy and branch trash are implemented; task dependencies,
 availability/conflicts, explicit work blocks and task/deadline reminders
 remain not implemented.
 Planning can be requested independently of database features.

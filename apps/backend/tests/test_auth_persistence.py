@@ -9,7 +9,18 @@ from uuid import uuid4
 import pytest
 from alembic.config import Config
 from pwdlib import PasswordHash
-from sqlalchemy import Connection, create_engine, func, insert, inspect, select, text, update
+from sqlalchemy import (
+    Connection,
+    MetaData,
+    Table,
+    create_engine,
+    func,
+    insert,
+    inspect,
+    select,
+    text,
+    update,
+)
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.schema import CreateSchema
@@ -105,6 +116,7 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "checkpoints",
         "checkpoint_blobs",
         "checkpoint_writes",
+        "tasks",
     }
     assert set(inspect(database_connection).get_table_names()) == expected
     command.check(config)
@@ -112,6 +124,33 @@ def test_migration_round_trip(database_connection: Connection) -> None:
     assert inspect(database_connection).get_table_names() == ["alembic_version"]
     command.upgrade(config, "head")
     assert set(inspect(database_connection).get_table_names()) == expected
+    command.check(config)
+
+
+@pytest.mark.parametrize(
+    ("revision", "table_name"),
+    [("0024_task_trash", "tasks"), ("0031_ai_action_proposals", "ai_conversations")],
+)
+def test_upgrade_from_each_branch_preserves_data(
+    database_connection: Connection, revision: str, table_name: str
+) -> None:
+    config = migration_config(database_connection)
+    command.downgrade(config, "0021_google_email_confirmations")
+    command.upgrade(config, revision)
+    user_id, item_id = uuid4(), uuid4()
+    database_connection.execute(insert(UserModel).values(id=user_id, email="merge@example.com"))
+    table = Table(table_name, MetaData(), autoload_with=database_connection)
+    values = {"id": item_id, "user_id": user_id, "title": "Preserved across merge"}
+    if table_name == "ai_conversations":
+        values.update(created_at=datetime.now(UTC), next_sequence=1)
+    database_connection.execute(table.insert().values(**values))
+
+    command.upgrade(config, "head")
+
+    assert (
+        database_connection.scalar(select(table.c.title).where(table.c.id == item_id))
+        == values["title"]
+    )
     command.check(config)
 
 

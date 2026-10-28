@@ -2086,6 +2086,7 @@ function CalendarWorkspace({
               onNavigate={navigate}
               onDirtyChange={setDirty}
               onChooseGroup={() => setShowGroupPicker(true)}
+              onSessionEnd={onSessionEnd}
               events={allEvents}
             />
           )}

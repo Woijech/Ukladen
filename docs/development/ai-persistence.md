@@ -10,6 +10,11 @@ no model worker dispatch; the existing worker performs bounded recovery/cleanup.
 
 ## Schema and migration impact
 
+Revision `0032_merge_ai_tasks` joins the AI head `0031_ai_action_proposals` with
+the task head `0024_task_trash`. This merge revision has no schema operations;
+`upgrade head` applies any missing revisions from both histories. Existing revision
+IDs and data remain intact. See [task migration contracts](tasks.md).
+
 [AI-04](ai-04.md) adds 0026_ai_preferences (one versioned, UTF-8-bounded instructions
 record per owner, independent of chat retention) and 0027_ai_price_snapshots
 (nullable configured price metadata on admitted runs, following journal retention).

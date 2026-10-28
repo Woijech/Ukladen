@@ -32,6 +32,7 @@ from app.modules.reminders.presentation.routes import install_reminders
 from app.modules.schedule.infrastructure.jobs import CeleryScheduleJobs
 from app.modules.schedule.presentation.routes import install_schedule
 from app.modules.search.presentation.routes import install_search
+from app.modules.tasks.presentation.routes import install_tasks
 from app.modules.users.presentation.routes import install_users
 from app.modules.workspace.presentation.routes import install_workspace
 from app.workers.logging import install_task_logging
@@ -110,6 +111,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_notes(application)
     install_materials(application)
     install_search(application)
+    install_tasks(application)
     install_reminders(application)
     install_notifications(application)
     install_relations(application)

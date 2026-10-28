@@ -6,7 +6,7 @@ pages work without a subject or university group. Official IIS facts stay separa
 from the user's changes.
 
 The product is under active development. The browser provides account registration/login, optional BSUIR group selection,
-a day/week calendar, notes, materials, databases, collections/tags, search,
+a day/week calendar, tasks with subtasks and recoverable trash, notes, materials, databases, collections/tags, search,
 reminders/inbox and profile settings in a shared light/dark interface. See the
 [frontend guide](docs/architecture/frontend.md) for current UI limits.
 
@@ -23,7 +23,9 @@ reminders/inbox and profile settings in a shared light/dark interface. See the
 | One-shot calendar reminders and in-app notifications | Implemented backend/UI for one-shot calendar reminders, pending cancellation and inbox |
 | Private materials, bounded document extraction and PostgreSQL full-text search | Implemented backend/UI for files/bookmarks, processing status and filtered full-text search |
 | Offline AI chat/run lifecycle | Implemented fake-only backend with accounting, checkpoints, bounded recovery and 30-day cleanup; disabled by default, migrations unapplied to the app; see [AI setup](docs/development/ai-setup.md) |
-| Tasks, free slots/conflicts, semantic search, real AI and RAG | Planned; runtime not implemented |
+| Independent tasks, subtasks, status/priority, deadlines/effort and recoverable branch trash | Implemented backend and browser UI; see [task delivery](docs/development/tasks.md) |
+| Semantic retrieval and complete-source analysis | AI-06 implemented locally; activation and real-model quality pending |
+| Task dependencies/links, work blocks, free slots/conflicts and live AI activation | Planned; runtime not implemented |
 | Collaboration, formulas and private IIS accounts/grades | Deferred; private API contracts unverified |
 
 The [product specification](docs/product/overview.md) and

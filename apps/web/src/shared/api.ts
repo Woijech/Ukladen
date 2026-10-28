@@ -2,6 +2,7 @@ export class RequestError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -28,7 +29,7 @@ export async function request(
       payload?.code === "registration_incomplete"
     ) {
       window.location.replace("/auth/complete-registration");
-      throw new SessionExpiredError(403, "Завершите регистрацию.");
+      throw new SessionExpiredError(403, "Завершите регистрацию.", payload.code);
     }
     if (path === "/api/v1/auth/login" && response.status === 401)
       throw new RequestError(response.status, "Неверная почта или пароль.");
@@ -42,17 +43,28 @@ export async function request(
       throw new SessionExpiredError(
         response.status,
         "Войдите в аккаунт, чтобы открыть личное пространство.",
+        payload?.code,
       );
     }
+    if (payload?.code === "task_version_conflict")
+      throw new RequestError(response.status, "Задача изменилась в другой вкладке. Загрузите актуальную версию перед повторным сохранением.", payload.code);
+    if (payload?.code === "task_hierarchy_conflict")
+      throw new RequestError(response.status, "Так нельзя изменить иерархию или статус задачи. Проверьте вложенные задачи и завершённые ветки.", payload.code);
+    if (payload?.code === "task_trash_conflict")
+      throw new RequestError(response.status, "Задача уже в корзине или восстановление доступно только через корень удалённой ветки.", payload.code);
+    if (payload?.code === "task_not_found")
+      throw new RequestError(response.status, "Задача не найдена или больше недоступна.", payload.code);
     if (response.status === 409)
       throw new RequestError(
         response.status,
         "Данные изменились. Обновите страницу и попробуйте ещё раз.",
+        payload?.code,
       );
     if (response.status === 403)
       throw new RequestError(
         response.status,
         "Сессия защиты устарела. Обновите страницу и повторите действие.",
+        payload?.code,
       );
     if (response.status === 422)
       throw new RequestError(
@@ -60,12 +72,14 @@ export async function request(
         payload?.detail === "Invalid academic selection."
           ? "Выбери группу и подгруппу из списка."
           : "Проверь заполненные данные.",
+        payload?.code,
       );
     throw new RequestError(
       response.status,
       response.status === 503
         ? "Сервис временно недоступен."
         : "Не удалось выполнить запрос.",
+      payload?.code,
     );
   }
   return response;

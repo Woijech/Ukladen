@@ -12,6 +12,11 @@ export const sections = [
     icon: "M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z",
   },
   {
+    id: "tasks",
+    title: "Задачи",
+    icon: "M9 5h12M9 12h12M9 19h12M3 5h.01M3 12h.01M3 19h.01",
+  },
+  {
     id: "notes",
     title: "Заметки",
     icon: "M14 2H5v20h14V7Zm0 0v5h5M7 12h8m-8 4h6",
@@ -100,17 +105,6 @@ export function Navigation({
             <span>{item.title}</span>
           </button>
         ))}
-      <span className="sidebar-section-label planned-label">В РАЗРАБОТКЕ</span>
-      <button
-        className="nav-item muted-nav"
-        disabled
-        aria-label="Задачи · в разработке"
-        title="Модуль задач ещё не реализован"
-      >
-        <NavIcon path="M9 5h12M9 12h12M9 19h12M3 5h.01M3 12h.01M3 19h.01" />
-        <span>Задачи</span>
-        <small>скоро</small>
-      </button>
       {footer}
     </nav>
   );

@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
-import { mockWorkspace, calendarEvent, profile } from "./workspace-fixtures";
+import { mockWorkspace, calendarEvent, profile, task } from "./workspace-fixtures";
 
 const pageId = "11111111-2222-4333-8444-555555555555";
 const databaseId = "22222222-2222-4333-8444-555555555555";
@@ -710,14 +710,8 @@ for (const viewport of [
     page,
   }, info) => {
     await page.setViewportSize(viewport);
-    await contentWorkspace(page);
-    await expect(
-      page.getByRole("button", {
-        name: "Задачи · в разработке",
-        exact: true,
-        includeHidden: true,
-      }),
-    ).toBeDisabled();
+    const { workspace } = await contentWorkspace(page);
+    workspace.tasks = [task({ title: "План проекта", description: "Задачи рядом с заметками и материалами" })];
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -727,6 +721,19 @@ for (const viewport of [
       path: info.outputPath("calendar-light.png"),
       animations: "disabled",
     });
+    await section(page, "Задачи");
+    await page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /План проекта/ }).click();
+    await expect(page.getByRole("region", { name: "Детали задачи" })).toContainText("Задачи рядом с заметками и материалами");
+    await page.screenshot({ path: info.outputPath("tasks-light.png"), animations: "disabled" });
+    await page.getByRole("button", { name: "Новая задача" }).click();
+    const taskDialog = page.getByRole("dialog", { name: "Новая задача", exact: true });
+    await expect(taskDialog).toBeVisible();
+    const taskBox = await taskDialog.boundingBox();
+    expect(taskBox!.width).toBeLessThan(viewport.width);
+    expect(taskBox!.height).toBeLessThan(viewport.height);
+    await page.screenshot({ path: info.outputPath("task-dialog.png"), animations: "disabled" });
+    await page.keyboard.press("Escape");
+    await expect(taskDialog).toHaveCount(0);
     if (viewport.width > 900) {
       await page
         .getByRole("button", { name: "Свернуть боковую панель" })
@@ -764,6 +771,10 @@ for (const viewport of [
       path: info.outputPath("calendar-dark.png"),
       animations: "disabled",
     });
+    await section(page, "Задачи");
+    await expect(page.getByRole("region", { name: "Список задач" })).toContainText("План проекта");
+    await expect(page.locator(".task-list-card")).toHaveCSS("background-color", "rgb(32, 28, 38)");
+    await page.screenshot({ path: info.outputPath("tasks-dark.png"), animations: "disabled" });
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,

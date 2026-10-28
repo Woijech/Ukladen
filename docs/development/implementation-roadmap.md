@@ -1,6 +1,6 @@
 # Backend Implementation Roadmap
 
-Updated: 2026-10-26.
+Updated: 2026-10-28.
 Status: implementation roadmap; completed slices are marked below. This document does not authorize starting the
 next phase; request a concrete slice before implementing it. Pages/blocks/databases,
 mandatory table/calendar views, personal scope and AI execution modes are confirmed.
@@ -38,8 +38,11 @@ existing services just to match target vocabulary. A package marker is not a fea
 | Workspace | Collections/tags, typed membership, event views and recoverable page-backed databases with table/calendar views | [Workspace](workspace.md), [calendar views](calendar-views.md), [databases](databases.md) |
 | Diagnostics | Correlated safe API/worker logs and rotation | [Logging](logging.md) |
 
-Calendar free slots/conflicts and tasks are not implemented. AI-06 semantic retrieval
-and complete-source analysis are implemented locally but unactivated.
+Standalone task create/read/list/update, subtask hierarchy and branch trash are
+implemented with a browser UI; see [tasks](tasks.md).
+Task dependencies/links, work blocks and calendar free slots/conflicts are not
+implemented. AI-06 semantic retrieval and complete-source analysis are implemented
+locally but unactivated.
 AI-02 adds optional [OpenRouter models and encrypted connections](ai-connections.md),
 implemented locally but unactivated. [AI-04](ai-04.md) adds a locally implemented
 streaming chat, source, settings and usage interface; activation remains pending.
@@ -53,14 +56,16 @@ Workspace organization exists;
 saved event views, user databases, table/calendar views and mixed date projection exist.
 Authenticated IIS is unverified/unimplemented.
 Frontend email/Google login/registration, explicit Google linking, browser email verification and password recovery,
-optional academic-group selection and day/week calendar personal-event create/edit/delete are implemented.
+optional academic-group selection, day/week calendar personal-event create/edit/delete
+and task management are implemented.
 Session isolation, sync-result freshness, full-day interval rendering and explicit
 timezone handling have deterministic browser regressions; see
 [frontend](../architecture/frontend.md). The separately requested frontend redesign
 adds the shared light/dark shell, flat block page editor, materials/search,
 collections/tags, database schemas/records/table and day/week/month saved views,
 reminders/inbox and profile/avatar settings. Official override editing, saved event
-views and mixed projection remain API-only. Tasks remain unavailable. AI-04 UI is implemented locally; AI remains default-disabled.
+views and mixed projection remain API-only. Tasks share the redesigned navigation,
+theme and dialogs. AI-04 UI is implemented locally; AI remains default-disabled.
 The P-01–P-08 sections below preserve their original backend-slice scope; their
 verification history is not evidence of rerunning backend checks for the UI work.
 
@@ -166,13 +171,20 @@ until explicitly scheduled. Formulas, rollups and automatic arbitrary workflows 
 
 ## 8. P-06 typed tasks and availability
 
-Status: not implemented. Dependencies: existing calendar; optional page links after P-02.
+Status: partially implemented — task create/read/list/update, status/priority,
+exact deadlines/effort, optimistic versions, owner-scoped subtask hierarchy,
+recoverable branch trash, authenticated APIs and task management UI are implemented;
+see [task contracts](tasks.md).
+Dependencies/page links,
+manual blocks and availability are not implemented. The owner selected manual-only
+incremental delivery; automatic planning and saved work preferences remain later work.
+Dependencies: existing calendar; optional page links after P-02.
 Can be requested earlier independently of databases. Q-07 is resolved: independent
 typed tasks with optional source links and no automatic checkbox/record synchronization.
 Future calendar contracts remain Q-05. See [AI planning requirements](../product/ai.md#6-calendar-and-deterministic-planning).
 
-Tasks support standalone CRUD, status/priority, optional deadline/effort and optional
-links. Define transition/dependency rules and prevent dependency cycles. Keep typed
+The complete target adds optional links and dependencies to the existing task
+fields and recoverable branch trash. Define dependency rules and prevent cycles. Keep typed
 planning state authoritative; a customizable row is not silently a task.
 
 Add calendar operations:
@@ -201,8 +213,8 @@ Do not force subjects into task creation or reject all intentional event overlap
 ## 9. P-07 reminders and notifications
 
 Status: implemented, backend only, for existing personal and official calendar targets.
-See [reminder/inbox contracts and recovery](reminders.md). Task/deadline targets remain
-not implemented because P-06 is not implemented; requesting P-07 does not start P-06.
+See [reminder/inbox contracts and recovery](reminders.md). Task/deadline reminder
+targets remain not implemented; basic tasks, hierarchy and trash are delivered under P-06.
 
 Delivered owner-scoped versioned CRUD/cancellation, elapsed-UTC-minute triggers,
 durable in-app notifications, idempotent read marking and typed target foreign keys.
@@ -225,8 +237,10 @@ the dedicated materials queue/worker. Failed parsing preserves original download
 Filtered PostgreSQL full-text retrieval covers canonical page blocks, material titles
 and derived file text with immediate owner/trash checks. Native S3, Redis task payloads,
 quota races, rollback/cleanup, fenced retries and existing avatar compatibility are
-tested. UI, legacy Office conversion, remote fetching, chunking, embeddings, semantic
-retrieval and AI/RAG remain not implemented. No deployment is performed by this slice.
+tested. Legacy Office conversion and remote fetching remain not implemented.
+Materials UI was delivered separately; chunking, embeddings, semantic retrieval and
+full-source AI processing are delivered locally under P-09, with activation pending.
+No deployment is performed by this slice.
 
 ## 11. P-09 AI help, recommendations, confirmed/automatic actions and RAG
 

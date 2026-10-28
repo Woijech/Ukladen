@@ -1,6 +1,6 @@
 # Workspace and Calendar Requirements
 
-Updated: 2026-10-22.
+Updated: 2026-10-25.
 Status: target requirements. Calendar, nested pages with flat typed blocks and page/calendar
 links, collections/tags and saved calendar views are implemented in the backend; see [notes](../development/notes.md),
 [relations](../development/relations.md), [workspace](../development/workspace.md)
@@ -14,6 +14,10 @@ implemented; see [materials/search](../development/materials.md).
 The [frontend guide](../architecture/frontend.md) records the delivered block editor,
 organization, database views, materials/search and reminder/inbox UI, including its
 limits. Saved event views and mixed projection remain API-only.
+Tasks support create/read/list/update, status/priority, exact deadlines/effort,
+subtask hierarchy and recoverable branch trash in the same browser shell.
+Dependencies/links, work blocks and availability remain planned; see
+[task delivery](../development/tasks.md).
 
 ## 1. Vocabulary
 

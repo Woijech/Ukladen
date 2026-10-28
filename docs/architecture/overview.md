@@ -64,8 +64,13 @@ external clients. Inter-module access must use application services or interface
 
 ## Scope
 
-Status: not implemented — free slots, conflict checks, task blocks,
-tasks, task/deadline reminders, semantic search, AI and RAG.
+Task create/read/list/update, subtask hierarchy, recoverable branch trash,
+status/priority, exact deadlines/effort and optimistic versions are implemented,
+with a browser task screen; see [tasks](../development/tasks.md).
+Status: not implemented — task dependencies/page links, free slots,
+conflict checks, task blocks, task/deadline reminders and private IIS. AI chat,
+confirmed actions, semantic retrieval and full-source processing are implemented
+locally but default-disabled and unactivated; see [AI setup](../development/ai-setup.md).
 Private materials, bounded document extraction, optional page attachments and lexical
 search are implemented, backend only; see [materials/search](../development/materials.md).
 One-shot calendar reminders and the durable inbox are implemented,

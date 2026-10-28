@@ -1,6 +1,6 @@
 # Product Decisions and Open Questions
 
-Updated: 2026-10-26.
+Updated: 2026-10-28.
 Status: decision register. Owner-confirmed scope is distinguished from open design
 choices. Proposed defaults are not owner confirmation; resolve relevant unknowns
 before implementing incompatible schemas, integrations or behavior.
@@ -162,6 +162,24 @@ application policy boundary for future user limits/subscriptions and existing ow
 usage accounting; billing, quota persistence and actual paid-model deployment remain
 separate work. Technical/server/provider throttles remain. See the
 [implemented catalog and access contract](../development/ai-connections.md).
+
+### Manual P-06 scope confirmed on 2026-10-21
+
+The owner selected backend-only incremental delivery, exact offset-aware deadlines,
+manual scheduling, advisory dependencies and page-only source links. Completing a
+parent requires closed active subtasks. Task removal uses recoverable branch trash;
+completion/cancellation/trash cancels future work blocks. Creation/moves are future-only.
+Availability windows are supplied per request. Overlaps and uncertain official sources
+require explicit acknowledgement and revalidation. AI and automatic scheduling are
+not part of this delivery. Basic task create/read/update is the first implementation
+increment; hierarchy, trash, dependencies, blocks and availability follow separately.
+See [task contracts and actual status](../development/tasks.md).
+
+On 2026-10-25, the owner confirmed the planned subtask invariants: optional
+same-owner parent, no product-level depth limit or cycles, no edit propagation,
+closed descendants before parent completion, no later active descendant beneath a
+completed ancestor, and atomic validation of combined parent/status updates.
+The hierarchy is now implemented in the backend; see the [subtask contract](../development/tasks.md#second-increment-subtask-hierarchy).
 
 | ID | Question | Proposed default | What depends on it |
 | --- | --- | --- | --- |

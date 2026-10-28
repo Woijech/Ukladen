@@ -1,6 +1,6 @@
 # Ukladen Frontend
 
-Status: implemented — shared light/dark shell, authentication and registration completion, optional group selection, day/week personal calendar, page/block editor, materials, collections/tags, database table/calendar views, search, reminders/inbox and profile/avatar settings, plus the locally implemented AI-04 chat/settings/usage UI. AI activation remains pending. The boundaries below distinguish these interfaces from future backend capabilities.
+Status: implemented — shared light/dark shell, authentication and registration completion, optional group selection, day/week personal calendar, tasks with subtasks/trash, page/block editor, materials, collections/tags, database table/calendar views, search, reminders/inbox and profile/avatar settings, plus the locally implemented AI-04 chat/settings/usage UI. AI activation remains pending. The boundaries below distinguish these interfaces from future backend capabilities.
 
 `apps/web` uses Next.js App Router, React and strict TypeScript. The root layout
 provides a TanStack Query client created once per mounted provider. The frontend
@@ -100,9 +100,20 @@ users without an academic profile can choose to connect a BSUIR group or continu
 without one. Group selection uses the existing group catalogue, group-context,
 profile PATCH and schedule-sync endpoints. The calendar displays the authenticated
 user's resolved week and supports personal-event create/edit/delete. Profile actions
-open the group selector, settings or revoke the current session. Tasks remain unavailable because their backend is not implemented. The AI section
+open the group selector, settings or revoke the current session. The AI section
 uses the default-disabled AI backend and explains missing activation/configuration. Official event details are
 read-only; override editing and saved event-calendar views remain API-only.
+
+Tasks use the same desktop/mobile navigation, shared API client, per-identity
+query cache and native dialogs as the other workspace sections. The paginated
+list supports status/priority filters, detail/edit forms, exact deadlines/effort,
+arbitrary-depth subtasks and parent moves. Branch trash requires confirmation;
+only a trash-batch root can restore its batch, preserving earlier independent
+deletions. The backend validates hierarchy and optimistic versions. Version
+conflicts retain the editor draft until explicit reload. Deadline input uses
+the profile timezone and explicit DST disambiguation. Task surfaces consume the
+shared light/dark tokens; task dependencies, scheduling and reminders are not
+implemented. See [task contracts](../development/tasks.md).
 
 The workspace checks `/api/v1/users/me` before mounting private data. Each authenticated
 identity owns a separate query client and mounted forms; logout, session expiry and
@@ -218,9 +229,10 @@ calculations. Permissions, schedule resolution and planning rules remain backend
 ## Target product responsibilities
 
 Status: partially implemented. Future UI includes official-event override editing,
-saved event-calendar views, mixed date projection and task features after their
-backend slices. [AI-04](../development/ai-04.md) implements read-only chat, sources,
-instructions, connections and usage; write/proposal/grant interfaces remain later stages. Subjects
+saved event-calendar views, mixed date projection and task scheduling after their
+backend slices. [AI-04](../development/ai-04.md) implements chat, sources,
+instructions, connections and usage; AI-07 adds confirmed proposals as described
+below. Automatic actions remain deferred. Subjects
 are optional navigation. Date labels and time reservations must be distinguishable.
 The planned AI write UI will expose exact proposals/confirmation and
 explicit automatic-action permission management. Shared editing and formulas are deferred.
@@ -236,7 +248,7 @@ ESLint uses Next.js's accessibility, React and TypeScript rules. `tsc --noEmit`
 provides type checking. Playwright runs Chromium tests against the built frontend:
 shell/connectivity success/failure, verification/reset link handling and workspace flows.
 Workspace tests cover account isolation/session expiry, registration/login and optional
-group onboarding, CSRF-protected personal CRUD, read-only official events, queued/fast
+group onboarding, CSRF-protected personal-event and task writes, read-only official events, queued/fast
 IIS imports and recovery, interval continuations, calendar timezones and DST inputs.
 Verification
 tests check one POST with cookies/CSRF/Origin, fragment/history cleanup, privacy
@@ -299,3 +311,29 @@ run completion and survive reload; confirmation does not call the model. Expired
 proposals cannot apply, and source fingerprints expose changed official facts even when
 numeric versions match. See [confirmed action contracts](../development/ai-07.md).
 Activation remains pending.
+
+Executed on 2026-10-25 for the task screen: frontend lint, TypeScript typecheck,
+production build, all **105 Playwright tests** (including four task flows), and
+quiet base Compose validation passed. Playwright used a temporary Chromium shell;
+no deployment or application database migration was performed. The tests mock
+task HTTP responses and do not replace backend PostgreSQL integration coverage.
+
+Executed on 2026-10-25 for task branch trash: frontend lint, TypeScript
+typecheck, production build, **106 Playwright tests** (including the trash and
+restore flow) and quiet base Compose validation passed. The browser test uses
+mock task HTTP responses; backend tests separately exercise PostgreSQL. No
+application database migration or deployment was performed.
+
+Executed on 2026-10-25 for workspace/task integration: frontend lint, TypeScript
+typecheck, production build and all **129 Chromium Playwright tests** passed.
+The combined suite covers task editing, conflicts, hierarchy, branch recovery,
+account isolation and the existing workspace panels. Task navigation and native
+dialogs were exercised at 1440, 834 and 390px; light/dark screenshots were
+visually inspected. Quiet base Compose validation also passed.
+
+Backend code is unchanged by this integration. Ruff, Ruff format check, Pyright
+and the default backend pytest suite passed: **1020 passed, 607 skipped,
+1 warning**. Native PostgreSQL/Redis/S3 integration services were not configured
+for this run; the warning is the existing Starlette/httpx deprecation. Earlier
+dated native-service results remain separate evidence. No application database
+migration, deployment or provider call was performed.

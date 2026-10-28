@@ -1,0 +1,28 @@
+from datetime import datetime
+from typing import Protocol
+from uuid import UUID
+
+from app.modules.tasks.domain.tasks import Task, TaskPriority, TaskStatus, TaskSummary
+
+
+class TaskRepository(Protocol):
+    """Owner-scoped storage in the caller's transaction; never commit independently."""
+
+    def create(self, task: Task) -> None: ...
+    def get(self, user_id: UUID, task_id: UUID) -> Task | None: ...
+    def list(
+        self,
+        user_id: UUID,
+        status: TaskStatus | None,
+        priority: TaskPriority | None,
+        limit: int,
+        offset: int,
+        parent_id: UUID | None = None,
+        roots_only: bool = False,
+        trashed: bool = False,
+    ) -> list[TaskSummary]: ...
+    def save(self, task: Task, expected_version: int) -> None: ...
+    def has_open_descendants(self, user_id: UUID, task_id: UUID) -> bool: ...
+    def has_open_batch_tasks(self, user_id: UUID, batch_id: UUID) -> bool: ...
+    def trash_branch(self, user_id: UUID, task_id: UUID, now: datetime) -> None: ...
+    def restore_batch(self, user_id: UUID, batch_id: UUID, now: datetime) -> None: ...

@@ -1,6 +1,6 @@
 # Ukladen Product Overview
 
-Updated: 2026-10-26.
+Updated: 2026-10-28.
 Status: target product specification; only capabilities listed as implemented
 below exist. Product references describe intent, not feature parity with another app.
 
@@ -116,10 +116,14 @@ External labels remain metadata, not authoritative grouping identities.
 
 ## 7. Tasks, planning and reminders
 
-Tasks and availability: status not implemented. Calendar reminders and durable
-in-app notifications are implemented with event reminder and inbox UI; see [reminder contracts](../development/reminders.md).
+Task create/read/list/update, status/priority, exact deadlines/effort, subtask
+hierarchy and recoverable branch trash are implemented with a browser task screen;
+see [tasks](../development/tasks.md). Task dependencies/links, work blocks and
+availability are not implemented.
+Calendar reminders and durable in-app notifications are implemented with event
+reminder and inbox UI; see [reminder contracts](../development/reminders.md).
 
-Planned tasks exist independently of subjects and pages. Targets include status, priority,
+Tasks exist independently of subjects and pages. The complete target includes status, priority,
 optional deadline, effort, dependencies, optional links and explicit calendar blocks.
 A deadline and a work block are separate concepts.
 
@@ -187,7 +191,8 @@ activation and real-provider answer quality remain unverified. See [AI architect
 | Date-bound calendar views, date moves and mixed calendar display | Implemented backend |
 | Rich/nested blocks and page-page knowledge links | Status: not implemented. |
 | One-shot calendar reminders and durable in-app notifications | Implemented backend |
-| Tasks, availability and task/deadline reminders | Status: not implemented. |
+| Task create/read/list/update, subtask hierarchy, recoverable branch trash, status/priority, exact deadline/effort and versions | Implemented backend and browser UI |
+| Task dependencies/links, work blocks, availability and task/deadline reminders | Status: not implemented. |
 | Private materials, page attachments and bounded document extraction | Implemented backend; no OCR |
 | Filtered PostgreSQL full-text search over pages/materials | Implemented backend |
 | Offline AI chat/run lifecycle and accounting | AI-01 complete, fake-only and disabled by default; bounded execution/recovery, 30-day cleanup and minimal replay protection; migrations tested only on disposable data |
@@ -200,7 +205,6 @@ activation and real-provider answer quality remain unverified. See [AI architect
 | Flat block pages, materials/search, collections/tags, database saved views, reminders/inbox and profile/avatar UI | Implemented; see [frontend scope and limits](../architecture/frontend.md) |
 | Official override editing, saved event views and mixed calendar display UI | Status: not implemented; backend APIs exist. |
 | AI chat/settings/usage UI | Implemented locally under AI-04; default-disabled backend, activation and live-provider quality pending. |
-| Tasks UI | Status: not implemented; tasks backend absent. |
 
 ## 10. Development approach
 
