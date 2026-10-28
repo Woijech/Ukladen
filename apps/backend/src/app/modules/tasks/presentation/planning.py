@@ -19,8 +19,10 @@ from app.modules.calendar.presentation.availability_schemas import (
 )
 from app.modules.calendar.presentation.routes import Calendar
 from app.modules.tasks.application.planning import PlanningService
+from app.modules.tasks.application.plans import PlanPreview, PlanRequest, PlanService
 from app.modules.tasks.domain.planning import WeeklyWindow, WorkPreferences
 from app.modules.tasks.infrastructure.planning import SqlAlchemyPlanning
+from app.modules.tasks.infrastructure.plans import SqlAlchemyPlans
 from app.modules.tasks.presentation.routes import Tasks
 
 router = APIRouter(
@@ -174,3 +176,43 @@ def change_session(
         return SessionResponse.model_validate(
             planning.change_session(current.user_id, session_id, **payload.model_dump())
         )
+
+
+class PlanDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    accept_partial: bool = Field(default=False, strict=True)
+
+
+def get_plans(database: Database, planning: Planning) -> PlanService:
+    return PlanService(planning, SqlAlchemyPlans(database))
+
+
+Plans = Annotated[PlanService, Depends(get_plans)]
+
+
+@router.post("/plans", response_model=PlanPreview, dependencies=[Depends(require_csrf)])
+def propose_plan(
+    payload: PlanRequest, current: CurrentSession, database: Database, plans: Plans
+) -> PlanPreview:
+    with database.begin():
+        database.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+        return plans.propose(current.user_id, payload)
+
+
+@router.get("/plans/{plan_id}", response_model=PlanPreview)
+def get_plan(
+    plan_id: UUID, current: CurrentSession, database: Database, plans: Plans
+) -> PlanPreview:
+    with database.begin():
+        return plans.get(current.user_id, plan_id)
+
+
+@router.post(
+    "/plans/{plan_id}/apply", response_model=PlanPreview, dependencies=[Depends(require_csrf)]
+)
+def apply_plan(
+    plan_id: UUID, payload: PlanDecision, current: CurrentSession, database: Database, plans: Plans
+) -> PlanPreview:
+    with database.begin():
+        return plans.apply(current.user_id, plan_id, **payload.model_dump())

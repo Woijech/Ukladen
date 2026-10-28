@@ -41,3 +41,37 @@ nonexistent DST local times, requiring explicit dated windows instead.
 
 Migration 0035 preserves existing task values. Populated planning data prevents
 lossy downgrade. No real provider request or application migration was performed.
+
+## Deterministic plans
+
+Implemented locally on 2026-10-28. `POST /plans` accepts task IDs, an explicit
+future interval of at most 31 days, optional dated windows and `replan`. Dated
+windows override this request only. Without them, weekly windows expand in the
+profile timezone. Missing windows yield a conditional preview. Inputs are bounded
+at 100 selected tasks, 2,000 current tasks, 10,000 dependencies/reservations and
+512 proposed sessions; excess facts reject rather than disappear silently.
+
+The planner expands selected parents to leaves and counts each leaf once. It
+requires explicit remaining minutes, orders eligible work by deadline/priority,
+respects predecessor completion before successors, and reserves 45/15 sessions/
+breaks by default. A final remainder may be shorter than 15 minutes. It preserves
+suitable existing unpinned reservations before adding new sessions. Replanning
+may cancel future unpinned sessions (including manual ones) entirely inside its
+interval; pinned, started, past and out-of-range sessions remain protected.
+Protected future reservations consume the explicit remaining budget. Past work
+never does. Unresolved predecessors, unknown remainder and unplaced minutes are
+reported separately. The greedy algorithm does not claim a global optimum.
+
+`GET /plans/{id}` returns the immutable preview. `POST /plans/{id}/apply` requires
+its exact `digest`, plus `accept_partial=true` for an incomplete plan. Previews
+expire after 24 hours or when their interval starts. The whole plan revalidates
+all captured inputs under owner/source locks; any change rejects all writes.
+New sessions, cancellations and the durable applied receipt share one transaction.
+Replay of an applied plan returns its receipt even if tasks later change. Plan
+receipts belong to the owner and survive chat retention; account deletion removes
+them. Migration 0036 refuses a lossy populated downgrade.
+
+Expected but unknown/stale official coverage permits conditional previews only.
+The verified IIS contract currently provides no completeness proof; a ready
+status or term dates cannot lift that restriction. Users without academic profiles
+can apply plans against their personal calendar and task sessions.

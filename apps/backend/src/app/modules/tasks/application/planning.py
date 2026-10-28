@@ -72,6 +72,7 @@ class PlanningService:
         interval = TimeInterval(starts_at, ends_at)
         if (
             interval.ends_at - interval.starts_at > timedelta(days=1)
+            or (interval.ends_at - interval.starts_at).total_seconds() % 60 != 0
             or interval.starts_at <= self.tasks.now()
         ):
             raise InvalidTaskInput()
