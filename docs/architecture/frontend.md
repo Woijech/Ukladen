@@ -170,6 +170,10 @@ network font downloads. Use the existing spacing, radii, button and field classe
 - `workspace/workspace.css`: shared workspace and panel layout. Reuse its panels,
   toolbar, form, list, action and confirmation patterns before adding variants.
 
+The sidebar initially exposes Calendar, Notes and Tasks; More reveals the existing
+secondary sections (dashboard, materials, databases, organization, search, inbox and
+AI). Search and notifications also retain their topbar shortcuts. Settings stays in
+the footer. Selecting a secondary section never removes its existing functionality.
 The desktop sidebar can collapse. At 900px and below it becomes an explicit mobile
 navigation dialog; page toolbars wrap, note lists stack and forms scroll within
 viewport-bounded dialogs. Dense calendars/tables scroll inside their own regions
@@ -227,8 +231,15 @@ also cover all newly mounted panels.
 The current weekly calendar is rendered with React and CSS. Unused Zustand and
 FullCalendar packages were removed during the 2026-10-21 audit; they remain target
 stack candidates in the primary architecture, not current runtime dependencies.
-The calendar uses backend-resolved events and does not implement drag-and-drop or availability
-calculations. Permissions, schedule resolution and planning rules remain backend-owned.
+The calendar uses backend-resolved events. Personal-event boundaries support native
+pointer resizing and keyboard preview/commit over the existing versioned PATCH API.
+Event movement and availability calculations remain unimplemented. Permissions,
+schedule resolution and planning rules remain backend-owned. Clicking a calendar
+entry opens a dedicated detail screen; editing a personal event is an explicit next
+action. The screen exposes notes, note-owned materials, related events through an
+explicit shared note, and reminders. Official occurrences remain read-only. Late
+related-event reads cannot replace a newer navigation choice or a private draft.
+See [calendar interaction contracts](../development/calendar.md#calendar-ui-2026-10-28).
 
 ## Target product responsibilities
 
@@ -352,3 +363,15 @@ editing/copying and deep-tree overflow. Light/dark screenshots were inspected at
 1440, 834 and 390px. Browser tests mock HTTP responses; backend Ruff/Pyright/pytest
 and live backend integration were not rerun because backend code/contracts are
 unchanged. No application deployment, migration or real AI-provider call occurred.
+
+Executed on 2026-10-28 for contextual calendar navigation and personal-event resizing:
+frontend lint, TypeScript checking, production build, all **162 Chromium tests**,
+quiet Compose validation, changed-document file links and diff checks passed. The
+11 calendar regressions were also rerun after the final copy/screenshot adjustments.
+Light/dark event-detail screenshots were inspected at 1440, 834 and 390px. Coverage
+includes pointer/keyboard resize, cancellation, duplicate-write guards, stale versions,
+service failures, midnight clipping, repeated DST hours, compact navigation, linked
+notes/materials and abandoning late navigation reads after draft editing. Browser APIs
+are mocked; no real provider traffic, deployment or running-database migration occurred.
+Backend checks/live integration were not rerun because backend code and contracts
+are unchanged.

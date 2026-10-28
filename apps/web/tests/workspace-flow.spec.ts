@@ -31,10 +31,10 @@ test("registration, group import, personal CRUD and returning-user login work to
   await expect(page.locator(".event-card")).toContainText("IIS lesson");
   expect(state.writes.find(write => write.path === "/api/v1/academics/me")?.body).toEqual({ group_id: 1, subgroup: 2 });
   await page.locator(".event-card").click();
-  await expect(page.locator(".event-readonly")).toContainText("Algorithms");
-  await expect(page.locator(".event-readonly")).toContainText("101-1");
-  await expect(page.locator(".event-readonly").getByRole("button", { name: "Сохранить", exact: true })).toHaveCount(0);
-  await page.locator(".event-readonly .primary-button").click();
+  await expect(page.locator(".event-detail")).toContainText("Algorithms");
+  await expect(page.locator(".event-detail")).toContainText("101-1");
+  await expect(page.locator(".event-detail").getByRole("button", { name: "Сохранить", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: /К календарю/ }).click();
 
   await page.getByRole("button", { name: "Новое событие", exact: true }).click();
   await page.getByLabel("Название", { exact: true }).fill("Study plan");
@@ -42,11 +42,12 @@ test("registration, group import, personal CRUD and returning-user login work to
   await page.locator(".event-modal").getByRole("button", { name: "Добавить событие" }).click();
   await expect(page.locator(".event-card")).toHaveCount(2);
   await page.locator(".event-card").filter({ hasText: "Study plan" }).click();
+  await page.getByRole("button", { name: "Изменить событие", exact: true }).click();
   await page.getByLabel("Название", { exact: true }).fill("Updated plan");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
-  await expect(page.locator(".event-card").filter({ hasText: "Updated plan" })).toHaveCount(1);
+  await expect(page.getByRole("heading", { name: "Updated plan", exact: true })).toBeVisible();
   expect(state.writes.find(write => write.path.includes("/personal-events/") && write.method === "PATCH")?.body).toMatchObject({ expected_version: 1, title: "Updated plan", description: "Prepare exercises" });
-  await page.locator(".event-card").filter({ hasText: "Updated plan" }).click();
+  await page.getByRole("button", { name: "Изменить событие", exact: true }).click();
   await page.getByRole("button", { name: "Удалить", exact: true }).click();
   await page.getByRole("button", { name: "Удалить событие", exact: true }).click();
   await expect(page.locator(".event-card")).toHaveCount(1);

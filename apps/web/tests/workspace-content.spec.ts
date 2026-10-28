@@ -3,6 +3,7 @@ import { writeFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import {
   mockWorkspace,
+  navigateSection as section,
   calendarEvent,
   profile,
   task,
@@ -445,25 +446,6 @@ async function contentWorkspace(page: Page) {
   return { workspace, state };
 }
 
-async function section(page: Page, name: string) {
-  if (
-    await page
-      .getByRole("button", { name: "Открыть навигацию", exact: true })
-      .isVisible()
-  ) {
-    await page
-      .getByRole("button", { name: "Открыть навигацию", exact: true })
-      .click();
-    await page
-      .getByRole("dialog", { name: "Навигация", exact: true })
-      .getByRole("button", { name, exact: true })
-      .click();
-  } else
-    await page
-      .locator(".sidebar")
-      .getByRole("button", { name, exact: true })
-      .click();
-}
 
 test("block editing preserves IDs and Markdown format, supports reorder, guards navigation and saves with versions", async ({
   page,
@@ -862,6 +844,7 @@ test("calendar source filters only change display, and day view keeps original e
   await page.getByRole("menuitemradio", { name: /День/ }).click();
   await expect(page.locator(".day-column")).toHaveCount(1);
   await page.locator(".event-card").click();
+  await page.getByRole("button", { name: "Изменить событие", exact: true }).click();
   await expect(page.getByLabel("Начало", { exact: true })).toHaveValue(
     "2026-10-16T14:00",
   );
@@ -872,7 +855,6 @@ test("event reminders bind to the original event and use the real one-shot API",
 }) => {
   const { state, workspace } = await contentWorkspace(page);
   await page.locator(".event-card.personal-event").click();
-  await page.getByRole("button", { name: /Заметки и напоминания/ }).click();
   await page.getByRole("button", { name: "Напомнить", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Напоминание создано");
   expect(
@@ -1080,6 +1062,7 @@ test("profile edits refresh calendar timezone without changing event instants", 
     page.getByRole("button", { name: "Профиль в боковой панели" }),
   ).toContainText("Александра");
   await page.locator(".event-card.personal-event").click();
+  await page.getByRole("button", { name: "Изменить событие", exact: true }).click();
   await expect(page.locator(".calendar-timezone")).toContainText(
     "Europe/Minsk",
   );

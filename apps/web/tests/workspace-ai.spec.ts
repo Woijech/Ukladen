@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { Proposal } from "../src/app/workspace/panels/ai-actions";
-import { login, mockWorkspace } from "./workspace-fixtures";
+import { login, mockWorkspace, navigateSection } from "./workspace-fixtures";
 
 const chatId = "11111111-2222-4333-8444-555555555555";
 const pageId = "22222222-2222-4333-8444-555555555555";
@@ -520,7 +520,7 @@ test("logout and another account discard AI drafts and cached chats", async ({
   await login(page);
   await page.getByRole("button", { name: "Пока без группы" }).click();
   await expect(page.getByText("Private unfinished question")).toHaveCount(0);
-  await page.getByRole("button", { name: "AI", exact: true }).click();
+  await navigateSection(page, "AI");
   await expect(page.getByRole("button", { name: /Подготовка/ })).toHaveCount(0);
 });
 

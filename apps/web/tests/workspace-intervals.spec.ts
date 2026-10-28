@@ -22,6 +22,7 @@ test("the whole day and overnight continuations occupy their actual intervals", 
   await expect(night.nth(1)).toHaveCSS("height", "54px");
   await expect(page.locator(".event-card").filter({ hasText: "Long plan" })).toHaveCSS("height", "486px");
   await night.nth(1).click();
+  await page.getByRole("button", { name: "Изменить событие", exact: true }).click();
   await expect(page.getByLabel("Начало", { exact: true })).toHaveValue("2026-10-16T23:00");
   await expect(page.getByLabel("Окончание", { exact: true })).toHaveValue("2026-10-17T01:00");
 });
@@ -35,9 +36,11 @@ test("an event starting before the week remains visible on Monday without naviga
   await expect(card).toHaveCSS("top", "0px");
   await expect(card).toHaveCSS("height", "54px");
   await card.click();
-  await expect(page.locator(".week-title strong")).toContainText("12 октября");
+  await page.getByRole("button", { name: "Изменить событие", exact: true }).click();
   await expect(page.getByLabel("Название", { exact: true })).toHaveValue("Week continuation");
   await page.getByRole("button", { name: "Отмена", exact: true }).click();
+  await page.getByRole("button", { name: /К календарю/ }).click();
+  await expect(page.locator(".week-title strong")).toContainText("12 октября");
   await expect(page.locator(".agenda-row")).toContainText("Week continuation");
 });
 

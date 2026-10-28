@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useState, type ReactNode } from "react";
 
 export const sections = [
   {
@@ -86,25 +88,55 @@ export function Navigation({
   onNavigate: (section: SectionKey) => void;
   footer?: ReactNode;
 }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const primary = new Set<SectionKey>(["calendar", "notes", "tasks"]);
+  const secondaryActive = !primary.has(active) && active !== "settings";
+  function item(section: (typeof sections)[number]) {
+    return (
+      <button
+        type="button"
+        className={`nav-item ${active === section.id ? "active" : ""}`}
+        aria-current={active === section.id ? "page" : undefined}
+        key={section.id}
+        aria-label={section.title}
+        onClick={() => onNavigate(section.id)}
+        title={section.title}
+      >
+        <NavIcon path={section.icon} />
+        <span>{section.title}</span>
+      </button>
+    );
+  }
   return (
     <nav className="workspace-navigation" aria-label="Разделы пространства">
-      <span className="sidebar-section-label">ПРОСТРАНСТВО</span>
-      {sections
-        .filter((item) => item.id !== "settings")
-        .map((item) => (
-          <button
-            type="button"
-            className={`nav-item ${active === item.id ? "active" : ""}`}
-            aria-current={active === item.id ? "page" : undefined}
-            key={item.id}
-            aria-label={item.title}
-            onClick={() => onNavigate(item.id)}
-            title={item.title}
-          >
-            <NavIcon path={item.icon} />
-            <span>{item.title}</span>
-          </button>
-        ))}
+      <span className="sidebar-section-label">МОЁ ПРОСТРАНСТВО</span>
+      {(["calendar", "notes", "tasks"] as const).map((id) =>
+        item(sections.find((section) => section.id === id)!),
+      )}
+      <button
+        type="button"
+        className={`nav-item ${secondaryActive ? "active" : ""}`}
+        aria-label="Ещё"
+        aria-expanded={moreOpen}
+        onClick={() => setMoreOpen(!moreOpen)}
+        title="Ещё"
+      >
+        <NavIcon path="M5 12h.01M12 12h.01M19 12h.01" />
+        <span>Ещё</span>
+      </button>
+      {moreOpen && (
+        <div
+          className="secondary-navigation"
+          aria-label="Дополнительные разделы"
+        >
+          {sections
+            .filter(
+              (section) =>
+                !primary.has(section.id) && section.id !== "settings",
+            )
+            .map(item)}
+        </div>
+      )}
       {footer}
     </nav>
   );

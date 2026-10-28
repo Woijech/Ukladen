@@ -18,6 +18,7 @@ export async function mockWorkspace(page: Page) {
     registrationComplete: true,
     profile: null as typeof profile | null, status: { ...ready },
     events: [] as ReturnType<typeof calendarEvent>[],
+    eventCode: 200,
     tasks: [] as ReturnType<typeof task>[], taskConflictOnce: false, taskHierarchyConflictOnce: false,
     holdCalendar: null as Promise<void> | null,
     calendarCode: 200, groupSourceCode: 200, syncStatusCode: 200, authCode: 200, syncCode: 202, onSync: null as (() => void) | null,
@@ -61,11 +62,22 @@ export async function mockWorkspace(page: Page) {
       return route.fulfill({ status: state.calendarCode, json: { events: state.events, timezone: state.timezone, source: state.profile ? state.status : null, warnings: [] } });
     }
     if (path.startsWith("/api/v1/calendar/personal-events")) {
+      if (state.eventCode !== 200) return route.fulfill({ status: state.eventCode, json: {} });
       if (method === "DELETE") { state.events = state.events.filter(event => event.source_event_id !== path.split("/").at(-1)); return route.fulfill({ status: 204 }); }
-      const event = calendarEvent({ ...request.postDataJSON(), version: method === "PATCH" ? 2 : 1 });
+      if (method === "PATCH") {
+        const current = state.events.find(event => event.source_event_id === path.split("/").at(-1));
+        if (!current) return route.fulfill({ status: 404, json: {} });
+        const { expected_version, ...changes } = request.postDataJSON();
+        if (expected_version !== current.version) return route.fulfill({ status: 409, json: {} });
+        Object.assign(current, changes, { version: current.version + 1 });
+        return route.fulfill({ json: { ...current, id: current.source_event_id } });
+      }
+      const event = calendarEvent({ ...request.postDataJSON(), version: 1 });
       state.events = [...state.events.filter(item => item.id !== event.id), event];
-      return route.fulfill({ status: method === "POST" ? 201 : 200, json: { ...event, id: event.source_event_id } });
+      return route.fulfill({ status: 201, json: { ...event, id: event.source_event_id } });
     }
+    if (method === "GET" && (path === "/api/v1/notes/pages" || path.startsWith("/api/v1/relations/")))
+      return route.fulfill({ json: { items: [], limit: 200, offset: 0 } });
     if (path === "/api/v1/tasks" && method === "GET") {
       const params = new URL(request.url()).searchParams;
       const offset = Number(params.get("offset") ?? 0);
@@ -122,4 +134,15 @@ export async function login(page: Page) {
   await page.getByLabel("Электронная почта").fill("test@example.com");
   await page.getByLabel("Пароль", { exact: true }).fill("a-test-password-123");
   await page.getByRole("button", { name: "Войти", exact: true }).click();
+}
+
+
+export async function navigateSection(page: Page, name: string) {
+  const mobile = page.getByRole("button", { name: "Открыть навигацию", exact: true });
+  const isMobile = await mobile.isVisible();
+  if (isMobile) await mobile.click();
+  const scope = isMobile ? page.getByRole("dialog", { name: "Навигация", exact: true }) : page.locator(".sidebar");
+  const target = scope.getByRole("button", { name, exact: true });
+  if (!await target.isVisible()) await scope.getByRole("button", { name: "Ещё", exact: true }).click();
+  await target.click();
 }

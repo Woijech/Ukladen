@@ -241,3 +241,52 @@ service/repository/domain compatibility code and its original tests are retained
 Legacy reads return complete descriptions written through the expanded API, including
 those longer than the legacy 4000-character write limit.
 New clients should use the explicit versioned `/personal-events` contract.
+
+
+## Calendar UI (2026-10-28)
+
+Implemented on existing contracts: three primary navigation entries (Calendar, Notes,
+Tasks), an expandable More group for the other sections and a dedicated event detail
+screen. Calendar events open details before editing. Personal details expose an
+explicit edit action using the existing form/version checks. Official details retain
+IIS subject/room/teacher facts and their read-only behavior. Returning to the calendar
+retains its selected date and day/week view.
+
+Event details expose the existing page links, atomic linked-page creation and one-shot
+reminders. Linked pages expose their existing material attachment controls and an
+optional list of other events attached to that same page. Relations are explicit:
+matching subject titles never create links. Material associations remain page-owned;
+no direct event/material or event/event persistence contract is invented. Linked-page
+lists paginate in batches of 200, related-event lists in batches of 50; historical
+references remain labeled and do not offer a current-calendar open action. Unlinking
+retains both endpoint objects. Related-event navigation resolves the current occurrence
+through normal calendar reads and abandons a response after intervening navigation or
+draft editing. Private state still belongs to the authenticated workspace instance.
+
+Personal events support native pointer resizing of their real visible start/end
+boundaries; clipped midnight/week edges are not resize targets. Small cards expose
+only the end handle, with exact start editing available from event details. Pointer
+movement previews locally in 15-minute elapsed-time increments; release sends one
+PATCH containing the changed boundary and the gesture's original expected version.
+A no-op gesture sends nothing. The interval stays positive (at least one minute for
+this gesture) and a dragged boundary stays within its displayed day. Other fields
+are omitted and preserved. No drag library or new dependency was added.
+
+Keyboard users can focus a handle, adjust with Up/Down in 15-minute steps, commit with
+Enter and cancel with Escape. Blur cancels a keyboard preview; pointer cancellation
+also discards a preview. Touch uses the same pointer handlers with visible controls.
+Only confirmed writes update cached events. Pending writes block duplicate submits;
+errors/conflicts clear the local preview, show feedback and refresh authoritative
+calendar data before a deliberate retry. The grid uses elapsed instants and existing
+23/25-hour day boundaries, preserving DST offsets and original seconds. Official
+occurrences have no resize controls and no override writes are introduced by this slice.
+
+This is frontend delivery only: API/DTO/schema contracts, migrations, availability,
+recurrence, busy-time semantics, IIS synchronization and AI activation are unchanged.
+
+Frontend verification on 2026-10-28: lint, typecheck, production build, the full 162-test
+Chromium suite, Compose validation, changed-document file links and diff checks passed.
+The 11 calendar tests also passed after final copy/screenshot adjustments. Light/dark
+event screens were inspected at desktop/tablet/mobile widths. These mocked-HTTP tests
+are separate from the dated native backend checks above; no live deployment or provider
+request was performed.

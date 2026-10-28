@@ -5,13 +5,15 @@ import Image from "next/image";
 import dynamic from "next/dynamic";
 import { ThemeToggle } from "@/shared/theme";
 import { Modal } from "@/shared/ui";
-import { EventExtras } from "./panels/event-extras";
+import { CalendarCard } from "./calendar-card";
+import { EventDetail } from "./event-detail";
 import { Navigation, NavIcon, sections, type SectionKey } from "./navigation";
 import {
   RequestError,
   SessionExpiredError,
   requestJson,
   csrfToken,
+  writeJson,
 } from "@/shared/api";
 import { Brand } from "@/shared/brand";
 import { GoogleAuth } from "@/shared/google-auth";
@@ -52,7 +54,7 @@ const WorkspaceViews = dynamic(
   },
 );
 
-type CalendarEvent = {
+export type CalendarEvent = {
   id: string;
   source: "official" | "personal";
   source_event_id: string;
@@ -999,8 +1001,11 @@ function CalendarWorkspace({
   const [dirty, setDirty] = useState(false);
   const [pendingSection, setPendingSection] = useState<SectionKey | null>(null);
   const [pageToOpen, setPageToOpen] = useState<string | null>(linkedPage);
+  const navigationVersion = useRef(0);
   function navigate(next: SectionKey) {
+    navigationVersion.current++;
     if (next === section) {
+      if (next === "calendar") setDetailEvent(null);
       setMobileNavigation(false);
       return;
     }
@@ -1008,6 +1013,7 @@ function CalendarWorkspace({
       setPendingSection(next);
       return;
     }
+    if (next === "calendar") setDetailEvent(null);
     setSection(next);
     setMobileNavigation(false);
   }
@@ -1042,9 +1048,10 @@ function CalendarWorkspace({
   );
   const [showPersonal, setShowPersonal] = useState(true);
   const [showOfficial, setShowOfficial] = useState(true);
-  const [officialEvent, setOfficialEvent] = useState<CalendarEvent | null>(
-    null,
-  );
+  const [detailEvent, setDetailEvent] = useState<CalendarEvent | null>(null);
+  const [resizeBusy, setResizeBusy] = useState(false);
+  const [resizeError, setResizeError] = useState("");
+  const resizeLock = useRef(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
 
   const weekStart = useMemo(() => startOfWeek(selected), [selected]);
@@ -1123,7 +1130,7 @@ function CalendarWorkspace({
   useEffect(() => {
     if (calendarScroll.current)
       calendarScroll.current.scrollTop = 8 * hourHeight;
-  }, [range.from, showGroupPicker, section]);
+  }, [range.from, showGroupPicker, section, detailEvent]);
 
   const syncStatus =
     syncStatusQuery.data?.group_id === meQuery.data?.group.id
@@ -1273,10 +1280,63 @@ function CalendarWorkspace({
   }
 
   function openEvent(item: CalendarEvent) {
-    if (item.source === "official") {
-      setOfficialEvent(item);
-      return;
+    navigationVersion.current++;
+    setDetailEvent(item);
+  }
+  async function openLinkedEvent(
+    id: string,
+    startsAt: string,
+    source: "personal" | "official",
+  ) {
+    if (dirty) throw new Error("Сохрани черновик перед переходом к событию.");
+    const intentVersion = navigationVersion.current;
+    const day = dateKey(new Date(startsAt), timeZone);
+    const calendar = await requestJson<CalendarPayload>(
+      `/api/v1/calendar/events?date_from=${day}&date_to=${day}&include_hidden=true`,
+    );
+    if (intentVersion !== navigationVersion.current) return;
+    const item = calendar.events.find(
+      (event) => event.source === source && event.source_event_id === id,
+    );
+    if (!item)
+      throw new Error(
+        "Событие изменилось или больше недоступно. Открой календарь для проверки.",
+      );
+    setSelected(day);
+    navigate("calendar");
+    openEvent(item);
+  }
+  async function resizeEvent(
+    item: CalendarEvent,
+    edge: "starts_at" | "ends_at",
+    value: string,
+  ) {
+    if (item.source !== "personal" || resizeLock.current) return;
+    resizeLock.current = true;
+    setResizeBusy(true);
+    setResizeError("");
+    try {
+      await writeJson(
+        `/api/v1/calendar/personal-events/${item.source_event_id}`,
+        "PATCH",
+        { expected_version: item.version, [edge]: value },
+      );
+      await queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] });
+      setToast("Время события изменено");
+    } catch (error) {
+      setResizeError(
+        error instanceof Error
+          ? error.message
+          : "Не удалось изменить время. Изменение не подтверждено.",
+      );
+      await queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] });
+    } finally {
+      resizeLock.current = false;
+      setResizeBusy(false);
     }
+  }
+  function editEvent(item: CalendarEvent) {
+    if (item.source !== "personal") return;
     setEditingEvent(item);
     setTitle(item.title);
     setLocation(item.location ?? "");
@@ -1374,6 +1434,7 @@ function CalendarWorkspace({
       setShowEventForm(false);
       setEditingEvent(null);
       setPendingDelete(null);
+      setDetailEvent(null);
       setToast("Событие удалено");
       await queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] });
       window.setTimeout(() => setToast(""), 2600);
@@ -1601,14 +1662,34 @@ function CalendarWorkspace({
         </header>
 
         <div className="content-wrap">
-          {section === "calendar" ? (
+          {section === "calendar" && detailEvent ? (
+            <EventDetail
+              event={
+                allEvents.find((event) => event.id === detailEvent.id) ??
+                detailEvent
+              }
+              timeZone={timeZone}
+              onBack={() => {
+                navigationVersion.current++;
+                setDetailEvent(null);
+              }}
+              onEdit={() =>
+                editEvent(
+                  allEvents.find((event) => event.id === detailEvent.id) ??
+                    detailEvent,
+                )
+              }
+              onOpenPage={openPage}
+              onOpenEvent={openLinkedEvent}
+            />
+          ) : section === "calendar" ? (
             <>
               <div className="page-heading">
                 <div>
                   <div className="greeting">ТВОЯ НЕДЕЛЯ</div>
                   <h1>Календарь</h1>
                   <p className="heading-subtitle">
-                    Спокойный взгляд на предстоящие дни.
+                    Нажми на событие, чтобы открыть заметки и материалы.
                   </p>
                 </div>
                 <button
@@ -1620,6 +1701,33 @@ function CalendarWorkspace({
                 </button>
               </div>
 
+              <p
+                id="calendar-resize-help"
+                className="calendar-interaction-hint"
+              >
+                Потяни за край личного события, чтобы изменить время. С
+                клавиатуры: ↑ ↓ — 15 минут, Enter — сохранить, Esc — отменить.
+              </p>
+              {resizeBusy && (
+                <p className="action-notice" role="status">
+                  Сохраняем время…
+                </p>
+              )}
+              {resizeError && (
+                <div className="inline-error" role="alert">
+                  {resizeError}{" "}
+                  <button
+                    type="button"
+                    className="text-action"
+                    onClick={() => {
+                      setResizeError("");
+                      void calendarQuery.refetch();
+                    }}
+                  >
+                    Обновить календарь
+                  </button>
+                </div>
+              )}
               <section
                 className="calendar-card"
                 aria-label="Календарь на неделю"
@@ -1859,64 +1967,27 @@ function CalendarWorkspace({
                             )}
                             {dayEvents.map((segment) => {
                               const item = segment.originalEvent;
-                              const start = new Date(segment.starts_at);
-                              const finish = new Date(segment.ends_at);
-                              const top =
-                                ((start.getTime() -
-                                  boundaries[dayIndex].getTime()) /
-                                  3_600_000) *
-                                hourHeight;
-                              const height = Math.max(
-                                1,
-                                ((finish.getTime() - start.getTime()) /
-                                  3_600_000) *
-                                  hourHeight,
-                              );
                               const column = columns.get(item.id) ?? {
                                 lane: 0,
                                 count: 1,
                               };
-                              const left = `calc(${(column.lane * 100) / column.count}% + 3px)`;
-                              const right = `calc(${((column.count - column.lane - 1) * 100) / column.count}% + 3px)`;
                               return (
-                                <button
-                                  type="button"
+                                <CalendarCard
                                   key={item.id}
-                                  className={`event-card ${item.source === "official" ? "official-event" : "personal-event"} ${item.skipped ? "skipped-event" : ""}`}
-                                  style={{
-                                    top: `${top}px`,
-                                    height: `${height}px`,
-                                    left,
-                                    right,
-                                  }}
-                                  onClick={() => {
+                                  event={item}
+                                  dayStart={boundaries[dayIndex].getTime()}
+                                  dayEnd={boundaries[dayIndex + 1].getTime()}
+                                  lane={column.lane}
+                                  count={column.count}
+                                  hourHeight={hourHeight}
+                                  timeZone={timeZone}
+                                  disabled={resizeBusy}
+                                  onOpen={() => {
                                     setSelected(day);
                                     openEvent(item);
                                   }}
-                                  aria-label={`${item.title}, ${prettyDate(new Date(item.starts_at), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZoneName: "shortOffset" })} — ${prettyDate(new Date(item.ends_at), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZoneName: "shortOffset" })}`}
-                                  title={`${item.title}${item.location ? ` · ${item.location}` : ""}`}
-                                >
-                                  <span className="event-time">
-                                    {Date.parse(segment.starts_at) >
-                                      Date.parse(item.starts_at) && "↪ "}
-                                    {prettyDate(start, {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}{" "}
-                                    —{" "}
-                                    {prettyDate(finish, {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
-                                  </span>
-                                  <strong>{item.title}</strong>
-                                  {height >= 76 &&
-                                    (item.location || item.subject) && (
-                                      <span className="event-location">
-                                        {item.location || item.subject}
-                                      </span>
-                                    )}
-                                </button>
+                                  onResize={resizeEvent}
+                                />
                               );
                             })}
                           </div>
@@ -2075,20 +2146,12 @@ function CalendarWorkspace({
               timeZone={timeZone}
               pageToOpen={pageToOpen}
               onOpenPage={openPage}
-              onOpenEvent={async (id, startsAt, source) => {
-                if (dirty) throw new Error("Отправь или очисти черновик перед переходом к событию.");
-                const day = dateKey(new Date(startsAt), timeZone);
-                const calendar = await requestJson<CalendarPayload>(
-                  `/api/v1/calendar/events?date_from=${day}&date_to=${day}&include_hidden=true`,
-                );
-                const item = calendar.events.find((event) => event.source === source && event.source_event_id === id);
-                if (!item) throw new Error("Событие изменилось или больше недоступно. Открой календарь для проверки.");
-                setSelected(day);
-                navigate("calendar");
-                openEvent(item);
-              }}
+              onOpenEvent={openLinkedEvent}
               onNavigate={navigate}
-              onDirtyChange={setDirty}
+              onDirtyChange={(value) => {
+                if (value) navigationVersion.current++;
+                setDirty(value);
+              }}
               onChooseGroup={() => setShowGroupPicker(true)}
               onSessionEnd={onSessionEnd}
               events={allEvents}
@@ -2252,106 +2315,7 @@ function CalendarWorkspace({
                     : "Добавить событие"}
               </button>
             </div>
-            {editingEvent && (
-              <EventExtras
-                event={editingEvent}
-                onOpenPage={(id) => {
-                  setShowEventForm(false);
-                  openPage(id);
-                }}
-              />
-            )}
           </form>
-        </Modal>
-      )}
-      {officialEvent && (
-        <Modal
-          title="Детали учебного события"
-          onClose={() => setOfficialEvent(null)}
-        >
-          <section
-            className="event-modal event-readonly"
-            aria-labelledby="official-event-title"
-          >
-            <span className="greeting">РАСПИСАНИЕ IIS · ТОЛЬКО ПРОСМОТР</span>
-            <h2 id="official-event-title">
-              {officialEvent.subject_full_name ||
-                officialEvent.subject ||
-                officialEvent.title}
-            </h2>
-            <p>
-              {prettyDate(new Date(officialEvent.starts_at), {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-            </p>
-            <dl>
-              <div>
-                <dt>Время</dt>
-                <dd>
-                  {prettyDate(new Date(officialEvent.starts_at), {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}{" "}
-                  —{" "}
-                  {prettyDate(new Date(officialEvent.ends_at), {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </dd>
-              </div>
-              {officialEvent.lesson_type && (
-                <div>
-                  <dt>Вид занятия</dt>
-                  <dd>{officialEvent.lesson_type}</dd>
-                </div>
-              )}
-              {officialEvent.rooms.length > 0 && (
-                <div>
-                  <dt>Аудитория</dt>
-                  <dd>{officialEvent.rooms.join(", ")}</dd>
-                </div>
-              )}
-              {officialEvent.teacher_names.length > 0 && (
-                <div>
-                  <dt>Преподаватель</dt>
-                  <dd>{officialEvent.teacher_names.join(", ")}</dd>
-                </div>
-              )}
-              {officialEvent.description && (
-                <div>
-                  <dt>Примечание</dt>
-                  <dd>{officialEvent.description}</dd>
-                </div>
-              )}
-              <div>
-                <dt>Статус</dt>
-                <dd>
-                  {officialEvent.skipped
-                    ? "Отменено или пропущено в календаре"
-                    : "Источник: расписание БГУИР"}
-                </dd>
-              </div>
-            </dl>
-            <EventExtras
-              event={officialEvent}
-              onOpenPage={(id) => {
-                setOfficialEvent(null);
-                openPage(id);
-              }}
-            />
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="primary-button"
-                onClick={() => setOfficialEvent(null)}
-              >
-                Закрыть
-              </button>
-            </div>
-          </section>
         </Modal>
       )}
       {pendingDelete && (
