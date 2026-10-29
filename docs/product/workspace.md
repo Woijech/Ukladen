@@ -16,7 +16,9 @@ organization, database views, materials/search and reminder/inbox UI, including 
 limits. Saved event views and mixed projection remain API-only.
 Tasks support create/read/list/update, status/priority, exact deadlines/effort,
 subtask hierarchy and recoverable branch trash in the same browser shell.
-Dependencies/links, work blocks and availability remain planned; see
+Dependencies and explicit page links are implemented locally in the backend.
+Their UI and work blocks remain planned. Read-only personal/official availability
+queries are implemented locally; see
 [task delivery](../development/tasks.md).
 
 ## 1. Vocabulary
@@ -149,7 +151,9 @@ The user hides a lesson while planning around a busy appointment.
 - Source failures, staleness and missing coverage accompany planning results.
 - Conflicts can be reported without forbidding intentional overlap.
 
-Hidden/skipped resolution is implemented; availability queries are not implemented.
+Hidden/skipped resolution and local personal/official availability queries are
+implemented; see [coverage limits](../development/calendar-availability.md).
+Task work blocks and availability UI are not implemented.
 
 ### WS-09: Synchronization without losing personal work
 
@@ -183,7 +187,9 @@ The user asks about tomorrow, searches a lab note or requests a planning change.
 - AI reports unimplemented tools, stale sources and unsupported IIS capabilities.
 
 AI-01 through [AI-04](../development/ai-04.md) are implemented locally and remain
-default-disabled/unactivated. Planning and business-write execution are later stages.
+default-disabled/unactivated. AI-07 confirmed actions and AI-10 task extraction,
+work sessions/preferences and confirmed deterministic planning are implemented locally.
+See [AI-10 delivery](../development/ai-10.md); live activation remains pending.
 The [AI specification](ai.md) records the 2026-10-21
 decisions: independent tasks, labeled effort estimates, explicit work windows,
 protected personal events and all-or-nothing confirmed plans. Knowledge fallback

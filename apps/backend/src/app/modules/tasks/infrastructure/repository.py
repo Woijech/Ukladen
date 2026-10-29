@@ -13,7 +13,7 @@ from app.modules.tasks.domain.tasks import (
     TaskSummary,
     TaskVersionConflict,
 )
-from app.modules.tasks.infrastructure.orm import TaskModel
+from app.modules.tasks.infrastructure.orm import TaskModel, TaskOriginModel
 
 
 def task_summary(row: TaskModel) -> TaskSummary:
@@ -26,6 +26,7 @@ def task_summary(row: TaskModel) -> TaskSummary:
         priority=cast(TaskPriority, row.priority),
         deadline_at=row.deadline_at,
         estimated_minutes=row.estimated_minutes,
+        remaining_minutes=row.remaining_minutes,
         version=row.version,
         created_at=row.created_at,
         updated_at=row.updated_at,
@@ -37,6 +38,14 @@ def task_summary(row: TaskModel) -> TaskSummary:
 class SqlAlchemyTaskRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
+
+    def origin(self, user_id: UUID, task_id: UUID) -> dict | None:
+        row = self.session.scalar(
+            select(TaskOriginModel).where(
+                TaskOriginModel.user_id == user_id, TaskOriginModel.task_id == task_id
+            )
+        )
+        return row.provenance if row else None
 
     def create(self, task: Task) -> None:
         self.session.add(TaskModel(**asdict(task)))
@@ -167,6 +176,26 @@ class SqlAlchemyTaskRepository:
                 version=TaskModel.version + 1,
             )
             .execution_options(synchronize_session=False)
+        )
+
+    def cancel_future_sessions(self, user_id: UUID, now: datetime) -> None:
+        from app.modules.tasks.infrastructure.planning import WorkSessionModel
+
+        self.session.execute(
+            update(WorkSessionModel)
+            .where(
+                WorkSessionModel.user_id == user_id,
+                WorkSessionModel.starts_at > now,
+                WorkSessionModel.cancelled.is_(False),
+                WorkSessionModel.task_id.in_(
+                    select(TaskModel.id).where(
+                        TaskModel.user_id == user_id,
+                        (TaskModel.trashed_at.is_not(None))
+                        | TaskModel.status.in_(("done", "cancelled")),
+                    )
+                ),
+            )
+            .values(cancelled=True, version=WorkSessionModel.version + 1)
         )
 
     def restore_batch(self, user_id: UUID, batch_id: UUID, now: datetime) -> None:

@@ -26,6 +26,7 @@ from app.modules.relations.presentation.schemas import (
     LinkedPageResponse,
     PageEventsResponse,
 )
+from app.modules.relations.presentation.task_links import router as task_relations_router
 
 logger = logging.getLogger(__name__)
 router = APIRouter(
@@ -165,3 +166,4 @@ def install_relations(application: FastAPI) -> None:
     application.add_exception_handler(InvalidRelationInput, relation_error)
     application.include_router(router)
     application.include_router(material_relations_router)
+    application.include_router(task_relations_router)

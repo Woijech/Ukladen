@@ -34,6 +34,7 @@ class AgentInput(BaseModel):
     message: str = Field(min_length=1, max_length=16384)
     source_scope: SourceScope | None = None
     full_sources: bool = False
+    source_only: bool = False
 
     @field_validator("message")
     @classmethod

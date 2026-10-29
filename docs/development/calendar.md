@@ -11,6 +11,11 @@ Standalone nested pages and optional calendar links are implemented; see
 
 ## Workspace compatibility
 
+Read-only occupied/free/conflict queries are implemented locally through
+`POST /api/v1/calendar/availability`; see [availability contracts](calendar-availability.md).
+This personal/official subset does not implement work blocks or planning. Expected
+IIS coverage is explicitly unverified rather than inferred from a ready source.
+
 Standalone events do not require a subject or page. Official subject labels are
 source metadata; equal labels never merge lecture/lab occurrences. Page links are
 optional and implemented through relations. Collections/tags and their page/event

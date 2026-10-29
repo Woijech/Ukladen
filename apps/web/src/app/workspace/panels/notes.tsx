@@ -697,7 +697,10 @@ function NoteEditor({
             </details>
           </div>
         </header>
-        <div className="note-sheet">
+        <div className="note-sheet" onClick={event => {
+          if (!locked && event.target === event.currentTarget && !window.getSelection()?.toString())
+            event.currentTarget.querySelector<HTMLTextAreaElement>(".block-empty-line")?.focus();
+        }}>
           {copyNotice && (
             <p role="status" className="muted">
               {copyNotice}
@@ -716,6 +719,12 @@ function NoteEditor({
             pattern={".*\\S.*"}
             autoFocus={focusTitle}
             disabled={locked}
+            onKeyDown={event => {
+              if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                event.currentTarget.closest(".note-sheet")?.querySelector<HTMLTextAreaElement>("textarea:not([disabled])")?.focus();
+              }
+            }}
             onChange={(event) => {
               setTitle(event.target.value);
               changed();

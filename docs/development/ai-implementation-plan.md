@@ -1,18 +1,24 @@
 # AI Implementation Plan
 
-Updated: 2026-10-26.
+Updated: 2026-10-29.
 Status: AI-00 and the offline AI-01 foundation are delivered: a fake-only harness,
 owned persistence, authenticated chat/run API, durable accounting, bounded execution,
 conservative recovery and physical retention cleanup. Tested on disposable
-PostgreSQL/Redis, disabled by default and unapplied to the running app.
+PostgreSQL/Redis and disabled by default. The home database was prepared through
+revision 0040 with AI flags off on 2026-10-29; [application activation](ai-activation.md)
+and live quality remain pending.
 AI-02 now adds the optional [OpenRouter catalog and encrypted connections](ai-connections.md);
 activation/live account verification remain pending. AI-03 adds implemented
 [authorized source reads](ai-03.md). [AI-04](ai-04.md) adds locally implemented
 streaming chat/settings/usage UI and API. [AI-05](ai-05.md) adds an optional CPU embedding
 runtime with synthetic hardware proof. [AI-06](ai-06.md) adds local hybrid retrieval
-and durable complete-source processing. [AI-07](ai-07.md) adds locally implemented confirmed actions; AI-08 is deferred indefinitely; AI-09 local hardening is complete; live-model acceptance remains pending. Later features remain not implemented. See the dated final verification in the
+and durable complete-source processing. [AI-07](ai-07.md) adds locally implemented confirmed actions; AI-08 is deferred indefinitely; AI-09 local hardening is complete; live-model acceptance remains pending. [AI-10](ai-10.md) now adds the local P-06 work-session/preference foundation,
+editable task extraction and confirmed deterministic planning. [AI-11](ai-11.md) adds
+local labeled model/web fallback through a bounded adapter; unactivated. [AI-12](ai-12.md)
+adds local opt-in reviews and in-app delivery; unactivated and awaiting live evaluation. See the dated final verification in the
 [execution record](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
-No P-06, real provider traffic or deployment is included.
+AI-10 includes its P-06 prerequisites. No real provider traffic or deployment is
+included.
 
 Read [system architecture](../../SYSTEM_ARCHITECTURE.md), [AI architecture](../architecture/ai.md),
 [product scope](../product/ai.md), [ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md),
@@ -37,11 +43,11 @@ numeric order is not an implicit dependency or authorization to start another st
 | AI-08 | Deferred indefinitely: scoped automatic creates | Requires a new owner decision before implementation | Current business-content writes always require exact confirmation |
 | AI-09 | Local hardening complete; [evidence and live gate](ai-09.md) | Implemented AI-01–AI-07; separate live-model approval | Offline/native checks, 40 bilingual acceptance cases, pending live-quality gate |
 | AI-10 | Task extraction, deterministic planning/replanning and atomic plan application | P-06; AI-03/04/07; AI-06 for semantic material retrieval | Feasible/infeasible plans, protected events, races and atomic rollback |
-| AI-11 | Labeled knowledge fallback and bounded web search | AI-03; explicit search adapter contract | No-evidence vs failed search, citations, egress and injection checks |
-| AI-12 | Opt-in proactive reviews and in-app delivery | AI-04; AI-10 for task/workload reviews | Bounded/deduplicated triggers, disable/restart and quiet unchanged runs |
+| AI-11 | Implemented locally: labeled knowledge fallback and bounded web search; unactivated | AI-03; explicit search adapter contract | No-evidence vs failed search, citations, egress and injection checks |
+| AI-12 | Implemented locally: opt-in proactive reviews and in-app delivery; unactivated | AI-04; AI-10 for task/workload reviews | Bounded/deduplicated triggers, disable/restart and quiet unchanged runs |
 
-AI-01/02/03/04 form a lexical prototype, not the complete agreed assistant. AI-06 now supplies the local semantic/multi-document path after AI-05; AI-11 remains
-planned for the selected web fallback experience.
+AI-01/02/03/04 form a lexical prototype, not the complete agreed assistant. AI-06 now supplies the local semantic/multi-document path after AI-05; AI-11 now supplies the local
+bounded web fallback experience, with separate activation/live-quality gates.
 AI-07 adds writes; P-06 and AI-10 are mandatory for the selected planning scenario.
 AI-08 is deferred indefinitely under the 2026-10-26 owner decision; AI-12 remains opt-in. Run AI-09
 checks for every promoted capability. Stop at each requested stage's completion report.
@@ -83,7 +89,7 @@ by the delivered stage, with no empty future plugin system.
 | AI_ENABLED_CAPABILITIES | Empty until corresponding tools/services are delivered |
 | AI_EMBEDDING_PROVIDER / AI_EMBEDDING_MODEL | Still planned/unset; AI-05 takes an explicit local directory in operator tooling, without production activation settings |
 | AI_AUTOMATIC_ACTIONS_ENABLED | false; enabling dispatch never creates a grant |
-| Web search connection | Disabled until an explicit adapter, credentials and bounded egress exist; AI-11 |
+| Web search connection | Implemented bounded adapter; per-offering `web_search` defaults to false pending approved activation; AI-11 |
 | Run/input/tool budgets | Versioned defaults in [tool contracts](ai-tool-contracts.md#3-initial-execution-budgets) |
 
 Use the lower of application limits and verified adapter/account limits. Requests,
@@ -301,7 +307,8 @@ Test revocation/limits/expiry/queued replay. Dispatch stays disabled until real 
 ## 13. AI-09: hardening and provider replacement rehearsal
 
 Status: local hardening complete; live-model acceptance pending. See [scope and evidence](ai-09.md).
-AI-08 and unimplemented AI-10–AI-12 are excluded. Real provider evaluation remains
+That dated AI-09 verification excluded AI-08 and AI-10–AI-12; AI-10 has its own
+[current delivery evidence](ai-10.md). Real provider evaluation remains
 a separate bounded approval; application activation is outside this delivery.
 
 Run fixed and held-out synthetic evals for source support, citation correctness,
@@ -316,6 +323,11 @@ usage honestly. Test backups, retention cleanup, credential disconnect/key rotat
 worker/broker restart and embedding generation replacement on disposable data.
 
 ## 14. AI-10: extraction, planning and atomic replanning
+
+Implemented locally under the [owner-approved delivery contract](ai-10.md),
+including the P-06 foundation, editable source-backed task proposals, browser
+controls and deterministic confirmed plans. Real-provider quality, migration and
+activation are separate gates. The delivery log records actual checks and limitations.
 
 Requires P-06 task CRUD/status/subtasks/dependencies/source-link interfaces, work blocks,
 occupied/free intervals, conflict checks and structured work preferences. LLM extraction
@@ -335,6 +347,8 @@ Verify touching intervals, timezone/DST, two concurrent plans, new manual events
 protected training, missed sessions, infeasibility and whole-plan rollback/replay.
 
 ## 15. AI-11: bounded web fallback
+
+Status: implemented locally, disabled by default; see [contracts and verification](ai-11.md).
 
 Implement a documented search adapter behind search.application; no invented endpoint
 or unrestricted HTTP/shell tool. For relevant workspace questions, retrieve locally

@@ -10,6 +10,7 @@ const kinds = {
   page_ids: "Страницы",
   material_ids: "Материалы",
   database_ids: "Базы данных",
+  task_ids: "Задачи",
 };
 type Kind = keyof typeof kinds;
 
@@ -17,23 +18,26 @@ export function SourcePicker({
   value,
   onSave,
   onClose,
+  purpose = "request",
 }: {
+  purpose?: "request" | "reviews";
   value: Scope | null;
   onSave: (value: Scope | null) => void;
   onClose: () => void;
 }) {
   const [automatic, setAutomatic] = useState(value === null);
-  const [scope, setScope] = useState(value ?? emptyScope());
+  const [scope, setScope] = useState(value ? { ...emptyScope(), ...value } : emptyScope());
   const [kind, setKind] = useState<Kind>("page_ids");
   const [offset, setOffset] = useState(0);
   const count =
     scope.page_ids.length +
     scope.material_ids.length +
-    scope.database_ids.length;
+    scope.database_ids.length + scope.task_ids.length;
   const paths = {
     page_ids: "/api/v1/notes/pages",
     material_ids: "/api/v1/materials",
     database_ids: "/api/v1/workspace/databases",
+    task_ids: "/api/v1/tasks",
   };
   const list = useQuery({
     queryKey: ["ai-source-options", kind, offset],
@@ -45,8 +49,8 @@ export function SourcePicker({
       ),
   });
   return (
-    <Modal title="Источники для запроса" onClose={onClose}>
-      <h2>Где искать ответ</h2>
+    <Modal title={purpose === "reviews" ? "Источники для обзоров" : "Источники для запроса"} onClose={onClose}>
+      <h2>{purpose === "reviews" ? "Что включать в обзоры" : "Где искать ответ"}</h2>
       <label className="checkbox-label">
         <input
           type="checkbox"
@@ -56,8 +60,7 @@ export function SourcePicker({
         Все мои источники автоматически
       </label>
       <p className="muted">
-        AI выбирает нужные данные. Ограничение действует только на отправляемый
-        запрос.
+        {purpose === "reviews" ? "Ограничение сохранится для будущих обзоров. До 100 задач, страниц и материалов; веб-поиска нет." : "AI выбирает нужные данные. Ограничение действует только на отправляемый запрос."}
       </p>
       {!automatic && (
         <>
@@ -81,7 +84,7 @@ export function SourcePicker({
                 setOffset(0);
               }}
             >
-              {Object.entries(kinds).map(([key, label]) => (
+              {Object.entries(kinds).filter(([key]) => purpose !== "reviews" || key !== "database_ids").map(([key, label]) => (
                 <option key={key} value={key}>
                   {label}
                 </option>
@@ -100,6 +103,7 @@ export function SourcePicker({
                 <input
                   type="checkbox"
                   checked={scope[kind].includes(item.id)}
+                  disabled={purpose === "reviews" && count >= 100 && !scope[kind].includes(item.id)}
                   onChange={(event) =>
                     setScope({
                       ...scope,
@@ -178,6 +182,9 @@ const labels: Record<string, string> = {
   kind: "Тип",
   status: "Статус",
   description: "Описание",
+  remaining_minutes: "Осталось работы, мин", estimated_minutes: "Оценка, мин",
+  deadline_at: "Срок", priority: "Приоритет", predecessors: "Предшественники",
+  has_unresolved_dependencies: "Есть незавершённые предшественники",
 };
 
 function SourceContent({ value }: { value: unknown }): ReactNode {
@@ -217,7 +224,24 @@ function SourceContent({ value }: { value: unknown }): ReactNode {
   return null;
 }
 
-export function SourceViewer({
+export function SourceViewer(props: { source: Source; onClose: () => void }) {
+  if (props.source.source === "web") {
+    let url: URL | null = null;
+    try {
+      const parsed = new URL(props.source.url ?? "");
+      if (["https:", "http:"].includes(parsed.protocol) && !parsed.username && !parsed.password) url = parsed;
+    } catch {}
+    return <Modal title="Источник из интернета" onClose={props.onClose}>
+      <h2>{props.source.title}</h2>
+      <p>Внешний источник. Его содержание не является частью твоих документов.</p>
+      {props.source.retrieved_at && <p>Получен: {new Date(props.source.retrieved_at).toLocaleString("ru")}</p>}
+      {url ? <a href={url.href} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Открыть источник</a> : <p>Ссылка недоступна.</p>}
+    </Modal>;
+  }
+  return <LocalSourceViewer {...props} />;
+}
+
+function LocalSourceViewer({
   source,
   onClose,
 }: {
@@ -250,6 +274,7 @@ export function SourceViewer({
     queryFn: async ({ signal }) => {
       let payload: Record<string, unknown>;
       if (source.source === "page") payload = { page_id: source.id, offset };
+      else if (source.source === "task") payload = { task_id: source.id, offset };
       else if (source.source === "material")
         payload = { material_id: source.id, offset };
       else if (source.source === "database")

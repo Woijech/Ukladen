@@ -111,7 +111,26 @@ class SqlAlchemyUsageReader:
                     .mappings()
                     .all()
                 )
-                rows = [dict(row) for row in (*runs, *attempts)]
+                searches = (
+                    database.execute(
+                        text("""
+                    SELECT (t.started_at AT TIME ZONE :tz)::date AS day, r.provider, r.model,
+                      CASE WHEN r.connection_id IS NULL THEN 'operator'
+                        ELSE 'personal' END AS credential_source,
+                      count(*) AS unpriced_web_searches
+                    FROM ai_tool_executions t JOIN ai_runs r
+                      ON r.id = t.run_id AND r.user_id = t.user_id
+                    WHERE t.user_id = :owner AND t.tool_name = 'search_web'
+                      AND t.started_at >= :start AND t.started_at < :end
+                      AND coalesce(t.finished_at, t.started_at) > :cutoff
+                    GROUP BY day, r.provider, r.model, credential_source
+                """),
+                        params,
+                    )
+                    .mappings()
+                    .all()
+                )
+                rows = [dict(row) for row in (*runs, *attempts, *searches)]
                 return UsageReport(
                     timezone=profile.timezone,
                     date_from=start_date,

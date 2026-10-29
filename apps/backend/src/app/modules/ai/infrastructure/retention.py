@@ -29,6 +29,9 @@ def lock_owner(database: Session, user_id: UUID) -> bool:
 def purge_expired(sessions: sessionmaker[Session], *, now: datetime | None = None) -> None:
     """Delete bounded owned batches; the caller selects only a migrated AI database."""
     instant = now or datetime.now(UTC)
+    from app.modules.ai.infrastructure.review_jobs import expire_reviews
+
+    expire_reviews(sessions, instant)
     cutoff = instant - timedelta(days=30)
     activity = func.coalesce(ConversationModel.last_user_message_at, ConversationModel.created_at)
     with sessions() as database:

@@ -18,6 +18,7 @@ class UsageMetrics(BaseModel):
     unknown_input_attempts: int = 0
     unknown_output_attempts: int = 0
     unpriced_attempts: int = 0
+    unpriced_web_searches: int = 0
     estimated_costs: dict[str, Decimal] = Field(default_factory=dict)
 
 
@@ -77,6 +78,7 @@ def summarize(rows: list[dict[str, Any]]) -> UsageMetrics:
             "unknown_input_attempts",
             "unknown_output_attempts",
             "unpriced_attempts",
+            "unpriced_web_searches",
         ):
             setattr(result, name, getattr(result, name) + int(row.get(name) or 0))
         if row.get("currency") and row.get("cost") is not None:

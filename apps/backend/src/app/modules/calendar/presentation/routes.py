@@ -14,13 +14,19 @@ from app.modules.auth.presentation.dependencies import (
     get_current_session,
     require_csrf,
 )
+from app.modules.calendar.application.availability import CalendarAvailabilityService
 from app.modules.calendar.application.service import CalendarService
+from app.modules.calendar.domain.availability import TimeInterval
 from app.modules.calendar.domain.events import (
     CalendarConflict,
     CalendarEventNotFound,
     InvalidCalendarInput,
 )
 from app.modules.calendar.infrastructure.repository import SqlAlchemyCalendarRepository
+from app.modules.calendar.presentation.availability_schemas import (
+    AvailabilityRequest,
+    AvailabilityResponse,
+)
 from app.modules.calendar.presentation.legacy_routes import (
     Events as LegacyEvents,
 )
@@ -45,6 +51,7 @@ from app.modules.calendar.presentation.schemas import (
 )
 from app.modules.schedule.application.queries import ScheduleQueryService
 from app.modules.schedule.infrastructure.storage import SqlAlchemyScheduleStore
+from app.modules.tasks.infrastructure.planning import SqlAlchemyPlanning
 from app.modules.users.infrastructure.repository import SqlAlchemyProfileRepository
 
 logger = logging.getLogger(__name__)
@@ -70,6 +77,29 @@ def get_calendar_service(
 
 
 Calendar = Annotated[CalendarService, Depends(get_calendar_service)]
+
+
+@router.post(
+    "/availability", response_model=AvailabilityResponse, dependencies=[Depends(require_csrf)]
+)
+def read_availability(
+    payload: AvailabilityRequest,
+    current: CurrentSession,
+    database: Database,
+    calendar: Calendar,
+) -> AvailabilityResponse:
+    with database.begin():
+        database.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+        result = CalendarAvailabilityService(calendar, SqlAlchemyPlanning(database)).read(
+            current.user_id,
+            payload.starts_at,
+            payload.ends_at,
+            [TimeInterval(item.starts_at, item.ends_at) for item in payload.windows],
+            minimum_minutes=payload.minimum_minutes,
+            candidates=[TimeInterval(item.starts_at, item.ends_at) for item in payload.candidates],
+            exclude_personal_event_id=payload.exclude_personal_event_id,
+        )
+        return AvailabilityResponse.model_validate(result)
 
 
 @router.get("/events", response_model=CalendarResponse | list[EventResponse])

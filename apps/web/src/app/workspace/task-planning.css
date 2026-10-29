@@ -1,0 +1,17 @@
+.work-planning { display: grid; gap: 1.25rem; }
+.work-planning section, .work-form, .work-plan { display: grid; gap: .75rem; }
+.work-planning details { padding: .75rem; border: 1px solid var(--border, #ddd); border-radius: 12px; }
+.work-planning summary { cursor: pointer; font-weight: 600; }
+.work-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.work-fields label { display: grid; gap: .35rem; }
+.work-planning input:not([type=checkbox]), .work-planning select { width: 100%; min-width: 0; padding: .6rem; border: 1px solid var(--border, #ccc); border-radius: 8px; background: var(--surface, transparent); color: inherit; }
+.work-window { display: grid; grid-template-columns: .6fr 1fr 1fr auto; gap: .4rem; align-items: center; }
+.work-session { padding: .75rem 0; border-bottom: 1px solid var(--border, #ddd); }
+.work-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.work-plan li { margin-bottom: .65rem; overflow-wrap: anywhere; }
+.work-calendar { margin-top: 1rem; }
+.task-relations { margin-top: 1rem; border-top: 1px solid var(--border, #ddd); padding-top: 1rem; }
+.task-relations h3 { margin-top: 1rem; }
+.task-relations li { margin: .5rem 0; overflow-wrap: anywhere; }
+.task-relation-row { display: flex; justify-content: space-between; gap: .75rem; align-items: center; }
+@media (max-width: 620px) { .work-fields { grid-template-columns: 1fr; } .work-window { grid-template-columns: 1fr 1fr; } }

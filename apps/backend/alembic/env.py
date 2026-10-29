@@ -9,6 +9,7 @@ from app.modules.ai.infrastructure import action_models as ai_action_models  # n
 from app.modules.ai.infrastructure import checkpoint_schema as ai_checkpoint_schema  # noqa: F401
 from app.modules.ai.infrastructure import document_models as ai_document_models  # noqa: F401
 from app.modules.ai.infrastructure import orm as ai_orm  # noqa: F401
+from app.modules.ai.infrastructure import review_models as ai_review_models  # noqa: F401
 from app.modules.auth.infrastructure import orm as auth_orm  # noqa: F401
 from app.modules.calendar.infrastructure import orm as calendar_orm  # noqa: F401
 from app.modules.materials.infrastructure import orm as materials_orm  # noqa: F401
@@ -20,6 +21,8 @@ from app.modules.schedule.infrastructure import orm as schedule_orm  # noqa: F40
 from app.modules.search.infrastructure import index_models as search_index_models  # noqa: F401
 from app.modules.search.infrastructure import orm as search_orm  # noqa: F401
 from app.modules.tasks.infrastructure import orm as tasks_orm  # noqa: F401
+from app.modules.tasks.infrastructure import planning as tasks_planning  # noqa: F401
+from app.modules.tasks.infrastructure import plans as tasks_plans  # noqa: F401
 from app.modules.users.infrastructure import orm as users_orm  # noqa: F401
 from app.modules.workspace.infrastructure import orm as workspace_orm  # noqa: F401
 

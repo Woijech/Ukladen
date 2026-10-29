@@ -9,13 +9,17 @@ export type Source = {
     | "database_record"
     | "personal"
     | "official"
-    | "record_date";
+    | "record_date"
+    | "task"
+    | "web";
   id: string;
   title: string;
   version: number;
   locator: string;
   fingerprint?: string;
   parent_id: string | null;
+  url?: string;
+  retrieved_at?: string;
 };
 export type Conversation = {
   id: string;
@@ -35,6 +39,7 @@ export type Message = {
 export type Run = {
   estimated_cost: string | null;
   unpriced_attempts: number;
+  unpriced_web_searches?: number;
   id: string;
   status:
     | "queued"
@@ -94,12 +99,14 @@ export type Scope = {
   page_ids: string[];
   material_ids: string[];
   database_ids: string[];
+  task_ids: string[];
   calendar: boolean;
 };
 export const emptyScope = (): Scope => ({
   page_ids: [],
   material_ids: [],
   database_ids: [],
+  task_ids: [],
   calendar: false,
 });
 export const activeRun = (run?: Run | null) =>

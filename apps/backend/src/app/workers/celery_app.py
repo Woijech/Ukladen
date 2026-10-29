@@ -16,6 +16,7 @@ celery_app = Celery(
         "app.modules.materials.infrastructure.tasks",
         "app.modules.ai.infrastructure.tasks",
         "app.modules.ai.infrastructure.document_tasks",
+        "app.modules.ai.infrastructure.review_tasks",
         "app.modules.search.infrastructure.tasks",
     ],
 )
@@ -34,6 +35,17 @@ celery_app.conf.update(
         **(
             {"ai-documents-dispatch": {"task": "ai.documents.dispatch", "schedule": 2.0}}
             if settings.ai_enabled
+            else {}
+        ),
+        **(
+            {
+                "ai-reviews-dispatch": {
+                    "task": "ai.reviews.dispatch",
+                    "schedule": 60.0,
+                    "options": {"queue": "ai-documents"},
+                }
+            }
+            if settings.ai_enabled and settings.ai_reviews_enabled
             else {}
         ),
         **(

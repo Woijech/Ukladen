@@ -25,13 +25,15 @@ class NotificationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    reminder_id: UUID
-    source: Literal["personal", "official"]
-    event_id: UUID
+    reminder_id: UUID | None
+    source: Literal["personal", "official"] | None
+    event_id: UUID | None
     title: str
-    starts_at: AwareDatetime
+    starts_at: AwareDatetime | None
     created_at: AwareDatetime
     read_at: AwareDatetime | None
+    kind: Literal["reminder", "ai_review"]
+    review_id: UUID | None
 
 
 class NotificationListResponse(BaseModel):

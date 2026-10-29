@@ -32,6 +32,7 @@ class ModelOffering(BaseModel):
     provider: Literal["openrouter"] = "openrouter"
     model: str = Field(pattern=r"^[a-z0-9-]+/[a-zA-Z0-9._:-]{1,100}$")
     tools: bool = False
+    web_search: bool = False
     structured_output: bool = False
     streaming: bool = True
     free_only: bool = False

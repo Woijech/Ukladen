@@ -1,10 +1,16 @@
 # AI Setup and Provider Switching Runbook
 
-Updated: 2026-10-26.
+For the prepared 2026-10-29 home configuration and owner launch steps, use
+[prepared activation](ai-activation.md). Its shared-key cap is enforced in OpenRouter;
+personal connections retain separate billing. The instructions below retain historical
+stage verification and planned-scope notes.
+
+Updated: 2026-10-29.
 Status: AI-01 is complete within its offline scope: harness, owned persistence,
 authenticated fake API, durable accounting, bounded recovery and retention cleanup.
-Disabled by default; migrations are tested on disposable data and unapplied to the
-running application. See [final verification](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
+Disabled by default; migrations were tested on disposable data. On 2026-10-29 the
+home database was prepared through revision 0040 with AI flags off; see
+[prepared activation](ai-activation.md). AI itself remains unactivated. See [final verification](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 AI-02 adds optional [OpenRouter models and encrypted credentials](ai-connections.md),
 implemented locally but unactivated. [AI-03 source reads](ai-03.md) are implemented
 locally. [AI-04](ai-04.md) adds locally implemented streaming chat, source viewing,
@@ -17,7 +23,8 @@ See [current API and recovery limits](ai-api.md). No provider request or deploym
 
 Use [product scope](../product/ai.md), [stages](ai-implementation-plan.md),
 [contracts](ai-tool-contracts.md) and [ADR 0009](../adr/0009-specify-provider-neutral-ai-orchestration.md).
-LLM and embeddings have separate implemented adapter boundaries; web search remains planned. The operator may offer
+LLM, embeddings and [web search](ai-11.md) have separate implemented adapter boundaries;
+web search remains default-disabled and unactivated. The operator may offer
 several supported models and users may connect personal supported API accounts.
 AI-02 verifies the OpenRouter contract for the owner-selected DeepSeek V4.1 Flash
 profile and an optional free example; live account behavior remains unverified.
@@ -289,6 +296,10 @@ Moves/edits/deletes remain confirmed operations. Test revocation against queued 
 
 ## F. P-06/AI-10: task planning
 
+Implemented locally with browser controls under [AI-10](ai-10.md);
+[task planning](task-planning.md) records actual endpoints, bounds and verification.
+Activation and real-provider quality remain separate gates.
+
 Deliver typed tasks, explicit source links/subtasks/dependencies, task sessions,
 calendar occupied/free/conflict interfaces and structured work preferences first.
 Ask for allowed work windows; use editable 45/15-minute session/break defaults.
@@ -301,6 +312,11 @@ freshness, complete busy set, task/preferences versions and conflicts before a s
 atomic plan commit. Any changed precondition requires a new preview/confirmation.
 
 ## G. AI-11/12: fallback and proactive reviews
+
+AI-11 is implemented locally under the [bounded search contract](ai-11.md). The
+per-offering `web_search` flag defaults to false; activation/spending needs separate
+authorization. [AI-12](ai-12.md) implements opt-in reviews locally; its background
+runtime is default-disabled and unactivated. No new per-search UI step is required.
 
 Use an explicitly supported web-search adapter, not unrestricted HTTP or hosted code.
 For workspace questions retrieve local sources first, disclose insufficiency and

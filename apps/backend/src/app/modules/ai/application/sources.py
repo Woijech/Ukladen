@@ -80,6 +80,7 @@ class WorkspaceSourceService:
                         version=record.version,
                         title=page.title,
                         parent_id=str(database.id),
+                        locator=f"schema:{database.schema_version}:page:{page.version}",
                     ),
                 ),
                 coverage="partial",

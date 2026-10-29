@@ -12,6 +12,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -29,6 +30,7 @@ class TaskModel(Base):
     priority: Mapped[str] = mapped_column(String(16), server_default="normal")
     deadline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     estimated_minutes: Mapped[int | None]
+    remaining_minutes: Mapped[int | None]
     version: Mapped[int] = mapped_column(server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -49,6 +51,7 @@ class TaskModel(Base):
             "priority IN ('low', 'normal', 'high', 'urgent')", name="ck_tasks_priority"
         ),
         CheckConstraint("estimated_minutes BETWEEN 1 AND 525600", name="ck_tasks_effort"),
+        CheckConstraint("remaining_minutes BETWEEN 0 AND 525600", name="ck_tasks_remaining"),
         CheckConstraint("version > 0", name="ck_tasks_version"),
         Index("ix_tasks_owner_created", "user_id", "created_at", "id"),
         UniqueConstraint("id", "user_id", name="uq_tasks_id_user"),
@@ -62,4 +65,41 @@ class TaskModel(Base):
         CheckConstraint("(trashed_at IS NULL) = (trash_batch_id IS NULL)", name="ck_tasks_trash"),
         Index("ix_tasks_owner_trash", "user_id", "trashed_at", "created_at", "id"),
         Index("ix_tasks_owner_trash_batch", "user_id", "trash_batch_id"),
+    )
+
+
+class TaskDependencyModel(Base):
+    __tablename__ = "task_dependencies"
+
+    task_id: Mapped[UUID] = mapped_column(primary_key=True)
+    predecessor_id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["task_id", "user_id"],
+            ["tasks.id", "tasks.user_id"],
+            name="fk_task_dependencies_task_owner",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["predecessor_id", "user_id"],
+            ["tasks.id", "tasks.user_id"],
+            name="fk_task_dependencies_predecessor_owner",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("task_id != predecessor_id", name="ck_task_dependencies_not_self"),
+        Index("ix_task_dependencies_reverse", "user_id", "predecessor_id", "task_id"),
+    )
+
+
+class TaskOriginModel(Base):
+    __tablename__ = "task_origins"
+    task_id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    provenance: Mapped[dict] = mapped_column(JSONB)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["task_id", "user_id"], ["tasks.id", "tasks.user_id"], ondelete="CASCADE"
+        ),
     )

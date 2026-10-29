@@ -1,5 +1,6 @@
 # Optional AI consumer secret mounts. This overlay does not enable AI or run migrations.
 x-ai-consumer: &ai-consumer
+  user: "${AI_CONSUMER_UID:-10001}:${AI_CONSUMER_GID:-10001}"
   environment:
     AI_CONNECTIONS_FILE: /run/secrets/ukladen-ai/catalog.json
   volumes:

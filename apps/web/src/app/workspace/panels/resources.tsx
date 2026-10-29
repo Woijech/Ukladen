@@ -1,5 +1,7 @@
 "use client";
 
+import { ReviewNotificationButton } from "./ai-reviews";
+
 import { useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { csrfToken, requestJson, writeJson } from "@/shared/api";
@@ -50,6 +52,8 @@ export function MaterialsPanel() {
   const [offset, setOffset] = useState(0);
   const [trashed, setTrashed] = useState(false);
   const [creating, setCreating] = useState<"file" | "link" | null>(null);
+  const [droppedFile, setDroppedFile] = useState<File | null>(null);
+  const [dropError, setDropError] = useState("");
   const [trash, setTrash] = useState<Material | null>(null);
   const [editing, setEditing] = useState<Material | null>(null);
   const client = useQueryClient();
@@ -157,6 +161,39 @@ export function MaterialsPanel() {
             </span>
           )}
         </div>
+        {!trashed && (
+          <button
+            type="button"
+            className="material-dropzone"
+            onClick={() => {
+              setDroppedFile(null);
+              setCreating("file");
+            }}
+            onDragOver={(event) => {
+              if (event.dataTransfer.types.includes("Files")) {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "copy";
+              }
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              if (event.dataTransfer.files.length !== 1) {
+                setDropError("Перетащи один файл за раз.");
+                return;
+              }
+              setDropError("");
+              setDroppedFile(event.dataTransfer.files[0]);
+              setCreating("file");
+            }}
+          >
+            + Перетащи файл сюда или нажми, чтобы выбрать
+          </button>
+        )}
+        {dropError && (
+          <p className="inline-error" role="alert">
+            {dropError}
+          </p>
+        )}
         <QueryState
           pending={list.isPending}
           error={list.error}
@@ -283,7 +320,11 @@ export function MaterialsPanel() {
       {creating && (
         <MaterialCreate
           kind={creating}
-          onClose={() => setCreating(null)}
+          initialFile={droppedFile}
+          onClose={() => {
+            setCreating(null);
+            setDroppedFile(null);
+          }}
           onSaved={refresh}
         />
       )}
@@ -365,14 +406,18 @@ export function MaterialsPanel() {
 
 function MaterialCreate({
   kind,
+  initialFile,
   onClose,
   onSaved,
 }: {
   kind: "file" | "link";
+  initialFile: File | null;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
   const action = useAction();
+  const [file, setFile] = useState<File | null>(initialFile);
+  const [dropError, setDropError] = useState("");
   const reservation = useRef<{ key: string; id: string } | null>(null);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -384,7 +429,7 @@ function MaterialCreate({
           url: data.get("url"),
         });
       else {
-        const file = data.get("file") as File;
+        if (!file) throw new Error("Выберите файл.");
         const extension = file.name.split(".").at(-1)?.toLowerCase() ?? "";
         if (!mimeTypes[extension])
           throw new Error("Поддерживаются PDF, DOCX, PPTX, TXT и MD.");
@@ -444,16 +489,43 @@ function MaterialCreate({
             : "Страница по ссылке не скачивается. В поиске будет доступно её название."}
         </p>
         {kind === "file" && (
-          <label className="upload-zone">
-            Выбрать файл
+          <label
+            className="upload-zone"
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = action.busy ? "none" : "copy";
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              if (action.busy) return;
+              if (event.dataTransfer.files.length !== 1) {
+                setDropError("Перетащи один файл за раз.");
+                return;
+              }
+              setDropError("");
+              setFile(event.dataTransfer.files[0]);
+            }}
+          >
+            {file
+              ? `${file.name} · ${formatBytes(file.size)}`
+              : "Перетащи файл сюда или выбери"}
             <input
               type="file"
               name="file"
-              required
+              required={!file}
               accept=".pdf,.docx,.pptx,.txt,.md"
               disabled={action.busy}
+              onChange={(event) => {
+                setDropError("");
+                setFile(event.target.files?.[0] ?? null);
+              }}
             />
           </label>
+        )}
+        {dropError && (
+          <p className="inline-error" role="alert">
+            {dropError}
+          </p>
         )}
         <label htmlFor="material-title">
           Название{kind === "file" ? " (необязательно)" : ""}
@@ -681,7 +753,9 @@ export function SearchPanel({
 type Notification = {
   id: string;
   title: string;
-  starts_at: string;
+  starts_at: string | null;
+  kind?: "reminder" | "ai_review";
+  review_id?: string | null;
   created_at: string;
   read_at: string | null;
 };
@@ -724,7 +798,7 @@ export function NotificationsPanel({ timeZone }: { timeZone: string }) {
         <div>
           <span className="greeting">НИЧЕГО НЕ УПУСТИ</span>
           <h1>Уведомления</h1>
-          <p className="heading-subtitle">Напоминания о важных событиях.</p>
+          <p className="heading-subtitle">Напоминания и обзоры по твоим данным.</p>
         </div>
       </div>
       <div className="notification-layout">
@@ -751,8 +825,8 @@ export function NotificationsPanel({ timeZone }: { timeZone: string }) {
           {items.data && !items.data.items.length && (
             <EmptyState title="Всё спокойно" icon="♧">
               <p>
-                Новые напоминания появятся здесь. Их можно настроить в деталях
-                события.
+                Новые напоминания и включённые обзоры AI появятся здесь.
+                Напоминания настраиваются в событии, обзоры — в настройках AI.
               </p>
             </EmptyState>
           )}
@@ -764,7 +838,8 @@ export function NotificationsPanel({ timeZone }: { timeZone: string }) {
               <span className="inbox-dot" />
               <div>
                 <h2>{item.title}</h2>
-                <p>Начало события: {date(item.starts_at)}</p>
+                <p>{item.starts_at ? `Начало события: ${date(item.starts_at)}` : "Обзор по твоим данным"}</p>
+                {item.kind === "ai_review" && item.review_id && <ReviewNotificationButton id={item.review_id} timeZone={timeZone} />}
                 <small>Получено {date(item.created_at)}</small>
               </div>
               {!item.read_at && (

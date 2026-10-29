@@ -244,7 +244,17 @@ class SqlAlchemyAiRepository:
     ) -> list[Conversation]:
         if not 1 <= limit <= 200 or not 0 <= offset <= 2**31 - 1:
             raise InvalidAiState("Invalid conversation pagination.")
-        statement = select(ConversationModel).where(ConversationModel.user_id == user_id)
+        from app.modules.ai.infrastructure.review_models import ReviewModel
+
+        statement = select(ConversationModel).where(
+            ConversationModel.user_id == user_id,
+            ~select(ReviewModel.id)
+            .where(
+                ReviewModel.conversation_id == ConversationModel.id,
+                ReviewModel.discussed.is_(False),
+            )
+            .exists(),
+        )
         if active_after is not None:
             statement = statement.where(
                 func.coalesce(ConversationModel.last_user_message_at, ConversationModel.created_at)

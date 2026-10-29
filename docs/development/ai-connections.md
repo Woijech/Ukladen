@@ -139,19 +139,24 @@ The API does not sleep on 429/503. It persists Retry-After (delta or HTTP date),
 at 24 hours, with a 60-second default, and denies new dispatch until eligible.
 The model/credential never switches implicitly. The request disables OpenRouter
 provider failover, requires parameter support, excludes data-collection routes and
-enables no hosted plugins. This privacy policy can make a free offering unavailable.
+enables no hosted plugins. AI-11 can separately register bounded public search via
+the catalog's default-false `web_search` field, using the exact selected credential
+in an isolated minimal-query request; see [AI-11](ai-11.md). This privacy policy can make a free offering unavailable.
 
 An atomic PostgreSQL fixed window counts at most `requests_per_minute` attempts per
 connection. Operator offerings sharing a secret file share the counter; personal
 connections use their own owner-bound ID. Limits are shared across API processes,
 survive restart and fail closed if persistence is unavailable. Invalid/failed attempts
 may conservatively consume quota. Provider/account limits may be lower.
-The request body is additionally bounded to 6000 UTF-8 bytes including protocol/tool
-schema overhead, and output to 2048 tokens. The byte bound is deliberately stricter
+The request body defaults to 6000 UTF-8 bytes including protocol/tool schema
+overhead; an offering can explicitly raise this bound (the home DeepSeek offering
+uses 65536 bytes). Output defaults to 2048 tokens. The byte bound is deliberately stricter
 than the planned input-token budget; this adapter does not claim an exact DeepSeek
 tokenizer count. Oversized history is rejected rather than silently truncated.
-Transport connect/read timeouts and a 128 KiB response/60-second stream bound complement
-the existing process-wide eight-slot execution pool and late-result barriers.
+Transport connect/read timeouts, a 128 KiB JSON response bound and a 2 MiB /
+60-second SSE stream bound complement the existing process-wide eight-slot execution
+pool and late-result barriers. SSE has a separate byte limit because repeated
+per-token metadata can exceed the JSON limit for a valid bounded answer.
 
 Refusal, invalid tool JSON, unsupported modes, interrupted streams and truncation
 cannot become actions or completed answers. Tools and structured output use separate
@@ -161,7 +166,9 @@ and raw response metadata are removed before checkpointing.
 
 Reported input/output token counts, including measured zero, enter the existing
 attempt ledger. Missing counts remain unknown independently. Schema-invalid responses
-preserve safely parsed partial usage. Refused/truncated results retain reported usage.
+preserve safely parsed partial usage. Refused/truncated results retain reported usage, including a terminal usage packet
+after the finish marker. Empty usage-only choices may repeat that same finish
+marker; additional content or tool arguments after completion remain invalid.
 Usage arriving after cancellation updates an existing unexpired interrupted attempt
 without reopening it, saving an answer or extending retention. No detailed usage is
 recreated after cleanup. This stage implements neither invoices nor monetary budget

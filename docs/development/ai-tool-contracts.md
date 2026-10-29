@@ -1,8 +1,13 @@
 # AI-00 Tool and Execution Contracts
 
-Updated: 2026-10-26.
+Updated: 2026-10-29.
 Status: [AI-03](ai-03.md) implements the read-only lexical/page/material/calendar/database
-subset. [AI-07](ai-07.md) implements exact confirmed page/event/reminder actions. Other capabilities remain specified, not implemented. AI-01 supplies
+subset. [AI-07](ai-07.md) implements exact confirmed page/event/reminder actions.
+[AI-10](ai-10.md) adds `read_tasks`, `get_calendar_availability`,
+`preview_task_plan` and confirmed `task_create`, `task_update`, `task_plan_apply`
+operations in the existing `propose_actions` tool. Extraction uses normal source
+reads and typed proposals, including complete-source analysis when requested;
+there is no separate custom model loop. Other capabilities remain planned. AI-01 supplies
 the [offline lifecycle](ai-api.md) and synthetic tools/accounting. This is the target contract beneath
 [AI product requirements](../product/ai.md), not an existing API/SDK/tool registry.
 Transport DTOs/migrations are finalized with each implementing stage. No real model,
@@ -51,7 +56,7 @@ that loses personal overrides. Schema version for the initial contracts is v1.
 | check_calendar_conflicts / availability_read | Proposed intervals, explicit edited target IDs | Real overlap set/warnings; read | P-06 calendar conflict application interface |
 | generate_plan / planning_preview | Task IDs/versions, range, structured constraints/preference version | Feasible candidate sessions or unmet work, protected targets, calendar snapshot and assumptions; read/proposal only | P-06 deterministic task planner and AI-10 |
 | get_user_preferences / preferences_read | Optional preference keys | Owned instructions and structured planning settings/version; read | AI settings; P-06 planning settings |
-| search_web / web_search | Minimal query, optional language, result limit | Retrieved public URLs/titles/excerpts with retrieval time; external read only | AI-11 search application port and verified adapter |
+| search_web / web_search | Minimal public query; adapter-owned result limits | Retrieved public URLs/titles/excerpts with retrieval time; external read only | AI-11 search application port and verified adapter |
 | propose_action / per-operation write capability | Discriminated operation, exact target/parameters and expected versions/source refs | Immutable proposal ID/version, effects, expiry; no business mutation | AI-07 and delivered target application interface |
 
 Proposal operations are explicit enum members: page_create, page_update, event_create,

@@ -16,12 +16,14 @@ def notification_entity(row: NotificationModel) -> Notification:
         id=row.id,
         user_id=row.user_id,
         reminder_id=row.reminder_id,
-        source=cast(Literal["personal", "official"], row.source),
+        source=cast(Literal["personal", "official"] | None, row.source),
         event_id=row.event_id,
         title=row.title,
         starts_at=row.starts_at,
         created_at=row.created_at,
         read_at=row.read_at,
+        kind=cast(Literal["reminder", "ai_review"], row.kind),
+        review_id=row.review_id,
     )
 
 
@@ -33,7 +35,13 @@ class SqlAlchemyNotificationRepository:
         self.session.execute(
             insert(NotificationModel)
             .values(**asdict(notification))
-            .on_conflict_do_nothing(index_elements=[NotificationModel.reminder_id])
+            .on_conflict_do_nothing(
+                index_elements=[
+                    NotificationModel.reminder_id
+                    if notification.kind == "reminder"
+                    else NotificationModel.review_id
+                ]
+            )
         )
 
     def get(self, user_id: UUID, notification_id: UUID) -> Notification | None:

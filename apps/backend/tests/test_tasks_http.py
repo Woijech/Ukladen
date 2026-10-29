@@ -521,5 +521,16 @@ def test_openapi_exposes_only_delivered_operations(calendar_client: TestClient) 
     assert {path for path in paths if path.startswith(f"{BASE}/")} == {
         f"{BASE}/{{task_id}}",
         f"{BASE}/{{task_id}}/trash",
+        f"{BASE}/{{task_id}}/origin",
         f"{BASE}/{{task_id}}/restore",
+        f"{BASE}/{{task_id}}/dependencies",
+        f"{BASE}/{{task_id}}/dependencies/{{predecessor_id}}",
+        f"{BASE}/planning/plans",
+        f"{BASE}/planning/plans/{{plan_id}}",
+        f"{BASE}/planning/plans/{{plan_id}}/apply",
+        f"{BASE}/planning/preferences",
+        f"{BASE}/planning/calendar",
+        f"{BASE}/planning/sessions",
+        f"{BASE}/planning/sessions/check",
+        f"{BASE}/planning/sessions/{{session_id}}",
     }

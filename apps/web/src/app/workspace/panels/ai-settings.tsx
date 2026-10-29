@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestJson, writeJson } from "@/shared/api";
 import { ActionFeedback, Modal, QueryState, useAction } from "@/shared/ui";
 import { aiBase, type Connection } from "./ai-api";
+import { ReviewSettings } from "./ai-reviews";
 
 type Preferences = { instructions: string; version: number };
 
@@ -13,6 +14,12 @@ export function AiSettings({
 }: {
   onDirtyChange: (dirty: boolean) => void;
 }) {
+  const [instructionsDirty, setInstructionsDirty] = useState(false);
+  const [reviewsDirty, setReviewsDirty] = useState(false);
+  useEffect(() => {
+    onDirtyChange(instructionsDirty || reviewsDirty);
+    return () => onDirtyChange(false);
+  }, [instructionsDirty, reviewsDirty, onDirtyChange]);
   const client = useQueryClient();
   const action = useAction();
   const [connecting, setConnecting] = useState(false);
@@ -43,7 +50,7 @@ export function AiSettings({
         {preferences.data && (
           <InstructionsForm
             initial={preferences.data}
-            onDirtyChange={onDirtyChange}
+            onDirtyChange={setInstructionsDirty}
           />
         )}
       </section>
@@ -62,6 +69,11 @@ export function AiSettings({
           дополнительная возможность. Ключ хранится зашифрованным на сервере и
           больше не показывается. Выбор подключения и модели выполняется при
           создании чата.
+        </p>
+        <p className="muted">
+          Общий ключ AI Ukladen может иметь бюджет владельца приложения.
+          Личное подключение оплачивается по твоему ключу и этот бюджет не расходует.
+          Для него действуют баланс и ограничения твоего провайдера.
         </p>
         <QueryState
           pending={connections.isPending}
@@ -92,6 +104,7 @@ export function AiSettings({
         ))}
         <ActionFeedback {...action} />
       </section>
+      <ReviewSettings onDirtyChange={setReviewsDirty} />
       <section className="panel">
         <h2>Данные и ограничения</h2>
         <p>
@@ -186,7 +199,7 @@ function InstructionsForm({
       <p className="muted">
         До 8 КиБ текста. Обычные сообщения не становятся постоянной памятью.
       </p>
-      <div className="panel-toolbar">
+      <div className="panel-toolbar" style={{ flexWrap: "wrap" }}>
         <button className="primary-button" disabled={action.busy || !dirty}>
           Сохранить инструкции
         </button>

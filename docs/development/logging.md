@@ -113,3 +113,8 @@ New log calls must use fixed event names and explicit safe scalar metadata. Neve
 log passwords, session/CSRF/OAuth tokens, token hashes, email recipients, connection
 URLs, SQL parameters, uploaded content or upstream response bodies. Use
 `core.logging.log_failure` rather than interpolating exception strings.
+
+The OpenRouter adapter emits `ai.provider_request_failed` with exception type,
+safe stack frames, a static stream phase (`reason`) and an HTTP status when exposed
+by the SDK. It never includes provider error text, request bodies or credentials.
+This distinguishes transport/protocol failures without disclosing chat content.

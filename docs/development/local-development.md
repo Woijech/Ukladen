@@ -156,8 +156,10 @@ into Alembic metadata. Review every generated migration.
 Public IIS adapters/schedule synchronization and private avatar/material APIs are
 implemented; see [university reads](university-api.md), [schedule](schedule.md),
 [avatars](user-avatar.md) and [materials](materials.md). Task CRUD, hierarchy and
-recoverable trash are implemented; dependencies, work blocks and availability remain
-future slices. AI tools, confirmed actions and semantic retrieval are implemented
+recoverable trash are implemented. Dependencies, explicit page links and personal/
+official availability queries, work sessions, explicit remaining work, saved work
+windows and confirmed planning/extraction are implemented locally under
+[AI-10](ai-10.md), including browser controls. AI tools, confirmed actions and semantic retrieval are implemented
 locally but default-disabled and unactivated; see [AI setup](ai-setup.md).
 Private IIS contracts remain unimplemented and require verified integration evidence.
 Structured application logs and container rotation are implemented; see

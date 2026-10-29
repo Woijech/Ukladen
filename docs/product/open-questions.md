@@ -1,6 +1,6 @@
 # Product Decisions and Open Questions
 
-Updated: 2026-10-28.
+Updated: 2026-10-29.
 Status: decision register. Owner-confirmed scope is distinguished from open design
 choices. Proposed defaults are not owner confirmation; resolve relevant unknowns
 before implementing incompatible schemas, integrations or behavior.
@@ -98,6 +98,14 @@ Steps 1/2/3 were subsequently authorized; later changing steps still need approv
 This developer workflow is distinct from product HITL.
 
 ## Remaining decisions
+
+AI-11 owner clarification (2026-10-29): implement ordinary-chat fallback automatically:
+local material evidence first, then public web or clearly labeled model knowledge when
+insufficient. No separate user feature screen or per-search confirmation. Preserve
+personal API selection and a provider-neutral search boundary for later supported
+adapters. Local implementation does not authorize provider spending or activation.
+See [AI-11 delivery](../development/ai-11.md). Quality metrics and source/claim
+verification were discussed as later work, not requested for this delivery.
 
 AI-06 owner decisions (2026-10-25): implement the whole local slice autonomously in
 verified, incremental local commits. Index all active owned pages (including record
@@ -207,6 +215,17 @@ requires evidence, sanitized fixtures and adapter contract tests.
 
 ## Recording later decisions
 
+AI-10 owner scope (2026-10-28): the owner approved the complete local backend and
+browser flow, including missing P-06 prerequisites, with incremental verification
+and local commits. Save weekly work windows with request-specific overrides; use
+explicit progress rather than elapsed-session deductions; allow proposals to move
+any future unpinned task session, including manual ones; allow explicitly confirmed
+partial plans with visible unmet work. Work/break defaults remain editable 45/15.
+Dependencies constrain the planner but only warn in manual workflows. Preserve
+protected events, exact confirmation and atomic revalidation. See the
+[AI-10 delivery contract](../development/ai-10.md) for sequence and actual status.
+No real provider usage or application activation is authorized by this scope.
+
 Record the answer, date and affected requirements here. Update architecture/ADR when
 boundaries or authorization change, then affected roadmap/product sections. Keep
 current implementation status separate from confirmed future scope.
@@ -280,3 +299,16 @@ new features or architecture changes need discussion. Rehearse provider replacem
 with a test double, add no second real adapter and use no private user data. Application
 migrations, restarts, activation, deployment and real-provider calls are not authorized.
 See [AI-09](../development/ai-09.md).
+
+## AI-12 owner confirmation (2026-10-29)
+
+Activation follow-up: the owner selected a USD 5 lifetime cap on the shared application
+key, without automatic resets, until manually increased, and reports it configured in
+OpenRouter. Personal connections are excluded from that key's budget and have no
+Ukladen request/token allowance. See [prepared activation](../development/ai-activation.md)
+for enforcement, preparation and unverified live state. An in-app budget editor remains
+not implemented.
+
+Full opt-in proactive review scope, source restrictions, scheduling/deduplication
+and fake-only implementation were confirmed. The authoritative decisions and
+implementation status are recorded in [AI-12](../development/ai-12.md).

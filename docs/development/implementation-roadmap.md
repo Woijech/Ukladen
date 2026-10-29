@@ -40,8 +40,11 @@ existing services just to match target vocabulary. A package marker is not a fea
 
 Standalone task create/read/list/update, subtask hierarchy and branch trash are
 implemented with a browser UI; see [tasks](tasks.md).
-Task dependencies/links, work blocks and calendar free slots/conflicts are not
-implemented. AI-06 semantic retrieval and complete-source analysis are implemented
+Task dependencies, explicit page links, work sessions/preferences and confirmed
+deterministic planning now have local browser controls under [AI-10](ai-10.md).
+[Availability](calendar-availability.md) includes personal/official events and
+active task sessions, with explicit expected-source coverage limits.
+AI-06 semantic retrieval and complete-source analysis are implemented
 locally but unactivated.
 AI-02 adds optional [OpenRouter models and encrypted connections](ai-connections.md),
 implemented locally but unactivated. [AI-04](ai-04.md) adds a locally implemented
@@ -187,9 +190,16 @@ Status: partially implemented — task create/read/list/update, status/priority,
 exact deadlines/effort, optimistic versions, owner-scoped subtask hierarchy,
 recoverable branch trash, authenticated APIs and task management UI are implemented;
 see [task contracts](tasks.md).
-Dependencies/page links,
-manual blocks and availability are not implemented. The owner selected manual-only
-incremental delivery; automatic planning and saved work preferences remain later work.
+Dependencies and explicit page links are now implemented locally in the backend
+under [AI-10](ai-10.md), alongside read-only personal/official availability queries.
+Browser controls, versioned manual sessions, explicit remaining work, saved weekly
+preferences and confirmed deterministic planning/replanning are implemented locally.
+Expected IIS coverage remains
+explicitly unverified until a verified schedule coverage contract exists.
+The owner originally selected manual-only
+incremental delivery; the 2026-10-28 owner request now authorizes the full local
+AI-10 flow. [Task planning](task-planning.md) describes the implemented local
+foundation and AI-07 confirmation bridge. Automatic AI-08 writes remain deferred.
 Dependencies: existing calendar; optional page links after P-02.
 Can be requested earlier independently of databases. Q-07 is resolved: independent
 typed tasks with optional source links and no automatic checkbox/record synchronization.
@@ -264,7 +274,9 @@ connections; live account activation remains pending. [AI-03 read tools](ai-03.m
 are implemented locally. [AI-04](ai-04.md) adds streaming chat/settings/usage UI
 and supporting APIs. [AI-07](ai-07.md) adds locally implemented exact confirmed actions;
 AI-08 automatic writes are deferred indefinitely and application migrations are unapplied.
-[AI-09 local hardening](ai-09.md) is verified for the implemented AI-01–AI-07 subset;
+[AI-10](ai-10.md) adds locally implemented extraction, work settings/sessions and
+confirmed deterministic planning with browser controls.
+[AI-09 local hardening](ai-09.md) is verified for its historical AI-01–AI-07 subset;
 real-model acceptance and application activation remain pending.
 [AI-05](ai-05.md) adds a verified optional CPU embedding adapter and disposable
 hardware proof with explicit load limits. [AI-06](ai-06.md) implements local versioned indexing, AI-only hybrid retrieval and
@@ -274,7 +286,9 @@ The [detailed AI plan](ai-implementation-plan.md) splits work into AI-00 through
 with the [owner-agreed product specification](../product/ai.md),
 [tool/fixture contracts](ai-tool-contracts.md) and [connection runbook](ai-setup.md).
 Provider-neutral operator models and personal API connections replace the old Groq
-baseline. Selected scope includes chat/usage, RAG, note editing, task extraction,
+baseline. [AI-11](ai-11.md) implements local bounded web fallback and labeled citations;
+search activation and live quality remain pending. [AI-12](ai-12.md) implements
+local opt-in reviews and in-app delivery; activation remains pending. Selected scope includes chat/usage, RAG, note editing, task extraction,
 deterministic planning/replanning, labeled model/web fallback, instructions and
 opt-in proactive work. No real provider call or deployment has been performed by the offline slice.
 AI calendar reads may be requested before P-08; RAG requires extraction/search.

@@ -42,7 +42,7 @@ class ActionProposalModel(Base):
             ondelete="CASCADE",
             name="fk_ai_action_run",
         ),
-        UniqueConstraint("run_id", name="uq_ai_action_run"),
+        UniqueConstraint("run_id", "interrupt_id", name="uq_ai_action_run_interrupt"),
         CheckConstraint(
             "expires_at = created_at + interval '24 hours'", name="ck_ai_action_expiry"
         ),

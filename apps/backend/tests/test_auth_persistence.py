@@ -112,11 +112,19 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "ai_personal_connections",
         "ai_connection_buckets",
         "ai_preferences",
+        "ai_review_settings",
+        "ai_reviews",
         "checkpoint_migrations",
         "checkpoints",
         "checkpoint_blobs",
         "checkpoint_writes",
         "tasks",
+        "task_dependencies",
+        "task_page_links",
+        "task_work_sessions",
+        "task_work_preferences",
+        "task_plans",
+        "task_origins",
     }
     assert set(inspect(database_connection).get_table_names()) == expected
     command.check(config)

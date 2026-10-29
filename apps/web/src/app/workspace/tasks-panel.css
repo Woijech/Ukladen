@@ -11,6 +11,12 @@
 .task-list-filters label,.task-dialog label { display: grid; gap: 7px; color: var(--muted); font-size: 13px; font-weight: 600; }
 .task-list-filters select,.task-dialog select,.task-dialog input,.task-dialog textarea { width: 100%; min-width: 0; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); background: var(--surface); font: inherit; }
 .task-list { list-style: none; margin: 0; padding: 0; }
+.task-list li { display: flex; align-items: center; }
+.task-complete { width: 18px; height: 18px; flex-shrink: 0; margin: 0 0 0 16px; accent-color: var(--accent); cursor: pointer; }
+.task-complete + .task-row { min-width: 0; }
+.task-complete:checked + .task-row .task-row-title { text-decoration: line-through; color: var(--muted); }
+.task-quick-add { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.task-quick-add input { flex: 1; min-width: 0; padding: 10px 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 13px; }
 .task-list li + li { border-top: 1px solid var(--border); }
 .task-row { display: grid; gap: 9px; width: 100%; padding: 16px 20px; border: 0; background: transparent; text-align: left; color: var(--text); }
 .task-row:hover,.task-row.selected { background: var(--accent-soft); }

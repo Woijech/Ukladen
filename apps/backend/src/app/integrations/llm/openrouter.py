@@ -1,6 +1,7 @@
 """Supported OpenRouter transport; the official connector owns protocol conversion."""
 
 import json
+import logging
 from collections.abc import Callable, Iterator, Sequence
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -17,11 +18,21 @@ from openrouter import OpenRouter
 from openrouter.errors import ResponseValidationError
 from pydantic import Field, SecretStr
 
+from app.core.logging import log_failure
 from app.modules.ai.application.agent import ProviderFailure
 from app.modules.ai.application.connections import ModelOffering
 from app.modules.ai.domain.connections import ConnectionUnavailable
 
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
+RESPONSE_BYTES = 131072
+STREAM_BYTES = 2 * 1024 * 1024
+logger = logging.getLogger(__name__)
+
+
+def log_provider_failure(error: Exception, *, reason: str | None = None) -> None:
+    response = getattr(error, "raw_response", None)
+    status = response.status_code if isinstance(response, httpx.Response) else None
+    log_failure(logger, "ai.provider_request_failed", error, status_code=status, reason=reason)
 
 
 def token_count(value: Any) -> int | None:
@@ -54,14 +65,14 @@ def retry_seconds(value: str | None) -> int:
 
 
 class LimitedStream(httpx.SyncByteStream):
-    def __init__(self, stream: httpx.SyncByteStream) -> None:
-        self.stream, self.deadline = stream, monotonic() + 60
+    def __init__(self, stream: httpx.SyncByteStream, maximum: int = RESPONSE_BYTES) -> None:
+        self.stream, self.maximum, self.deadline = stream, maximum, monotonic() + 60
 
     def __iter__(self) -> Iterator[bytes]:
         size = 0
         for chunk in self.stream:
             size += len(chunk)
-            if size > 131072 or monotonic() >= self.deadline:
+            if size > self.maximum or monotonic() >= self.deadline:
                 raise ProviderFailure("invalid_response")
             yield chunk
 
@@ -122,16 +133,23 @@ class OpenRouterTransport(httpx.BaseTransport):
         # Resolve again at the dispatch boundary; the model and SDK never retain the real key.
         request.headers["Authorization"] = "Bearer " + self.credential()
         response = self.transport.handle_request(request)
+        # SSE repeats model/choice/reasoning envelopes per token; JSON's bound cuts valid streams.
+        maximum = (
+            STREAM_BYTES
+            if body.get("stream") is True
+            and response.headers.get("Content-Type", "").split(";", 1)[0] == "text/event-stream"
+            else RESPONSE_BYTES
+        )
         if response.headers.get("Content-Encoding", "identity") != "identity":
             response.close()
             raise ProviderFailure("invalid_response")
-        if response.is_stream_consumed and len(response.content) > 131072:
+        if response.is_stream_consumed and len(response.content) > maximum:
             response.close()
             raise ProviderFailure("invalid_response")
         if not isinstance(response.stream, httpx.SyncByteStream):
             response.close()
             raise ProviderFailure("invalid_response")
-        response.stream = LimitedStream(response.stream)
+        response.stream = LimitedStream(response.stream, maximum)
         if response.status_code in (429, 503):
             self.backoff(retry_seconds(response.headers.get("Retry-After")))
         return response
@@ -186,12 +204,14 @@ class SupportedOpenRouter(ChatOpenRouter):
         except httpx.TimeoutException:
             raise ProviderFailure("timeout") from None
         except ResponseValidationError as error:
+            log_provider_failure(error)
             try:
                 reported = usage_values(json.loads(error.body or "{}"))
             except ValueError, TypeError, AttributeError:
                 reported = {"input_tokens": None, "output_tokens": None}
             raise ProviderFailure("invalid_response", **reported) from None
-        except Exception:
+        except Exception as error:
+            log_provider_failure(error)
             raise ProviderFailure() from None
 
     def _stream(self, messages: list[BaseMessage], stop=None, run_manager=None, **kwargs):
@@ -202,6 +222,9 @@ class SupportedOpenRouter(ChatOpenRouter):
         _strip_internal_kwargs(params)
         usage: dict[str, int | None] = {"input_tokens": None, "output_tokens": None}
         finished = False
+        finished_reason: str | None = None
+        failure_reason: str | None = None
+        phase = "stream_decode"
         try:
             # Keep raw counts: the connector otherwise replaces missing usage with zero.
             for response in self.client.chat.send(
@@ -209,24 +232,49 @@ class SupportedOpenRouter(ChatOpenRouter):
                 **params,
             ):
                 data = response.model_dump(by_alias=True)
+                phase = "stream_model_identity"
                 if data.get("model") != self.model_name:
                     raise ProviderFailure("invalid_response", **usage)
+                phase = "stream_usage"
                 if data.get("usage"):
                     usage = usage_values(data)
+                phase = "stream_provider_error"
                 if data.get("error"):
                     raise ProviderFailure("invalid_response", **usage)
                 choices = data.get("choices") or []
                 if choices:
                     choice = choices[0]
+                    phase = "stream_after_finish"
                     if finished:
+                        # Some endpoints repeat the finish marker in a usage-only choice.
+                        delta = choice.get("delta") or {}
+                        if (
+                            data.get("usage")
+                            and choice.get("finish_reason") in (None, finished_reason)
+                            and delta.get("role") in (None, "assistant")
+                            and not any(value for key, value in delta.items() if key != "role")
+                        ):
+                            continue
                         raise ProviderFailure("invalid_response", **usage)
                     reason = choice.get("finish_reason")
+                    phase = "stream_finish_reason"
                     if reason is not None:
                         if reason not in ("stop", "tool_calls"):
-                            raise ProviderFailure("invalid_response", **usage)
+                            if reason == "length":
+                                failure_reason = "stream_output_limit"
+                            elif reason == "content_filter":
+                                failure_reason = "stream_refusal"
+                            else:
+                                raise ProviderFailure("invalid_response", **usage)
                         finished = True
+                        finished_reason = reason
+                    phase = "stream_refusal"
                     if choice.get("delta", {}).get("refusal"):
-                        raise ProviderFailure("invalid_response", **usage)
+                        failure_reason = "stream_refusal"
+                    # Failed streams may report billable usage in a final empty-choices packet.
+                    if failure_reason is not None:
+                        continue
+                    phase = "stream_chunk_conversion"
                     message = _convert_chunk_to_message_chunk(data, AIMessageChunk)
                     if not isinstance(message, AIMessageChunk):
                         raise ProviderFailure("invalid_response", **usage)
@@ -234,16 +282,25 @@ class SupportedOpenRouter(ChatOpenRouter):
                     message.usage_metadata = None
                     message.response_metadata = {}
                     yield ChatGenerationChunk(message=message)
+                phase = "stream_decode"
+            phase = "stream_incomplete"
             if not finished:
+                raise ProviderFailure("invalid_response", **usage)
+            if failure_reason is not None:
+                phase = failure_reason
                 raise ProviderFailure("invalid_response", **usage)
             yield ChatGenerationChunk(
                 message=AIMessageChunk(content="", response_metadata={"ukladen_usage": usage})
             )
-        except ProviderFailure, ConnectionUnavailable:
+        except ProviderFailure as error:
+            log_provider_failure(error, reason=phase)
+            raise
+        except ConnectionUnavailable:
             raise
         except httpx.TimeoutException:
             raise ProviderFailure("timeout", **usage) from None
-        except Exception:
+        except Exception as error:
+            log_provider_failure(error, reason=phase)
             raise ProviderFailure(
                 input_tokens=usage["input_tokens"], output_tokens=usage["output_tokens"]
             ) from None

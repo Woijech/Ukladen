@@ -82,6 +82,10 @@ class RunSnapshot:
     tools: tuple[ToolExecution, ...]
 
     @property
+    def unpriced_web_searches(self) -> int:
+        return sum(item.tool_name == "search_web" for item in self.tools)
+
+    @property
     def estimated_cost(self) -> Decimal | None:
         if self.run.price is None:
             return None
@@ -270,17 +274,23 @@ class AiService:
 
     def admit(self, user_id: UUID, request: AgentInput, submission_id: UUID) -> tuple[Run, bool]:
         payload: list[object] = [str(request.conversation_id), request.message]
+        if request.source_only:
+            payload.append("source_only")
         if request.full_sources:
             if (
                 request.source_scope is None
                 or not (request.source_scope.page_ids or request.source_scope.material_ids)
                 or request.source_scope.calendar
                 or request.source_scope.database_ids
+                or request.source_scope.task_ids
             ):
                 raise InvalidAiState("Select pages/materials for complete-source processing.")
             payload.append("full_sources")
         if request.source_scope is not None:
-            payload.append(request.source_scope.model_dump(mode="json"))
+            scoped_payload = request.source_scope.model_dump(mode="json")
+            if not request.source_scope.task_ids:
+                scoped_payload.pop("task_ids")
+            payload.append(scoped_payload)
         digest = hashlib.sha256(
             json.dumps(
                 payload,

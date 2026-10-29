@@ -12,6 +12,7 @@
       "operator_key_file": "openrouter.key",
       "personal_allowed": true,
       "tools": true,
+      "web_search": false,
       "max_input_bytes": 65536,
       "structured_output": true,
       "streaming": true,

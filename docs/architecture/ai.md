@@ -1,6 +1,6 @@
 # AI, Retrieval and Application Tools
 
-Updated: 2026-10-26.
+Updated: 2026-10-29.
 Status: AI-01 is complete within its offline scope, using a fake-only LangChain harness with neutral DTOs, typed
 synthetic tools, review pauses and per-invocation limits. Owned persistence adapters
 and preserving Alembic revisions are natively tested on disposable PostgreSQL; no application
@@ -17,9 +17,13 @@ remain pending. [AI-03 source tools](../development/ai-03.md) implement authoriz
 lexical search, page/material reads and calendar/database queries.
 [AI-07 confirmed actions](../development/ai-07.md) are implemented locally: exact previews,
 atomic normal-service writes and independent replay receipts; unactivated. Automatic writes
-are deferred indefinitely; planning remains not implemented. [AI-04](../development/ai-04.md) adds streaming
+are deferred indefinitely. [AI-10](../development/ai-10.md) adds local typed task
+reads/extraction, work preferences/sessions, deterministic planning/replanning and
+atomic task/plan confirmation through the existing agent and AI-07 transaction path. [AI-04](../development/ai-04.md) adds streaming
 chat, current-source inspection, preferences and usage UI/API locally; activation remains pending.
-[AI-05](../development/ai-05.md) verifies an optional CPU embedding adapter and synthetic
+[AI-12](../development/ai-12.md) adds local opt-in scheduled reviews, bounded
+source collection and typed in-app delivery; the background runtime remains disabled
+and unactivated. [AI-05](../development/ai-05.md) verifies an optional CPU embedding adapter and synthetic
 full-stack proof. [AI-06](../development/ai-06.md) adds local versioned indexing,
 AI-only hybrid retrieval and durable complete-source analysis. Activation and
 real-LLM comparison quality remain pending. See the
@@ -102,7 +106,7 @@ rows describe target capabilities, not existing tools.
 | Query free slots/conflicts and propose feasible task sessions | P-06 calendar/task planning | None |
 | Read permitted IIS context/sync state | Verified public integration; private account tools deferred | None |
 | Retrieve cited material chunks | Materials/search | None |
-| Search public web after insufficient local evidence | Bounded search adapter; AI-11 | External read only |
+| Search public web after insufficient local evidence | Local bounded search adapter; [AI-11](../development/ai-11.md), unactivated | External read only |
 | Propose page/task/event/reminder changes | Implemented target service and action policy | Proposal only |
 | Apply confirmed change | Same service as manual editing | Explicit, version-checked mutation |
 | Apply an explicitly permitted automatic change | Implemented target service and scoped owner grant | Bounded, version-checked and recorded mutation |
@@ -240,7 +244,8 @@ The AI-00 specification/acceptance data and offline AI-01 foundation are complet
 Owned offline runtime/usage persistence and chat/run endpoints are implemented;
 the optional OpenRouter adapter and AI-03 read tools are implemented but unactivated;
 [AI-04](../development/ai-04.md) implements streaming chat/settings/usage UI and
-owner-only usage summaries. AI-07 implements confirmed page/event/reminder writes.
+owner-only usage summaries. AI-07 implements confirmed page/event/reminder writes;
+AI-10 extends the same transaction path to tasks and complete plans.
 `ai` owns implemented conversation/run/tool usage metadata and planned action metadata;
 `search` owns derived retrieval/index jobs. Existing safe logs remain operator
 diagnostics, not a source of prompts or cross-user product analytics.

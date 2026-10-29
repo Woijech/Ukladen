@@ -146,6 +146,8 @@ class PostgresAgentRunners:
                         and tools_enabled
                         else None
                     )
+                    if source_tools is not None and self.real_models is not None:
+                        source_tools.web = self.real_models.web_search(run)
                     if source_tools is not None:
                         from app.modules.ai.infrastructure.document_context import AnalysisContext
 

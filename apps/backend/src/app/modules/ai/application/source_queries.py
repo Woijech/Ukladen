@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
+from app.modules.tasks.application.plans import DatedWindow, PlanRequest
+
 
 class ReadQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -14,6 +16,7 @@ class SourceScope(ReadQuery):
     material_ids: tuple[UUID, ...] = ()
     database_ids: tuple[UUID, ...] = ()
     calendar: bool = Field(default=False, strict=True)
+    task_ids: tuple[UUID, ...] = Field(default=(), max_length=100)
 
 
 class SearchRead(ReadQuery):
@@ -88,6 +91,28 @@ class RecordRead(ReadQuery):
     limit: int = Field(default=5, ge=1, le=5, strict=True)
 
 
+class TaskRead(ReadQuery):
+    task_id: UUID | None = None
+    task_ids: tuple[UUID, ...] = Field(default=(), max_length=100)
+    offset: int = Field(default=0, ge=0, le=10000, strict=True)
+    limit: int = Field(default=10, ge=1, le=20, strict=True)
+
+
+class AvailabilityRead(ReadQuery):
+    interval: DatedWindow
+    windows: tuple[DatedWindow, ...] = Field(default=(), max_length=256)
+    minimum_minutes: int = Field(default=15, ge=1, le=525600, strict=True)
+
+
+class PlanRead(ReadQuery):
+    request: PlanRequest
+
+
+class PlanStatusRead(ReadQuery):
+    plan_id: UUID
+    digest: str
+
+
 SourceQuery = (
     SearchRead
     | PageRead
@@ -97,10 +122,17 @@ SourceQuery = (
     | DatabaseRead
     | DatabaseReadQuery
     | RecordRead
+    | TaskRead
+    | AvailabilityRead
+    | PlanRead
+    | PlanStatusRead
 )
 
 # Tool names are stable capabilities; retrieval implementation is independent of the model.
 READ_QUERIES: dict[str, type[ReadQuery]] = {
+    "get_calendar_availability": AvailabilityRead,
+    "read_tasks": TaskRead,
+    "preview_task_plan": PlanRead,
     "search_workspace": SearchRead,
     "read_page": PageRead,
     "read_material_excerpt": MaterialRead,
@@ -114,6 +146,21 @@ READ_QUERIES: dict[str, type[ReadQuery]] = {
 def restrict_source_query(query: ReadQuery, scope: SourceScope | None) -> ReadQuery | None:
     if scope is None:
         return query
+    if isinstance(query, AvailabilityRead):
+        return query if scope.calendar else None
+    if isinstance(query, TaskRead):
+        if query.task_id is not None:
+            return query if query.task_id in scope.task_ids else None
+        allowed = (
+            tuple(item for item in query.task_ids if item in scope.task_ids)
+            if query.task_ids
+            else scope.task_ids
+        )
+        return query.model_copy(update={"task_ids": allowed}) if allowed else None
+    if isinstance(query, PlanRead):
+        return (
+            query if scope.calendar and set(query.request.task_ids) <= set(scope.task_ids) else None
+        )
     if isinstance(query, SearchRead):
         if query.source is None:
             if scope.page_ids and scope.material_ids:

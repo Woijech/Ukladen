@@ -121,3 +121,44 @@ test("trash moves an active branch and restores only its batch root", async ({ p
   await expect(page.getByRole("button", { name: "Активные" })).toHaveAttribute("aria-pressed", "true");
   expect(state.tasks.map(item => item.trash_batch_id)).toEqual([null, null, null]);
 });
+
+test("quick task creation and completion work inline with versioned status-only writes", async ({ page }) => {
+  const state = await mockWorkspace(page);
+  await page.goto("/workspace");
+  await page.getByRole("button", { name: "Задачи", exact: true }).click();
+  const quick = page.getByRole("textbox", { name: "Быстро добавить задачу" });
+  await quick.fill("  Quick task  ");
+  await quick.press("Enter");
+  const complete = page.getByRole("checkbox", { name: "Завершить: Quick task", exact: true });
+  await expect(complete).toBeVisible();
+  await expect(quick).toHaveValue("");
+  expect(state.writes[0].body).toEqual({ title: "Quick task" });
+  await complete.click();
+  const reopen = page.getByRole("checkbox", { name: "Вернуть к выполнению: Quick task", exact: true });
+  await expect(reopen).toBeChecked();
+  expect(state.writes[1].body).toEqual({ expected_version: 1, status: "done" });
+  await reopen.click();
+  await expect(complete).not.toBeChecked();
+  expect(state.writes[2].body).toEqual({ expected_version: 2, status: "todo" });
+});
+
+test("inline task completion recovers from stale versions and hierarchy errors without false success", async ({ page }) => {
+  const state = await mockWorkspace(page);
+  state.tasks = [task()];
+  await page.goto("/workspace");
+  await page.getByRole("button", { name: "Задачи", exact: true }).click();
+  const complete = page.getByRole("checkbox", { name: "Завершить: Prepare report", exact: true });
+  await expect(complete).toBeVisible();
+  state.tasks[0].version = 2;
+  await complete.click();
+  await expect(page.locator(".task-error")).toContainText("изменилась в другой вкладке");
+  await expect(complete).not.toBeChecked();
+  state.taskHierarchyConflictOnce = true;
+  await complete.click();
+  await expect(page.locator(".task-error")).toContainText("иерархию или статус");
+  await expect(complete).not.toBeChecked();
+  expect(state.tasks[0].status).toBe("todo");
+  await complete.click();
+  await expect(page.getByRole("checkbox", { name: "Вернуть к выполнению: Prepare report", exact: true })).toBeChecked();
+  expect(state.writes.at(-1)?.body).toEqual({ expected_version: 2, status: "done" });
+});
