@@ -60,7 +60,7 @@ scope, not a currently enabled tool. Database querying remains separately option
 | AI-UC-15 | Selected / AI-10 | Extract assignments from my notes | Independent task proposals, source locations, deadlines and editable estimates |
 | AI-UC-16 | Selected / P-06, AI-10 | Replan unfinished preparation | Move eligible task sessions only; protect other events and minimize changes |
 | AI-UC-17 | Selected / AI-04, P-06 | Set my assistant instructions and work preferences | Editable instructions plus structured hard planning settings |
-| AI-UC-18 | Selected, opt-in / AI-12 | Prepare a daily/weekly briefing | Bounded scheduled review, relevant notes and in-app warnings |
+| AI-UC-18 | Implemented locally, opt-in / AI-12 | Prepare a daily/weekly briefing | Bounded scheduled review, relevant notes and in-app warnings |
 | AI-UC-19 | Implemented locally, unactivated / AI-11 | Explain this when my materials have no answer | State missing local evidence; use labeled model knowledge/web search as needed |
 | AI-UC-20 | Selected / AI-02, AI-04 | Choose a model or connect my API | Operator offerings and owner-only personal credentials; no silent switching |
 
@@ -196,8 +196,9 @@ session/break lengths and protected time. Free text may propose a setting change
 unresolved/conflicting instructions cannot override constraints. Users view/edit/delete
 preferences independently of chats.
 
-Proactive daily/weekly reviews, deadline/overload/conflict warnings and source suggestions
-are off by default. Users choose timing/frequency. Reuse in-app notifications and
+[AI-12](../development/ai-12.md) implements proactive daily/weekly reviews,
+deadline/overload/conflict warnings and source suggestions locally; activation remains
+pending. They are off by default. Users choose timing/frequency. Reuse in-app notifications and
 workers; other channels need a separate slice. Bound candidates/model calls, deduplicate
 and skip unchanged non-actionable work. Disabling stops future runs. Read-only briefings
 do not authorize writes; grants alone do not create recurring schedules.

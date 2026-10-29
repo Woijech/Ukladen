@@ -21,7 +21,9 @@ are deferred indefinitely. [AI-10](../development/ai-10.md) adds local typed tas
 reads/extraction, work preferences/sessions, deterministic planning/replanning and
 atomic task/plan confirmation through the existing agent and AI-07 transaction path. [AI-04](../development/ai-04.md) adds streaming
 chat, current-source inspection, preferences and usage UI/API locally; activation remains pending.
-[AI-05](../development/ai-05.md) verifies an optional CPU embedding adapter and synthetic
+[AI-12](../development/ai-12.md) adds local opt-in scheduled reviews, bounded
+source collection and typed in-app delivery; the background runtime remains disabled
+and unactivated. [AI-05](../development/ai-05.md) verifies an optional CPU embedding adapter and synthetic
 full-stack proof. [AI-06](../development/ai-06.md) adds local versioned indexing,
 AI-only hybrid retrieval and durable complete-source analysis. Activation and
 real-LLM comparison quality remain pending. See the

@@ -52,6 +52,12 @@ async function mockAi(page: Page) {
     run: null as null | Record<string, unknown>,
     writes: [] as { path: string; body: Record<string, unknown> | null }[],
     preferences: { instructions: "Отвечай кратко", version: 1 },
+    reviewSettings: { configuration: {
+      enabled: false, daily: true, weekly: true, warnings: true, materials: true,
+      daily_time: "09:00", weekly_time: "09:00", weekly_day: 0,
+      offering_id: null as string | null, connection_id: null as string | null,
+      source_scope: null as Record<string, unknown> | null,
+    }, version: 0, runtime_enabled: false, paused_reason: null as string | null, timezone: "Europe/Minsk" },
     documentProgress: null as null | { phase: string; processed_characters: number; total_characters: number; steps: number; error: string | null },
     proposals: [] as Proposal[],
     proposalCommits: 0,
@@ -137,6 +143,15 @@ async function mockAi(page: Page) {
       return route.fulfill({json: {
         plan: "free", monthly_request_limit: null, monthly_token_limit: null,
       }});
+    if (path.endsWith("/reviews/settings")) {
+      if (method === "PUT") {
+        expect(body?.expected_version).toBe(state.reviewSettings.version);
+        state.reviewSettings = { ...state.reviewSettings,
+          configuration: body?.configuration as typeof state.reviewSettings.configuration,
+          version: state.reviewSettings.version + 1 };
+      }
+      return route.fulfill({ json: state.reviewSettings });
+    }
     if (path.endsWith("/preferences")) {
       if (method === "PUT")
         state.preferences = {
@@ -687,4 +702,142 @@ test("AI labels web evidence and opens only the retrieved public source", async 
   await expect(link).toHaveAttribute("rel", "noopener noreferrer");
   expect(state.writes.filter(item => item.path.endsWith("/sources/read"))).toHaveLength(0);
   await page.screenshot({ path: test.info().outputPath("web-source.png"), fullPage: true });
+});
+
+
+test("reviews require explicit model selection and persist their bounded source scope", async ({ page }) => {
+  const state = await mockAi(page);
+  await page.goto("/workspace/ai?tab=settings");
+  await expect(page.getByLabel("Включить обзоры", { exact: true })).not.toBeChecked();
+  await expect(page.getByText(/Фоновые обзоры пока не запущены/)).toBeVisible();
+  await expect(page.getByLabel("Модель для обзоров")).toHaveValue("");
+  await page.getByLabel("Включить обзоры", { exact: true }).check();
+  await expect(page.getByRole("button", { name: "Сохранить обзоры", exact: true })).toBeDisabled();
+  await page.getByLabel("Модель для обзоров").selectOption("flash");
+  await page.getByLabel("Подключение для обзоров").selectOption(connectionId);
+  await page.getByLabel("Время ежедневного обзора").fill("10:30");
+  await page.getByRole("button", { name: "Источники обзоров", exact: true }).click();
+  const picker = page.getByRole("dialog", { name: "Источники для обзоров" });
+  await picker.getByLabel("Все мои источники автоматически").uncheck();
+  await expect(picker.getByRole("option", { name: "Базы данных" })).toHaveCount(0);
+  await picker.getByLabel("Мой календарь").check();
+  await picker.getByLabel("Моя заметка").check();
+  await picker.getByRole("button", { name: "Применить", exact: true }).click();
+  await page.getByRole("button", { name: "Сохранить обзоры", exact: true }).click();
+  await expect(page.getByText("Настройки обзоров сохранены", { exact: true })).toBeVisible();
+  expect(state.reviewSettings.configuration).toMatchObject({ enabled: true, offering_id: "flash", connection_id: connectionId, daily_time: "10:30", source_scope: { page_ids: [pageId], task_ids: [], material_ids: [], database_ids: [], calendar: true } });
+  expect(state.writes.filter((item) => item.path.includes("/messages"))).toHaveLength(0);
+});
+
+test("saving instructions cannot discard a separate review draft", async ({ page }) => {
+  await mockAi(page);
+  await page.goto("/workspace/ai?tab=settings");
+  await page.getByLabel("Личные инструкции").fill("Новые инструкции");
+  await page.getByLabel("Время ежедневного обзора").fill("11:15");
+  await page.getByRole("button", { name: "Сохранить инструкции", exact: true }).click();
+  await page.getByRole("button", { name: "Чаты", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Отменить изменения" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Отменить изменения обзоров", exact: true }).click();
+  await expect(page.getByLabel("Время ежедневного обзора")).toHaveValue("09:00");
+  await page.getByRole("button", { name: "Чаты", exact: true }).click();
+  await expect(page.getByLabel("Время ежедневного обзора")).toHaveCount(0);
+});
+
+test("inbox reviews show safe sources and continue in chat without submitting to the model", async ({ page }) => {
+  const state = await mockAi(page);
+  const reviewId = "88888888-2222-4333-8444-555555555555";
+  let discussions = 0;
+  await page.route("**/api/v1/reminders?**", route => route.fulfill({ json: { items: [] } }));
+  await page.route("**/api/v1/notifications?**", route => route.fulfill({ json: { items: [{ id: "review-notification", kind: "ai_review", review_id: reviewId, title: "Ежедневный обзор AI", starts_at: null, created_at: "2026-10-29T10:00:00Z", read_at: null }], limit: 50, offset: 0 } }));
+  await page.route(`**/api/v1/ai/reviews/${reviewId}`, route => route.fulfill({ json: { id: reviewId, kind: "daily", status: "completed", created_at: "2026-10-29T10:00:00Z", expires_at: "2026-11-28T10:00:00Z", stale: false, content: `Проверь задачи. <script>window.injected=true</script> [source:${pageId}]`, sources: [reference] } }));
+  await page.route(`**/api/v1/ai/reviews/${reviewId}/discuss`, route => {
+    expect(route.request().headers()["x-csrf-token"]).toBe("c".repeat(43));
+    discussions++;
+    return route.fulfill({ json: { conversation_id: chatId } });
+  });
+  await page.goto("/workspace");
+  await navigateSection(page, "Уведомления");
+  await page.getByRole("button", { name: "Открыть обзор", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Обзор AI" })).toContainText("Проверь задачи.");
+  expect(await page.evaluate(() => (window as Window & { injected?: boolean }).injected)).toBeUndefined();
+  await page.getByRole("button", { name: "Моя заметка", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Просмотр источника" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Обсудить в AI-чате", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`chat=${chatId}`));
+  await expect(page.getByLabel("Сообщение AI")).toBeVisible();
+  expect(discussions).toBe(1);
+  expect(state.writes.filter((item) => item.path.includes("/messages"))).toHaveLength(0);
+});
+
+test("a stale review hides content and cannot continue in chat", async ({ page }) => {
+  await mockAi(page);
+  const reviewId = "99999999-2222-4333-8444-555555555555";
+  await page.route("**/api/v1/reminders?**", route => route.fulfill({ json: { items: [] } }));
+  await page.route("**/api/v1/notifications?**", route => route.fulfill({ json: { items: [{ id: "stale-review", kind: "ai_review", review_id: reviewId, title: "Недельный обзор AI", starts_at: null, created_at: "2026-10-29T10:00:00Z", read_at: null }] } }));
+  await page.route(`**/api/v1/ai/reviews/${reviewId}`, route => route.fulfill({ json: { id: reviewId, kind: "weekly", status: "completed", created_at: "2026-10-29T10:00:00Z", expires_at: "2026-11-28T10:00:00Z", stale: true, content: null, sources: [] } }));
+  await page.goto("/workspace");
+  await navigateSection(page, "Уведомления");
+  await page.getByRole("button", { name: "Открыть обзор", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Обзор AI" })).toContainText("Старый текст скрыт");
+  await expect(page.getByRole("button", { name: "Обсудить в AI-чате", exact: true })).toHaveCount(0);
+});
+
+test("a settings conflict preserves the review draft and allows explicit reload", async ({ page }) => {
+  await mockAi(page);
+  await page.route("**/api/v1/ai/reviews/settings", async route => {
+    if (route.request().method() === "PUT") return route.fulfill({ status: 409, json: { detail: "Review settings changed." } });
+    await route.fallback();
+  });
+  await page.goto("/workspace/ai?tab=settings");
+  await page.getByLabel("Время ежедневного обзора").fill("12:45");
+  await page.getByRole("button", { name: "Сохранить обзоры", exact: true }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByLabel("Время ежедневного обзора")).toHaveValue("12:45");
+  await page.getByRole("button", { name: "Отменить изменения обзоров", exact: true }).click();
+  await expect(page.getByLabel("Время ежедневного обзора")).toHaveValue("09:00");
+});
+
+
+test("a disconnected review connection can always be turned off", async ({ page }) => {
+  const state = await mockAi(page);
+  state.reviewSettings.configuration.enabled = true;
+  state.reviewSettings.configuration.offering_id = "flash";
+  state.reviewSettings.configuration.connection_id = connectionId;
+  state.reviewSettings.paused_reason = "connection_unavailable";
+  state.connections[0].disconnected_at = "2026-10-29T10:00:00Z";
+  await page.goto("/workspace/ai?tab=settings");
+  await expect(page.getByText(/выбранное подключение или модель недоступны/)).toBeVisible();
+  await page.getByLabel("Включить обзоры", { exact: true }).uncheck();
+  await page.getByRole("button", { name: "Сохранить обзоры", exact: true }).click();
+  await expect(page.getByText("Настройки обзоров сохранены", { exact: true })).toBeVisible();
+  expect(state.reviewSettings.configuration.enabled).toBe(false);
+  expect(state.writes.filter((item) => item.path.includes("/messages"))).toHaveLength(0);
+});
+
+test("review settings and inbox dialog fit a phone screen", async ({ page }) => {
+  await mockAi(page);
+  const reviewId = "aaaaaaaa-2222-4333-8444-555555555555";
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/v1/reminders?**", route => route.fulfill({ json: { items: [] } }));
+  await page.route("**/api/v1/notifications?**", route => route.fulfill({ json: { items: [{ id: "mobile-review", kind: "ai_review", review_id: reviewId, title: "Ежедневный обзор AI", starts_at: null, created_at: "2026-10-29T10:00:00Z", read_at: null }] } }));
+  await page.route(`**/api/v1/ai/reviews/${reviewId}`, route => route.fulfill({ json: { id: reviewId, kind: "daily", status: "completed", created_at: "2026-10-29T10:00:00Z", expires_at: "2026-11-28T10:00:00Z", stale: false, content: "Подготовка к учёбе и напоминания.", sources: [reference] } }));
+  await page.goto("/workspace/ai?tab=settings");
+  await expect(page.getByRole("heading", { name: "Обзоры и предупреждения AI" })).toBeVisible();
+  expect(await page.evaluate(() => Array.from(document.querySelectorAll("body *"))
+    .filter((element) => element.getBoundingClientRect().right > window.innerWidth)
+    .map((element) => ({ tag: element.tagName, class: element.className, text: element.textContent,
+      width: element.getBoundingClientRect().width })).slice(-10))).toEqual([]);
+  await page.getByRole("button", { name: "Источники обзоров", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Источники для обзоров" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await navigateSection(page, "Уведомления");
+  await page.getByRole("button", { name: "Открыть обзор", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Обзор AI" })).toBeVisible();
+  expect(await page.evaluate(() => Array.from(document.querySelectorAll("body *"))
+    .filter((element) => element.getBoundingClientRect().right > window.innerWidth)
+    .map((element) => ({ tag: element.tagName, class: element.className, text: element.textContent,
+      width: element.getBoundingClientRect().width })).slice(-10))).toEqual([]);
+  await page.screenshot({ path: test.info().outputPath("review-mobile.png"), fullPage: true });
 });

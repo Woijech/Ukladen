@@ -1,5 +1,7 @@
 "use client";
 
+import { ReviewNotificationButton } from "./ai-reviews";
+
 import { useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { csrfToken, requestJson, writeJson } from "@/shared/api";
@@ -681,7 +683,9 @@ export function SearchPanel({
 type Notification = {
   id: string;
   title: string;
-  starts_at: string;
+  starts_at: string | null;
+  kind?: "reminder" | "ai_review";
+  review_id?: string | null;
   created_at: string;
   read_at: string | null;
 };
@@ -724,7 +728,7 @@ export function NotificationsPanel({ timeZone }: { timeZone: string }) {
         <div>
           <span className="greeting">НИЧЕГО НЕ УПУСТИ</span>
           <h1>Уведомления</h1>
-          <p className="heading-subtitle">Напоминания о важных событиях.</p>
+          <p className="heading-subtitle">Напоминания и обзоры по твоим данным.</p>
         </div>
       </div>
       <div className="notification-layout">
@@ -751,8 +755,8 @@ export function NotificationsPanel({ timeZone }: { timeZone: string }) {
           {items.data && !items.data.items.length && (
             <EmptyState title="Всё спокойно" icon="♧">
               <p>
-                Новые напоминания появятся здесь. Их можно настроить в деталях
-                события.
+                Новые напоминания и включённые обзоры AI появятся здесь.
+                Напоминания настраиваются в событии, обзоры — в настройках AI.
               </p>
             </EmptyState>
           )}
@@ -764,7 +768,8 @@ export function NotificationsPanel({ timeZone }: { timeZone: string }) {
               <span className="inbox-dot" />
               <div>
                 <h2>{item.title}</h2>
-                <p>Начало события: {date(item.starts_at)}</p>
+                <p>{item.starts_at ? `Начало события: ${date(item.starts_at)}` : "Обзор по твоим данным"}</p>
+                {item.kind === "ai_review" && item.review_id && <ReviewNotificationButton id={item.review_id} timeZone={timeZone} />}
                 <small>Получено {date(item.created_at)}</small>
               </div>
               {!item.read_at && (

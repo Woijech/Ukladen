@@ -18,7 +18,9 @@ export function SourcePicker({
   value,
   onSave,
   onClose,
+  purpose = "request",
 }: {
+  purpose?: "request" | "reviews";
   value: Scope | null;
   onSave: (value: Scope | null) => void;
   onClose: () => void;
@@ -47,8 +49,8 @@ export function SourcePicker({
       ),
   });
   return (
-    <Modal title="Источники для запроса" onClose={onClose}>
-      <h2>Где искать ответ</h2>
+    <Modal title={purpose === "reviews" ? "Источники для обзоров" : "Источники для запроса"} onClose={onClose}>
+      <h2>{purpose === "reviews" ? "Что включать в обзоры" : "Где искать ответ"}</h2>
       <label className="checkbox-label">
         <input
           type="checkbox"
@@ -58,8 +60,7 @@ export function SourcePicker({
         Все мои источники автоматически
       </label>
       <p className="muted">
-        AI выбирает нужные данные. Ограничение действует только на отправляемый
-        запрос.
+        {purpose === "reviews" ? "Ограничение сохранится для будущих обзоров. До 100 задач, страниц и материалов; веб-поиска нет." : "AI выбирает нужные данные. Ограничение действует только на отправляемый запрос."}
       </p>
       {!automatic && (
         <>
@@ -83,7 +84,7 @@ export function SourcePicker({
                 setOffset(0);
               }}
             >
-              {Object.entries(kinds).map(([key, label]) => (
+              {Object.entries(kinds).filter(([key]) => purpose !== "reviews" || key !== "database_ids").map(([key, label]) => (
                 <option key={key} value={key}>
                   {label}
                 </option>
@@ -102,6 +103,7 @@ export function SourcePicker({
                 <input
                   type="checkbox"
                   checked={scope[kind].includes(item.id)}
+                  disabled={purpose === "reviews" && count >= 100 && !scope[kind].includes(item.id)}
                   onChange={(event) =>
                     setScope({
                       ...scope,

@@ -309,7 +309,8 @@ atomic plan commit. Any changed precondition requires a new preview/confirmation
 
 AI-11 is implemented locally under the [bounded search contract](ai-11.md). The
 per-offering `web_search` flag defaults to false; activation/spending needs separate
-authorization. AI-12 remains not implemented. No new per-search UI step is required.
+authorization. [AI-12](ai-12.md) implements opt-in reviews locally; its background
+runtime is default-disabled and unactivated. No new per-search UI step is required.
 
 Use an explicitly supported web-search adapter, not unrestricted HTTP or hosted code.
 For workspace questions retrieve local sources first, disclose insufficiency and
