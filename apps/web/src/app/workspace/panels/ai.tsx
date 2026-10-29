@@ -37,6 +37,7 @@ import {
   type Scope,
   type Source,
 } from "./ai-api";
+import { AiDiagnostics, diagnosticCases } from "./ai-diagnostics";
 import { AiSettings } from "./ai-settings";
 import { SourcePicker, SourceViewer } from "./ai-sources";
 import { AiUsage, RunDetails } from "./ai-usage";
@@ -66,12 +67,14 @@ export function AiPanel({
 }) {
   const path = usePathname();
   const params = useSearchParams();
-  const tab = path.endsWith("/usage")
+  const tab = params.get("tab") === "diagnostics" ? "diagnostics" : path.endsWith("/usage")
     ? "usage"
     : params.get("tab") === "settings"
       ? "settings"
       : "chat";
   const selected = params.get("chat");
+  const [diagnosticCase, setDiagnosticCase] = useState<string | null>(null);
+  const diagnosticAccess = useQuery({ queryKey: ["ai-diagnostic-access"], queryFn: ({ signal }) => requestJson<{ allowed: boolean }>(`${aiBase}/diagnostics/access`, { signal }) });
   const [dirty, setDirty] = useState(false);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const changeDirty = useCallback(
@@ -111,6 +114,7 @@ export function AiPanel({
           ["chat", "Чаты", "/workspace/ai"],
           ["usage", "Использование", "/workspace/ai/usage"],
           ["settings", "Настройки AI", "/workspace/ai?tab=settings"],
+          ...(diagnosticAccess.data?.allowed ? [["diagnostics", "Диагностика", "/workspace/ai?tab=diagnostics"]] : []),
         ].map(([key, label, url]) => (
           <button
             key={key}
@@ -122,7 +126,10 @@ export function AiPanel({
           </button>
         ))}
       </div>
-      {tab === "settings" ? (
+      {diagnosticCase && <NewChat diagnostic onClose={() => setDiagnosticCase(null)} onCreated={(chat) => { const scenario = diagnosticCase; setDiagnosticCase(null); go(`/workspace/ai?chat=${encodeURIComponent(chat.id)}&case=${encodeURIComponent(scenario)}`); }} />}
+      {tab === "diagnostics" ? (
+        <AiDiagnostics onCreate={setDiagnosticCase} onOpenChat={(id) => go(`/workspace/ai?chat=${encodeURIComponent(id)}`)} />
+      ) : tab === "settings" ? (
         <AiSettings onDirtyChange={changeDirty} />
       ) : tab === "usage" ? (
         <AiUsage />
@@ -313,14 +320,16 @@ function ChatArea({
 }
 
 function NewChat({
+  diagnostic = false,
   onClose,
   onCreated,
 }: {
   onClose: () => void;
   onCreated: (chat: Conversation) => void;
+  diagnostic?: boolean;
 }) {
-  const [title, setTitle] = useState("Новая беседа");
-  const [chosenOffering, setOffering] = useState<string | null>(null);
+  const [title, setTitle] = useState(diagnostic ? "QA: проверка AI" : "Новая беседа");
+  const [chosenOffering, setOffering] = useState<string | null>(diagnostic ? "__demo__" : null);
   const [connection, setConnection] = useState("");
   const action = useAction();
   const models = useQuery({
@@ -358,7 +367,8 @@ function NewChat({
         : model.operator_available));
   return (
     <Modal title="Новый AI-чат" onClose={onClose}>
-      <h2>Новая беседа</h2>
+      <h2>{diagnostic ? "Новый тестовый чат" : "Новая беседа"}</h2>
+      {diagnostic && <p>В этом чате включён подробный захват на 7 дней. Он может содержать текст запросов и фрагменты собственных документов. Демо не вызывает провайдера; настоящая модель расходует выбранный ключ.</p>}
       <QueryState
         pending={models.isPending || connections.isPending}
         error={models.error ?? connections.error}
@@ -373,7 +383,7 @@ function NewChat({
           if (!canCreate) return;
           void action.run(async () =>
             onCreated(
-              await writeJson<Conversation>(`${aiBase}/conversations`, "POST", {
+              await writeJson<Conversation>(`${aiBase}/${diagnostic ? "diagnostics/conversations" : "conversations"}`, "POST", {
                 title,
                 ...(offering === "__demo__"
                   ? { demo: true }
@@ -494,9 +504,11 @@ function Chat({
   onDirtyChange: (dirty: boolean) => void;
 }) {
   const client = useQueryClient();
-  const [text, setText] = useState("");
+  const caseParams = useSearchParams();
+  const [text, setText] = useState(() => diagnosticCases.find((item) => item.id === caseParams.get("case"))?.prompt ?? "");
   const [scope, setScope] = useState<Scope | null>(null);
   const [fullSources, setFullSources] = useState(false);
+  const [sourceOnly, setSourceOnly] = useState(false);
   const [picking, setPicking] = useState(false);
   const [source, setSource] = useState<Source | null>(null);
   const [details, setDetails] = useState(false);
@@ -512,6 +524,7 @@ function Chat({
     message: string;
     source_scope?: Scope;
     full_sources?: boolean;
+    source_only?: boolean;
   } | null>(null);
   const action = useAction();
   const bottom = useRef<HTMLDivElement>(null);
@@ -589,6 +602,7 @@ function Chat({
           submission_id: crypto.randomUUID(),
           message: text,
           ...(fullSources ? { full_sources: true } : {}),
+          ...(sourceOnly ? { source_only: true } : {}),
           ...(scope === null ? {} : { source_scope: scope }),
         };
     if (!payload) return;
@@ -820,6 +834,10 @@ function Chat({
                 </button>
               )}
             </div>
+            <label className="checkbox-label">
+              <input type="checkbox" checked={sourceOnly} disabled={running || hasPending} onChange={(event) => setSourceOnly(event.target.checked)} />
+              Без веб-поиска, только мои источники
+            </label>
             <label className="checkbox-label">
               <input type="checkbox" checked={fullSources} disabled={running || hasPending} onChange={(event) => setFullSources(event.target.checked)} />
               Разобрать выбранные страницы и файлы целиком

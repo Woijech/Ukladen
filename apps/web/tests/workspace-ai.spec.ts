@@ -41,6 +41,8 @@ async function mockAi(page: Page) {
   const owner = workspace.userId;
   const state = {
     workspace,
+    diagnosticAllowed: false,
+    diagnosticTrace: { captured: true, truncated: false, verdict: "unreviewed", note: "", events: [{ kind: "tool_response", at: "2026-10-16T12:00:01Z", payload: { value: { content: "Synthetic calendar <script>window.injected=true</script>" } } }] },
     chats: [{ ...chat }],
     messages: [] as {
       id: string;
@@ -88,6 +90,13 @@ async function mockAi(page: Page) {
     if (method !== "GET") {
       expect(request.headers()["x-csrf-token"]).toBe("c".repeat(43));
       state.writes.push({ path, body });
+    }
+    if (path === "/api/v1/ai/diagnostics/access") return route.fulfill({ json: { allowed: state.diagnosticAllowed, user_id: owner } });
+    if (path === "/api/v1/ai/diagnostics/runs") return route.fulfill({ json: { items: state.run ? [{ ...state.run, conversation_id: chatId, created_at: "2026-10-16T12:00:00Z", finished_at: "2026-10-16T12:00:02Z", credential_source: "operator", captured: true, verdict: state.diagnosticTrace.verdict }] : [], has_more: false } });
+    if (path.startsWith("/api/v1/ai/diagnostics/runs/")) {
+      if (method === "PUT") { state.diagnosticTrace.verdict = String(body!.verdict); state.diagnosticTrace.note = String(body!.note); return route.fulfill({ status: 204 }); }
+      if (method === "DELETE") { state.diagnosticTrace = { ...state.diagnosticTrace, captured: false, events: [], verdict: "unreviewed", note: "" }; return route.fulfill({ status: 204 }); }
+      return route.fulfill({ json: { run: { ...state.run, conversation_id: chatId, created_at: "2026-10-16T12:00:00Z", finished_at: "2026-10-16T12:00:02Z" }, trace: state.diagnosticTrace } });
     }
     if (path.endsWith("/proposals")) return route.fulfill({ json: state.proposals });
     if (path.endsWith("/decision")) {
@@ -841,3 +850,74 @@ test("review settings and inbox dialog fit a phone screen", async ({ page }) => 
       width: element.getBoundingClientRect().width })).slice(-10))).toEqual([]);
   await page.screenshot({ path: test.info().outputPath("review-mobile.png"), fullPage: true });
 });
+
+
+test("diagnostics denies ungranted users and identifies their account", async ({ page }) => {
+  const state = await mockAi(page);
+  await page.goto("/workspace/ai?tab=diagnostics");
+  await expect(page.getByRole("alert").filter({ hasText: "Доступ закрыт" })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "Доступ закрыт" })).toContainText(state.workspace.userId);
+  await expect(page.getByRole("button", { name: "Создать тестовый чат" })).toHaveCount(0);
+  expect(state.writes).toHaveLength(0);
+});
+
+test("diagnostic chat defaults to demo, prefills a scenario and never auto-submits", async ({ page }) => {
+  const state = await mockAi(page);
+  state.diagnosticAllowed = true;
+  await page.goto("/workspace/ai?tab=diagnostics");
+  await page.getByRole("button", { name: "Создать тестовый чат" }).click();
+  const modal = page.getByRole("dialog", { name: "Новый AI-чат" });
+  await expect(modal.getByLabel("Модель", { exact: true })).toHaveValue("__demo__");
+  await modal.getByRole("button", { name: "Создать чат", exact: true }).click();
+  await expect(page.getByLabel("Сообщение AI")).toHaveValue("Проверь тестовый инструмент.");
+  expect(state.writes.filter((item) => item.path.endsWith("/messages/stream"))).toHaveLength(0);
+  const created = state.writes.find((item) => item.path.endsWith("/diagnostics/conversations"));
+  expect(created?.body?.demo).toBe(true);
+  await page.getByLabel("Без веб-поиска, только мои источники").check();
+  await page.getByRole("button", { name: "Отправить ↑" }).click();
+  await expect(page.getByRole("log")).toContainText("Ответ по заметке");
+  expect(state.writes.filter((item) => item.path.endsWith("/messages/stream"))).toHaveLength(1);
+  expect(state.writes.find((item) => item.path.endsWith("/messages/stream"))?.body?.source_only).toBe(true);
+});
+
+test("diagnostics shows timeline, safely renders capture, reviews and exports JSON", async ({ page }) => {
+  const state = await mockAi(page);
+  state.diagnosticAllowed = true;
+  state.run = { id: "44444444-2222-4333-8444-555555555555", provider: "openrouter", model: "synthetic/model", status: "completed", estimated_cost: null, unpriced_attempts: 1, price: null,
+    attempts: [{ number: 1, status: "succeeded", started_at: "2026-10-16T12:00:00Z", finished_at: "2026-10-16T12:00:01Z", input_tokens: 20, output_tokens: 10, error_code: null }], tools: [] };
+  await page.goto("/workspace/ai?tab=diagnostics");
+  await page.getByRole("button", { name: "Открыть запрос", exact: true }).click();
+  const modal = page.getByRole("dialog", { name: "Разбор AI-запроса" });
+  await expect(modal).toContainText("токены 20 / 10");
+  await modal.getByText(/Результат инструмента/).click();
+  await expect(modal.locator("pre")).toContainText("<script>");
+  expect(await page.evaluate(() => (window as Window & { injected?: boolean }).injected)).toBeUndefined();
+  await modal.getByLabel("Результат проверки").selectOption("passed");
+  await modal.getByLabel("Ожидание, фактический результат и причина оценки").fill("События совпадают");
+  await modal.getByRole("button", { name: "Сохранить оценку" }).click();
+  await expect(modal.getByRole("status")).toContainText("Оценка сохранена");
+  expect(state.diagnosticTrace.verdict).toBe("passed");
+  const downloadPromise = page.waitForEvent("download");
+  await modal.getByRole("button", { name: "Скачать JSON-отчёт" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toContain("ai-diagnostic-");
+  await modal.getByRole("button", { name: "Удалить подробный захват и оценку" }).click();
+  await expect(modal).toContainText("Подробного захвата нет");
+});
+
+for (const width of [1440, 390]) {
+  test(`diagnostics and capture dialog fit at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = await mockAi(page);
+    state.diagnosticAllowed = true;
+    state.run = { id: "44444444-2222-4333-8444-555555555555", provider: "openrouter", model: "synthetic/model", status: "completed", estimated_cost: null, unpriced_attempts: 1, price: null, attempts: [], tools: [] };
+    await page.goto("/workspace/ai?tab=diagnostics");
+    await expect(page.getByRole("heading", { name: "Диагностика AI" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: test.info().outputPath("diagnostics-panel.png"), fullPage: true });
+    await page.getByRole("button", { name: "Открыть запрос", exact: true }).click();
+    await page.getByRole("dialog").getByText(/Результат инструмента/).click();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: test.info().outputPath("diagnostics-detail.png"), fullPage: true });
+  });
+}

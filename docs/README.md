@@ -82,6 +82,7 @@ implementation task, not a guarantee that its checks were rerun during a later e
 - [AI-11 web fallback](development/ai-11.md): local source-first chat fallback, bounded public search and external citations; unactivated.
 - [AI-12 proactive reviews](development/ai-12.md): opt-in summaries, warnings, source scope and in-app delivery; unactivated.
 - [AI model connections](development/ai-connections.md): optional OpenRouter catalog, restricted offerings, encrypted personal keys and AI-consumer-only secret setup; unactivated.
+- [AI diagnostics](development/ai-diagnostics.md): operator-granted own-run journal, opt-in bounded capture, manual reviews and local JSON export.
 - [AI chat/run API](development/ai-api.md): default-disabled fake chats/runs, idempotency, cancellation, accounting, bounded recovery, physical retention and minimal replay/context markers.
 
 AI-00 and the offline AI-01 foundation are complete; see the setup runbook and

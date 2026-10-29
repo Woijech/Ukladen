@@ -383,6 +383,10 @@ AI-01–AI-07 locally; real-model evaluation and application activation remain s
 See [AI-09 scope](docs/development/ai-09.md).
 
 AI is a separate logical module, initially inside the modular monolith.
+Owned operator [diagnostics](docs/development/ai-diagnostics.md) are implemented
+locally through the same chat path: default-denied UUID grants, opt-in bounded
+foreground capture, seven-day retention, manual reviews and local export.
+This does not grant cross-user access or activate providers.
 
 Responsibilities:
 

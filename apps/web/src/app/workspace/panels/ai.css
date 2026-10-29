@@ -394,3 +394,19 @@
 .ai-action-values, .ai-action-block { white-space: pre-wrap; overflow-wrap: anywhere; }
 .ai-action-block { margin: .5rem 0; }
 .ai-action-buttons { display: flex; flex-wrap: wrap; gap: .75rem; }
+
+.ai-diagnostic-json { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 32rem; overflow: auto; font-size: .8rem; }
+
+.ai-diagnostics { min-width: 0; display: grid; gap: 20px; }
+.ai-diagnostics code { overflow-wrap: anywhere; }
+
+.ai-diagnostics .panel { padding: 24px; }
+.ai-diagnostics .panel h3 { margin-top: 0; }
+.ai-diagnostic-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.ai-diagnostic-toolbar label { min-width: 140px; }
+.ai-diagnostic-detail { display: grid; gap: 12px; }
+.ai-diagnostic-detail p, .ai-diagnostic-detail h3 { margin: 0; }
+.ai-diagnostic-detail button { white-space: normal; }
+.ai-diagnostic-detail code { overflow-wrap: anywhere; }
+.ai-diagnostic-detail details { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; }
+@media (max-width: 600px) { .ai-diagnostics .panel { padding: 16px; } }

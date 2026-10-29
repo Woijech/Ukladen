@@ -310,6 +310,15 @@ cost and content-sharing policy are defined. No direct database or raw IIS tool.
 Done when WS-10, confirmation/grant/revocation/replay/stale-target checks, citation
 ownership, prompt injection boundaries and provider failure/cancellation handling pass.
 
+### Operator AI diagnostics follow-up
+
+Implemented locally under the 2026-10-29 owner request: default-denied UUID grants,
+own-run journal/filtering, opt-in bounded foreground captures, seven-day cleanup,
+manual verdicts and JSON export. The UI reuses normal chat/model/source/confirmation
+paths and defaults test creation to the scripted demo. See the [operator guide](ai-diagnostics.md).
+Deployment and live-model acceptance remain separate; no cross-user admin access
+or external tracing service is added.
+
 ## 12. I-01 public IIS scope; I-02 deferred private integration
 
 Q-02 is confirmed: current IIS work is schedule and related public data only.

@@ -186,3 +186,24 @@ If storage is unavailable, reconciliation waits for a later successful sweep. Wo
 or Beat outages delay it; reads do not run maintenance. The feature remains disabled
 by default and its migration is unapplied to the running app. This slice is not a
 production release of the assistant.
+
+
+## Operator diagnostics
+
+See the [diagnostic guide](ai-diagnostics.md) for activation, data boundaries and
+testing instructions. All routes below are authenticated and no-store. Access
+defaults to denied; AI_DIAGNOSTIC_ADMIN_IDS grants only own-data inspection.
+
+| Route under /api/v1/ai/diagnostics | Behavior |
+| --- | --- |
+| GET /access | Current account UUID and operator availability, no model call |
+| GET /runs | Own retained runs, days 1–30, optional status, limit 1–100, offset 0–10000 |
+| GET /runs/{id} | Normal owned run snapshot and unexpired bounded capture/review |
+| POST /conversations | CSRF-protected normal chat creation plus explicit capture opt-in; no inference |
+| PUT /runs/{id}/review | CSRF-protected unreviewed/passed/failed and a note up to 2000 characters |
+| DELETE /runs/{id}/capture | CSRF-protected capture/review removal; active runs must first stop |
+
+Messages and Stop continue to use the ordinary chat endpoints, not a separate
+execution loop. No endpoint exposes secrets, hidden reasoning, another user’s
+content, arbitrary container logs or shell access. Full-source/review background
+steps keep normal accounting, without detailed content capture in this slice.

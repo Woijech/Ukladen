@@ -115,11 +115,13 @@ export function Pager({
   offset,
   count,
   size = 50,
+  hasMore,
   onChange,
 }: {
   offset: number;
   count: number;
   size?: number;
+  hasMore?: boolean;
   onChange: (offset: number) => void;
 }) {
   return (
@@ -134,7 +136,7 @@ export function Pager({
       <span>{count ? `${offset + 1}–${offset + count}` : "Нет элементов"}</span>
       <button
         className="secondary-button"
-        disabled={count < size}
+        disabled={hasMore === undefined ? count < size : !hasMore}
         onClick={() => onChange(offset + size)}
       >
         Далее
