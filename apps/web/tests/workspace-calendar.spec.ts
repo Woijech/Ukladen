@@ -413,3 +413,118 @@ for (const width of [1440, 834, 390]) {
     }
   });
 }
+
+async function timePoint(page: Page, day: number, hour: number) {
+  await page.locator(".calendar-scroll").evaluate((element, time) => { element.scrollTop = Math.max(0, (time - 1) * 54); }, hour);
+  const box = await page.locator(".day-canvas").nth(day).boundingBox();
+  return { x: box!.x + box!.width / 2, y: box!.y + hour * 54 };
+}
+
+test("calendar click creates a timed draft and writes only after explicit submit", async ({ page }) => {
+  const state = await mockWorkspace(page);
+  await page.goto("/workspace");
+  await expect(page.locator(".calendar-selection")).toHaveCount(7);
+  const point = await timePoint(page, 0, 9.25);
+  await page.mouse.click(point.x, point.y);
+  const dialog = page.getByRole("dialog", { name: "Новое событие" });
+  await expect(dialog.getByLabel("Начало", { exact: true })).toHaveValue("2026-10-12T09:15");
+  await expect(dialog.getByLabel("Окончание", { exact: true })).toHaveValue("2026-10-12T10:15");
+  expect(state.writes).toEqual([]);
+  await dialog.getByLabel("Название", { exact: true }).fill("From the calendar");
+  await dialog.getByRole("button", { name: "Добавить событие", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(state.writes[0].body).toMatchObject({ title: "From the calendar", starts_at: "2026-10-12T09:15:00.000Z", ends_at: "2026-10-12T10:15:00.000Z" });
+});
+
+test("calendar drag previews a range in both directions and cancellation creates nothing", async ({ page }, info) => {
+  const state = await mockWorkspace(page);
+  await page.goto("/workspace");
+  await expect(page.locator(".calendar-selection")).toHaveCount(7);
+  const point = await timePoint(page, 1, 10);
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.mouse.move(point.x, point.y + 81, { steps: 5 });
+  await expect(page.locator(".calendar-selection-preview")).toHaveCSS("height", "81px");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(state.writes).toEqual([]);
+  await page.screenshot({ path: info.outputPath("calendar-selection.png"), animations: "disabled" });
+  await page.mouse.up();
+  await expect(page.getByLabel("Начало", { exact: true })).toHaveValue("2026-10-13T10:00");
+  await expect(page.getByLabel("Окончание", { exact: true })).toHaveValue("2026-10-13T11:30");
+  await page.keyboard.press("Escape");
+  const back = await timePoint(page, 1, 11.5);
+  await page.mouse.move(back.x, back.y);
+  await page.mouse.down();
+  await page.mouse.move(back.x, back.y - 54, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.getByLabel("Начало", { exact: true })).toHaveValue("2026-10-13T10:30");
+  await expect(page.getByLabel("Окончание", { exact: true })).toHaveValue("2026-10-13T11:30");
+  await page.keyboard.press("Escape");
+  for (const cancel of ["Escape", "pointercancel"]) {
+    const start = await timePoint(page, 1, 10);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x, start.y + 27);
+    if (cancel === "Escape") await page.keyboard.press("Escape");
+    else await page.locator(".calendar-selection").nth(1).dispatchEvent("pointercancel");
+    await page.mouse.up();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  }
+  expect(state.writes).toEqual([]);
+});
+
+test("calendar keyboard selects time and duration and late-night clicks stay within the day", async ({ page }) => {
+  await mockWorkspace(page);
+  await page.goto("/workspace");
+  const grid = page.locator(".calendar-selection").first();
+  await grid.focus();
+  await grid.press("ArrowDown");
+  await grid.press("Shift+ArrowUp");
+  await grid.press("Enter");
+  await expect(page.getByLabel("Начало", { exact: true })).toHaveValue("2026-10-12T10:15");
+  await expect(page.getByLabel("Окончание", { exact: true })).toHaveValue("2026-10-12T11:00");
+  await page.keyboard.press("Escape");
+  const point = await timePoint(page, 0, 23.8);
+  await page.mouse.click(point.x, point.y);
+  await expect(page.getByLabel("Начало", { exact: true })).toHaveValue("2026-10-12T23:45");
+  await expect(page.getByLabel("Окончание", { exact: true })).toHaveValue("2026-10-13T00:00");
+});
+
+test("calendar selection preserves the chosen occurrence of a repeated DST hour", async ({ page }) => {
+  const state = await mockWorkspace(page);
+  state.timezone = "America/New_York";
+  await page.clock.setFixedTime(new Date("2026-11-01T12:00:00Z"));
+  await page.goto("/workspace");
+  await expect(page.locator(".calendar-selection")).toHaveCount(7);
+  const point = await timePoint(page, 6, 2.25);
+  await page.mouse.click(point.x, point.y);
+  await expect(page.getByLabel("Начало", { exact: true })).toHaveValue("2026-11-01T01:15");
+  await expect(page.getByLabel("Смещение начала")).toHaveValue("2026-11-01T06:15:00.000Z");
+  await page.getByLabel("Название", { exact: true }).fill("Repeated hour");
+  await page.getByRole("dialog").getByRole("button", { name: "Добавить событие", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(state.writes[0].body).toMatchObject({ starts_at: "2026-11-01T06:15:00.000Z", ends_at: "2026-11-01T07:15:00.000Z" });
+});
+
+test("mobile calendar tap opens a draft while a touch scroll does not", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  const state = await mockWorkspace(page);
+  await page.goto("/workspace");
+  await page.locator(".view-select").click();
+  await page.getByRole("menuitemradio", { name: /День/ }).click();
+  const point = await timePoint(page, 0, 10.5);
+  await page.touchscreen.tap(point.x, point.y);
+  await expect(page.getByLabel("Начало", { exact: true })).toHaveValue("2026-10-16T10:30");
+  await page.getByRole("button", { name: "Отмена", exact: true }).click();
+  const grid = page.locator(".calendar-selection");
+  const start = await timePoint(page, 0, 10);
+  const session = await context.newCDPSession(page);
+  await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: start.x, y: start.y }] });
+  await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: start.x, y: start.y - 100 }] });
+  await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(grid).toBeVisible();
+  expect(state.writes).toEqual([]);
+  await context.close();
+});

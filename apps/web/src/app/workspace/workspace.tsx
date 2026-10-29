@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { ThemeToggle } from "@/shared/theme";
 import { Modal } from "@/shared/ui";
 import { CalendarCard } from "./calendar-card";
+import { CalendarSelection } from "./calendar-selection";
 import { EventDetail } from "./event-detail";
 import { Navigation, NavIcon, sections, type SectionKey } from "./navigation";
 import {
@@ -1200,13 +1201,13 @@ function CalendarWorkspace({
     queryClient,
   ]);
 
-  function openCreate(date = selected) {
+  function openCreate(date = selected, start?: string, end?: string) {
     setEditingEvent(null);
     setSelected(date);
-    setStartValue(`${date}T10:00`);
-    setEndValue(`${date}T11:00`);
-    setStartInstant("");
-    setEndInstant("");
+    setStartValue(start ? dateTimeLocal(new Date(start), timeZone) : `${date}T10:00`);
+    setEndValue(end ? dateTimeLocal(new Date(end), timeZone) : `${date}T11:00`);
+    setStartInstant(start ?? "");
+    setEndInstant(end ?? "");
     setTitle("");
     setLocation("");
     setDescription("");
@@ -1702,6 +1703,10 @@ function CalendarWorkspace({
                 </button>
               </div>
 
+              <p id="calendar-create-help" className="calendar-interaction-hint">
+                Нажми на свободное время или протяни интервал, чтобы создать событие.
+                С клавиатуры: ↑ ↓ — выбрать время, Shift + ↑ ↓ — длительность, Enter — создать.
+              </p>
               <p
                 id="calendar-resize-help"
                 className="calendar-interaction-hint"
@@ -1966,6 +1971,15 @@ function CalendarWorkspace({
                                 </div>
                               ),
                             )}
+                            <CalendarSelection
+                              key={`${day}:${timeZone}`}
+                              dayStart={boundaries[dayIndex].getTime()}
+                              dayEnd={boundaries[dayIndex + 1].getTime()}
+                              hourHeight={hourHeight}
+                              timeZone={timeZone}
+                              disabled={resizeBusy}
+                              onCreate={(start, end) => openCreate(day, start, end)}
+                            />
                             {dayEvents.map((segment) => {
                               const item = segment.originalEvent;
                               const column = columns.get(item.id) ?? {

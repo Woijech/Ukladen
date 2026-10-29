@@ -1701,3 +1701,62 @@ test("deep page nesting scrolls within the sidebar without widening the document
   const tree = page.locator(".page-tree");
   expect(await tree.evaluate((element) => element.scrollWidth)).toBeGreaterThan(await tree.evaluate((element) => element.clientWidth));
 });
+
+test("dropping a material selects one file without uploading until confirmation", async ({ page }) => {
+  const { state } = await contentWorkspace(page);
+  await section(page, "Материалы");
+  const data = await page.evaluateHandle(() => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(["# Dropped note"], "dropped.md", { type: "text/markdown" }));
+    return transfer;
+  });
+  await page.locator(".material-dropzone").dispatchEvent("drop", { dataTransfer: data });
+  const dialog = page.getByRole("dialog", { name: "Загрузить файл", exact: true });
+  await expect(dialog).toContainText("dropped.md");
+  expect(state.writes).toEqual([]);
+  await dialog.getByRole("button", { name: "Загрузить", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(state.uploadBody).toBe("# Dropped note");
+  expect(state.uploadType).toBe("text/markdown");
+  expect(state.writes.filter(write => write.path.endsWith("/uploads"))).toHaveLength(1);
+  await page.getByRole("button", { name: "Загрузить файл", exact: true }).click();
+  await expect(page.getByRole("dialog")).not.toContainText("dropped.md");
+});
+
+test("material drop rejects multiple files and keeps unsupported files local", async ({ page }) => {
+  const { state } = await contentWorkspace(page);
+  await section(page, "Материалы");
+  const multiple = await page.evaluateHandle(() => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(["one"], "one.txt"));
+    transfer.items.add(new File(["two"], "two.txt"));
+    return transfer;
+  });
+  await page.locator(".material-dropzone").dispatchEvent("drop", { dataTransfer: multiple });
+  await expect(page.locator(".inline-error")).toContainText("один файл");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("button", { name: "Загрузить файл", exact: true }).click();
+  const unsupported = await page.evaluateHandle(() => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(["bad"], "bad.exe"));
+    return transfer;
+  });
+  await page.locator(".upload-zone").dispatchEvent("drop", { dataTransfer: unsupported });
+  await expect(page.getByRole("dialog")).toContainText("bad.exe");
+  await page.getByRole("dialog").getByRole("button", { name: "Загрузить", exact: true }).click();
+  await expect(page.getByRole("dialog").getByRole("alert")).toContainText("Поддерживаются");
+  expect(state.writes).toEqual([]);
+});
+
+test("clicking blank note paper focuses the next block without changing existing content", async ({ page }) => {
+  const { state } = await contentWorkspace(page);
+  await section(page, "Заметки");
+  await page.getByRole("button", { name: "Идеи для проекта", exact: true }).click();
+  const paper = page.locator(".note-sheet").first();
+  await paper.click({ position: { x: 10, y: 10 } });
+  await expect(page.getByRole("textbox", { name: "Новый блок", exact: true })).toBeFocused();
+  await page.keyboard.type("Next thought");
+  await expect(page.getByLabel("Текст блока 2", { exact: true })).toHaveValue("Next thought");
+  await expect(page.getByLabel("Текст блока 1", { exact: true })).toHaveValue("Сохранённый текст");
+  expect(state.writes).toEqual([]);
+});

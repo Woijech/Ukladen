@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { dateTimeLocal, localInstants, resolveLocalTime } from "./calendar-time";
 import { requestJson, writeJson, RequestError, SessionExpiredError } from "@/shared/api";
@@ -226,15 +226,40 @@ export function TasksPanel({ timeZone, onSessionEnd, onOpenPage }: { timeZone: s
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<{ task: Task | null; parentId: string | null } | null>(null);
   const [notice, setNotice] = useState("");
+  const [quickTitle, setQuickTitle] = useState("");
+  const [quickBusy, setQuickBusy] = useState(false);
+  const [quickError, setQuickError] = useState("");
+  const quickLock = useRef(false);
   const list = useQuery({ queryKey: ["tasks-list", view, status, priority, offset], queryFn: ({ signal }) => requestJson<TaskList>(taskListPath(offset, status, priority, undefined, view === "trash"), { signal }), retry: false });
 
-  function updated(task: Task) {
+  function updated(task: Task, select = true) {
     client.setQueryData(["task-detail", task.id], task);
     void client.invalidateQueries({ queryKey: ["tasks-list"] });
     void client.invalidateQueries({ queryKey: ["task-children"] });
     void client.invalidateQueries({ queryKey: ["tasks-parent-picker"] });
-    setSelectedId(task.id);
+    if (select) setSelectedId(task.id);
     setNotice("Задача сохранена.");
+  }
+
+  async function quickSave(task?: TaskSummary) {
+    if (quickLock.current || (!task && !quickTitle.trim())) return;
+    quickLock.current = true;
+    setQuickBusy(true); setQuickError(""); setNotice("");
+    try {
+      const saved = await writeTask(task ? `/api/v1/tasks/${task.id}` : "/api/v1/tasks", task ? "PATCH" : "POST", task
+        ? { expected_version: task.version, status: task.status === "done" ? "todo" : "done" }
+        : { title: quickTitle.trim() });
+      updated(saved, !task);
+      if (!task) { setQuickTitle(""); setStatus("all"); setPriority("all"); setOffset(0); }
+      setNotice(task ? saved.status === "done" ? "Задача выполнена." : "Задача снова к выполнению." : "Задача создана.");
+    } catch (cause) {
+      if (cause instanceof SessionExpiredError) onSessionEnd();
+      else {
+        setQuickError(cause instanceof Error ? cause.message : "Не удалось сохранить задачу.");
+        void client.invalidateQueries({ queryKey: ["tasks-list"] });
+        void client.invalidateQueries({ queryKey: ["task-detail"] });
+      }
+    } finally { quickLock.current = false; setQuickBusy(false); }
   }
 
   function saved(task: Task) {
@@ -273,9 +298,14 @@ export function TasksPanel({ timeZone, onSessionEnd, onOpenPage }: { timeZone: s
     <div className="tasks-layout">
       <section className="task-list-card" aria-label="Список задач">
         <div className="task-list-filters"><label>Статус<select value={status} onChange={event => { setStatus(event.target.value as TaskFilter); setOffset(0); }}><option value="all">Все</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Приоритет<select value={priority} onChange={event => { setPriority(event.target.value as PriorityFilter); setOffset(0); }}><option value="all">Все</option>{Object.entries(priorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
+        {view === "active" && <form className="task-quick-add" onSubmit={event => { event.preventDefault(); void quickSave(); }}>
+          <input aria-label="Быстро добавить задачу" placeholder="+ Добавить задачу и нажать Enter" maxLength={200} required pattern={".*\\S.*"} value={quickTitle} disabled={quickBusy} onChange={event => setQuickTitle(event.target.value)} />
+          <button type="submit" className="task-secondary" disabled={quickBusy || !quickTitle.trim()}>{quickBusy ? "Сохраняем…" : "Добавить"}</button>
+        </form>}
+        {quickError && <div className="task-error" role="alert">{quickError}</div>}
         {list.isPending && <p className="task-list-message" role="status">Загружаем задачи…</p>}
         {list.isError && <div className="task-error" role="alert">{list.error instanceof Error ? list.error.message : "Не удалось загрузить задачи."}<button onClick={() => void list.refetch()}>Повторить</button></div>}
-        {list.data && (list.data.items.length ? <ul className="task-list">{list.data.items.map(task => <li key={task.id}><button type="button" className={`task-row ${selectedId === task.id ? "selected" : ""}`} aria-current={selectedId === task.id ? "true" : undefined} onClick={() => setSelectedId(task.id)}><span className="task-row-title">{task.parent_id && <span aria-label="Подзадача">↳ </span>}{task.title}</span><span className="task-row-info"><span className={`task-status status-${task.status}`}>{statusLabels[task.status]}</span><span>{priorityLabels[task.priority]}</span>{view === "trash" && <span>{task.trash_batch_id === task.id ? "Корень удалённой ветки" : "Часть удалённой ветки"}</span>}{task.deadline_at && <span className={task.is_overdue ? "task-overdue" : ""}>{formatDeadline(task.deadline_at, timeZone)}</span>}</span></button></li>)}</ul> : <p className="task-list-message">{status === "all" && priority === "all" ? view === "trash" ? "Корзина пуста." : "Пока нет задач. Создайте первую." : "По этим фильтрам задач нет."}</p>)}
+        {list.data && (list.data.items.length ? <ul className="task-list">{list.data.items.map(task => <li key={task.id}>{view === "active" && <input className="task-complete" type="checkbox" checked={task.status === "done"} disabled={quickBusy || task.status === "cancelled"} aria-label={`${task.status === "done" ? "Вернуть к выполнению" : "Завершить"}: ${task.title}`} onChange={() => void quickSave(task)} />}<button type="button" className={`task-row ${selectedId === task.id ? "selected" : ""}`} aria-current={selectedId === task.id ? "true" : undefined} onClick={() => setSelectedId(task.id)}><span className="task-row-title">{task.parent_id && <span aria-label="Подзадача">↳ </span>}{task.title}</span><span className="task-row-info"><span className={`task-status status-${task.status}`}>{statusLabels[task.status]}</span><span>{priorityLabels[task.priority]}</span>{view === "trash" && <span>{task.trash_batch_id === task.id ? "Корень удалённой ветки" : "Часть удалённой ветки"}</span>}{task.deadline_at && <span className={task.is_overdue ? "task-overdue" : ""}>{formatDeadline(task.deadline_at, timeZone)}</span>}</span></button></li>)}</ul> : <p className="task-list-message">{status === "all" && priority === "all" ? view === "trash" ? "Корзина пуста." : "Пока нет задач. Создайте первую." : "По этим фильтрам задач нет."}</p>)}
         {list.data && (offset > 0 || list.data.items.length === pageSize) && <div className="task-pagination"><button type="button" disabled={offset === 0} onClick={() => setOffset(offset - pageSize)}>Назад</button><span>Страница {offset / pageSize + 1}</span><button type="button" disabled={list.data.items.length < pageSize} onClick={() => setOffset(offset + pageSize)}>Далее</button></div>}
       </section>
       {selectedId ? <TaskDetails key={selectedId} id={selectedId} timeZone={timeZone} onOpenPage={onOpenPage} onSelect={setSelectedId} onCreateChild={parentId => setForm({ task: null, parentId })} onEdit={task => setForm({ task, parentId: null })} onUpdated={updated} onTrashed={task => changedTrash(task, "trash")} onRestored={task => changedTrash(task, "active")} onSessionEnd={onSessionEnd} /> : <section className="task-detail task-detail-empty"><h2>Выберите задачу</h2><p>Здесь появятся описание, срок и подзадачи.</p></section>}
