@@ -26,7 +26,10 @@ class SqlAlchemyReviewSettings:
         )
 
     def save(self, user_id: UUID, value: SavedReviewSettings, expected_version: int) -> None:
+        row = self.database.get(ReviewSettingsModel, user_id, populate_existing=True)
+        state = {key: item for key, item in row.state.items() if key != "paused"} if row else {}
         values = dict(
+            state=state,
             configuration=value.configuration.model_dump(mode="json"),
             version=value.version,
             offering_version=value.offering_version,

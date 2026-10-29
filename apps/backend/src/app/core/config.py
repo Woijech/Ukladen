@@ -18,6 +18,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     ai_enabled: bool = False
     ai_actions_enabled: bool = False
+    ai_reviews_enabled: bool = False
     search_embeddings_directory: Path | None = None
     ai_retention_enabled: bool = False
     ai_llm_provider: Literal["fake"] = "fake"

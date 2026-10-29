@@ -26,6 +26,7 @@ services:
       AI_ENABLED: "false"
       AI_ACTIONS_ENABLED: "false"
       AI_RETENTION_ENABLED: "false"
+      AI_REVIEWS_ENABLED: "false"
       AI_CONNECTIONS_FILE: null
       SEARCH_EMBEDDINGS_DIRECTORY: /model
   beat:

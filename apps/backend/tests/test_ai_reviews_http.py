@@ -47,3 +47,88 @@ def test_settings_storage_failure_is_unavailable(ai_client: TestClient):
         response = ai_client.get("/api/v1/ai/reviews/settings")
     assert response.status_code == 503
     assert "private" not in response.text
+
+
+def test_collection_reuses_owned_services_and_respects_scope(ai_client: TestClient, monkeypatch):
+    from datetime import UTC, datetime, timedelta
+    from typing import cast
+    from uuid import UUID
+
+    from fastapi import FastAPI
+
+    from app.modules.ai.application.reviews import ReviewConfiguration
+    from app.modules.ai.application.source_queries import SourceScope
+    from app.modules.ai.infrastructure.review_collection import collect_review
+    from app.modules.ai.infrastructure.sources import SqlAlchemySourceReader
+    from app.modules.tasks.infrastructure.orm import TaskModel
+
+    headers = csrf_headers(ai_client)
+    first = ai_client.post("/api/v1/tasks", headers=headers, json={"title": "Calculus"}).json()
+    second = ai_client.post("/api/v1/tasks", headers=headers, json={"title": "Physics"}).json()
+    page = ai_client.post(
+        "/api/v1/notes/pages",
+        headers=headers,
+        json={"title": "Calculus", "content": "Useful derivatives"},
+    ).json()
+    application = cast(FastAPI, ai_client.app)
+    reader = SqlAlchemySourceReader(
+        application.state.session_factory, application.state.academic_provider, 3600
+    )
+    with application.state.session_factory() as database, database.begin():
+        row = database.get(TaskModel, UUID(first["id"]))
+        assert row is not None
+        user_id = row.user_id
+        now = datetime.now(UTC)
+        reader.service(database).calendar.calendar.create_personal_event(
+            user_id,
+            {
+                "title": "Nonblocking event",
+                "starts_at": now + timedelta(hours=1),
+                "ends_at": now + timedelta(hours=2),
+                "blocks_time": False,
+            },
+        )
+        result = collect_review(database, reader, user_id, ReviewConfiguration(), datetime.now(UTC))
+        assert {item["id"] for item in result.data["tasks"]} == {first["id"], second["id"]}
+        assert any(source.id == page["id"] for source in result.sources)
+        assert any(event["title"] == "Nonblocking event" for event in result.data["events"])
+        assert not any(issue["kind"] == "conflict" for issue in result.issues)
+    from app.modules.tasks.infrastructure.repository import SqlAlchemyTaskRepository
+
+    def unexpected_hierarchy_read(*args):
+        raise AssertionError("Explicit scope must not inspect unselected descendants")
+
+    monkeypatch.setattr(SqlAlchemyTaskRepository, "has_open_descendants", unexpected_hierarchy_read)
+    with application.state.session_factory() as database, database.begin():
+        result = collect_review(
+            database,
+            reader,
+            user_id,
+            ReviewConfiguration(source_scope=SourceScope(task_ids=(UUID(first["id"]),))),
+            datetime.now(UTC),
+        )
+        assert [item["id"] for item in result.data["tasks"]] == [first["id"]]
+        assert result.data["related_materials"] == [] and result.data["events"] == []
+        assert all(source.source == "task" for source in result.sources)
+
+    outside = ai_client.post("/api/v1/tasks", headers=headers, json={"title": "Outside"}).json()
+    with application.state.session_factory() as database, database.begin():
+        row = database.get(TaskModel, UUID(first["id"]))
+        assert row is not None
+        row.parent_id = UUID(outside["id"])
+        database.flush()
+        result = collect_review(
+            database,
+            reader,
+            user_id,
+            ReviewConfiguration(
+                source_scope=SourceScope(
+                    task_ids=(UUID(first["id"]), UUID(second["id"])),
+                    calendar=True,
+                )
+            ),
+            datetime.now(UTC),
+        )
+        assert "scope_hierarchy_uncertain" in result.warnings
+        assert not any(issue["kind"] == "overload" for issue in result.issues)
+        assert outside["id"] not in {item["id"] for item in result.data["tasks"]}

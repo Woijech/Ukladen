@@ -105,3 +105,25 @@ def test_native_settings_owner_versions_selected_connection_and_preserving_migra
         command.check(migration_config(database))
         with pytest.raises(RuntimeError, match="Cannot discard"), database.begin_nested():
             command.downgrade(migration_config(database), "0038_ai_action_revisions")
+
+
+def test_disabling_reviews_does_not_require_a_working_connection():
+    from app.modules.ai.application.reviews import ReviewSettingsRepository
+    from app.modules.users.application.ports import UserAuthentication
+
+    repository = create_autospec(ReviewSettingsRepository, instance=True)
+    users = create_autospec(UserAuthentication, instance=True)
+    users.lock_active.return_value = True
+    enabled = ReviewConfiguration(enabled=True, offering_id="flash")
+    repository.get.return_value = SavedReviewSettings(enabled, 1, 3)
+    access = create_autospec(ConnectionAccess, instance=True)
+    access.select.side_effect = AssertionError("Disabling must not inspect credentials.")
+    saved = ReviewSettingsService(repository, users).save(
+        uuid4(),
+        enabled.model_copy(update={"enabled": False}),
+        1,
+        connections=access,
+        ai=create_autospec(AiRepository, instance=True),
+    )
+    assert not saved.configuration.enabled and saved.version == 2
+    access.select.assert_not_called()

@@ -42,6 +42,13 @@ class ReviewConfiguration(BaseModel):
             raise ValueError("Enabled reviews require a model and at least one review type.")
         if self.connection_id is not None and self.offering_id is None:
             raise ValueError("A personal connection requires an explicit model.")
+        if self.source_scope is not None:
+            scope = self.source_scope
+            if (
+                scope.database_ids
+                or len(scope.page_ids) + len(scope.material_ids) + len(scope.task_ids) > 100
+            ):
+                raise ValueError("Review scopes support at most 100 tasks, pages and materials.")
         return self
 
 
@@ -80,8 +87,12 @@ class ReviewSettingsService:
         current = self.repository.get(user_id)
         if type(expected_version) is not int or expected_version != current.version:
             raise AiConflict("Review settings changed.")
-        offering_version = None
-        if configuration.offering_id is not None:
+        offering_version = (
+            current.offering_version
+            if configuration.offering_id == current.configuration.offering_id
+            else None
+        )
+        if configuration.enabled and configuration.offering_id is not None:
             if connections is None:
                 raise InvalidAiState("Select a supported model connection.")
             selection, offering = connections.select(

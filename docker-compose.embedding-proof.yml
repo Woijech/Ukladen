@@ -9,6 +9,7 @@ x-proof-backend: &proof-backend
     SCHEDULE_SYNC_ENABLED: "false"
     AI_ENABLED: "false"
     AI_RETENTION_ENABLED: "false"
+    AI_REVIEWS_ENABLED: "false"
     AI_CONNECTIONS_FILE: null
     AUTH_EMAIL_DELIVERY_MODE: fake
     LOG_LEVEL: WARNING
