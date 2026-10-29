@@ -106,3 +106,39 @@ Earlier full backend regression evidence remains in [AI-12](ai-12.md); that full
 suite was not rerun for this configuration/UI-copy preparation. The provider cap is
 owner-reported, not independently verified. No inference, metered search, management
 API call or live model-quality check was made.
+
+
+### 2026-10-29 streaming diagnostic follow-up
+
+After the owner started the prepared stack, a failed calendar question was traced
+to the provider adapter before tool execution. The JSON-sized response limit
+interrupted valid SSE streams; a repeated finish marker in a terminal usage choice
+was also rejected. The adapter now bounds SSE separately and accepts only empty
+usage trailers, while preserving failure on additional content. Truncated/refused
+streams remain failures and retain terminal token counts when reported.
+
+Two separately approved operations allowed two and six model calls respectively,
+all eight used with retries disabled and explicit route-price ceilings. Only
+synthetic questions, schemas and synthetic calendar events were sent to the
+selected DeepSeek model; no owner documents/calendar data, web searches or actions
+were used. The final framework run read two synthetic calendar events and returned
+their correct date and times. Some interrupted attempts did not report usage/cost;
+this evidence does not establish a complete actual-spend total. No further agent
+provider calls are authorized by that exhausted allowance.
+
+This is narrow live calendar/stream verification, not acceptance of the complete
+AI module. Live RAG quality, public search, confirmed actions and proactive reviews
+still require their own bounded acceptance checks. Earlier preparation evidence
+above describes that earlier operation, not these later diagnostic requests.
+
+The API image was rebuilt and only `api` was recreated with the existing runtime
+configuration. Its container became healthy; the local readiness endpoint returned
+HTTP 200 and the installed SSE limit was confirmed as 2097152 bytes. No provider
+request was made after deployment because the approved diagnostic allowance was
+exhausted. Workers and other application services were not recreated.
+
+Verification for this fix: the complete backend suite passed 2084 tests against
+isolated PostgreSQL, Redis and object storage with provider access unavailable.
+The focused adapter/accounting suite passed 50 tests; backend Ruff/format and
+Pyright passed. Base and prepared home Compose configuration validation and
+`git diff --check` passed. Frontend checks were not rerun: no frontend code changed.

@@ -104,6 +104,40 @@ def test_errors_do_not_retry_or_switch_keys_and_retry_after_does_not_sleep(statu
     assert len(requests) == 1 and blocked == ([13] if status in (429, 503) else [])
 
 
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize("status", [400, 401, 402, 404, 429, 503])
+def test_provider_failures_log_status_and_type_without_private_payload(caplog, stream, status):
+    from app.core.logging import JsonFormatter
+
+    sent = []
+
+    def respond(request):
+        sent.append(request)
+        return httpx.Response(
+            status,
+            json={"error": {"message": "private-provider-body", "code": status}},
+            request=request,
+        )
+
+    model, client = openrouter_model(
+        PROFILE, lambda: KEY, lambda _: None, transport=httpx.MockTransport(respond)
+    )
+    with client, pytest.raises(ProviderFailure):
+        if stream:
+            list(model.stream("private-user-message"))
+        else:
+            model.invoke("private-user-message")
+    records = [record for record in caplog.records if record.msg == "ai.provider_request_failed"]
+    assert len(records) == 1 and len(sent) == 1
+    row = json.loads(JsonFormatter().format(records[0]))
+    assert row["status_code"] == status
+    assert row["error_type"] != "ProviderFailure"
+    rendered = json.dumps(row)
+    assert all(
+        secret not in rendered for secret in [KEY, "private-provider-body", "private-user-message"]
+    )
+
+
 @pytest.mark.parametrize(
     "reason,message",
     [
@@ -318,6 +352,169 @@ def test_stream_assembles_arguments_and_preserves_usage_without_reasoning():
     assert "private reasoning" not in str(chunks)
 
 
+def test_reasoning_stream_can_exceed_json_body_bound_without_exposing_reasoning():
+    events = [
+        chunk({"role": "assistant", "reasoning": "private reasoning fragment " * 20})
+        for _ in range(400)
+    ]
+    events.extend(
+        [
+            chunk({"content": "Synthetic calendar answer"}),
+            chunk({}, "stop"),
+            chunk({})
+            | {
+                "choices": [],
+                "usage": {
+                    "prompt_tokens": 12,
+                    "completion_tokens": 500,
+                    "total_tokens": 512,
+                },
+            },
+        ]
+    )
+    assert sum(len(json.dumps(event).encode()) for event in events) > 131072
+    model, client = openrouter_model(
+        PROFILE,
+        lambda: KEY,
+        lambda _: None,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                headers={"Content-Type": "text/event-stream; charset=utf-8"},
+                stream=SyntheticStream(events),
+            )
+        ),
+    )
+    with client:
+        chunks = list(model.stream("Synthetic request"))
+    assert "".join(chunk.text for chunk in chunks) == "Synthetic calendar answer"
+    assert any(
+        chunk.response_metadata.get("ukladen_usage", {}).get("output_tokens") == 500
+        for chunk in chunks
+    )
+    assert "private reasoning" not in str(chunks)
+
+
+def test_stream_body_limit_remains_finite():
+    from app.integrations.llm.openrouter import STREAM_BYTES, LimitedStream
+
+    with pytest.raises(ProviderFailure):
+        list(LimitedStream(httpx.ByteStream(b"x" * (STREAM_BYTES + 1)), STREAM_BYTES))
+
+
+@pytest.mark.parametrize("finish", ["stop", "tool_calls"])
+@pytest.mark.parametrize("trailing_content", ["", "unexpected answer"])
+def test_usage_only_choice_can_repeat_finish_but_cannot_append_content(finish, trailing_content):
+    events = [
+        chunk({"role": "assistant", "content": "Synthetic answer"}),
+        chunk({}, finish),
+        chunk({"role": "assistant", "content": trailing_content}, finish)
+        | {"usage": {"prompt_tokens": 12, "completion_tokens": 4, "total_tokens": 16}},
+    ]
+    model, client = openrouter_model(
+        PROFILE,
+        lambda: KEY,
+        lambda _: None,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                headers={"Content-Type": "text/event-stream"},
+                stream=SyntheticStream(events),
+            )
+        ),
+    )
+    with client:
+        if trailing_content:
+            with pytest.raises(ProviderFailure):
+                list(model.stream("Synthetic request"))
+        else:
+            chunks = list(model.stream("Synthetic request"))
+            assert any(
+                chunk.response_metadata.get("ukladen_usage", {}).get("output_tokens") == 4
+                for chunk in chunks
+            )
+
+
+def test_framework_stream_runs_calendar_tool_and_completes_answer():
+    from uuid import uuid4
+
+    from app.modules.ai.application.source_queries import CalendarRead
+    from app.modules.ai.application.streaming import stream_sink
+    from app.modules.ai.infrastructure.grounding import SourceTools
+    from app.modules.search.application.evidence import EvidenceResult
+
+    reads = []
+
+    class CalendarReader:
+        def context(self, user_id):
+            return "Current profile date: 2026-10-29; timezone: Europe/Minsk."
+
+        def read(self, user_id, query):
+            assert isinstance(query, CalendarRead)
+            reads.append(query)
+            return EvidenceResult(data={"entries": [{"title": "Synthetic algebra"}]})
+
+    events = iter(
+        [
+            [
+                chunk(
+                    {
+                        "role": "assistant",
+                        "tool_calls": [
+                            {
+                                "index": 0,
+                                "id": "calendar-call",
+                                "type": "function",
+                                "function": {
+                                    "name": "get_calendar_events",
+                                    "arguments": (
+                                        '{"date_from":"2026-10-30","date_to":"2026-10-30"}'
+                                    ),
+                                },
+                            }
+                        ],
+                    }
+                ),
+                chunk({}, "tool_calls"),
+            ],
+            [
+                chunk({"role": "assistant", "content": "Завтра синтетическая алгебра."}),
+                chunk({}, "stop"),
+            ],
+        ]
+    )
+    sent, visible = [], []
+
+    def respond(request):
+        sent.append(json.loads(request.content))
+        return httpx.Response(
+            200, headers={"Content-Type": "text/event-stream"}, stream=SyntheticStream(next(events))
+        )
+
+    model, client = openrouter_model(
+        PROFILE.model_copy(update={"max_input_bytes": 65536}),
+        lambda: KEY,
+        lambda _: None,
+        transport=httpx.MockTransport(respond),
+    )
+    source = SourceTools(CalendarReader(), uuid4())
+    token = stream_sink.set(visible.append)
+    try:
+        with client:
+            result = OfflineAgentRunner(
+                model,
+                source.build_tools(),
+                InMemorySaver(),
+                sources=source,
+            ).run(AgentInput(conversation_id=uuid4(), message="Какие завтра пары?"))
+    finally:
+        stream_sink.reset(token)
+    assert result.status == "completed" and result.answer == "Завтра синтетическая алгебра."
+    assert reads and len(sent) == 2
+    assert all(request["stream"] for request in sent)
+    assert any(event["event"] == "delta" for event in visible)
+
+
 def test_incomplete_stream_never_finishes_a_tool_call():
     events = [chunk({"content": "partial"})]
     model, client = openrouter_model(
@@ -334,6 +531,34 @@ def test_incomplete_stream_never_finishes_a_tool_call():
         list(model.stream("Synthetic request"))
     assert retry_seconds("99999999") == 86400
     assert retry_seconds("invalid") == 60
+
+
+@pytest.mark.parametrize("reason", ["length", "content_filter"])
+def test_failed_stream_keeps_trailing_usage_and_never_finishes_tool_call(reason, caplog):
+    events = [
+        chunk({"content": "partial"}),
+        chunk({}, reason),
+        chunk({})
+        | {
+            "choices": [],
+            "usage": {"prompt_tokens": 12, "completion_tokens": 4, "total_tokens": 16},
+        },
+    ]
+    model, client = openrouter_model(
+        PROFILE,
+        lambda: KEY,
+        lambda _: None,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200, headers={"Content-Type": "text/event-stream"}, stream=SyntheticStream(events)
+            )
+        ),
+    )
+    with client, pytest.raises(ProviderFailure) as failure:
+        list(model.stream("Synthetic request"))
+    assert failure.value.input_tokens == 12 and failure.value.output_tokens == 4
+    record = next(record for record in caplog.records if record.msg == "ai.provider_request_failed")
+    assert record.reason == ("stream_output_limit" if reason == "length" else "stream_refusal")
 
 
 @pytest.mark.parametrize("failure", ["model", "oversized", "compression", "timeout"])
