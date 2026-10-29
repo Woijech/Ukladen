@@ -1,6 +1,6 @@
 # Product Decisions and Open Questions
 
-Updated: 2026-10-28.
+Updated: 2026-10-29.
 Status: decision register. Owner-confirmed scope is distinguished from open design
 choices. Proposed defaults are not owner confirmation; resolve relevant unknowns
 before implementing incompatible schemas, integrations or behavior.
@@ -299,3 +299,9 @@ new features or architecture changes need discussion. Rehearse provider replacem
 with a test double, add no second real adapter and use no private user data. Application
 migrations, restarts, activation, deployment and real-provider calls are not authorized.
 See [AI-09](../development/ai-09.md).
+
+## AI-12 owner confirmation (2026-10-29)
+
+Full opt-in proactive review scope, source restrictions, scheduling/deduplication
+and fake-only implementation were confirmed. The authoritative decisions and
+implementation status are recorded in [AI-12](../development/ai-12.md).

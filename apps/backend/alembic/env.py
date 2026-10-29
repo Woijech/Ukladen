@@ -9,6 +9,7 @@ from app.modules.ai.infrastructure import action_models as ai_action_models  # n
 from app.modules.ai.infrastructure import checkpoint_schema as ai_checkpoint_schema  # noqa: F401
 from app.modules.ai.infrastructure import document_models as ai_document_models  # noqa: F401
 from app.modules.ai.infrastructure import orm as ai_orm  # noqa: F401
+from app.modules.ai.infrastructure import review_models as ai_review_models  # noqa: F401
 from app.modules.auth.infrastructure import orm as auth_orm  # noqa: F401
 from app.modules.calendar.infrastructure import orm as calendar_orm  # noqa: F401
 from app.modules.materials.infrastructure import orm as materials_orm  # noqa: F401

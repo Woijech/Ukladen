@@ -452,6 +452,10 @@ def delete_conversation(conversation_id: UUID, current: CurrentSession, service:
 
 
 def install_ai(application: FastAPI) -> None:
+    from app.modules.ai.presentation.reviews import router as review_router
+
+    application.include_router(review_router)
+
     def ai_error(request: Request, error: Exception) -> JSONResponse:
         headers = {"Cache-Control": "no-store"}
         if isinstance(error, AiNotFound):
