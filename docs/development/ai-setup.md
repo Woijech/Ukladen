@@ -1,6 +1,6 @@
 # AI Setup and Provider Switching Runbook
 
-Updated: 2026-10-26.
+Updated: 2026-10-29.
 Status: AI-01 is complete within its offline scope: harness, owned persistence,
 authenticated fake API, durable accounting, bounded recovery and retention cleanup.
 Disabled by default; migrations are tested on disposable data and unapplied to the
@@ -17,7 +17,8 @@ See [current API and recovery limits](ai-api.md). No provider request or deploym
 
 Use [product scope](../product/ai.md), [stages](ai-implementation-plan.md),
 [contracts](ai-tool-contracts.md) and [ADR 0009](../adr/0009-specify-provider-neutral-ai-orchestration.md).
-LLM and embeddings have separate implemented adapter boundaries; web search remains planned. The operator may offer
+LLM, embeddings and [web search](ai-11.md) have separate implemented adapter boundaries;
+web search remains default-disabled and unactivated. The operator may offer
 several supported models and users may connect personal supported API accounts.
 AI-02 verifies the OpenRouter contract for the owner-selected DeepSeek V4.1 Flash
 profile and an optional free example; live account behavior remains unverified.
@@ -305,6 +306,10 @@ freshness, complete busy set, task/preferences versions and conflicts before a s
 atomic plan commit. Any changed precondition requires a new preview/confirmation.
 
 ## G. AI-11/12: fallback and proactive reviews
+
+AI-11 is implemented locally under the [bounded search contract](ai-11.md). The
+per-offering `web_search` flag defaults to false; activation/spending needs separate
+authorization. AI-12 remains not implemented. No new per-search UI step is required.
 
 Use an explicitly supported web-search adapter, not unrestricted HTTP or hosted code.
 For workspace questions retrieve local sources first, disclose insufficiency and

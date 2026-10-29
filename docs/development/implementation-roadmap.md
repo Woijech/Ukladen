@@ -286,7 +286,8 @@ The [detailed AI plan](ai-implementation-plan.md) splits work into AI-00 through
 with the [owner-agreed product specification](../product/ai.md),
 [tool/fixture contracts](ai-tool-contracts.md) and [connection runbook](ai-setup.md).
 Provider-neutral operator models and personal API connections replace the old Groq
-baseline. Selected scope includes chat/usage, RAG, note editing, task extraction,
+baseline. [AI-11](ai-11.md) implements local bounded web fallback and labeled citations;
+search activation and live quality remain pending. Selected scope includes chat/usage, RAG, note editing, task extraction,
 deterministic planning/replanning, labeled model/web fallback, instructions and
 opt-in proactive work. No real provider call or deployment has been performed by the offline slice.
 AI calendar reads may be requested before P-08; RAG requires extraction/search.

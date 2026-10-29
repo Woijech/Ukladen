@@ -56,7 +56,7 @@ that loses personal overrides. Schema version for the initial contracts is v1.
 | check_calendar_conflicts / availability_read | Proposed intervals, explicit edited target IDs | Real overlap set/warnings; read | P-06 calendar conflict application interface |
 | generate_plan / planning_preview | Task IDs/versions, range, structured constraints/preference version | Feasible candidate sessions or unmet work, protected targets, calendar snapshot and assumptions; read/proposal only | P-06 deterministic task planner and AI-10 |
 | get_user_preferences / preferences_read | Optional preference keys | Owned instructions and structured planning settings/version; read | AI settings; P-06 planning settings |
-| search_web / web_search | Minimal query, optional language, result limit | Retrieved public URLs/titles/excerpts with retrieval time; external read only | AI-11 search application port and verified adapter |
+| search_web / web_search | Minimal public query; adapter-owned result limits | Retrieved public URLs/titles/excerpts with retrieval time; external read only | AI-11 search application port and verified adapter |
 | propose_action / per-operation write capability | Discriminated operation, exact target/parameters and expected versions/source refs | Immutable proposal ID/version, effects, expiry; no business mutation | AI-07 and delivered target application interface |
 
 Proposal operations are explicit enum members: page_create, page_update, event_create,

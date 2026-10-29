@@ -16,6 +16,7 @@ type Metrics = {
   unknown_input_attempts: number;
   unknown_output_attempts: number;
   unpriced_attempts: number;
+  unpriced_web_searches?: number;
   estimated_costs: Record<string, string>;
 };
 type UsageGroup = Metrics & { label: string; fake: boolean };
@@ -68,6 +69,7 @@ export function AiUsage() {
   const report = query.data;
   return (
     <div className="ai-usage">
+      <p className="muted">Оценка стоимости учитывает токены модели. Плата за веб-поиск сюда не входит.</p>
       <QueryState
         pending={access.isPending}
         error={access.error}
@@ -176,7 +178,8 @@ export function AiUsage() {
           <p className="muted">
             Оценка по сохранённым тарифам, не счёт провайдера. Повторные,
             неудачные и отменённые попытки учитываются. Неоценённых попыток:{" "}
-            {report.summary.unpriced_attempts}. Баланс и внешние запросы
+            {report.summary.unpriced_attempts}. Поисковых вызовов без оценки платы:{" "}
+            {report.summary.unpriced_web_searches ?? 0}. Баланс и внешние запросы
             аккаунта провайдера здесь не отражены.
           </p>
           {(report.summary.unknown_input_attempts > 0 ||
@@ -240,8 +243,8 @@ export function AiUsage() {
               Учитываются отдельно от реальных моделей.
             </p>
             <p className="muted">
-              Поиск сейчас работает по словам. Семантический индекс ещё не
-              реализован.
+              Поиск по смыслу доступен при включённом семантическом индексе.
+              Готовность конкретного материала показана в просмотре источника.
             </p>
           </section>
         </>

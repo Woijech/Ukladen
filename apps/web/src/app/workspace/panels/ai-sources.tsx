@@ -222,7 +222,24 @@ function SourceContent({ value }: { value: unknown }): ReactNode {
   return null;
 }
 
-export function SourceViewer({
+export function SourceViewer(props: { source: Source; onClose: () => void }) {
+  if (props.source.source === "web") {
+    let url: URL | null = null;
+    try {
+      const parsed = new URL(props.source.url ?? "");
+      if (["https:", "http:"].includes(parsed.protocol) && !parsed.username && !parsed.password) url = parsed;
+    } catch {}
+    return <Modal title="Источник из интернета" onClose={props.onClose}>
+      <h2>{props.source.title}</h2>
+      <p>Внешний источник. Его содержание не является частью твоих документов.</p>
+      {props.source.retrieved_at && <p>Получен: {new Date(props.source.retrieved_at).toLocaleString("ru")}</p>}
+      {url ? <a href={url.href} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Открыть источник</a> : <p>Ссылка недоступна.</p>}
+    </Modal>;
+  }
+  return <LocalSourceViewer {...props} />;
+}
+
+function LocalSourceViewer({
   source,
   onClose,
 }: {

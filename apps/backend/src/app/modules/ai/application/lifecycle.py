@@ -82,6 +82,10 @@ class RunSnapshot:
     tools: tuple[ToolExecution, ...]
 
     @property
+    def unpriced_web_searches(self) -> int:
+        return sum(item.tool_name == "search_web" for item in self.tools)
+
+    @property
     def estimated_cost(self) -> Decimal | None:
         if self.run.price is None:
             return None
@@ -270,6 +274,8 @@ class AiService:
 
     def admit(self, user_id: UUID, request: AgentInput, submission_id: UUID) -> tuple[Run, bool]:
         payload: list[object] = [str(request.conversation_id), request.message]
+        if request.source_only:
+            payload.append("source_only")
         if request.full_sources:
             if (
                 request.source_scope is None

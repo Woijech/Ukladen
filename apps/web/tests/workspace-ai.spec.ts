@@ -668,3 +668,23 @@ test("AI plan preview requires explicit partial acceptance and blocks unverified
   await expect(page.getByRole("button", { name: "Применить всё", exact: true })).toBeDisabled();
   expect(state.proposalCommits).toBe(0);
 });
+
+test("AI labels web evidence and opens only the retrieved public source", async ({ page }) => {
+  const state = await mockAi(page);
+  const web = { ...reference, source: "web", id: "a".repeat(64), version: 0,
+    title: "Дисперсия — внешний источник", url: "https://example.org/variance",
+    retrieved_at: "2026-10-29T10:00:00Z" };
+  state.messages.push({ id: "web-answer", sequence: 1, role: "assistant",
+    content: `В конспекте определения нет. Из интернета: дисперсия — мера разброса. [source:${web.id}]`,
+    sources: [web] });
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  await expect(page.getByRole("button", { name: `Из интернета: ${web.title}` })).toBeVisible();
+  await page.getByRole("button", { name: web.title, exact: true }).click();
+  const viewer = page.getByRole("dialog", { name: "Источник из интернета" });
+  await expect(viewer.getByText("Внешний источник. Его содержание не является частью твоих документов.")).toBeVisible();
+  const link = viewer.getByRole("link", { name: "Открыть источник" });
+  await expect(link).toHaveAttribute("href", web.url);
+  await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  expect(state.writes.filter(item => item.path.endsWith("/sources/read"))).toHaveLength(0);
+  await page.screenshot({ path: test.info().outputPath("web-source.png"), fullPage: true });
+});

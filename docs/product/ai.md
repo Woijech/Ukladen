@@ -13,7 +13,8 @@ AI-06 adds local hybrid retrieval and durable complete-source processing; see
 [AI-06](../development/ai-06.md). [AI-07](../development/ai-07.md) adds locally implemented
 exact confirmed actions. [AI-10](../development/ai-10.md) implements typed task
 extraction/provenance, editable proposals, work preferences/sessions and confirmed
-deterministic planning/replanning locally. Activation and live-model quality remain
+deterministic planning/replanning locally. [AI-11](../development/ai-11.md) adds local
+labeled knowledge/web fallback and public citations. Activation and live-model quality remain
 pending; AI-08 automatic grants are deferred indefinitely. AI-00 specifies the target work; it does
 not enable integrations. This is the single AI specification linked from
 [the overview](overview.md). See [delivery](../development/ai-implementation-plan.md),
@@ -60,7 +61,7 @@ scope, not a currently enabled tool. Database querying remains separately option
 | AI-UC-16 | Selected / P-06, AI-10 | Replan unfinished preparation | Move eligible task sessions only; protect other events and minimize changes |
 | AI-UC-17 | Selected / AI-04, P-06 | Set my assistant instructions and work preferences | Editable instructions plus structured hard planning settings |
 | AI-UC-18 | Selected, opt-in / AI-12 | Prepare a daily/weekly briefing | Bounded scheduled review, relevant notes and in-app warnings |
-| AI-UC-19 | Selected / AI-11 | Explain this when my materials have no answer | State missing local evidence; use labeled model knowledge/web search as needed |
+| AI-UC-19 | Implemented locally, unactivated / AI-11 | Explain this when my materials have no answer | State missing local evidence; use labeled model knowledge/web search as needed |
 | AI-UC-20 | Selected / AI-02, AI-04 | Choose a model or connect my API | Operator offerings and owner-only personal credentials; no silent switching |
 
 Removing a shortcut does not delete created objects. Check the server capability

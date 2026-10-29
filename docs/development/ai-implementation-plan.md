@@ -11,7 +11,8 @@ activation/live account verification remain pending. AI-03 adds implemented
 streaming chat/settings/usage UI and API. [AI-05](ai-05.md) adds an optional CPU embedding
 runtime with synthetic hardware proof. [AI-06](ai-06.md) adds local hybrid retrieval
 and durable complete-source processing. [AI-07](ai-07.md) adds locally implemented confirmed actions; AI-08 is deferred indefinitely; AI-09 local hardening is complete; live-model acceptance remains pending. [AI-10](ai-10.md) now adds the local P-06 work-session/preference foundation,
-editable task extraction and confirmed deterministic planning. AI-11/12 remain
+editable task extraction and confirmed deterministic planning. [AI-11](ai-11.md) adds
+local labeled model/web fallback through a bounded adapter; unactivated. AI-12 remains
 not implemented. See the dated final verification in the
 [execution record](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 AI-10 includes its P-06 prerequisites. No real provider traffic or deployment is
@@ -40,11 +41,11 @@ numeric order is not an implicit dependency or authorization to start another st
 | AI-08 | Deferred indefinitely: scoped automatic creates | Requires a new owner decision before implementation | Current business-content writes always require exact confirmation |
 | AI-09 | Local hardening complete; [evidence and live gate](ai-09.md) | Implemented AI-01–AI-07; separate live-model approval | Offline/native checks, 40 bilingual acceptance cases, pending live-quality gate |
 | AI-10 | Task extraction, deterministic planning/replanning and atomic plan application | P-06; AI-03/04/07; AI-06 for semantic material retrieval | Feasible/infeasible plans, protected events, races and atomic rollback |
-| AI-11 | Labeled knowledge fallback and bounded web search | AI-03; explicit search adapter contract | No-evidence vs failed search, citations, egress and injection checks |
+| AI-11 | Implemented locally: labeled knowledge fallback and bounded web search; unactivated | AI-03; explicit search adapter contract | No-evidence vs failed search, citations, egress and injection checks |
 | AI-12 | Opt-in proactive reviews and in-app delivery | AI-04; AI-10 for task/workload reviews | Bounded/deduplicated triggers, disable/restart and quiet unchanged runs |
 
-AI-01/02/03/04 form a lexical prototype, not the complete agreed assistant. AI-06 now supplies the local semantic/multi-document path after AI-05; AI-11 remains
-planned for the selected web fallback experience.
+AI-01/02/03/04 form a lexical prototype, not the complete agreed assistant. AI-06 now supplies the local semantic/multi-document path after AI-05; AI-11 now supplies the local
+bounded web fallback experience, with separate activation/live-quality gates.
 AI-07 adds writes; P-06 and AI-10 are mandatory for the selected planning scenario.
 AI-08 is deferred indefinitely under the 2026-10-26 owner decision; AI-12 remains opt-in. Run AI-09
 checks for every promoted capability. Stop at each requested stage's completion report.
@@ -86,7 +87,7 @@ by the delivered stage, with no empty future plugin system.
 | AI_ENABLED_CAPABILITIES | Empty until corresponding tools/services are delivered |
 | AI_EMBEDDING_PROVIDER / AI_EMBEDDING_MODEL | Still planned/unset; AI-05 takes an explicit local directory in operator tooling, without production activation settings |
 | AI_AUTOMATIC_ACTIONS_ENABLED | false; enabling dispatch never creates a grant |
-| Web search connection | Disabled until an explicit adapter, credentials and bounded egress exist; AI-11 |
+| Web search connection | Implemented bounded adapter; per-offering `web_search` defaults to false pending approved activation; AI-11 |
 | Run/input/tool budgets | Versioned defaults in [tool contracts](ai-tool-contracts.md#3-initial-execution-budgets) |
 
 Use the lower of application limits and verified adapter/account limits. Requests,
@@ -344,6 +345,8 @@ Verify touching intervals, timezone/DST, two concurrent plans, new manual events
 protected training, missed sessions, infeasibility and whole-plan rollback/replay.
 
 ## 15. AI-11: bounded web fallback
+
+Status: implemented locally, disabled by default; see [contracts and verification](ai-11.md).
 
 Implement a documented search adapter behind search.application; no invented endpoint
 or unrestricted HTTP/shell tool. For relevant workspace questions, retrieve locally

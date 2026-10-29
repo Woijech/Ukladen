@@ -10,13 +10,16 @@ export type Source = {
     | "personal"
     | "official"
     | "record_date"
-    | "task";
+    | "task"
+    | "web";
   id: string;
   title: string;
   version: number;
   locator: string;
   fingerprint?: string;
   parent_id: string | null;
+  url?: string;
+  retrieved_at?: string;
 };
 export type Conversation = {
   id: string;
@@ -36,6 +39,7 @@ export type Message = {
 export type Run = {
   estimated_cost: string | null;
   unpriced_attempts: number;
+  unpriced_web_searches?: number;
   id: string;
   status:
     | "queued"

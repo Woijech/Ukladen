@@ -1,6 +1,6 @@
 # Ukladen Documentation Index
 
-Updated: 2026-10-28.
+Updated: 2026-10-29.
 
 ## Contract and reading order
 
@@ -78,6 +78,7 @@ implementation task, not a guarantee that its checks were rerun during a later e
 - [AI-07 confirmed actions](development/ai-07.md): immutable previews, atomic owner-confirmed batches and independent replay receipts; default-disabled and unactivated.
 - [AI-09 release hardening](development/ai-09.md): agreed local scope, bilingual acceptance and separate live-model/activation gates.
 - [AI-10 task planning](development/ai-10.md): local extraction, editable task proposals, work sessions/preferences and confirmed deterministic planning/replanning.
+- [AI-11 web fallback](development/ai-11.md): local source-first chat fallback, bounded public search and external citations; unactivated.
 - [AI model connections](development/ai-connections.md): optional OpenRouter catalog, restricted offerings, encrypted personal keys and AI-consumer-only secret setup; unactivated.
 - [AI chat/run API](development/ai-api.md): default-disabled fake chats/runs, idempotency, cancellation, accounting, bounded recovery, physical retention and minimal replay/context markers.
 

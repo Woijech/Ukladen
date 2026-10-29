@@ -10,6 +10,7 @@ from app.modules.ai.application.lifecycle import AiTransactions
 from app.modules.ai.application.recovery import RUN_TIMEOUT
 from app.modules.ai.domain.connections import ConnectionUnavailable
 from app.modules.ai.domain.state import Run
+from app.modules.search.application.web import WebSearch
 
 
 class OpenRouterModels:
@@ -39,6 +40,23 @@ class OpenRouterModels:
                 else self.access.configuration.quota_scope(run.offering_id or "")
             )
             repository.block_connection(scope, datetime.now(UTC) + timedelta(seconds=seconds))
+
+    def web_search(self, run: Run) -> WebSearch | None:
+        from app.integrations.web.openrouter import OpenRouterWebSearch
+
+        if run.offering_id is None:
+            return None
+        profile = self.access.configuration.offering(run.user_id, run.offering_id)
+        if not profile.web_search or not profile.tools or profile.free_only:
+            return None
+
+        def credential() -> str:
+            current = self.access.configuration.offering(run.user_id, run.offering_id or "")
+            if not current.web_search or not current.tools or current.free_only:
+                raise ConnectionUnavailable("Web search is unavailable.")
+            return self.credential(run)
+
+        return OpenRouterWebSearch(profile, credential)
 
     @contextmanager
     def __call__(self, run: Run, *, before_dispatch=None) -> Iterator[BaseChatModel]:

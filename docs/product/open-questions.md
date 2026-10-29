@@ -99,6 +99,14 @@ This developer workflow is distinct from product HITL.
 
 ## Remaining decisions
 
+AI-11 owner clarification (2026-10-29): implement ordinary-chat fallback automatically:
+local material evidence first, then public web or clearly labeled model knowledge when
+insufficient. No separate user feature screen or per-search confirmation. Preserve
+personal API selection and a provider-neutral search boundary for later supported
+adapters. Local implementation does not authorize provider spending or activation.
+See [AI-11 delivery](../development/ai-11.md). Quality metrics and source/claim
+verification were discussed as later work, not requested for this delivery.
+
 AI-06 owner decisions (2026-10-25): implement the whole local slice autonomously in
 verified, incremental local commits. Index all active owned pages (including record
 pages) and supported extracted files; preserve explicit source scope. Hybrid search

@@ -33,6 +33,7 @@ class MessageSubmit(BaseModel):
     message: str = Field(min_length=1, max_length=16384)
     source_scope: SourceScope | None = None
     full_sources: bool = False
+    source_only: bool = False
 
     @field_validator("message")
     @classmethod
@@ -45,6 +46,7 @@ class MessageSubmit(BaseModel):
             message=self.message,
             source_scope=self.source_scope,
             full_sources=self.full_sources,
+            source_only=self.source_only,
         )
 
 
@@ -120,6 +122,7 @@ class RunResponse(BaseModel):
     price: PriceSnapshot | None = None
     estimated_cost: Decimal | None = None
     unpriced_attempts: int = 0
+    unpriced_web_searches: int = 0
 
     @classmethod
     def from_snapshot(cls, snapshot: RunSnapshot) -> RunResponse:
@@ -128,6 +131,7 @@ class RunResponse(BaseModel):
             price=run.price,
             estimated_cost=snapshot.estimated_cost,
             unpriced_attempts=snapshot.unpriced_attempts,
+            unpriced_web_searches=snapshot.unpriced_web_searches,
             id=run.id,
             conversation_id=run.conversation_id,
             submission_id=run.submission_id,

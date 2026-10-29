@@ -205,6 +205,9 @@ class SqlAlchemyActionTransactions:
                             )
                         )
                     for source in sources:
+                        if source.source == "web":
+                            # Web citations are snapshots; exact proposed content is reviewed.
+                            continue
                         if source.source == "task":
                             task = TaskService(SqlAlchemyTaskRepository(database), users).get(
                                 user_id, UUID(source.id)

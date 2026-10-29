@@ -8,7 +8,7 @@
 >
 > **Important:** This document intentionally does **not** define concrete BSUIR IIS response fields, exact external API payloads, full SQL schema, or detailed endpoint DTOs. Those contracts are separate documents.
 
-Updated: 2026-10-28. Target features are not implemented unless explicitly marked.
+Updated: 2026-10-29. Target features are not implemented unless explicitly marked.
 Read the [documentation index](docs/README.md), [open decisions](docs/product/open-questions.md)
 and [implementation roadmap](docs/development/implementation-roadmap.md) for a concrete slice.
 [ADR 0004](docs/adr/0004-keep-workspace-organization-optional.md) records optional organization.
@@ -423,6 +423,8 @@ add lexical search, pages/material excerpts, resolved calendar and typed databas
 queries with current-source context. AI-06 adds local hybrid retrieval and complete-source processing; AI-10 adds local
 task extraction and confirmed deterministic planning; see [the implemented subset](docs/development/ai-setup.md)
 and [final AI-01 verification](docs/development/ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
+[AI-11](docs/development/ai-11.md) adds local bounded public search and labeled
+model/web fallback; disabled by default and unactivated.
 
 Architecture:
 

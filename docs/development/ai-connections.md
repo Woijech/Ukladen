@@ -139,7 +139,9 @@ The API does not sleep on 429/503. It persists Retry-After (delta or HTTP date),
 at 24 hours, with a 60-second default, and denies new dispatch until eligible.
 The model/credential never switches implicitly. The request disables OpenRouter
 provider failover, requires parameter support, excludes data-collection routes and
-enables no hosted plugins. This privacy policy can make a free offering unavailable.
+enables no hosted plugins. AI-11 can separately register bounded public search via
+the catalog's default-false `web_search` field, using the exact selected credential
+in an isolated minimal-query request; see [AI-11](ai-11.md). This privacy policy can make a free offering unavailable.
 
 An atomic PostgreSQL fixed window counts at most `requests_per_minute` attempts per
 connection. Operator offerings sharing a secret file share the counter; personal

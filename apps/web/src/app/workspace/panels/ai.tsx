@@ -45,6 +45,7 @@ import "./ai.css";
 
 const toolLabels: Record<string, string> = {
   search_workspace: "Ищу в твоём пространстве",
+  search_web: "Ищу в интернете",
   read_page: "Читаю страницу",
   read_material_excerpt: "Читаю материал",
   get_calendar_events: "Смотрю календарь",
@@ -723,7 +724,7 @@ function Chat({
                         key={`${item.source}:${item.id}:${index}`}
                         onClick={() => setSource(item)}
                       >
-                        {item.title || "Открыть источник"}
+                        {item.source === "web" ? "Из интернета: " : ""}{item.title || "Открыть источник"}
                       </button>
                     ))}
                   </div>

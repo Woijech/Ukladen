@@ -104,7 +104,7 @@ rows describe target capabilities, not existing tools.
 | Query free slots/conflicts and propose feasible task sessions | P-06 calendar/task planning | None |
 | Read permitted IIS context/sync state | Verified public integration; private account tools deferred | None |
 | Retrieve cited material chunks | Materials/search | None |
-| Search public web after insufficient local evidence | Bounded search adapter; AI-11 | External read only |
+| Search public web after insufficient local evidence | Local bounded search adapter; [AI-11](../development/ai-11.md), unactivated | External read only |
 | Propose page/task/event/reminder changes | Implemented target service and action policy | Proposal only |
 | Apply confirmed change | Same service as manual editing | Explicit, version-checked mutation |
 | Apply an explicitly permitted automatic change | Implemented target service and scoped owner grant | Bounded, version-checked and recorded mutation |

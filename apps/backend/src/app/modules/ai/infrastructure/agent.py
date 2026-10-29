@@ -153,6 +153,7 @@ class OfflineAgentRunner:
     def run(self, request: AgentInput) -> AgentResult:
         if self.sources is not None:
             self.sources.scope = request.source_scope
+            self.sources.begin(request.source_only)
         with tracing_context(enabled=False):
             config = self._config(request.conversation_id)
             state = self.graph.get_state(config)
