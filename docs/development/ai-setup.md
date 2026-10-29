@@ -1,10 +1,16 @@
 # AI Setup and Provider Switching Runbook
 
+For the prepared 2026-10-29 home configuration and owner launch steps, use
+[prepared activation](ai-activation.md). Its shared-key cap is enforced in OpenRouter;
+personal connections retain separate billing. The instructions below retain historical
+stage verification and planned-scope notes.
+
 Updated: 2026-10-29.
 Status: AI-01 is complete within its offline scope: harness, owned persistence,
 authenticated fake API, durable accounting, bounded recovery and retention cleanup.
-Disabled by default; migrations are tested on disposable data and unapplied to the
-running application. See [final verification](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
+Disabled by default; migrations were tested on disposable data. On 2026-10-29 the
+home database was prepared through revision 0040 with AI flags off; see
+[prepared activation](ai-activation.md). AI itself remains unactivated. See [final verification](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 AI-02 adds optional [OpenRouter models and encrypted credentials](ai-connections.md),
 implemented locally but unactivated. [AI-03 source reads](ai-03.md) are implemented
 locally. [AI-04](ai-04.md) adds locally implemented streaming chat, source viewing,

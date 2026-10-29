@@ -70,6 +70,7 @@ implementation task, not a guarantee that its checks were rerun during a later e
 - [AI tool contracts](development/ai-tool-contracts.md): capabilities, typed boundaries, budgets and synthetic acceptance data.
 - [Synthetic AI acceptance fixtures](../apps/backend/tests/fixtures/ai/README.md): versioned specification cases and their implementation boundary.
 - [AI setup runbook](development/ai-setup.md): staged operator/BYOK providers, embeddings, web search and activation gates.
+- [Prepared home AI activation](development/ai-activation.md): lifetime shared-key budget, personal-key separation and owner launch steps.
 - [AI persistence](development/ai-persistence.md): schema, owner checks, transaction boundaries and migration impact; tested on disposable data, unapplied to the app.
 - [AI-03 source reads](development/ai-03.md): read-only workspace/calendar/database tools, current evidence and structured source references; unactivated.
 - [AI-04 chat/settings/usage](development/ai-04.md): local streaming, stored-state recovery, source inspection, instructions and owner usage; activation pending.
@@ -86,7 +87,8 @@ implementation task, not a guarantee that its checks were rerun during a later e
 AI-00 and the offline AI-01 foundation are complete; see the setup runbook and
 [final verification](development/ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24)
 for the tested scope. Owned persistence adapters/migrations are tested on disposable
-data, unapplied to the app. The default-disabled fake API includes accounting,
+data. The home database was subsequently prepared through revision 0040 with AI
+flags off; see [prepared activation](development/ai-activation.md). The default-disabled fake API includes accounting,
 bounded recovery, 30-day cleanup and minimal replay/context receipts.
 The optional AI-02 OpenRouter adapter/catalog and encrypted credentials are
 implemented locally but unactivated. AI-03 source tools and lexical grounding are

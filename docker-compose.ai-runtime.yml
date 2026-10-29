@@ -1,0 +1,42 @@
+# Explicit activation overlay; build/config do not dispatch provider requests.
+# Use through infra/ai-home.sh after configuring the provider key's spending cap.
+x-ai-runtime: &ai-runtime
+  AI_ENABLED: "true"
+  AI_ACTIONS_ENABLED: "true"
+  AI_RETENTION_ENABLED: "true"
+  AI_REVIEWS_ENABLED: "${UKLADEN_AI_REVIEWS_ENABLED:-true}"
+
+services:
+  api:
+    environment:
+      <<: *ai-runtime
+  ai-document-worker:
+    environment:
+      <<: *ai-runtime
+      AI_ACTIONS_ENABLED: "false"
+  beat:
+    environment:
+      <<: *ai-runtime
+      AI_ACTIONS_ENABLED: "false"
+      AI_CONNECTIONS_FILE: null
+  worker:
+    environment:
+      AI_ENABLED: "false"
+      AI_ACTIONS_ENABLED: "false"
+      AI_RETENTION_ENABLED: "true"
+      AI_REVIEWS_ENABLED: "false"
+      AI_CONNECTIONS_FILE: null
+  material-worker:
+    environment:
+      AI_ENABLED: "false"
+      AI_ACTIONS_ENABLED: "false"
+      AI_RETENTION_ENABLED: "false"
+      AI_REVIEWS_ENABLED: "false"
+      AI_CONNECTIONS_FILE: null
+  migrate:
+    environment:
+      AI_ENABLED: "false"
+      AI_ACTIONS_ENABLED: "false"
+      AI_RETENTION_ENABLED: "false"
+      AI_REVIEWS_ENABLED: "false"
+      AI_CONNECTIONS_FILE: null

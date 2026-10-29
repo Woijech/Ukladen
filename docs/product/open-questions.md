@@ -302,6 +302,13 @@ See [AI-09](../development/ai-09.md).
 
 ## AI-12 owner confirmation (2026-10-29)
 
+Activation follow-up: the owner selected a USD 5 lifetime cap on the shared application
+key, without automatic resets, until manually increased, and reports it configured in
+OpenRouter. Personal connections are excluded from that key's budget and have no
+Ukladen request/token allowance. See [prepared activation](../development/ai-activation.md)
+for enforcement, preparation and unverified live state. An in-app budget editor remains
+not implemented.
+
 Full opt-in proactive review scope, source restrictions, scheduling/deduplication
 and fake-only implementation were confirmed. The authoritative decisions and
 implementation status are recorded in [AI-12](../development/ai-12.md).

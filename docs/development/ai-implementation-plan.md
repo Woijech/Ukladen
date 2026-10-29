@@ -4,7 +4,9 @@ Updated: 2026-10-29.
 Status: AI-00 and the offline AI-01 foundation are delivered: a fake-only harness,
 owned persistence, authenticated chat/run API, durable accounting, bounded execution,
 conservative recovery and physical retention cleanup. Tested on disposable
-PostgreSQL/Redis, disabled by default and unapplied to the running app.
+PostgreSQL/Redis and disabled by default. The home database was prepared through
+revision 0040 with AI flags off on 2026-10-29; [application activation](ai-activation.md)
+and live quality remain pending.
 AI-02 now adds the optional [OpenRouter catalog and encrypted connections](ai-connections.md);
 activation/live account verification remain pending. AI-03 adds implemented
 [authorized source reads](ai-03.md). [AI-04](ai-04.md) adds locally implemented
