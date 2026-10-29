@@ -11,6 +11,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.types import Command
 
 from app.modules.ai.application.agent import ProviderFailure
+from app.modules.ai.application.diagnostics import record
 from app.modules.ai.application.lifecycle import ExecutionJournal
 from app.modules.ai.domain.state import InvalidAiState
 
@@ -23,9 +24,30 @@ class AccountingMiddleware(AgentMiddleware):
         self, request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]
     ) -> ModelResponse:
         attempt = self.journal.start_attempt()
+        record(
+            "model_request",
+            {
+                "attempt": attempt.number,
+                "messages": [
+                    {"role": item.type, "content": item.content} for item in request.messages
+                ],
+                "system": request.system_message.content if request.system_message else None,
+                "tools": [item if isinstance(item, dict) else item.name for item in request.tools],
+            },
+        )
         try:
             response = handler(request)
         except Exception as error:
+            record(
+                "model_failure",
+                {
+                    "attempt": attempt.number,
+                    "error_type": type(error).__name__,
+                    "error_code": error.error_code
+                    if isinstance(error, ProviderFailure)
+                    else "unavailable",
+                },
+            )
             self.journal.finish_attempt(
                 attempt,
                 "failed",
@@ -40,6 +62,20 @@ class AccountingMiddleware(AgentMiddleware):
                 output_tokens=error.output_tokens if isinstance(error, ProviderFailure) else None,
             )
             raise
+        record(
+            "model_response",
+            {
+                "attempt": attempt.number,
+                "messages": [
+                    {
+                        "role": item.type,
+                        "content": item.content,
+                        "tool_calls": item.tool_calls if isinstance(item, AIMessage) else [],
+                    }
+                    for item in response.result
+                ],
+            },
+        )
         reported = next(
             (
                 message.response_metadata["ukladen_usage"]
@@ -78,13 +114,32 @@ class AccountingMiddleware(AgentMiddleware):
         if call_id is None:
             raise InvalidAiState("A tool call identifier is required.")
         tool = self.journal.start_tool(call_id, request.tool_call["name"])
+        record(
+            "tool_request",
+            {
+                "number": tool.number,
+                "name": tool.tool_name,
+                "arguments": request.tool_call.get("args"),
+            },
+        )
         try:
             response = handler(request)
         except Exception as error:
+            record("tool_failure", {"number": tool.number, "error_type": type(error).__name__})
             self.journal.finish_tool(
                 tool, "failed", "timeout" if isinstance(error, TimeoutError) else "unavailable"
             )
             raise
+        record(
+            "tool_response",
+            {
+                "number": tool.number,
+                "name": tool.tool_name,
+                "content": response.content
+                if isinstance(response, ToolMessage)
+                else "Application command; inspect proposals in chat.",
+            },
+        )
         failed = isinstance(response, ToolMessage) and response.status == "error"
         self.journal.finish_tool(
             tool, "failed" if failed else "succeeded", "invalid_response" if failed else None

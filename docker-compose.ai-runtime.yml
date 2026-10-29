@@ -10,6 +10,7 @@ services:
   api:
     environment:
       <<: *ai-runtime
+      AI_DIAGNOSTIC_ADMIN_IDS: "${AI_DIAGNOSTIC_ADMIN_IDS:-[]}"
   ai-document-worker:
     environment:
       <<: *ai-runtime

@@ -21,6 +21,7 @@ from pydantic import Field, SecretStr
 from app.core.logging import log_failure
 from app.modules.ai.application.agent import ProviderFailure
 from app.modules.ai.application.connections import ModelOffering
+from app.modules.ai.application.diagnostics import record
 from app.modules.ai.domain.connections import ConnectionUnavailable
 
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
@@ -32,6 +33,10 @@ logger = logging.getLogger(__name__)
 def log_provider_failure(error: Exception, *, reason: str | None = None) -> None:
     response = getattr(error, "raw_response", None)
     status = response.status_code if isinstance(response, httpx.Response) else None
+    record(
+        "provider_failure",
+        {"error_type": type(error).__name__, "status_code": status, "reason": reason},
+    )
     log_failure(logger, "ai.provider_request_failed", error, status_code=status, reason=reason)
 
 

@@ -96,6 +96,7 @@ def get_ai(request: Request, settings: Config) -> AiService:
             real_models=OpenRouterModels(transactions, access) if access else None,
             sources=sources,
             actions_enabled=settings.ai_actions_enabled,
+            diagnostic_admin_ids=tuple(settings.ai_diagnostic_admin_ids),
         ),
         provider=settings.ai_llm_provider,
         model=settings.ai_llm_model,
@@ -452,7 +453,10 @@ def delete_conversation(conversation_id: UUID, current: CurrentSession, service:
 
 
 def install_ai(application: FastAPI) -> None:
+    from app.modules.ai.presentation.diagnostics import router as diagnostics_router
     from app.modules.ai.presentation.reviews import router as review_router
+
+    application.include_router(diagnostics_router)
 
     application.include_router(review_router)
 
