@@ -1,11 +1,12 @@
 # Tasks: Incremental P-06 Delivery
 
-Updated: 2026-10-28.
+Updated: 2026-10-29.
 Status: task create/read/list/update, owner-scoped subtask hierarchy and recoverable
 branch trash are implemented with a browser task screen. Cycle-safe dependencies
-and explicit page links are implemented in the backend under AI-10. Their browser
-controls and work blocks are not implemented. Read-only personal/official
-[availability queries](calendar-availability.md) are implemented locally.
+and explicit page links now have browser controls under [AI-10](ai-10.md).
+Work sessions, explicit remaining work, versioned work windows and confirmed
+deterministic planning are implemented locally; see [planning](task-planning.md).
+[Availability](calendar-availability.md) includes personal/official events and task sessions.
 
 ## First increment: independent task create/read/update
 
@@ -24,6 +25,7 @@ Checkboxes and database records do not create tasks or synchronize task status.
 | `priority` | `low`, `normal` (default), `high`, `urgent` |
 | `deadline_at` | Optional exact timestamp with an explicit UTC offset, normalized to UTC |
 | `estimated_minutes` | Optional strict integer, 1–525600 |
+| `remaining_minutes` | Explicit nullable remainder, strict integer 0–525600; never inferred from sessions |
 | `parent_id` | Optional same-owner task UUID; null denotes a root (second increment) |
 | `trashed_at`, `trash_batch_id` | Nullable paired branch-trash markers; server-managed |
 | `version` | Positive optimistic version; starts at 1 and increments on accepted updates |
@@ -215,20 +217,22 @@ production build and **106 Playwright tests** also passed; quiet base Compose
 configuration was validated. No application database migration or deployment
 was performed.
 
-## Remaining manual P-06 increments
+## Manual P-06 foundation delivered by AI-10
 
-Status: not implemented. These decisions are not delivered by the current task APIs:
+The following previously deferred increments are now implemented locally;
+see [task planning](task-planning.md) for current contracts:
 
 - Extend the local personal/official [availability queries](calendar-availability.md)
-  with task work blocks when their storage exists; windows are currently query inputs.
+  with active task work sessions, independently of display filters.
 - Versioned future-only manual task blocks. Completion/cancellation/trash cancels
   future blocks; elapsed sessions never complete tasks automatically.
 - Explicit acknowledgement and locked revalidation for overlaps and uncertain IIS
   data. Source period boundaries alone must not be claimed as complete coverage.
 - Additive opt-in task-block/deadline calendar display, preserving existing APIs.
 
-Automatic planning, saved work preferences, task/deadline reminders and all AI
-runtime remain outside these backend increments and unimplemented.
+Deterministic planning, saved work preferences and confirmed AI task/plan actions
+are implemented locally under AI-10. Task/deadline reminders remain not implemented;
+AI-08 automatic grants are deferred. No session progress is inferred automatically.
 
 ## Fourth increment: dependencies and page links
 
@@ -245,7 +249,7 @@ trash state, with normal limit/offset pagination and a global
 untrashed predecessor with status `done` satisfies the dependency. Cancelled or
 trashed predecessors remain unresolved until the user changes/removes the relation.
 No status propagation or completion restriction is added: the flag is advisory for
-manual work; the future planner must respect dependency order.
+manual work; the implemented planner respects dependency order.
 
 `PUT` and `DELETE /api/v1/tasks/{id}/dependencies/{predecessor_id}` take the ordinary
 `expected_version` body and return the updated task. A changed edge increments only
@@ -271,7 +275,9 @@ preserves links, and unlinking works while either endpoint is trashed. No conten
 status, title, deadline or version propagates between endpoints. Owner-qualified
 foreign keys enforce both endpoint owners; account deletion removes relations.
 Session, CSRF/Origin, no-store and caller-owned transaction rules are unchanged.
-Extraction provenance and material source locations remain later AI-10 work.
+Extraction provenance (source versions/locations, estimate labels and uncertainties)
+is retained with tasks under AI-10, independently of chat retention.
+`GET /api/v1/tasks/{id}/origin` returns this owner-scoped metadata or null.
 
 ## Browser task screen
 

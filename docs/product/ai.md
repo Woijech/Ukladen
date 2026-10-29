@@ -1,6 +1,6 @@
 # AI Assistant Product Specification
 
-Updated: 2026-10-26.
+Updated: 2026-10-29.
 Status: agreed target specification. An [offline backend API](../development/ai-api.md)
 implements the completed offline AI-01 foundation: fake chats/runs, accounting,
 bounded recovery and 30-day cleanup, disabled by default and unmigrated in the app.
@@ -11,7 +11,10 @@ workspace/calendar/database read tools with lexical search and source references
 model/connection settings, personal instructions and usage analytics UI/API locally.
 AI-06 adds local hybrid retrieval and durable complete-source processing; see
 [AI-06](../development/ai-06.md). [AI-07](../development/ai-07.md) adds locally implemented
-exact confirmed actions. Activation and planning remain pending; AI-08 automatic grants are deferred indefinitely. AI-00 specifies the target work; it does
+exact confirmed actions. [AI-10](../development/ai-10.md) implements typed task
+extraction/provenance, editable proposals, work preferences/sessions and confirmed
+deterministic planning/replanning locally. Activation and live-model quality remain
+pending; AI-08 automatic grants are deferred indefinitely. AI-00 specifies the target work; it does
 not enable integrations. This is the single AI specification linked from
 [the overview](overview.md). See [delivery](../development/ai-implementation-plan.md),
 [architecture](../architecture/ai.md), [tool contracts](../development/ai-tool-contracts.md)

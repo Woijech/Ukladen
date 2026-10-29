@@ -289,6 +289,10 @@ Moves/edits/deletes remain confirmed operations. Test revocation against queued 
 
 ## F. P-06/AI-10: task planning
 
+Implemented locally with browser controls under [AI-10](ai-10.md);
+[task planning](task-planning.md) records actual endpoints, bounds and verification.
+Activation and real-provider quality remain separate gates.
+
 Deliver typed tasks, explicit source links/subtasks/dependencies, task sessions,
 calendar occupied/free/conflict interfaces and structured work preferences first.
 Ask for allowed work windows; use editable 45/15-minute session/break defaults.

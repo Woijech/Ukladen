@@ -12,8 +12,9 @@ Remaining capabilities are a target design under
 with personal ownership. Formulas and collaboration are deferred; remaining details
 are recorded as open decisions.
 
-AI-10 adds local backend task dependencies, task/page relations and read-only
-personal/official availability queries. Work blocks and planning remain unimplemented;
+AI-10 adds local task dependencies, task/page relations, work sessions/preferences,
+explicit remaining work and deterministic confirmed planning with browser controls.
+Availability resolves personal/official events and active task sessions;
 see [task contracts](../development/tasks.md) and
 [availability coverage limits](../development/calendar-availability.md).
 

@@ -266,3 +266,86 @@ def test_expected_iis_coverage_is_conditional_and_ownership_csrf(enrolled: TestC
         == 403
     )
     assert client.get(PLANNING + "/plans/" + str(uuid4())).status_code == 404
+
+
+def test_deadline_partial_work_never_unblocks_its_successor():
+    service, _, _ = setup_service()
+    owner = uuid4()
+    predecessor = service.create(
+        owner,
+        {
+            "title": "Before deadline",
+            "remaining_minutes": 90,
+            "deadline_at": START + timedelta(minutes=60),
+        },
+    )
+    successor = service.create(
+        owner, {"title": "After predecessor", "remaining_minutes": 30, "priority": "urgent"}
+    )
+    result = plan_work(
+        [predecessor, successor],
+        [(successor.id, predecessor.id)],
+        {predecessor.id, successor.id},
+        [TimeInterval(START, START + timedelta(hours=4))],
+        [],
+        [],
+        [],
+        WorkPreferences(),
+        START - timedelta(hours=1),
+    )
+    assert len(result.sessions) == 1 and result.sessions[0].task_id == predecessor.id
+    assert predecessor.deadline_at is not None
+    assert result.sessions[0].ends_at <= predecessor.deadline_at
+    assert {(item.task_id, item.minutes, item.reason) for item in result.unplaced} == {
+        (predecessor.id, 45, "not_placed_in_allowed_windows"),
+        (successor.id, 30, "unresolved_dependencies"),
+    }
+    assert predecessor.remaining_minutes == 90 and successor.remaining_minutes == 30
+
+
+def test_elapsed_sessions_do_not_reduce_explicit_remaining_work():
+    service, _, _ = setup_service()
+    owner = uuid4()
+    task = service.create(owner, {"title": "Missed session", "remaining_minutes": 45})
+    old = WorkSession(
+        id=uuid4(),
+        user_id=owner,
+        task_id=task.id,
+        starts_at=START - timedelta(days=1),
+        ends_at=START - timedelta(days=1) + timedelta(minutes=45),
+    )
+    result = plan_work(
+        [task],
+        [],
+        {task.id},
+        [TimeInterval(START, START + timedelta(hours=2))],
+        [],
+        [old],
+        [],
+        WorkPreferences(),
+        START - timedelta(hours=1),
+    )
+    assert not result.unplaced and len(result.sessions) == 1
+    assert (result.sessions[0].ends_at - result.sessions[0].starts_at).total_seconds() == 45 * 60
+    assert task.remaining_minutes == 45
+
+
+def test_two_independent_plans_cannot_reserve_the_same_snapshot(
+    calendar_client: TestClient, concurrent_engine: Engine
+):
+    client = calendar_client
+    task = create_task(client, remaining_minutes=90)
+    plans = [proposal(client, [task]), proposal(client, [task])]
+    headers = csrf_headers(client)
+
+    def confirm(plan):
+        return client.post(
+            PLANNING + "/plans/" + plan["id"] + "/apply",
+            headers=headers,
+            json={"digest": plan["digest"]},
+        ).status_code
+
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        assert sorted(workers.map(confirm, plans)) == [200, 409]
+    with Session(concurrent_engine) as database:
+        assert len(list(database.scalars(select(WorkSessionModel)))) == 2

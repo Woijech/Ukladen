@@ -57,10 +57,11 @@ full-text search are implemented; see [materials/search](docs/development/materi
 Task create/read/list/update, subtask hierarchy and recoverable branch trash with
 status/priority, exact deadlines/effort and optimistic versions are implemented,
 with a working frontend task screen; see [tasks](docs/development/tasks.md).
-Task dependencies and explicit page links are implemented locally in the backend.
-Personal/official busy/free/conflict queries are implemented locally in the backend;
-expected IIS coverage is explicitly unverified. Task blocks and authenticated IIS
-are not implemented. AI-06 semantic retrieval and complete-source analysis are
+Task dependencies, page links, work sessions/preferences, explicit remaining work
+and confirmed deterministic planning are implemented locally with browser controls
+under [AI-10](docs/development/ai-10.md). Availability includes personal/official
+events and active task sessions; expected IIS coverage is explicitly unverified.
+Authenticated IIS remains not implemented. AI-06 semantic retrieval and complete-source analysis are
 implemented locally but unactivated; see [AI-06](docs/development/ai-06.md).
 AI-03 read tools are implemented locally but unactivated; see the AI section below.
 The frontend implements login/registration, browser email verification and password
@@ -419,7 +420,8 @@ admission, accounting, cancellation and deletion. Bounded recovery and 30-day cl
 with minimal replay/context receipts are implemented. AI-02 adds an optional [OpenRouter catalog and encrypted personal connections](docs/development/ai-connections.md),
 implemented locally but unactivated. [AI-03 source reads](docs/development/ai-03.md)
 add lexical search, pages/material excerpts, resolved calendar and typed database
-queries with current-source context. AI-06 adds local hybrid retrieval and complete-source processing; planning remains not implemented; see [the implemented subset](docs/development/ai-setup.md)
+queries with current-source context. AI-06 adds local hybrid retrieval and complete-source processing; AI-10 adds local
+task extraction and confirmed deterministic planning; see [the implemented subset](docs/development/ai-setup.md)
 and [final AI-01 verification](docs/development/ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
 
 Architecture:
@@ -574,7 +576,8 @@ See [workspace architecture](docs/architecture/workspace.md).
 Status: task create/read/list/update, subtask hierarchy, recoverable branch trash,
 status/priority, exact deadlines, effort and optimistic versions are implemented
 with a browser task screen. Dependencies and explicit page links are implemented
-locally in the backend. Their UI, work blocks and scheduling remain not implemented; see
+locally with browser controls. Explicit work sessions, weekly preferences, remaining
+work and confirmed deterministic planning are also implemented under AI-10; see
 [task contracts](docs/development/tasks.md). Tasks are independent typed objects; ordinary note
 checkboxes/database rows do not synchronize them. Deterministic planning is a task
 application service using calendar-owned availability, not business logic in an LLM.
@@ -1304,8 +1307,9 @@ See [database delivery status](docs/development/databases.md) and
 [ADR 0007](docs/adr/0007-use-page-backed-database-records.md). Task
 create/read/list/update, subtask hierarchy and branch trash are implemented. Task
 dependencies, explicit page links and read-only personal/official availability are
-implemented locally in the backend. Explicit work blocks, task/deadline reminders,
-saved work preferences and planning remain not implemented.
+implemented locally with browser controls. Work sessions, explicit remaining work,
+saved work preferences, task extraction and confirmed deterministic planning are
+implemented locally under AI-10. Task/deadline reminders remain not implemented.
 Planning can be requested independently of database features.
 
 ## Phase 4 — knowledge and retrieval

@@ -1,9 +1,10 @@
 # Calendar Availability Queries
 
 Date: 2026-10-28.
-Status: implemented locally, backend only. This is the read-only personal/official
-interval subset of P-06/AI-10. Work blocks, saved work windows, planning and their
-browser controls are not implemented. No application activation was performed.
+Status: implemented locally. The busy set includes personal/official events and
+active task sessions. Work preferences, deterministic plans and browser controls
+are implemented under [AI-10](ai-10.md); see [task planning](task-planning.md).
+No application activation was performed.
 
 ## API
 
@@ -55,8 +56,8 @@ Queries always include hidden busy events and personal overrides. Skipped lesson
 nonblocking events, task deadlines and database date projections do not occupy time.
 Saved calendar filters are never inputs to this calculation. UTC normalization
 precedes interval comparison, including ambiguous DST folds; minimum duration is
-elapsed time. Work blocks must be added to this complete-set boundary when their
-storage is implemented; there are currently no stored work blocks to omit.
+elapsed time. Active task work sessions are part of this complete busy set;
+cancelled reservations are excluded. Task deadlines remain nonblocking.
 
 `verified=true` currently means that no official source is expected (no academic
 profile) and personal calendar data was read successfully. An expected official

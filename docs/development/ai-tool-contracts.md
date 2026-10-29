@@ -1,8 +1,13 @@
 # AI-00 Tool and Execution Contracts
 
-Updated: 2026-10-26.
+Updated: 2026-10-29.
 Status: [AI-03](ai-03.md) implements the read-only lexical/page/material/calendar/database
-subset. [AI-07](ai-07.md) implements exact confirmed page/event/reminder actions. Other capabilities remain specified, not implemented. AI-01 supplies
+subset. [AI-07](ai-07.md) implements exact confirmed page/event/reminder actions.
+[AI-10](ai-10.md) adds `read_tasks`, `get_calendar_availability`,
+`preview_task_plan` and confirmed `task_create`, `task_update`, `task_plan_apply`
+operations in the existing `propose_actions` tool. Extraction uses normal source
+reads and typed proposals, including complete-source analysis when requested;
+there is no separate custom model loop. Other capabilities remain planned. AI-01 supplies
 the [offline lifecycle](ai-api.md) and synthetic tools/accounting. This is the target contract beneath
 [AI product requirements](../product/ai.md), not an existing API/SDK/tool registry.
 Transport DTOs/migrations are finalized with each implementing stage. No real model,

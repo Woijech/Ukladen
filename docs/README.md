@@ -47,7 +47,8 @@ Planned contracts do not override the current implemented API silently.
 - [Official schedule](development/schedule.md).
 - [Personal calendar](development/calendar.md).
 - [Calendar availability](development/calendar-availability.md): local read-only busy/free/conflict queries and explicit coverage uncertainty.
-- [Tasks delivery contract](development/tasks.md): incremental manual P-06 scope and status.
+- [Tasks delivery contract](development/tasks.md): typed tasks, hierarchy, dependencies, provenance and page links.
+- [Task sessions and planning](development/task-planning.md): weekly preferences, explicit work remainder, deterministic previews and atomic confirmed application.
 - [Reminders and in-app notifications](development/reminders.md).
 - [Materials, page attachments and basic search](development/materials.md).
 - [Notes and page hierarchy](development/notes.md).
@@ -76,7 +77,7 @@ implementation task, not a guarantee that its checks were rerun during a later e
 - [AI-06 retrieval and full-source processing](development/ai-06.md): local versioned chunks, recoverable index, hybrid search, located sources and durable analyses; unactivated.
 - [AI-07 confirmed actions](development/ai-07.md): immutable previews, atomic owner-confirmed batches and independent replay receipts; default-disabled and unactivated.
 - [AI-09 release hardening](development/ai-09.md): agreed local scope, bilingual acceptance and separate live-model/activation gates.
-- [AI-10 task planning](development/ai-10.md): confirmed owner decisions and incremental local delivery; implementation started.
+- [AI-10 task planning](development/ai-10.md): local extraction, editable task proposals, work sessions/preferences and confirmed deterministic planning/replanning.
 - [AI model connections](development/ai-connections.md): optional OpenRouter catalog, restricted offerings, encrypted personal keys and AI-consumer-only secret setup; unactivated.
 - [AI chat/run API](development/ai-api.md): default-disabled fake chats/runs, idempotency, cancellation, accounting, bounded recovery, physical retention and minimal replay/context markers.
 
@@ -90,7 +91,8 @@ implemented locally but unactivated. AI-03 source tools and lexical grounding ar
 implemented locally. AI-04 chat/settings/usage UI/API is implemented locally.
 AI-05 adds a locally verified optional CPU embedding runtime and synthetic hardware proof.
 AI-06 adds local hybrid retrieval and durable complete-source processing.
-AI-07 adds locally implemented confirmed actions. AI-08 is deferred indefinitely; AI-09 local hardening is complete; live-model acceptance remains pending. Activation and planning remain pending. Plans do not authorize later changes/deployment.
+AI-07 adds locally implemented confirmed actions. AI-08 is deferred indefinitely; AI-09 local hardening is complete; live-model acceptance remains pending. AI-10 implements task extraction and confirmed deterministic planning locally.
+Real-model quality and activation remain pending. Plans do not authorize later changes/deployment.
 
 ## IIS contracts and future integration
 

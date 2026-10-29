@@ -112,8 +112,13 @@ only a trash-batch root can restore its batch, preserving earlier independent
 deletions. The backend validates hierarchy and optimistic versions. Version
 conflicts retain the editor draft until explicit reload. Deadline input uses
 the profile timezone and explicit DST disambiguation. Task surfaces consume the
-shared light/dark tokens; task dependencies, scheduling and reminders are not
-implemented. See [task contracts](../development/tasks.md).
+shared light/dark tokens. AI-10 adds dependencies/page links, explicit remainder,
+weekly work settings, deterministic plan previews/partial acceptance and manual
+session checks/pin/move/cancel controls. Calendar task sessions and opt-in
+nonblocking deadlines use a separate projection; hiding them changes no busy
+calculations. Extracted AI tasks can be edited into a new immutable preview before
+confirmation. Task/deadline reminders remain not implemented. See
+[task planning](../development/task-planning.md) and [task contracts](../development/tasks.md).
 
 The workspace checks `/api/v1/users/me` before mounting private data. Each authenticated
 identity owns a separate query client and mounted forms; logout, session expiry and

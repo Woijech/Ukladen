@@ -1,6 +1,6 @@
 # AI Implementation Plan
 
-Updated: 2026-10-26.
+Updated: 2026-10-29.
 Status: AI-00 and the offline AI-01 foundation are delivered: a fake-only harness,
 owned persistence, authenticated chat/run API, durable accounting, bounded execution,
 conservative recovery and physical retention cleanup. Tested on disposable
@@ -10,9 +10,12 @@ activation/live account verification remain pending. AI-03 adds implemented
 [authorized source reads](ai-03.md). [AI-04](ai-04.md) adds locally implemented
 streaming chat/settings/usage UI and API. [AI-05](ai-05.md) adds an optional CPU embedding
 runtime with synthetic hardware proof. [AI-06](ai-06.md) adds local hybrid retrieval
-and durable complete-source processing. [AI-07](ai-07.md) adds locally implemented confirmed actions; AI-08 is deferred indefinitely; AI-09 local hardening is complete; live-model acceptance remains pending. Later features remain not implemented. See the dated final verification in the
+and durable complete-source processing. [AI-07](ai-07.md) adds locally implemented confirmed actions; AI-08 is deferred indefinitely; AI-09 local hardening is complete; live-model acceptance remains pending. [AI-10](ai-10.md) now adds the local P-06 work-session/preference foundation,
+editable task extraction and confirmed deterministic planning. AI-11/12 remain
+not implemented. See the dated final verification in the
 [execution record](ai-01-execution-plan.md#13-final-ai-01-verification-2026-10-24).
-No P-06, real provider traffic or deployment is included.
+AI-10 includes its P-06 prerequisites. No real provider traffic or deployment is
+included.
 
 Read [system architecture](../../SYSTEM_ARCHITECTURE.md), [AI architecture](../architecture/ai.md),
 [product scope](../product/ai.md), [ADR 0005](../adr/0005-support-scoped-ai-action-permissions.md),
@@ -301,7 +304,8 @@ Test revocation/limits/expiry/queued replay. Dispatch stays disabled until real 
 ## 13. AI-09: hardening and provider replacement rehearsal
 
 Status: local hardening complete; live-model acceptance pending. See [scope and evidence](ai-09.md).
-AI-08 and unimplemented AI-10–AI-12 are excluded. Real provider evaluation remains
+That dated AI-09 verification excluded AI-08 and AI-10–AI-12; AI-10 has its own
+[current delivery evidence](ai-10.md). Real provider evaluation remains
 a separate bounded approval; application activation is outside this delivery.
 
 Run fixed and held-out synthetic evals for source support, citation correctness,
@@ -317,8 +321,10 @@ worker/broker restart and embedding generation replacement on disposable data.
 
 ## 14. AI-10: extraction, planning and atomic replanning
 
-Implementation started under the [owner-approved local delivery contract](ai-10.md)
-on 2026-10-28. Its delivery log distinguishes completed increments from planned work.
+Implemented locally under the [owner-approved delivery contract](ai-10.md),
+including the P-06 foundation, editable source-backed task proposals, browser
+controls and deterministic confirmed plans. Real-provider quality, migration and
+activation are separate gates. The delivery log records actual checks and limitations.
 
 Requires P-06 task CRUD/status/subtasks/dependencies/source-link interfaces, work blocks,
 occupied/free intervals, conflict checks and structured work preferences. LLM extraction

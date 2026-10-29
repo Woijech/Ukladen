@@ -40,9 +40,10 @@ existing services just to match target vocabulary. A package marker is not a fea
 
 Standalone task create/read/list/update, subtask hierarchy and branch trash are
 implemented with a browser UI; see [tasks](tasks.md).
-Task dependencies and explicit page links are implemented locally in the backend;
-their UI and work blocks are not implemented. Read-only personal/official
-[availability queries](calendar-availability.md) are implemented locally.
+Task dependencies, explicit page links, work sessions/preferences and confirmed
+deterministic planning now have local browser controls under [AI-10](ai-10.md).
+[Availability](calendar-availability.md) includes personal/official events and
+active task sessions, with explicit expected-source coverage limits.
 AI-06 semantic retrieval and complete-source analysis are implemented
 locally but unactivated.
 AI-02 adds optional [OpenRouter models and encrypted connections](ai-connections.md),
@@ -191,11 +192,14 @@ recoverable branch trash, authenticated APIs and task management UI are implemen
 see [task contracts](tasks.md).
 Dependencies and explicit page links are now implemented locally in the backend
 under [AI-10](ai-10.md), alongside read-only personal/official availability queries.
-Their UI and manual blocks are not implemented. Expected IIS coverage remains
+Browser controls, versioned manual sessions, explicit remaining work, saved weekly
+preferences and confirmed deterministic planning/replanning are implemented locally.
+Expected IIS coverage remains
 explicitly unverified until a verified schedule coverage contract exists.
 The owner originally selected manual-only
 incremental delivery; the 2026-10-28 owner request now authorizes the full local
-AI-10 flow. Automatic planning and saved work preferences are still not implemented.
+AI-10 flow. [Task planning](task-planning.md) describes the implemented local
+foundation and AI-07 confirmation bridge. Automatic AI-08 writes remain deferred.
 Dependencies: existing calendar; optional page links after P-02.
 Can be requested earlier independently of databases. Q-07 is resolved: independent
 typed tasks with optional source links and no automatic checkbox/record synchronization.
@@ -270,7 +274,9 @@ connections; live account activation remains pending. [AI-03 read tools](ai-03.m
 are implemented locally. [AI-04](ai-04.md) adds streaming chat/settings/usage UI
 and supporting APIs. [AI-07](ai-07.md) adds locally implemented exact confirmed actions;
 AI-08 automatic writes are deferred indefinitely and application migrations are unapplied.
-[AI-09 local hardening](ai-09.md) is verified for the implemented AI-01–AI-07 subset;
+[AI-10](ai-10.md) adds locally implemented extraction, work settings/sessions and
+confirmed deterministic planning with browser controls.
+[AI-09 local hardening](ai-09.md) is verified for its historical AI-01–AI-07 subset;
 real-model acceptance and application activation remain pending.
 [AI-05](ai-05.md) adds a verified optional CPU embedding adapter and disposable
 hardware proof with explicit load limits. [AI-06](ai-06.md) implements local versioned indexing, AI-only hybrid retrieval and
