@@ -18,7 +18,6 @@ import symbol from "@/shared/assets/ukladen-avatar.png";
 import { requestJson, writeJson } from "@/shared/api";
 import {
   ActionFeedback,
-  EmptyState,
   Modal,
   Pager,
   QueryState,
@@ -42,7 +41,25 @@ import { AiSettings } from "./ai-settings";
 import { SourcePicker, SourceViewer } from "./ai-sources";
 import { AiUsage, RunDetails } from "./ai-usage";
 import { ActionProposals } from "./ai-actions";
+import { NavIcon } from "../navigation";
 import "./ai.css";
+
+const chatIcons = {
+  chat: "M4 4h16v12H9l-5 4Zm4 5h8m-8 3h5",
+  add: "M12 5v14M5 12h14",
+  sources: "M8 3h9l4 4v14H8ZM17 3v5h4M3 7v14h2m6-9h7m-7 4h5",
+  send: "M12 19V5m-6 6 6-6 6 6",
+  stop: "M6 6h12v12H6Z",
+  trash: "M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7",
+  options: "M3 6h18M3 12h18M3 18h18M8 3v6m8 0v6m-7 0v6",
+  calendar: "M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z",
+} as const;
+
+const starterQuestions = [
+  { title: "Мои планы", description: "Что запланировано на завтра?", icon: chatIcons.calendar },
+  { title: "Разобраться в теме", description: "Помоги разобраться в моих заметках", icon: chatIcons.sources },
+  { title: "Следующий шаг", description: "С чего начать работу над задачей?", icon: chatIcons.chat },
+];
 
 const toolLabels: Record<string, string> = {
   search_workspace: "Ищу в твоём пространстве",
@@ -104,7 +121,7 @@ export function AiPanel({
         <div>
           <h1>Твой AI</h1>
           <p className="heading-subtitle">
-            Обсуди планы, разбери материалы и сохрани важное.
+            Место, где можно спросить, разобраться и составить план.
           </p>
         </div>
       </div>
@@ -180,6 +197,7 @@ function ChatArea({
 }) {
   const [offset, setOffset] = useState(0);
   const [creating, setCreating] = useState(false);
+  const [starter, setStarter] = useState("");
   const [historyOpen, setHistoryOpen] = useState(() => !window.matchMedia("(max-width: 650px)").matches);
   const [deleting, setDeleting] = useState<Conversation | null>(null);
   const action = useAction();
@@ -210,10 +228,10 @@ function ChatArea({
         <div className="ai-layout panel">
           <aside className="ai-history" aria-label="История чатов">
             <button
-              className="primary-button"
-              onClick={() => setCreating(true)}
+              className="primary-button ai-new-chat"
+              onClick={() => { setStarter(""); setCreating(true); }}
             >
-              ＋ Новый чат
+              <NavIcon path={chatIcons.add} /> Новый чат
             </button>
             <details className="ai-history-list" open={historyOpen} onToggle={(event) => setHistoryOpen(event.currentTarget.open)}>
             <summary>История чатов</summary>
@@ -223,11 +241,12 @@ function ChatArea({
                   className={selected === chat.id ? "active" : ""}
                   aria-current={selected === chat.id ? "true" : undefined}
                   onClick={() => {
+                    setStarter("");
                     onChoose(chat.id);
                     if (window.matchMedia("(max-width: 650px)").matches) setHistoryOpen(false);
                   }}
                 >
-                  {chat.title}
+                  <span className="ai-history-title"><NavIcon path={chatIcons.chat} />{chat.title}</span>
                   <small>
                     {chat.provider === "fake" ? "Демонстрация" : chat.model}
                   </small>
@@ -237,7 +256,7 @@ function ChatArea({
                   aria-label={`Удалить чат ${chat.title}`}
                   onClick={() => setDeleting(chat)}
                 >
-                  ×
+                  <NavIcon path={chatIcons.trash} />
                 </button>
               </div>
             ))}
@@ -259,31 +278,28 @@ function ChatArea({
             </details>
           </aside>
           {selected ? (
-            <Chat key={selected} id={selected} onDirtyChange={onDirtyChange} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
+            <Chat key={selected} id={selected} initialPrompt={starter} onDirtyChange={onDirtyChange} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
           ) : (
             <div className="ai-welcome">
               <Image src={symbol} alt="" width={72} height={72} />
-              <EmptyState title="Что хочешь прояснить?" icon="">
-                <p>Спроси о своих заметках, материалах или календаре.</p>
-                <button
-                  className="secondary-button"
-                  onClick={() => setCreating(true)}
-                >
-                  Начать беседу
-                </button>
-              </EmptyState>
+              <h2>С чего начнём?</h2>
+              <p>Собери мысли в разговоре. Заметки, материалы и календарь уже рядом.</p>
+              <button className="primary-button" onClick={() => { setStarter(""); setCreating(true); }}>
+                Начать беседу <NavIcon path={chatIcons.chat} />
+              </button>
               <div className="ai-suggestions">
-                <span>Что запланировано на завтра?</span>
-                <span>Найди заметку по теме</span>
-                <span>Объясни выбранный материал</span>
+                {starterQuestions.map((question) => <button type="button" key={question.title} onClick={() => { setStarter(question.description); setCreating(true); }}>
+                  <NavIcon path={question.icon} /><span><strong>{question.title}</strong><small>{question.description}</small></span>
+                </button>)}
               </div>
+              <p className="ai-welcome-hint">Выбери тему, чтобы подготовить вопрос. Отправишь его, когда будешь готов.</p>
             </div>
           )}
         </div>
       )}
       {creating && (
         <NewChat
-          onClose={() => setCreating(false)}
+          onClose={() => { setCreating(false); setStarter(""); }}
           onCreated={(chat) => {
             setCreating(false);
             onChoose(chat.id);
@@ -501,16 +517,18 @@ function NewChat({
 function Chat({
   onOpenPage, onOpenEvent,
   id,
+  initialPrompt,
   onDirtyChange,
 }: {
   onOpenPage: (id: string) => void;
   onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
   id: string;
+  initialPrompt: string;
   onDirtyChange: (dirty: boolean) => void;
 }) {
   const client = useQueryClient();
   const caseParams = useSearchParams();
-  const [text, setText] = useState(() => diagnosticCases.find((item) => item.id === caseParams.get("case"))?.prompt ?? "");
+  const [text, setText] = useState(() => diagnosticCases.find((item) => item.id === caseParams.get("case"))?.prompt ?? initialPrompt);
   const [scope, setScope] = useState<Scope | null>(null);
   const [fullSources, setFullSources] = useState(false);
   const [sourceOnly, setSourceOnly] = useState(false);
@@ -702,12 +720,14 @@ function Chat({
       {conversation && (
         <>
           <header className="ai-chat-heading">
-            <h2>{conversation.title}</h2>
+            <span className="ai-conversation-mark" aria-hidden="true"><NavIcon path={chatIcons.chat} /></span>
+            <div><h2>{conversation.title}</h2>
             <p className="muted">
               {conversation.provider === "fake"
                 ? "Тестовая модель · без внешнего API"
                 : `${conversation.provider} · ${conversation.model} · ${conversation.connection_id ? "личный API" : "ключ приложения"}`}
             </p>
+            </div>
           </header>
           <div
             className="ai-messages"
@@ -717,10 +737,17 @@ function Chat({
             aria-relevant="additions"
           >
             {messages.length === 0 && (
-              <p className="muted">
-                Начни с вопроса или попроси подготовить изменения. Действия
-                выполняются только после подтверждения точного предпросмотра.
-              </p>
+              <div className="ai-chat-empty">
+                <h3>Что хочешь прояснить?</h3>
+                <p>Напиши вопрос или выбери, с чего начать.</p>
+                <div className="ai-draft-suggestions">
+                  {starterQuestions.map((question) => <button type="button" key={question.title} disabled={!!text.trim()} onClick={() => {
+                    setText(question.description);
+                    document.getElementById("ai-message")?.focus();
+                  }}><NavIcon path={question.icon} />{question.title}</button>)}
+                </div>
+                <small>Любые изменения в твоих данных требуют отдельного подтверждения.</small>
+              </div>
             )}
             {messages.map((message) => (
               <article
@@ -737,12 +764,14 @@ function Chat({
                 </div>
                 {message.sources.length > 0 && (
                   <div className="ai-citations" aria-label="Источники ответа">
+                    <span className="ai-citations-label">Источники ответа</span>
                     {message.sources.map((item, index) => (
                       <button
                         className="ai-source-chip"
                         key={`${item.source}:${item.id}:${index}`}
                         onClick={() => setSource(item)}
                       >
+                        <NavIcon path={chatIcons.sources} />
                         {item.source === "web" ? "Из интернета: " : ""}{item.title || "Открыть источник"}
                       </button>
                     ))}
@@ -769,8 +798,8 @@ function Chat({
             <div ref={bottom} />
           </div>
           {run && (
-            <div className="ai-run-status">
-              <span role="status">
+            <div className={`ai-run-status ${running ? "is-running" : ""}`}>
+              <span role="status" key={progress || run.status}>
                 {running
                   ? documentProgress.data
                     ? documentProgress.data.phase === "combining"
@@ -780,7 +809,7 @@ function Chat({
                   : runLabels[run.status]}
               </span>
               <button className="text-action" onClick={() => setDetails(true)}>
-                Подробности
+                Детали ответа
               </button>
             </div>
           )}
@@ -803,56 +832,69 @@ function Chat({
             </label>
             <textarea
               id="ai-message"
-              placeholder="Спроси о том, что важно…"
+              placeholder="Задай вопрос или опиши, с чем нужна помощь…"
               value={text}
               maxLength={16384}
               disabled={running || hasPending}
               onChange={(event) => setText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  void send();
+                }
+              }}
               rows={3}
             />
             <div className="ai-composer-toolbar">
               <button
-                className="secondary-button"
+                className="secondary-button ai-source-button"
                 type="button"
                 disabled={running || hasPending}
                 onClick={() => setPicking(true)}
               >
+                <NavIcon path={chatIcons.sources} />
                 {scope === null
-                  ? "Все источники"
+                  ? "Источники: автоматически"
                   : `Источники: ${scope.page_ids.length + scope.material_ids.length + scope.database_ids.length + scope.task_ids.length}${scope.calendar ? " + календарь" : ""}`}
               </button>
               {running ? (
                 <button
                   type="button"
-                  className="secondary-button"
+                  className="secondary-button ai-stop-button"
                   disabled={action.busy || !activeRun(run)}
                   onClick={() => void stop()}
                 >
-                  Остановить
+                  <NavIcon path={chatIcons.stop} />Остановить
                 </button>
               ) : (
                 <button
-                  className="primary-button"
+                  className="primary-button ai-send-button"
                   disabled={!text.trim() || hasPending}
                 >
-                  Отправить ↑
+                  Отправить <NavIcon path={chatIcons.send} />
                 </button>
               )}
             </div>
-            <div className="ai-composer-options">
-            <label className="checkbox-label">
-              <input type="checkbox" checked={sourceOnly} disabled={running || hasPending} onChange={(event) => setSourceOnly(event.target.checked)} />
-              Без веб-поиска, только мои источники
-            </label>
-            <label className="checkbox-label">
-              <input type="checkbox" checked={fullSources} disabled={running || hasPending} onChange={(event) => setFullSources(event.target.checked)} />
-              Разобрать выбранные страницы и файлы целиком
-            </label>
-            </div>
-            {fullSources && <p className="muted">Обработка продолжится в фоне. Можно закрыть чат и вернуться к результату позже.</p>}
+            <details className="ai-response-options">
+              <summary><NavIcon path={chatIcons.options} /><span>Параметры ответа</span>
+                {(sourceOnly || fullSources) && <small>{[sourceOnly && "Только мои источники", fullSources && "Полный разбор"].filter(Boolean).join(" · ")}</small>}
+                <span className="ai-disclosure-chevron" aria-hidden="true">⌄</span>
+              </summary>
+              <div className="ai-composer-options">
+                <label className="checkbox-label">
+                  <input type="checkbox" aria-label="Только мои источники" checked={sourceOnly} disabled={running || hasPending} onChange={(event) => setSourceOnly(event.target.checked)} />
+                  <span><strong>Только мои источники</strong><small>Искать в твоём пространстве, без веб-поиска.</small></span>
+                </label>
+                <label className="checkbox-label">
+                  <input type="checkbox" aria-label="Разобрать документы целиком" checked={fullSources} disabled={running || hasPending} onChange={(event) => setFullSources(event.target.checked)} />
+                  <span><strong>Разобрать документы целиком</strong><small>Для выбранных страниц и файлов. Сначала выбери их в источниках.</small></span>
+                </label>
+              </div>
+            </details>
+            {fullSources && <p className="ai-background-note muted">Обработка продолжится в фоне. Можно закрыть чат и вернуться к результату позже.</p>}
             <p className="ai-processing muted">
-              Запрос и нужные фрагменты передаются выбранному провайдеру. AI
-              может ошибаться: проверяй источники.
+              <span>Запрос и выбранные фрагменты передаются модели. Проверяй важные ответы.</span>
+              <span className="ai-keyboard-hint">Ctrl / ⌘ + Enter</span>
             </p>
           </form>
           {error && (

@@ -4,6 +4,10 @@ Date: 2026-11-09. Branch: `codex/ukladen-visual-system`.
 Scope: the existing frontend only. Direction: [DESIGN.md](../../DESIGN.md).
 Anti-Slop mode: DURING, explicitly selected by the owner.
 
+This report records the initial workspace redesign. The subsequent
+[AI chat refinement](ai-chat-design-review.md) updates the AI palette, controls,
+phone composition and motion dials, with its own verification and Delivery Gate.
+
 ## Delivered system
 
 The warm neutral workspace, ink typography and restrained plum accent reuse A1.

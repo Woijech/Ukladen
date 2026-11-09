@@ -91,6 +91,34 @@ drafts and offer the existing recovery action. No fabricated activity or metrics
 Hover/pressed transitions take 120ms. Dialogs and menus need no entrance animation;
 the work stays still. Reduced motion disables nonessential transitions and animation.
 
+### AI conversation refinement, 2026-11-09
+
+The owner requested a more expressive, understandable chat with visible motion.
+For the AI area, use ENERGY 2 / RHYTHM 2 / MOTION 2. The rest of the workspace
+retains its existing dials. A deep jade action color (`#246858`, dark `#9edbc8`)
+distinguishes sending and source selection from the plum workspace navigation.
+Warm reading surfaces and the approved A1 symbol retain the Ukladen identity.
+
+The composer is the focal point: a clear message field, labelled source selection,
+one prominent Send button and a secondary response-options disclosure. Source-only
+and full-document modes have short explanations and remain visible in the closed
+summary when enabled. Starter questions fill a draft and never submit automatically.
+Concrete document, conversation, send, stop and trash glyphs clarify the actions.
+Model/connection facts remain readable in the chat header without competing with
+the title. Sources are grouped below their answer and retain their existing viewer.
+Equal starter tiles represent three peer actions, not a feature-card showcase.
+The 800px reading limit keeps long answers legible; the softer composer boundary
+marks the editable area. Phone history and creation share a row, while the open
+conversation omits the repeated visible page heading. Natural phone reflow keeps
+long answers, expanded options and feedback inside the panel. The existing message
+scroll area remains bounded, and page scrolling keeps the composer reachable.
+
+Messages enter once over 260ms, controls respond over 160ms, and disclosures open
+over 200ms. These movements explain arrival, selection and expansion; streaming
+text does not restart the message animation. No idle loop or simulated progress is
+used. Reduced-motion disables these effects. Native keyboard operation, focus and
+44px touch targets remain required. No new motion or icon dependency is needed.
+
 ## Verification
 
 Use the existing mocked-API Playwright suite to exercise auth, CSRF, identity

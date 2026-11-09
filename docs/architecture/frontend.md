@@ -397,3 +397,15 @@ navigation, reduced motion, skip navigation and menu focus return passed. The
 [design review](../development/frontend-design-review.md) records the Anti-Slop
 Delivery Gate and concrete interaction evidence. All browser APIs were mocked;
 no provider call, deployment, application migration or backend test rerun occurred.
+
+Executed on 2026-11-09 for the subsequent AI chat refinement: frontend lint,
+TypeScript checking, production build and all **214 Chromium Playwright tests**
+passed, including 39 AI scenarios. Quiet Compose validation passed. AI controls
+now use a scoped jade palette, editable starter questions, labelled source/send
+actions and a native response-options disclosure. Finite message/disclosure/dialog
+motion respects reduced motion. Light/dark chat and settings captures were checked
+at 320/390/834/1440px; phone reflow, source errors/progress, keyboard sending,
+focus return and confirmed deletion were exercised. The
+[AI design review](../development/ai-chat-design-review.md) records the follow-up
+Delivery Gate. Browser APIs were mocked; no live provider call, backend change,
+database migration or deployment occurred.
