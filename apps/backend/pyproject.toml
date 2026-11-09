@@ -32,6 +32,9 @@ dependencies = [
 
 [dependency-groups]
 dev = ["ruff>=0.9,<1", "pyright>=1.1,<2", "pytest>=8,<10"]
+evaluations = [
+    "deepeval==4.3.3",
+]
 
 [project.optional-dependencies]
 embeddings = ["onnxruntime==1.31.0", "tokenizers==0.23.3", "numpy==2.5.4"]
@@ -53,10 +56,11 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pyright]
 pythonVersion = "3.14"
 typeCheckingMode = "standard"
-include = ["src", "tests", "alembic", "benchmarks"]
+include = ["src", "tests", "alembic", "benchmarks", "evaluations"]
 venvPath = "."
 venv = ".venv"
 
 [tool.pytest.ini_options]
+addopts = "-p no:deepeval -p no:rerunfailures"
 testpaths = ["tests"]
 pythonpath = ["."]

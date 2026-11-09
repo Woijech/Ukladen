@@ -278,6 +278,9 @@ AI-08 automatic writes are deferred indefinitely and application migrations are 
 confirmed deterministic planning with browser controls.
 [AI-09 local hardening](ai-09.md) is verified for its historical AI-01–AI-07 subset;
 real-model acceptance and application activation remain pending.
+The [2026-11-09 quality audit](ai-quality-report.md) adds a separate 60-case deterministic
+DeepEval suite, targeted runtime/RAG fixes and an explicitly bounded live-eval harness;
+scripted scores do not satisfy real-model acceptance.
 [AI-05](ai-05.md) adds a verified optional CPU embedding adapter and disposable
 hardware proof with explicit load limits. [AI-06](ai-06.md) implements local versioned indexing, AI-only hybrid retrieval and
 durable full-source processing. Activation and real-LLM quality remain pending.

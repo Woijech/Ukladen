@@ -78,6 +78,7 @@ implementation task, not a guarantee that its checks were rerun during a later e
 - [AI-06 retrieval and full-source processing](development/ai-06.md): local versioned chunks, recoverable index, hybrid search, located sources and durable analyses; unactivated.
 - [AI-07 confirmed actions](development/ai-07.md): immutable previews, atomic owner-confirmed batches and independent replay receipts; default-disabled and unactivated.
 - [AI-09 release hardening](development/ai-09.md): agreed local scope, bilingual acceptance and separate live-model/activation gates.
+- [AI quality audit](development/ai-quality-report.md): reproduced defects, deterministic DeepEval scenarios, verification and remaining live gates.
 - [AI-10 task planning](development/ai-10.md): local extraction, editable task proposals, work sessions/preferences and confirmed deterministic planning/replanning.
 - [AI-11 web fallback](development/ai-11.md): local source-first chat fallback, bounded public search and external citations; unactivated.
 - [AI-12 proactive reviews](development/ai-12.md): opt-in summaries, warnings, source scope and in-app delivery; unactivated.

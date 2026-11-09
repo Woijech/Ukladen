@@ -143,6 +143,10 @@ def main(directory: Path) -> None:
                     "cases": results,
                     "top3": hits,
                     "total": len(results),
+                    "recall_at_1": sum(row["rank"] == 1 for row in results) / len(results),
+                    "recall_at_3": hits / len(results),
+                    "mrr": sum(1 / row["rank"] for row in results if row["rank"] is not None)
+                    / len(results),
                     "indexing_seconds": round(indexing_seconds, 3),
                     "query_p50_seconds": round(statistics.median(timings), 3),
                     "query_max_seconds": round(max(timings), 3),

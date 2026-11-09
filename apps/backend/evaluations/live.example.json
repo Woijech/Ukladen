@@ -1,0 +1,13 @@
+{
+  "provider": "openrouter",
+  "model": "replace-with-an-explicit/model",
+  "approval_reference": "EXAMPLE ONLY: not an authorization to execute",
+  "case_ids": ["note_search-networks"],
+  "max_requests": 3,
+  "max_input_bytes": 65536,
+  "max_output_tokens": 256,
+  "input_usd_per_million": "0.10",
+  "output_usd_per_million": "0.40",
+  "max_cost_usd": "0.03",
+  "streaming": false
+}
