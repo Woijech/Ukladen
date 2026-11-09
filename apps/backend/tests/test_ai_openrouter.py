@@ -634,3 +634,99 @@ def test_missing_routing_policy_or_overridden_output_budget_never_reaches_provid
         with pytest.raises(ConnectionUnavailable):
             model.invoke("Synthetic")
     assert sent == []
+
+
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize("arguments", ["{", "[]", "null"])
+def test_invalid_tool_arguments_fail_in_both_response_modes(stream, arguments, caplog):
+    call = {
+        "id": "invalid-call",
+        "type": "function",
+        "function": {"name": "double", "arguments": arguments},
+    }
+    usage = {"prompt_tokens": 12, "completion_tokens": 4, "total_tokens": 16}
+    events = [
+        chunk({"tool_calls": [call | {"index": 0}]}),
+        chunk({}, "tool_calls") | {"usage": usage},
+    ]
+    model, client = openrouter_model(
+        PROFILE,
+        lambda: KEY,
+        lambda _: None,
+        transport=httpx.MockTransport(
+            lambda request: (
+                httpx.Response(
+                    200,
+                    headers={"Content-Type": "text/event-stream"},
+                    stream=SyntheticStream(events),
+                )
+                if stream
+                else httpx.Response(
+                    200, json=completion(reason="tool_calls", tool_calls=[call], usage=usage)
+                )
+            )
+        ),
+    )
+    with client, pytest.raises(ProviderFailure) as failure:
+        list(model.stream("Synthetic request")) if stream else model.invoke("Synthetic request")
+    assert failure.value.input_tokens == 12 and failure.value.output_tokens == 4
+    if stream:
+        assert any(
+            record.reason == "stream_tool_arguments"
+            for record in caplog.records
+            if record.msg == "ai.provider_request_failed"
+        )
+
+
+def test_stream_rejects_multiple_choices_instead_of_silently_selecting_one():
+    event = chunk({"content": "First answer"}, "stop")
+    event["choices"].append(
+        {"index": 1, "delta": {"content": "Other answer"}, "finish_reason": "stop"}
+    )
+    model, client = openrouter_model(
+        PROFILE,
+        lambda: KEY,
+        lambda _: None,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200, headers={"Content-Type": "text/event-stream"}, stream=SyntheticStream([event])
+            )
+        ),
+    )
+    with client, pytest.raises(ProviderFailure):
+        list(model.stream("Synthetic request"))
+
+
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize("identifiers", [[""], ["same", "same"]])
+def test_tool_call_identifiers_must_be_nonempty_and_unique(stream, identifiers):
+    calls = [
+        {"id": identifier, "type": "function", "function": {"name": "double", "arguments": "{}"}}
+        for identifier in identifiers
+    ]
+    usage = {"prompt_tokens": 12, "completion_tokens": 4, "total_tokens": 16}
+    events = [
+        chunk({"tool_calls": [call | {"index": i} for i, call in enumerate(calls)]}),
+        chunk({}, "tool_calls") | {"usage": usage},
+    ]
+    model, client = openrouter_model(
+        PROFILE,
+        lambda: KEY,
+        lambda _: None,
+        transport=httpx.MockTransport(
+            lambda request: (
+                httpx.Response(
+                    200,
+                    headers={"Content-Type": "text/event-stream"},
+                    stream=SyntheticStream(events),
+                )
+                if stream
+                else httpx.Response(
+                    200, json=completion(reason="tool_calls", tool_calls=calls, usage=usage)
+                )
+            )
+        ),
+    )
+    with client, pytest.raises(ProviderFailure) as failure:
+        list(model.stream("Synthetic request")) if stream else model.invoke("Synthetic request")
+    assert failure.value.input_tokens == 12 and failure.value.output_tokens == 4

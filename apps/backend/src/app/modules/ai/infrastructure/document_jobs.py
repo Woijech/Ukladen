@@ -167,7 +167,9 @@ class SqlAlchemyDocumentSteps:
                 if document is None or document.version != item["version"]:
                     raise AiConflict("Source changed before processing.")
                 fragment = (
-                    document.text[job.offset :].encode()[:1500].decode("utf-8", errors="ignore")
+                    document.text[job.offset : job.offset + 1500]
+                    .encode()[:1500]
+                    .decode("utf-8", errors="ignore")
                 )
                 end = job.offset + len(fragment)
                 locations = [

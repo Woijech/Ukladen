@@ -392,6 +392,22 @@ def test_selected_personal_connection_is_rechecked_and_revocation_prevents_searc
     assert models.web_search(run) is None
 
 
+def test_failed_web_dispatch_still_consumes_the_request_search_budget():
+    reader = Mock(spec=SourceReader)
+    sources = SourceTools(reader, uuid4())
+    sources.web = Mock(spec=WebSearch)
+    sources.web.search.side_effect = RuntimeError("Synthetic private provider failure")
+    with pytest.raises(RuntimeError):
+        sources.search_web("variance")
+    assert json.loads(sources.search_web("variance"))["status"] == "unavailable"
+    assert json.loads(sources.search_web("different query"))["status"] == "limit"
+    assert sources.web.search.call_count == 1
+    sources.begin()
+    with pytest.raises(RuntimeError):
+        sources.search_web("variance")
+    assert sources.web.search.call_count == 2
+
+
 def test_search_respects_connection_input_budget_and_shared_tool_evidence_budget():
     key = Mock(side_effect=AssertionError("No request should be sent"))
     provider = OpenRouterWebSearch(profile(max_input_bytes=256), key)

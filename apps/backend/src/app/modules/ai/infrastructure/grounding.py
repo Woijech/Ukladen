@@ -57,8 +57,9 @@ claim exhaustive extraction from partial reads. Never infer progress from elapse
 For planning use the deterministic
 preview_task_plan tool, never model-generated free-time claims. Confirm only the stored
 plan_id/digest via task_plan_apply; unknown expected coverage blocks application.
-For whole-document comparisons or extraction use complete-source processing with selected
-pages/materials. Ordinary snippet reads cannot establish complete-source coverage.
+For whole-document comparisons or extraction ask the user to select pages/materials and
+enable complete-source processing in chat; no tool here starts that background job.
+Ordinary snippet reads cannot establish complete-source coverage.
 """
 
 DESCRIPTIONS = {
@@ -78,7 +79,9 @@ DESCRIPTIONS = {
     "read_page": (
         "Read current page/block Markdown and bounded typed document/IDs; follow next_offset."
     ),
-    "read_material_excerpt": "Read extracted file text by character range; no OCR/URL fetching.",
+    "read_material_excerpt": (
+        "Read up to 2000 extracted characters at offset; follow next_offset. No OCR/URL fetching."
+    ),
     "get_calendar_events": "Read events/record dates in profile timezone; not availability.",
     "list_databases": "List current owned active databases with pagination.",
     "read_database": "Page typed properties/views; select property_id to page its options.",
@@ -131,6 +134,10 @@ class SourceTools(AgentMiddleware):
                 return EvidenceResult(
                     status="limit", warnings=("web_query_budget",)
                 ).model_dump_json()
+            # A failed attempt still consumes the one-search budget for this request.
+            self.web_cache[request.query] = EvidenceResult(
+                status="unavailable", warnings=("web_search_failed",)
+            )
             attempt = self.journal.start_attempt() if self.journal else None
             try:
                 result = self.web.search(request)
@@ -260,8 +267,9 @@ class SourceTools(AgentMiddleware):
             else:
                 size += result_size
             current[identifier] = result
+        analysis = self.analysis_context(self.scope) if self.analysis_context else EvidenceResult()
         versions: dict[tuple[str, str], set[int]] = {}
-        for result in current.values():
+        for result in (*current.values(), analysis):
             for source in result.sources:
                 versions.setdefault((source.source, source.id), set()).add(source.version)
         changed = {key for key, values in versions.items() if len(values) > 1}
@@ -270,6 +278,10 @@ class SourceTools(AgentMiddleware):
                 current[identifier] = EvidenceResult(
                     status="unavailable", warnings=("source_changed_during_context_build",)
                 )
+        if any((source.source, source.id) in changed for source in analysis.sources):
+            analysis = EvidenceResult(
+                status="unavailable", warnings=("source_changed_during_context_build",)
+            )
         messages: list[AnyMessage] = []
         last_user = max(
             i for i, message in enumerate(request.messages) if isinstance(message, HumanMessage)
@@ -335,7 +347,6 @@ class SourceTools(AgentMiddleware):
             for result in current.values()
             for source in result.sources
         }
-        analysis = self.analysis_context(self.scope) if self.analysis_context else EvidenceResult()
         for source in analysis.sources:
             references[(source.source, source.id, source.locator)] = source
         for result in self.web_cache.values():

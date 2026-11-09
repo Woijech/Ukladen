@@ -15,7 +15,11 @@ from app.modules.search.application.service import SearchService
 from app.modules.search.domain.chunks import checked_vector
 from app.modules.search.domain.evidence import SourceReference
 from app.modules.search.domain.search import SearchQuery
-from app.modules.search.infrastructure.expressions import search_query, search_vector
+from app.modules.search.infrastructure.expressions import (
+    search_query,
+    search_snippet,
+    search_vector,
+)
 from app.modules.search.infrastructure.index_models import IndexSourceModel, SearchChunkModel
 from app.modules.search.infrastructure.indexing import generation_profile
 from app.modules.search.infrastructure.vector import Vector
@@ -113,7 +117,10 @@ class HybridSearch:
                         locator="search_snippet",
                     ),
                 )
-            statement = current_chunks(user_id, self.generation)
+            terms = search_query(query.query)
+            statement = current_chunks(user_id, self.generation).add_columns(
+                search_snippet(SearchChunkModel.body, terms).label("snippet")
+            )
             if query.source:
                 statement = statement.where(SearchChunkModel.source == query.source)
             if query.source_ids:
@@ -125,7 +132,6 @@ class HybridSearch:
                 if vector
                 else None
             )
-            terms = search_query(query.query)
             lexical_rank = func.ts_rank_cd(search_vector(literal(""), SearchChunkModel.body), terms)
             lists = [
                 database.execute(
@@ -153,11 +159,11 @@ class HybridSearch:
                     ).all()
                 )
             for candidates in lists:
-                for rank, (chunk, title) in enumerate(candidates, 1):
+                for rank, (chunk, title, snippet) in enumerate(candidates, 1):
                     key = (chunk.source, str(chunk.source_id), str(chunk.number))
                     scores[key] += 1 / (60 + rank)
                     values[key] = (
-                        chunk.body,
+                        snippet,
                         SourceReference(
                             source="page" if chunk.source == "page" else "material",
                             id=str(chunk.source_id),

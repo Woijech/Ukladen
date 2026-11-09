@@ -109,6 +109,34 @@ def test_index_claim_fencing_current_sources_and_hybrid(concurrent_engine):
     assert HybridSearch(sessions, provider).read(owner, SearchRead(query="updated")).sources == ()
 
 
+def test_hybrid_snippet_keeps_a_query_match_near_the_end_of_a_chunk(concurrent_engine):
+    owner, page = uuid4(), uuid4()
+    sessions = sessionmaker(concurrent_engine, expire_on_commit=False)
+    body = "Unrelated introductory context. " * 60 + "Quasarflux deadline is Friday."
+    assert "Quasarflux" not in body[:600]
+    with sessions.begin() as database:
+        database.add(UserModel(id=owner, email="snippet-owner@example.com"))
+        database.flush()
+        database.add(
+            PageModel(
+                id=page,
+                user_id=owner,
+                title="Lecture",
+                document=document_value(markdown_document(body)),
+            )
+        )
+    provider = Embeddings()
+    store = SqlAlchemyIndexStore(sessions, provider.profile)
+    store.register()
+    IndexingService(store, provider, lambda value: len(value.split()) + 4).process(
+        owner, "page", page
+    )
+    evidence = HybridSearch(sessions, provider).read(owner, SearchRead(query="Quasarflux"))
+    assert evidence.sources and evidence.sources[0].id == str(page)
+    assert isinstance(evidence.data, list)
+    assert "Quasarflux" in str(evidence.data[0]) and "Friday" in str(evidence.data[0])
+
+
 def test_expired_index_claim_cannot_publish_after_recovery(concurrent_engine):
     owner, page = uuid4(), uuid4()
     sessions = sessionmaker(concurrent_engine, expire_on_commit=False)

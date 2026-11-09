@@ -58,6 +58,27 @@ def usage_values(data: dict[str, Any]) -> dict[str, int | None]:
     }
 
 
+def validate_tool_calls(calls: list[dict[str, Any]], usage: dict[str, int | None]) -> None:
+    identifiers: set[str] = set()
+    for call in calls:
+        identifier = call.get("id")
+        if not isinstance(identifier, str) or not identifier or identifier in identifiers:
+            raise ProviderFailure("invalid_response", **usage)
+        try:
+            function = call["function"]
+            arguments = json.loads(function["arguments"])
+            valid = (
+                isinstance(arguments, dict)
+                and isinstance(function.get("name"), str)
+                and bool(function["name"])
+            )
+        except ValueError, TypeError, KeyError:
+            valid = False
+        if not valid:
+            raise ProviderFailure("invalid_response", **usage)
+        identifiers.add(identifier)
+
+
 def retry_seconds(value: str | None) -> int:
     try:
         seconds = int(value or "60")
@@ -190,6 +211,7 @@ class SupportedOpenRouter(ChatOpenRouter):
             "message", {}
         ).get("refusal"):
             raise ProviderFailure("invalid_response", **usage)
+        validate_tool_calls(choice.get("message", {}).get("tool_calls") or [], usage)
         result = super()._create_chat_result(response)
         for generation in result.generations:
             message = generation.message
@@ -229,6 +251,7 @@ class SupportedOpenRouter(ChatOpenRouter):
         finished = False
         finished_reason: str | None = None
         failure_reason: str | None = None
+        tool_chunks: AIMessageChunk | None = None
         phase = "stream_decode"
         try:
             # Keep raw counts: the connector otherwise replaces missing usage with zero.
@@ -247,6 +270,8 @@ class SupportedOpenRouter(ChatOpenRouter):
                 if data.get("error"):
                     raise ProviderFailure("invalid_response", **usage)
                 choices = data.get("choices") or []
+                if len(choices) > 1 or (choices and choices[0].get("index") != 0):
+                    raise ProviderFailure("invalid_response", **usage)
                 if choices:
                     choice = choices[0]
                     phase = "stream_after_finish"
@@ -286,6 +311,8 @@ class SupportedOpenRouter(ChatOpenRouter):
                     message.additional_kwargs = {}
                     message.usage_metadata = None
                     message.response_metadata = {}
+                    if message.tool_call_chunks:
+                        tool_chunks = message if tool_chunks is None else tool_chunks + message
                     yield ChatGenerationChunk(message=message)
                 phase = "stream_decode"
             phase = "stream_incomplete"
@@ -294,6 +321,19 @@ class SupportedOpenRouter(ChatOpenRouter):
             if failure_reason is not None:
                 phase = failure_reason
                 raise ProviderFailure("invalid_response", **usage)
+            phase = "stream_tool_arguments"
+            validate_tool_calls(
+                [
+                    {
+                        "id": call["id"],
+                        "function": {"name": call["name"], "arguments": call["args"]},
+                    }
+                    for call in tool_chunks.tool_call_chunks
+                ]
+                if tool_chunks is not None
+                else [],
+                usage,
+            )
             yield ChatGenerationChunk(
                 message=AIMessageChunk(content="", response_metadata={"ukladen_usage": usage})
             )

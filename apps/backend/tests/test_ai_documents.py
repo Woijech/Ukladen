@@ -63,8 +63,9 @@ class Model:
         return "Evidence summary with source attribution."
 
 
-def test_complete_source_processing_reads_every_range_and_resumes(concurrent_engine):
-    body = "требования к лабораторной. " * 150
+@pytest.mark.parametrize("fragment", ["требования к лабораторной. ", "A🧪Бe\u0301 "])
+def test_complete_source_processing_reads_every_range_and_resumes(concurrent_engine, fragment):
+    body = fragment * 150
     sessions, service, owner, page, run, request = setup(concurrent_engine, body)
     model = Model()
     processor = DocumentAnalysisService(SqlAlchemyDocumentSteps(sessions, service), model)
