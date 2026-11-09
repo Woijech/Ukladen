@@ -185,3 +185,64 @@ inference, safe rendering, review, export and clearing.
 - No operator UUID was inferred/granted, no home database migration was applied,
   and no running application service was recreated for this feature. Follow the
   installation section to enable the selected account and install the built images.
+
+## Per-step accounting and calendar tool selection (2026-11-09)
+
+Implemented locally; installing the changed API/web code is a separate deployment.
+No migration, new dependency, provider activation or live request is required by this
+change. Existing capture grants, opt-in, redaction, bounds and retention still apply.
+
+Open AI → Diagnostics → Open request → **Расход по шагам**. The same accounting
+component appears in ordinary run details, with journal counts/timing but without
+opt-in capture content. The diagnostic JSON export includes the underlying events.
+
+- Each model attempt shows its own provider-reported input/output counts, latency,
+  status/error and a base-tariff estimate when the historical tariff and both counts
+  are known. Totals retain the number of attempts with unknown counts. Failed and
+  repeated attempts are included; unknown is never converted to zero.
+- Opted-in runs additionally capture reported cache reads/writes and numeric reasoning
+  counts, maximum output, streaming mode and actual serialized HTTP request bytes.
+  Cache reads are a subset of prompt usage, not extra tokens. Reasoning counts are
+  not added to completion usage again. No hidden reasoning text is captured.
+- `model_input` is measured after grounding/personal instructions/tool selection, at
+  the final framework boundary. It reports serialized characters/UTF-8 bytes for
+  system context, tool schemas, earlier history, the current user message, current
+  tool results and assistant tool calls. It also reports each schema's size and the
+  available tool names. These are **not** per-component token counts or token estimates:
+  no model tokenizer is assumed. Provider serialization can differ; HTTP byte size is
+  measured separately at the guarded transport before credentials are attached.
+- Model cards show requested tools/arguments. Tool cards show execution latency,
+  status, arguments/results and result character/byte size. Returned evidence can
+  be revalidated/transformed before the next dispatch; a tool's result size is not
+  its exact contribution to the next provider's token usage.
+- A missing capture, old event format, capture truncation or unsupported provider
+  accounting displays unavailable details explicitly. Earlier traces with `system:
+  null` cannot establish absence of a system prompt: the old capture ran before the
+  grounding middleware. New `model_request` capture observes the actual final context.
+- Detailed cache/context events belong to the existing seven-day opt-in capture,
+  not a new permanent accounting table. Ordinary journals still retain input/output
+  totals without content for thirty days. Exact provider billing, cache discounts
+  and external-search fees are not inferred from base token rates.
+
+A conservative, full-message Russian/English recognizer selects a calendar-only
+fast path for simple standalone schedule questions, including the panel's exact
+"tomorrow classes" preset. Explicit non-calendar source selections, mixed requests,
+action requests, quoted text and unrecognized wording retain the general tool set.
+This is not a semantic classifier and deliberately does not guess every paraphrase.
+The general source policy also instructs calendar-first reads without document fallback.
+
+The fast path advertises only `get_calendar_events`, excludes the large action schema
+and uses a shorter calendar policy. Unadvertised workspace/web calls are rejected
+before application dispatch; proposals fail before the HITL interrupt. Once a calendar
+read has no continuation offset, no tools are advertised for the final model call.
+Pagination remains possible. Empty/unavailable results retain source-state/coverage
+limitations and do not authorize document or web searches for official schedule facts.
+The route resets on each user message. Mixed requests such as schedule plus lecture
+preparation retain normal retrieval and exact write confirmation.
+
+Local compact schema measurement: 12 general tools use 17,464 bytes; the calendar
+schema uses 634 bytes (96.37% less schema data). The base policies are 3,744 and 940
+characters respectively, excluding live profile/preferences/evidence. These are local
+serialization measurements, **not** a measured provider token or billing reduction.
+Real-model tool-choice acceptance and cache hit rates require separately approved
+bounded live checks under AGENTS.md. No live calls accompanied this implementation.

@@ -39,6 +39,9 @@ Operator-granted [diagnostics](../development/ai-diagnostics.md) are implemented
 locally: an own-run journal, explicitly opted-in foreground chat capture, manual
 reviews and local JSON export. Captures are bounded and expire after seven days;
 this does not grant cross-owner access or enable provider spending.
+The local 2026-11-09 follow-up narrows recognized standalone schedule questions to
+calendar reads and records final-context sizes plus provider usage/cache details per
+foreground step in opted-in captures. Counts and bytes remain distinct; see the guide.
 
 ## 1. Product responsibilities
 

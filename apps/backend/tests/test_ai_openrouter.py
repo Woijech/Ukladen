@@ -678,6 +678,58 @@ def test_invalid_tool_arguments_fail_in_both_response_modes(stream, arguments, c
         )
 
 
+@pytest.mark.parametrize("stream", [False, True])
+def test_diagnostic_usage_preserves_cache_counts_without_credentials_or_reasoning(stream):
+    from app.modules.ai.application.diagnostics import attempt_number, capture
+
+    usage = {
+        "prompt_tokens": 100,
+        "completion_tokens": 12,
+        "total_tokens": 112,
+        "prompt_tokens_details": {"cached_tokens": 80, "cache_write_tokens": 10},
+        "completion_tokens_details": {"reasoning_tokens": 3},
+    }
+    captured = []
+    context = capture.set(lambda kind, payload: captured.append((kind, payload)))
+    attempt = attempt_number.set(7)
+    events = [chunk({"content": "Answer"}), chunk({}, "stop") | {"usage": usage}]
+    model, client = openrouter_model(
+        PROFILE,
+        lambda: KEY,
+        lambda _: None,
+        transport=httpx.MockTransport(
+            lambda request: (
+                httpx.Response(
+                    200,
+                    headers={"Content-Type": "text/event-stream"},
+                    stream=SyntheticStream(events),
+                )
+                if stream
+                else httpx.Response(200, json=completion("Answer", usage=usage))
+            )
+        ),
+    )
+    try:
+        with client:
+            list(model.stream("Synthetic")) if stream else model.invoke("Synthetic")
+    finally:
+        attempt_number.reset(attempt)
+        capture.reset(context)
+    reported = next(data["value"] for kind, data in captured if kind == "provider_usage")
+    assert reported == {
+        "attempt": 7,
+        "input_tokens": 100,
+        "output_tokens": 12,
+        "cached_tokens": 80,
+        "cache_write_tokens": 10,
+        "reasoning_tokens": 3,
+        "finish_reasons": ["stop"],
+    }
+    sent = next(data["value"] for kind, data in captured if kind == "provider_request")
+    assert sent["request_bytes"] > 0 and sent["streaming"] == stream
+    assert KEY not in json.dumps(captured)
+
+
 def test_stream_rejects_multiple_choices_instead_of_silently_selecting_one():
     event = chunk({"content": "First answer"}, "stop")
     event["choices"].append(

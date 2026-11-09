@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { requestJson, writeJson } from "@/shared/api";
 import { ActionFeedback, Modal, Pager, QueryState, useAction } from "@/shared/ui";
 import { aiBase, runLabels, type Run } from "./ai-api";
+import { AiRunAnalysis, type DiagnosticEvent } from "./ai-run-analysis";
 
 export const diagnosticCases = [
   { id: "demo", title: "Проверка механизма без API", prompt: "Проверь тестовый инструмент.", expected: "Демо: fake_double получает 7; ответ 14. Проверяет механизм, а не качество модели." },
@@ -20,11 +21,14 @@ type Summary = {
 };
 type Trace = {
   captured: boolean; truncated: boolean; verdict: string; note: string;
-  events: { kind: string; at: string; payload: Record<string, unknown> }[];
+  events: DiagnosticEvent[];
 };
 type Detail = { run: Run & { conversation_id: string | null; created_at: string; finished_at: string | null }; trace: Trace };
 const verdicts: Record<string, string> = { unreviewed: "Не оценено", passed: "Пройдено", failed: "Ошибка" };
 const eventLabels: Record<string, string> = {
+  model_input: "Состав входного контекста", model_usage: "Учёт токенов шага",
+  provider_request: "Параметры отправки провайдеру", provider_usage: "Токены и кеш провайдера",
+  tool_policy: "Инструмент заблокирован правилами запроса",
   model_request: "Запрос к модели", model_response: "Ответ модели", model_failure: "Ошибка модели",
   tool_request: "Вызов инструмента", tool_response: "Результат инструмента", tool_failure: "Ошибка инструмента", provider_failure: "Ошибка провайдера",
 };
@@ -104,6 +108,7 @@ function DiagnosticDetails({ runId, onClose, onOpenChat }: { runId: string; onCl
         ...data.run.tools.map((item) => ({ at: item.started_at, text: `${item.tool_name} #${item.number}: ${item.status}; ${item.error_code ?? "без ошибки"}; ${duration(item.started_at, item.finished_at)}` })),
       ].sort((a, b) => a.at.localeCompare(b.at)).map((item, i) => <li key={i}>{new Date(item.at).toLocaleTimeString("ru")} — {item.text}</li>)}</ol>
       {!data.run.attempts.length && <p>Вызовов модели не зарегистрировано.</p>}
+      <AiRunAnalysis run={data.run} events={data.trace.events} />
       <h3>Содержимое тестового выполнения</h3>
       {!data.trace.captured && <p>Подробного захвата нет: чат обычный, захват удалён или истёк срок хранения. Ответ и цитаты смотри в чате.</p>}
       {data.trace.truncated && <p role="alert">Достигнут лимит захвата. Часть данных отсутствует.</p>}

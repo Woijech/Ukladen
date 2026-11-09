@@ -321,6 +321,11 @@ manual verdicts and JSON export. The UI reuses normal chat/model/source/confirma
 paths and defaults test creation to the scripted demo. See the [operator guide](ai-diagnostics.md).
 Deployment and live-model acceptance remain separate; no cross-user admin access
 or external tracing service is added.
+The 2026-11-09 local follow-up adds conservative calendar-only tool selection,
+shorter calendar context, and per-step token/cache/timing/context-size analysis.
+General/mixed requests retain the existing tool registry and exact confirmations.
+Real-model acceptance and deployment remain separate gates; exact per-component token
+attribution is unavailable.
 
 ## 12. I-01 public IIS scope; I-02 deferred private integration
 

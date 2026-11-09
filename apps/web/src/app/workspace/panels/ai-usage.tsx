@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { requestJson } from "@/shared/api";
 import { Modal, QueryState } from "@/shared/ui";
 import { aiBase, runLabels, type AiAccessStatus, type Run } from "./ai-api";
+import { AiRunAnalysis } from "./ai-run-analysis";
 
 type Metrics = {
   runs: number;
@@ -349,34 +350,7 @@ export function RunDetails({
           ) : (
             <p className="muted">Тариф неизвестен; стоимость не рассчитана.</p>
           )}
-          <h3>Попытки провайдера</h3>
-          {run.attempts.map((attempt) => (
-            <p key={attempt.number}>
-              Попытка {attempt.number}:{" "}
-              {attempt.status === "succeeded"
-                ? "завершена"
-                : attempt.status === "started"
-                  ? "выполняется"
-                  : "не завершена"}{" "}
-              · вход {tokens(attempt.input_tokens)}, выход{" "}
-              {tokens(attempt.output_tokens)}
-            </p>
-          ))}
-          <h3>Работа с источниками</h3>
-          {run.tools.length ? (
-            run.tools.map((tool) => (
-              <p key={tool.number}>
-                {tool.tool_name} ·{" "}
-                {tool.status === "succeeded"
-                  ? "готово"
-                  : tool.status === "started"
-                    ? "выполняется"
-                    : "не завершено"}
-              </p>
-            ))
-          ) : (
-            <p>Инструменты не вызывались.</p>
-          )}
+          <AiRunAnalysis run={run} />
         </>
       )}
     </Modal>

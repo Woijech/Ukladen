@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 capture: ContextVar[Callable[[str, object], None] | None] = ContextVar(
     "ai_diagnostics", default=None
 )
+attempt_number: ContextVar[int | None] = ContextVar("ai_diagnostic_attempt", default=None)
 
 
 class DiagnosticReview(BaseModel):
@@ -29,7 +30,9 @@ def bounded_payload(value: object) -> dict:
             if item.get("type") in ("reasoning", "thinking", "redacted_thinking"):
                 return "[reasoning omitted]"
             return {
-                str(key): "[redacted]"
+                str(key): part
+                if str(key) == "reasoning_tokens" and type(part) is int and 0 <= part <= 2**63 - 1
+                else "[redacted]"
                 if re.search(
                     r"key|secret|password|authorization|cookie|reasoning|token$", str(key), re.I
                 )

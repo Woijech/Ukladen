@@ -157,3 +157,73 @@ transport deadlines and application cancellation/lease/version checks remain ess
 Serialized byte bounds are not per-model context tokenizers. The live evaluator's
 cost reservation is not a provider-account billing guarantee. These limits and real
 LLM quality must remain visible in any activation decision.
+
+## Calendar selection and accounting follow-up (2026-11-09)
+
+The owner supplied a real diagnostic export showing a standalone tomorrow-classes
+question dispatching both calendar and workspace search. Calendar coverage was complete;
+the unrelated page/material fragments were unnecessary. The export reported 6,536 and
+8,930 input tokens across two model calls, without cache accounting or component-level
+attribution. Those totals cannot establish the search's exact token cost.
+
+Implemented locally after that report:
+
+- A conservative full-message recognizer selects calendar-only tools and a shorter
+  policy for simple Russian/English schedule lookups, including the exact diagnostic
+  preset. It adds no classifier/model call. Mixed requests, non-calendar explicit scopes,
+  actions and unrecognized wording retain the general registry. The general prompt also
+  directs calendar-first reads without substituting documents for official facts.
+- The selected subset is enforced at tool dispatch, not only described in a prompt.
+  Workspace/web calls are rejected, proposals stop before HITL, and known provider usage
+  is preserved even when a returned proposal violates the calendar route. Pagination
+  remains possible; tools are removed after a read without a continuation offset.
+- New captures measure final grounded/personalized context, rather than the earlier
+  middleware input that could display `system: null`. Separate small size/usage events
+  survive truncation of a large content preview. They retain the existing opt-in,
+  ownership, redaction, seven-day retention and storage bounds.
+- The shared run-analysis panel shows provider-reported input/output per attempt, known
+  totals plus unknown steps, latency/status/errors, historical base-tariff estimates,
+  cache read/write and numeric reasoning usage when supplied. It never presents bytes
+  as exact token counts or the tariff estimate as an actual invoice. Context sections
+  show serialized character/byte sizes for system instructions, schemas, history,
+  current message, tool results and assistant calls; schema sizes are individually
+  inspectable. Tool cards show arguments/results, result sizes and execution timing.
+  Detailed raw events and JSON export remain available. Old/missing capture data stays
+  explicitly unavailable; no historical breakdown is fabricated.
+
+The compact general tool schemas occupy 17,464 bytes versus 634 bytes for the calendar
+subset (96.37% less schema data). The base general/calendar policies occupy 3,744/940
+characters, excluding profile/preferences/evidence. This is local serialization evidence,
+not a measured provider token/billing reduction or a cache-hit guarantee.
+
+Regression coverage includes the exact supplied question; populated, empty and unavailable
+calendar evidence; no workspace/web dispatch or unauthorized proposal; continued pagination;
+policy reset for the next turn; mixed/source-scoped requests; final system/preferences capture;
+JSON/SSE cache counts; unknown usage; mobile/desktop presentation and safe content rendering.
+The [operator guide](ai-diagnostics.md#per-step-accounting-and-calendar-tool-selection-2026-11-09)
+contains the UI path and detailed measurement/retention limitations.
+
+The earlier full regression was interrupted when its temporary environment stopped and
+is not counted as a completed result. Verification uses synthetic credentials, mocked providers and a
+separate PostgreSQL/Redis/S3 Compose project; zero real provider calls. No application
+migration, deployment, service recreation or AI activation was performed by this follow-up.
+
+
+| Follow-up check | Executed result |
+| --- | --- |
+| Full backend + evaluations, frozen snapshot | 2,210 passed; zero failures/errors/skips; 781.11 seconds. |
+| Final native diagnostics/routing/provider/accounting checks | 84 passed; zero failures/errors/skips; 11.78 seconds. |
+| Final offline affected tests + all evaluations | 171 passed; zero failures/errors/skips; 5.72 seconds. |
+| Standalone evaluation report | 60/60 scripted cases; real-model gate `not_evaluated`; zero provider requests. |
+| Browser regression | 195 passed on the shared analysis UI; final diagnostic refinements separately passed all 7 diagnostics tests (11.3 seconds). |
+| Backend quality | Ruff and formatting passed (567 files); Pyright: zero errors/warnings. |
+| Frontend quality | ESLint, TypeScript and final production build passed. Desktop/mobile screenshots visually inspected. |
+| Compose | Base and home/AI/retrieval models validated quietly with synthetic variables/example files and `--no-env-resolution`; no private service env files resolved. |
+| Documentation / whitespace | 111 local links in affected guides resolved; `git diff --check` passed. |
+
+The full native run used a frozen source snapshot. Later refinements preserving usage
+on rejected proposals, safe optional diagnostic parsing, explicit policy-denial events,
+web-unavailable context and opt-in-only result-size computation passed the final affected
+native/offline checks above. No blanket rerun is implied for that later refinement.
+The final diagnostic UI checks include blocked-tool explanations and missing accounting.
+No provider token reduction, cache hit rate or real-model semantic acceptance is claimed.

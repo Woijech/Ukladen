@@ -108,11 +108,15 @@ def test_stream_capture_replay_review_delete_and_conversation_cascade(ai_client,
     trace = detail["trace"]
     kinds = [event["kind"] for event in trace["events"]]
     assert kinds == [
+        "model_input",
         "model_request",
+        "model_usage",
         "model_response",
         "tool_request",
         "tool_response",
+        "model_input",
         "model_request",
+        "model_usage",
         "model_response",
     ]
     assert "fake_double" in json.dumps(trace)

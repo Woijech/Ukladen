@@ -100,6 +100,12 @@ explicit profile adjustment, never unlimited retries or silently truncating a co
 mutation. Reserve budget for a final answer; stop safely with a partial/limit status
 when remaining work cannot fit. Do not split a multi-action commit across model turns.
 
+The [2026-11-09 diagnostic follow-up](ai-diagnostics.md#per-step-accounting-and-calendar-tool-selection-2026-11-09)
+adds a conservative calendar-only tool subset for recognized standalone schedule
+queries. Mixed/unrecognized requests keep general tools. Source limits above are not
+reduced globally. Provider input/output/cache counts and locally measured serialized
+context sizes are separate observations; no per-component token estimate is invented.
+
 ## 4. Proposal and plan consistency
 
 A proposal includes owner, immutable operation list, parameter digest, targets and
