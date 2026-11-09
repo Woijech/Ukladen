@@ -7,7 +7,7 @@ from sqlalchemy import Connection, Engine, func, select, text, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from test_auth_persistence import database_connection as database_connection
-from test_auth_registration import PASSWORD, registration
+from test_auth_registration import NOW, PASSWORD, registration
 from test_auth_sessions import cache as cache
 from test_auth_sessions import concurrent_engine as concurrent_engine
 from test_auth_sessions import settings as settings
@@ -53,6 +53,7 @@ def login_service(
             settings,
             generate_token=generate_token,
             hash_token=hash_token,
+            now=lambda: NOW,
         ),
         dummy_password_hash=dummy_hash,
     )
