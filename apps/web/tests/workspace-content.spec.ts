@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
+import { checkWorkspaceVisuals } from "./design-checks";
 import {
   mockWorkspace,
   navigateSection as section,
@@ -815,7 +816,7 @@ for (const viewport of [
     ).toContainText("План проекта");
     await expect(page.locator(".task-list-card")).toHaveCSS(
       "background-color",
-      "rgb(32, 28, 38)",
+      "rgb(34, 34, 37)",
     );
     await page.screenshot({
       path: info.outputPath("tasks-dark.png"),
@@ -828,6 +829,56 @@ for (const viewport of [
     ).toBe(true);
   });
 }
+
+for (const width of [390, 1024, 1440]) {
+  test(`design system covers secondary sections in both themes at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await contentWorkspace(page);
+    for (const theme of ["light", "dark"]) {
+      const toggle = page.getByRole("button", { name: /Тема:/ }).first();
+      while ((await page.locator("html").getAttribute("data-theme")) !== theme) await toggle.click();
+      for (const name of ["Календарь", "Заметки", "Задачи", "Материалы", "Базы данных", "Коллекции и теги", "Поиск", "Уведомления", "Настройки", "Главная"]) {
+        await section(page, name);
+        await expect(page.locator(".feature-page, .calendar-card").first()).toBeVisible();
+        await expect(page.locator(".skeleton-stack")).toHaveCount(0);
+        await page.screenshot({ path: info.outputPath(`${name}-${theme}.png`), fullPage: true, animations: "disabled" });
+        await checkWorkspaceVisuals(page);
+      }
+    }
+    expect(errors).toEqual([]);
+  });
+}
+
+test("mobile dock preserves dirty notes and opens all sections with keyboard focus", async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await contentWorkspace(page);
+  await expect(page.locator(".day-column")).toHaveCount(1);
+  const dock = page.getByRole("navigation", { name: "Быстрые переходы" });
+  await dock.getByRole("button", { name: "Заметки", exact: true }).click();
+  await page.getByRole("button", { name: "Идеи для проекта", exact: true }).click();
+  await page.getByLabel("Текст блока 1").fill("Несохранённая мысль");
+  await dock.getByRole("button", { name: "Задачи", exact: true }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dock.getByRole("button", { name: "Задачи", exact: true })).toBeFocused();
+  await expect(page.getByLabel("Текст блока 1")).toHaveValue("Несохранённая мысль");
+  await page.getByRole("button", { name: "Сохранить страницу", exact: true }).click();
+  await dock.getByRole("button", { name: "Все разделы" }).click();
+  await expect(page.getByRole("dialog", { name: "Навигация", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dock.getByRole("button", { name: "Все разделы" })).toBeFocused();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(dock.getByRole("button", { name: "Заметки", exact: true })).toHaveCSS("transition-duration", "0s");
+  for (const button of await dock.getByRole("button").all()) {
+    const box = (await button.boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+  await page.screenshot({ path: info.outputPath("mobile-dock.png"), fullPage: true });
+  await checkWorkspaceVisuals(page);
+});
 
 test("calendar source filters only change display, and day view keeps original event intervals", async ({
   page,

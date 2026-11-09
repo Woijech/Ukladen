@@ -85,7 +85,6 @@ export function OrganizationPanel({
     <div className="feature-page">
       <div className="page-heading">
         <div>
-          <span className="greeting">СВЯЗИ, КОТОРЫЕ ВЫБИРАЕШЬ ТЫ</span>
           <h1>Коллекции и теги</h1>
           <p className="heading-subtitle">
             Объединяй страницы и события без копирования.

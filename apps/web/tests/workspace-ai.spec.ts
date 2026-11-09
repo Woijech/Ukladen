@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { Proposal } from "../src/app/workspace/panels/ai-actions";
 import type { DiagnosticEvent } from "../src/app/workspace/panels/ai-run-analysis";
 import { login, mockWorkspace, navigateSection } from "./workspace-fixtures";
+import { checkWorkspaceVisuals } from "./design-checks";
 
 const chatId = "11111111-2222-4333-8444-555555555555";
 const pageId = "22222222-2222-4333-8444-555555555555";
@@ -307,6 +308,36 @@ async function mockAi(page: Page) {
     throw new Error(`Unexpected AI request: ${method} ${path}`);
   });
   return state;
+}
+
+for (const width of [390, 1440]) {
+  test(`AI transcript and settings use the shared design system at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await mockAi(page);
+    await page.goto(`/workspace/ai?chat=${chatId}`);
+    await page.getByLabel("Сообщение AI").fill("Объясни заметку");
+    await page.getByRole("button", { name: "Отправить ↑" }).click();
+    await expect(page.getByRole("log")).toContainText("Ответ по заметке");
+    for (const theme of ["light", "dark"]) {
+      const toggle = page.getByRole("button", { name: /Тема:/ }).first();
+      while ((await page.locator("html").getAttribute("data-theme")) !== theme) await toggle.click();
+      for (const [name, selector] of [["Чаты", ".ai-chat"], ["Настройки AI", ".ai-settings"], ["Использование", ".ai-usage"]]) {
+        await page.getByRole("button", { name, exact: true }).click();
+        if (name === "Чаты") {
+          const chat = page.locator(".ai-history-row > button:first-child").first();
+          if (!await chat.isVisible()) await page.getByText("История чатов", { exact: true }).click();
+          await chat.click();
+        }
+        await expect(page.locator(selector)).toBeVisible();
+        await expect(page.locator(".skeleton-stack")).toHaveCount(0);
+        await page.screenshot({ path: info.outputPath(`${name}-${theme}.png`), fullPage: true, animations: "disabled" });
+        await checkWorkspaceVisuals(page);
+      }
+    }
+    expect(errors).toEqual([]);
+  });
 }
 
 test("AI sends selected sources once and opens current safe source text", async ({

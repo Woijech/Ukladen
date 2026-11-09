@@ -62,7 +62,7 @@ export function Modal({
 export function EmptyState({
   title,
   children,
-  icon = "◇",
+  icon = "",
 }: {
   title: string;
   children: ReactNode;
@@ -70,9 +70,9 @@ export function EmptyState({
 }) {
   return (
     <div className="ui-empty">
-      <span className="empty-symbol" aria-hidden="true">
+      {icon && <span className="empty-symbol" aria-hidden="true">
         {icon}
-      </span>
+      </span>}
       <h2>{title}</h2>
       <div>{children}</div>
     </div>
@@ -91,6 +91,7 @@ export function QueryState({
   if (pending)
     return (
       <div className="skeleton-stack" role="status" aria-label="Загрузка">
+        <p className="muted">Загружаем данные…</p>
         <span />
         <span />
         <span />

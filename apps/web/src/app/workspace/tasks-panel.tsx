@@ -116,7 +116,7 @@ function TaskForm({ task, parentId, timeZone, onClose, onSaved, onSessionEnd }: 
 
   return <Modal title={snapshot ? "Изменить задачу" : parentId ? "Новая подзадача" : "Новая задача"} onClose={() => { if (!busy) onClose(); }}>
     <form className="task-dialog" aria-labelledby="task-form-title" onSubmit={submit}>
-      <span className="greeting">ЛИЧНЫЕ ЗАДАЧИ</span>
+      <span className="greeting">Личные задачи</span>
       <h2 id="task-form-title">{snapshot ? "Изменить задачу" : parentId ? "Новая подзадача" : "Новая задача"}</h2>
       <p className="task-hint">Срок не занимает время в календаре. Для подзадач действуют правила завершения родителя.</p>
       <label htmlFor="task-title">Название</label>
@@ -195,7 +195,7 @@ function TaskDetails({ id, timeZone, onSelect, onCreateChild, onEdit, onUpdated,
   }
 
   return <section className="task-detail" aria-label="Детали задачи">
-    <div className="task-detail-top"><span className="greeting">{task.trashed_at ? "КОРЗИНА" : "ЗАДАЧА"}</span>{!task.trashed_at && <button type="button" className="task-secondary" onClick={() => onEdit(task)}>Изменить</button>}</div>
+    <div className="task-detail-top"><span className="greeting">{task.trashed_at ? "Корзина" : "Задача"}</span>{!task.trashed_at && <button type="button" className="task-secondary" onClick={() => onEdit(task)}>Изменить</button>}</div>
     <h2>{task.title}</h2>
     {task.parent_id && <p className="task-parent">Подзадача: {parent.data ? <button type="button" onClick={() => onSelect(parent.data.id)}>{parent.data.title}</button> : parent.isError ? <span>родитель недоступен</span> : <span>загружаем…</span>}</p>}
     <div className="task-badges"><span className={`task-status status-${task.status}`}>{statusLabels[task.status]}</span><span>Приоритет: {priorityLabels[task.priority]}</span>{task.is_overdue && <span className="task-overdue">Срок прошёл</span>}</div>
@@ -291,7 +291,7 @@ export function TasksPanel({ timeZone, onSessionEnd, onOpenPage }: { timeZone: s
   }
 
   return <div className="feature-page tasks-content">
-    <div className="page-heading"><div><span className="greeting">ЛИЧНОЕ ПРОСТРАНСТВО</span><h1>Задачи</h1><p className="heading-subtitle">Планы, сроки и подзадачи — без привязки к учебной группе.</p></div><button className="primary-button task-new" onClick={() => setForm({ task: null, parentId: null })}>+ Новая задача</button></div>
+    <div className="page-heading"><div><h1>Задачи</h1><p className="heading-subtitle">Планы, сроки и следующий шаг.</p></div><button className="primary-button task-new" onClick={() => setForm({ task: null, parentId: null })}>+ Новая задача</button></div>
     <PlanningButton timezone={timeZone} />
     <div className="task-view-tabs" role="group" aria-label="Режим списка задач"><button type="button" aria-pressed={view === "active"} onClick={() => changeView("active")}>Активные</button><button type="button" aria-pressed={view === "trash"} onClick={() => changeView("trash")}>Корзина</button></div>
     {notice && <p className="task-notice" role="status">{notice}<button type="button" aria-label="Скрыть уведомление" onClick={() => setNotice("")}>×</button></p>}
@@ -299,7 +299,7 @@ export function TasksPanel({ timeZone, onSessionEnd, onOpenPage }: { timeZone: s
       <section className="task-list-card" aria-label="Список задач">
         <div className="task-list-filters"><label>Статус<select value={status} onChange={event => { setStatus(event.target.value as TaskFilter); setOffset(0); }}><option value="all">Все</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Приоритет<select value={priority} onChange={event => { setPriority(event.target.value as PriorityFilter); setOffset(0); }}><option value="all">Все</option>{Object.entries(priorityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
         {view === "active" && <form className="task-quick-add" onSubmit={event => { event.preventDefault(); void quickSave(); }}>
-          <input aria-label="Быстро добавить задачу" placeholder="+ Добавить задачу и нажать Enter" maxLength={200} required pattern={".*\\S.*"} value={quickTitle} disabled={quickBusy} onChange={event => setQuickTitle(event.target.value)} />
+          <label className="task-quick-field"><span>Быстро добавить задачу</span><input placeholder="Что нужно сделать?" maxLength={200} required pattern={".*\\S.*"} value={quickTitle} disabled={quickBusy} onChange={event => setQuickTitle(event.target.value)} /></label>
           <button type="submit" className="task-secondary" disabled={quickBusy || !quickTitle.trim()}>{quickBusy ? "Сохраняем…" : "Добавить"}</button>
         </form>}
         {quickError && <div className="task-error" role="alert">{quickError}</div>}

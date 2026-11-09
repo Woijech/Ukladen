@@ -246,6 +246,7 @@ export function NotesPanel({
   }
   return (
     <div className="feature-page notes-page">
+      <h1 className="notes-desktop-title sr-only">Заметки</h1>
       <div className="notes-mobile-toolbar">
         <h1>Заметки</h1>
         <button

@@ -117,7 +117,7 @@ function HomePanel({
       </div>
       <div className="dashboard-hero panel">
         <div>
-          <span className="greeting">В СВОЁМ РИТМЕ</span>
+          <span className="greeting">В своём ритме</span>
           <h2>
             Не нужно держать
             <br />
@@ -131,7 +131,7 @@ function HomePanel({
             className="primary-button"
             onClick={() => onNavigate("calendar")}
           >
-            Открыть календарь →
+            Открыть календарь
           </button>
         </div>
         <div className="dashboard-mark" aria-hidden="true">
@@ -143,7 +143,7 @@ function HomePanel({
           <div className="panel-toolbar">
             <h2>Твои страницы</h2>
             <button className="text-action" onClick={() => onNavigate("notes")}>
-              Все заметки →
+              Все заметки
             </button>
           </div>
           <QueryState
@@ -167,7 +167,7 @@ function HomePanel({
           )}
         </section>
         <section className="panel quick-access">
-          <span className="greeting">БЫСТРЫЙ ДОСТУП</span>
+          <span className="greeting">Быстрый доступ</span>
           <button onClick={() => onNavigate("materials")}>
             <span>▱</span>
             <div>
@@ -217,7 +217,6 @@ function SettingsPanel({ onChooseGroup }: { onChooseGroup: () => void }) {
     <div className="feature-page settings-page">
       <div className="page-heading">
         <div>
-          <span className="greeting">СДЕЛАЙ ПРОСТРАНСТВО СВОИМ</span>
           <h1>Настройки</h1>
           <p className="heading-subtitle">Профиль, внешний вид и расписание.</p>
         </div>
@@ -257,13 +256,13 @@ function SettingsPanel({ onChooseGroup }: { onChooseGroup: () => void }) {
       </section>
       <section className="panel setting-section">
         <div>
-          <h2>AI Assistant</h2>
+          <h2>Помощник Ukladen</h2>
           <p>
-            В разработке. Чат, источники, предложения действий и отзывные
-            разрешения появятся после подключения серверного AI-модуля.
+            Модели, подключения и инструкции для чатов.
+            Доступность моделей зависит от настройки сервера.
           </p>
         </div>
-        <span className="status-pill">Пока недоступен</span>
+        <a className="secondary-button" href="/workspace/ai?tab=settings">Настроить AI</a>
       </section>
     </div>
   );

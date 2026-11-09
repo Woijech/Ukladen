@@ -24,13 +24,39 @@ async function stretch(
   if (release) await page.mouse.up();
 }
 
-test("navigation starts with three core sections and reveals secondary tools on demand", async ({
+test("shell supports skip navigation and Escape returns focus from menus", async ({ page }) => {
+  await mockWorkspace(page);
+  await page.goto("/workspace");
+  await expect(page.locator(".calendar-card")).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Перейти к содержимому" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#workspace-content")).toBeFocused();
+  for (const [trigger, menu] of [[".view-select", ".view-menu"], [".account-button", ".account-popover"], [".top-avatar", ".top-account-popover"]]) {
+    await page.locator(trigger).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator(menu)).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator(menu)).toHaveCount(0);
+    await expect(page.locator(trigger)).toBeFocused();
+  }
+  const more = page.locator(".sidebar").getByRole("button", { name: "Ещё", exact: true });
+  await more.click();
+  await page.keyboard.press("Escape");
+  await expect(more).toBeFocused();
+  await expect(page.locator(".secondary-navigation")).toHaveCount(0);
+  await page.locator(".calendar-help summary").focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#calendar-create-help")).toBeVisible();
+});
+
+test("navigation starts with four core sections and reveals secondary tools on demand", async ({
   page,
 }) => {
   await mockWorkspace(page);
   await page.goto("/workspace");
   const sidebar = page.locator(".sidebar");
-  for (const title of ["Календарь", "Заметки", "Задачи"])
+  for (const title of ["Календарь", "Заметки", "Задачи", "AI"])
     await expect(
       sidebar.getByRole("button", { name: title, exact: true }),
     ).toBeVisible();
@@ -332,6 +358,10 @@ for (const width of [1440, 834, 390]) {
       return route.fulfill({ json: { items, limit: 200, offset: 0 } });
     });
     await page.goto("/workspace");
+    if (width <= 760) {
+      await page.locator(".view-select").click();
+      await page.getByRole("menuitemradio", { name: /Неделя/ }).click();
+    }
     await page
       .locator(".event-card")
       .filter({ hasText: "Private plan" })

@@ -102,10 +102,9 @@ export function AiPanel({
     <div className="feature-page ai-page">
       <div className="page-heading">
         <div>
-          <span className="greeting">РЯДОМ С ТВОИМИ МЫСЛЯМИ</span>
           <h1>Твой AI</h1>
           <p className="heading-subtitle">
-            Найти, разобраться, связать главное.
+            Обсуди планы, разбери материалы и сохрани важное.
           </p>
         </div>
       </div>
@@ -181,6 +180,7 @@ function ChatArea({
 }) {
   const [offset, setOffset] = useState(0);
   const [creating, setCreating] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(() => !window.matchMedia("(max-width: 650px)").matches);
   const [deleting, setDeleting] = useState<Conversation | null>(null);
   const action = useAction();
   const client = useQueryClient();
@@ -215,13 +215,17 @@ function ChatArea({
             >
               ＋ Новый чат
             </button>
-            <h2>Твои чаты</h2>
+            <details className="ai-history-list" open={historyOpen} onToggle={(event) => setHistoryOpen(event.currentTarget.open)}>
+            <summary>История чатов</summary>
             {list.data.items.map((chat) => (
               <div className="ai-history-row" key={chat.id}>
                 <button
                   className={selected === chat.id ? "active" : ""}
                   aria-current={selected === chat.id ? "true" : undefined}
-                  onClick={() => onChoose(chat.id)}
+                  onClick={() => {
+                    onChoose(chat.id);
+                    if (window.matchMedia("(max-width: 650px)").matches) setHistoryOpen(false);
+                  }}
                 >
                   {chat.title}
                   <small>
@@ -252,6 +256,7 @@ function ChatArea({
               30 дней с последнего твоего сообщения. Удаление чата
               окончательное.
             </p>
+            </details>
           </aside>
           {selected ? (
             <Chat key={selected} id={selected} onDirtyChange={onDirtyChange} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
@@ -793,7 +798,7 @@ function Chat({
               void send();
             }}
           >
-            <label className="visually-hidden" htmlFor="ai-message">
+            <label className="ai-composer-label" htmlFor="ai-message">
               Сообщение AI
             </label>
             <textarea
@@ -834,6 +839,7 @@ function Chat({
                 </button>
               )}
             </div>
+            <div className="ai-composer-options">
             <label className="checkbox-label">
               <input type="checkbox" checked={sourceOnly} disabled={running || hasPending} onChange={(event) => setSourceOnly(event.target.checked)} />
               Без веб-поиска, только мои источники
@@ -842,10 +848,11 @@ function Chat({
               <input type="checkbox" checked={fullSources} disabled={running || hasPending} onChange={(event) => setFullSources(event.target.checked)} />
               Разобрать выбранные страницы и файлы целиком
             </label>
+            </div>
             {fullSources && <p className="muted">Обработка продолжится в фоне. Можно закрыть чат и вернуться к результату позже.</p>}
             <p className="ai-processing muted">
               Запрос и нужные фрагменты передаются выбранному провайдеру. AI
-              может ошибаться — проверяй источники.
+              может ошибаться: проверяй источники.
             </p>
           </form>
           {error && (

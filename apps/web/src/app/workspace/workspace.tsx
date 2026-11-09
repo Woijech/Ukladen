@@ -8,7 +8,7 @@ import { Modal } from "@/shared/ui";
 import { CalendarCard } from "./calendar-card";
 import { CalendarSelection } from "./calendar-selection";
 import { EventDetail } from "./event-detail";
-import { Navigation, NavIcon, sections, type SectionKey } from "./navigation";
+import { Navigation, NavIcon, primarySections, sections, type SectionKey } from "./navigation";
 import {
   RequestError,
   SessionExpiredError,
@@ -482,15 +482,14 @@ function AuthPanel({ onSuccess }: { onSuccess: () => Promise<void> }) {
   return (
     <div className="auth-layout">
       <div className="auth-art" aria-hidden="true">
-        <div className="art-orbit orbit-one" />
-        <div className="art-orbit orbit-two" />
         <Image
           className="auth-art-logo"
           src={logo}
           alt=""
           width={340}
           height={340}
-          sizes="(max-width: 760px) 1px, 340px"
+          sizes="140px"
+          priority
         />
         <span className="art-caption">
           Твоё спокойное место
@@ -502,7 +501,7 @@ function AuthPanel({ onSuccess }: { onSuccess: () => Promise<void> }) {
         <Brand />
         <h1>{mode === "login" ? "Войти в Ukladen" : "Создать аккаунт"}</h1>
         <p className="auth-description">
-          Расписание и личные планы — в одном пространстве.
+          Твои планы, заметки и расписание в одном пространстве.
         </p>
         <label htmlFor="email">Электронная почта</label>
         <input
@@ -1028,7 +1027,9 @@ function CalendarWorkspace({
     dateKey(new Date(), userTimeZone),
   );
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
-  const [calendarView, setCalendarView] = useState<"week" | "day">("week");
+  const [calendarView, setCalendarView] = useState<"week" | "day">(() =>
+    window.matchMedia("(max-width: 760px)").matches ? "day" : "week",
+  );
   const [showEventForm, setShowEventForm] = useState(false);
   const [showGroupPicker, setShowGroupPicker] = useState(onboarding);
   const [showGoogleLink, setShowGoogleLink] = useState(false);
@@ -1481,12 +1482,22 @@ function CalendarWorkspace({
   return (
     <main
       className={`workspace-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return;
+        const trigger = viewMenuOpen ? ".view-select" : accountMenuOpen ? ".account-button" : topAccountMenuOpen ? ".top-avatar" : null;
+        if (!trigger) return;
+        setViewMenuOpen(false);
+        setAccountMenuOpen(false);
+        setTopAccountMenuOpen(false);
+        event.currentTarget.querySelector<HTMLButtonElement>(trigger)?.focus();
+      }}
     >
+      <a className="skip-link" href="#workspace-content">Перейти к содержимому</a>
       <aside className="sidebar">
         <a
           className="brand-lockup"
           href="/workspace"
-          aria-label="Ukladen — главная"
+          aria-label="Ukladen: главная"
         >
           <Brand />
         </a>
@@ -1508,7 +1519,7 @@ function CalendarWorkspace({
           aria-label="Настройки"
           onClick={() => navigate("settings")}
         >
-          <Icon name="menu" />
+          <NavIcon path={sections.find((item) => item.id === "settings")!.icon} />
           <span>Настройки</span>
         </button>
         <div className="account-area">
@@ -1595,7 +1606,7 @@ function CalendarWorkspace({
               aria-label="Поиск по пространству"
               onClick={() => navigate("search")}
             >
-              <span aria-hidden="true">⌕</span>
+              <NavIcon path={sections.find((item) => item.id === "search")!.icon} />
               <span>Поиск</span>
             </button>
             <button
@@ -1628,7 +1639,7 @@ function CalendarWorkspace({
               aria-expanded={topAccountMenuOpen}
               onClick={() => setTopAccountMenuOpen((open) => !open)}
             >
-              U
+              {user.display_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U"}
             </button>
           </div>
           {topAccountMenuOpen && (
@@ -1663,7 +1674,7 @@ function CalendarWorkspace({
           )}
         </header>
 
-        <div className="content-wrap">
+        <div className={`content-wrap content-${section}`} id="workspace-content" tabIndex={-1}>
           {section === "calendar" && detailEvent ? (
             <EventDetail
               event={
@@ -1688,10 +1699,10 @@ function CalendarWorkspace({
             <>
               <div className="page-heading">
                 <div>
-                  <div className="greeting">ТВОЯ НЕДЕЛЯ</div>
+                  <div className="greeting">{prettyDate(selected, { month: "long", year: "numeric" })}</div>
                   <h1>Календарь</h1>
                   <p className="heading-subtitle">
-                    Нажми на событие, чтобы открыть заметки и материалы.
+                    Личные планы и учебное расписание, собранные вместе.
                   </p>
                 </div>
                 <button
@@ -1703,17 +1714,6 @@ function CalendarWorkspace({
                 </button>
               </div>
 
-              <p id="calendar-create-help" className="calendar-interaction-hint">
-                Нажми на свободное время или протяни интервал, чтобы создать событие.
-                С клавиатуры: ↑ ↓ — выбрать время, Shift + ↑ ↓ — длительность, Enter — создать.
-              </p>
-              <p
-                id="calendar-resize-help"
-                className="calendar-interaction-hint"
-              >
-                Потяни за край личного события, чтобы изменить время. С
-                клавиатуры: ↑ ↓ — 15 минут, Enter — сохранить, Esc — отменить.
-              </p>
               {resizeBusy && (
                 <p className="action-notice" role="status">
                   Сохраняем время…
@@ -1734,6 +1734,7 @@ function CalendarWorkspace({
                   </button>
                 </div>
               )}
+              <div className="calendar-layout">
               <section
                 className="calendar-card"
                 aria-label="Календарь на неделю"
@@ -1741,15 +1742,15 @@ function CalendarWorkspace({
                 <div className="calendar-toolbar">
                   <div className="week-title">
                     <strong>
-                      {dateLabel} — {weekEndLabel}
+                      {calendarView === "week" ? <>{dateLabel} – {weekEndLabel}</> : prettyDate(selected, { weekday: "long", day: "numeric", month: "long" })}
                     </strong>
                     <span>
-                      {prettyDate(selected, {
+                      {calendarView === "day" ? `Часовой пояс: ${timeZone}` : <>{prettyDate(selected, {
                         weekday: "long",
                         day: "numeric",
                         month: "long",
                       })}{" "}
-                      · {timeZone}
+                      · {timeZone}</>}
                     </span>
                   </div>
                   <div className="calendar-controls">
@@ -2012,7 +2013,7 @@ function CalendarWorkspace({
                   </div>
                 </div>
                 {calendarQuery.isPending && (
-                  <div className="calendar-overlay">
+                  <div className="calendar-overlay" role="status">
                     <span className="spinner" />
                     Загружаем расписание
                   </div>
@@ -2080,7 +2081,7 @@ function CalendarWorkspace({
                 <section className="selected-day-card">
                   <div className="section-title">
                     <div>
-                      <span className="greeting">ВЫБРАННЫЙ ДЕНЬ</span>
+                      <span className="greeting">План на день</span>
                       <h2>
                         {prettyDate(selected, {
                           weekday: "long",
@@ -2134,7 +2135,7 @@ function CalendarWorkspace({
                     <Icon name="cap" />
                   </div>
                   <div className="source-copy">
-                    <span className="greeting">УЧЕБНОЕ РАСПИСАНИЕ</span>
+                    <span className="greeting">Источник расписания</span>
                     <strong>
                       {meQuery.data
                         ? `Группа ${meQuery.data.group.name}`
@@ -2155,6 +2156,18 @@ function CalendarWorkspace({
                   </button>
                 </section>
               </div>
+              </div>
+              <details className="calendar-help">
+                <summary>Управление календарём</summary>
+                <p id="calendar-create-help" className="calendar-interaction-hint">
+                  Нажми на свободное время или протяни интервал, чтобы создать событие.
+                  С клавиатуры: ↑ ↓ выбрать время, Shift + ↑ ↓ изменить длительность, Enter создать.
+                </p>
+                <p id="calendar-resize-help" className="calendar-interaction-hint">
+                  Потяни за край личного события, чтобы изменить время.
+                  С клавиатуры: ↑ ↓ изменить на 15 минут, Enter сохранить, Esc отменить.
+                </p>
+              </details>
             </>
           ) : (
             <WorkspaceViews
@@ -2186,6 +2199,18 @@ function CalendarWorkspace({
           )}
         </div>
       </section>
+
+      <nav className="mobile-dock" aria-label="Быстрые переходы">
+        {primarySections.map((id) => {
+          const item = sections.find((item) => item.id === id)!;
+          return <button type="button" key={id} aria-current={section === id ? "page" : undefined} onClick={() => navigate(id)}>
+            <NavIcon path={item.icon} /><span>{item.title}</span>
+          </button>;
+        })}
+        <button type="button" aria-label="Все разделы" onClick={() => setMobileNavigation(true)}>
+          <Icon name="menu" /><span>Ещё</span>
+        </button>
+      </nav>
 
       {showEventForm && (
         <Modal
