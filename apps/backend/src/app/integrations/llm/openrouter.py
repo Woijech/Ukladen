@@ -21,6 +21,7 @@ from pydantic import Field, SecretStr
 from app.core.logging import log_failure
 from app.modules.ai.application.agent import ProviderFailure
 from app.modules.ai.application.connections import ModelOffering
+from app.modules.ai.application.diagnostics import attempt_number, record
 from app.modules.ai.domain.connections import ConnectionUnavailable
 
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
@@ -32,6 +33,10 @@ logger = logging.getLogger(__name__)
 def log_provider_failure(error: Exception, *, reason: str | None = None) -> None:
     response = getattr(error, "raw_response", None)
     status = response.status_code if isinstance(response, httpx.Response) else None
+    record(
+        "provider_failure",
+        {"error_type": type(error).__name__, "status_code": status, "reason": reason},
+    )
     log_failure(logger, "ai.provider_request_failed", error, status_code=status, reason=reason)
 
 
@@ -51,6 +56,51 @@ def usage_values(data: dict[str, Any]) -> dict[str, int | None]:
         "input_tokens": token_count(usage.get("prompt_tokens")),
         "output_tokens": token_count(usage.get("completion_tokens")),
     }
+
+
+def diagnostic_usage(data: dict[str, Any]) -> None:
+    usage = data.get("usage") or {}
+    prompt = usage.get("prompt_tokens_details")
+    completion = usage.get("completion_tokens_details")
+    prompt = prompt if isinstance(prompt, dict) else {}
+    completion = completion if isinstance(completion, dict) else {}
+
+    def count(value: Any) -> int | None:
+        return value if type(value) is int and 0 <= value <= 2**63 - 1 else None
+
+    record(
+        "provider_usage",
+        {
+            "attempt": attempt_number.get(),
+            "input_tokens": count(usage.get("prompt_tokens")),
+            "output_tokens": count(usage.get("completion_tokens")),
+            "cached_tokens": count(prompt.get("cached_tokens")),
+            "cache_write_tokens": count(prompt.get("cache_write_tokens")),
+            "reasoning_tokens": count(completion.get("reasoning_tokens")),
+            "finish_reasons": [choice.get("finish_reason") for choice in data.get("choices", [])],
+        },
+    )
+
+
+def validate_tool_calls(calls: list[dict[str, Any]], usage: dict[str, int | None]) -> None:
+    identifiers: set[str] = set()
+    for call in calls:
+        identifier = call.get("id")
+        if not isinstance(identifier, str) or not identifier or identifier in identifiers:
+            raise ProviderFailure("invalid_response", **usage)
+        try:
+            function = call["function"]
+            arguments = json.loads(function["arguments"])
+            valid = (
+                isinstance(arguments, dict)
+                and isinstance(function.get("name"), str)
+                and bool(function["name"])
+            )
+        except ValueError, TypeError, KeyError:
+            valid = False
+        if not valid:
+            raise ProviderFailure("invalid_response", **usage)
+        identifiers.add(identifier)
 
 
 def retry_seconds(value: str | None) -> int:
@@ -130,6 +180,16 @@ class OpenRouterTransport(httpx.BaseTransport):
             raise ConnectionUnavailable("Use a supported separate structured-output request.")
         if body.get("stream") and not self.profile.streaming:
             raise ConnectionUnavailable("Streaming is unavailable for this model.")
+        record(
+            "provider_request",
+            {
+                "attempt": attempt_number.get(),
+                "request_bytes": len(request.content),
+                "max_output_tokens": maximum,
+                "streaming": body.get("stream", False),
+                "model": self.profile.model,
+            },
+        )
         # Resolve again at the dispatch boundary; the model and SDK never retain the real key.
         request.headers["Authorization"] = "Bearer " + self.credential()
         response = self.transport.handle_request(request)
@@ -177,6 +237,7 @@ class SupportedOpenRouter(ChatOpenRouter):
     def _create_chat_result(self, response: Any) -> ChatResult:
         data = response if isinstance(response, dict) else response.model_dump(by_alias=True)
         usage = usage_values(data)
+        diagnostic_usage(data)
         choices = data.get("choices") or []
         if len(choices) != 1 or data.get("model") != self.model_name:
             raise ProviderFailure("invalid_response", **usage)
@@ -185,6 +246,7 @@ class SupportedOpenRouter(ChatOpenRouter):
             "message", {}
         ).get("refusal"):
             raise ProviderFailure("invalid_response", **usage)
+        validate_tool_calls(choice.get("message", {}).get("tool_calls") or [], usage)
         result = super()._create_chat_result(response)
         for generation in result.generations:
             message = generation.message
@@ -224,6 +286,7 @@ class SupportedOpenRouter(ChatOpenRouter):
         finished = False
         finished_reason: str | None = None
         failure_reason: str | None = None
+        tool_chunks: AIMessageChunk | None = None
         phase = "stream_decode"
         try:
             # Keep raw counts: the connector otherwise replaces missing usage with zero.
@@ -238,10 +301,13 @@ class SupportedOpenRouter(ChatOpenRouter):
                 phase = "stream_usage"
                 if data.get("usage"):
                     usage = usage_values(data)
+                    diagnostic_usage(data)
                 phase = "stream_provider_error"
                 if data.get("error"):
                     raise ProviderFailure("invalid_response", **usage)
                 choices = data.get("choices") or []
+                if len(choices) > 1 or (choices and choices[0].get("index") != 0):
+                    raise ProviderFailure("invalid_response", **usage)
                 if choices:
                     choice = choices[0]
                     phase = "stream_after_finish"
@@ -281,6 +347,8 @@ class SupportedOpenRouter(ChatOpenRouter):
                     message.additional_kwargs = {}
                     message.usage_metadata = None
                     message.response_metadata = {}
+                    if message.tool_call_chunks:
+                        tool_chunks = message if tool_chunks is None else tool_chunks + message
                     yield ChatGenerationChunk(message=message)
                 phase = "stream_decode"
             phase = "stream_incomplete"
@@ -289,6 +357,19 @@ class SupportedOpenRouter(ChatOpenRouter):
             if failure_reason is not None:
                 phase = failure_reason
                 raise ProviderFailure("invalid_response", **usage)
+            phase = "stream_tool_arguments"
+            validate_tool_calls(
+                [
+                    {
+                        "id": call["id"],
+                        "function": {"name": call["name"], "arguments": call["args"]},
+                    }
+                    for call in tool_chunks.tool_call_chunks
+                ]
+                if tool_chunks is not None
+                else [],
+                usage,
+            )
             yield ChatGenerationChunk(
                 message=AIMessageChunk(content="", response_metadata={"ukladen_usage": usage})
             )

@@ -32,6 +32,9 @@ def purge_expired(sessions: sessionmaker[Session], *, now: datetime | None = Non
     from app.modules.ai.infrastructure.review_jobs import expire_reviews
 
     expire_reviews(sessions, instant)
+    from app.modules.ai.infrastructure.diagnostics import purge_diagnostics
+
+    purge_diagnostics(sessions, instant)
     cutoff = instant - timedelta(days=30)
     activity = func.coalesce(ConversationModel.last_user_message_at, ConversationModel.created_at)
     with sessions() as database:

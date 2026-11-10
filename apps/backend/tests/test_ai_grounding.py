@@ -23,6 +23,28 @@ class RecordingFake(FakeChatModel):
         return super()._generate(messages, stop, run_manager, **kwargs)
 
 
+def test_prior_analysis_and_tool_evidence_cannot_mix_source_versions():
+    owner, identifier = uuid4(), uuid4()
+    old = SourceReference(source="page", id=str(identifier), version=1, title="Lecture")
+    reader = Mock(spec=SourceReader)
+    reader.context.return_value = "Current profile time"
+    reader.read.return_value = EvidenceResult(data="OLD TOOL EVIDENCE", sources=(old,))
+    sources = SourceTools(reader, owner)
+    sources.analysis_context = lambda _: EvidenceResult(
+        data="NEW ANALYSIS EVIDENCE", sources=(old.model_copy(update={"version": 2}),)
+    )
+    model = RecordingFake(responses=(read_call(identifier), AIMessage(content="Source changed")))
+    result = OfflineAgentRunner(model, sources.build_tools(), InMemorySaver(), sources=sources).run(
+        AgentInput(conversation_id=uuid4(), message="Compare the current evidence")
+    )
+    assert result.status == "completed"
+    outgoing = str(model.seen[-1])
+    assert "OLD TOOL EVIDENCE" not in outgoing
+    assert "NEW ANALYSIS EVIDENCE" not in outgoing
+    assert "source_changed_during_context_build" in outgoing
+    assert not result.sources
+
+
 def read_call(page_id):
     return AIMessage(
         content="",

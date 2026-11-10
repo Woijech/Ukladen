@@ -35,6 +35,14 @@ P-08 supplies the materials/extraction and lexical-search foundation; see
 [P-08 contracts](../development/materials.md). AI-06 builds chunks, embeddings and
 hybrid retrieval on that foundation. pgvector infrastructure alone is not retrieval.
 
+Operator-granted [diagnostics](../development/ai-diagnostics.md) are implemented
+locally: an own-run journal, explicitly opted-in foreground chat capture, manual
+reviews and local JSON export. Captures are bounded and expire after seven days;
+this does not grant cross-owner access or enable provider spending.
+The local 2026-11-09 follow-up narrows recognized standalone schedule questions to
+calendar reads and records final-context sizes plus provider usage/cache details per
+foreground step in opted-in captures. Counts and bytes remain distinct; see the guide.
+
 ## 1. Product responsibilities
 
 Support workspace/calendar questions, content search, summaries grounded in selected

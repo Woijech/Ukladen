@@ -54,7 +54,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.11.11"
-      - run: uv sync --frozen --extra embeddings
+      - run: uv sync --frozen --extra embeddings --group evaluations
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pyright
@@ -66,6 +66,16 @@ jobs:
           done
           exit 1
       - run: uv run pytest
+      - name: Offline AI evaluations (no provider or judge)
+        run: |
+          mkdir -p test-results
+          uv run --group evaluations pytest evaluations --junitxml=test-results/ai-evaluations.xml
+          uv run --group evaluations python -m evaluations.run --output test-results/ai-evaluations.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-evaluation-results
+          path: apps/backend/test-results/
 
   frontend:
     runs-on: ubuntu-latest

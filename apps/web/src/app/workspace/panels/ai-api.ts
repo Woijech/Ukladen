@@ -53,6 +53,8 @@ export type Run = {
   submission_id: string;
   attempts: {
     number: number;
+    started_at: string;
+    finished_at: string | null;
     status: string;
     input_tokens: number | null;
     output_tokens: number | null;
@@ -61,6 +63,8 @@ export type Run = {
   tools: {
     tool_name: string;
     number: number;
+    started_at: string;
+    finished_at: string | null;
     status: string;
     error_code: string | null;
   }[];
@@ -122,7 +126,7 @@ export const runLabels: Record<Run["status"], string> = {
 
 export async function streamMessage(
   conversationId: string,
-  payload: { submission_id: string; message: string; source_scope?: Scope },
+  payload: { submission_id: string; message: string; source_scope?: Scope; source_only?: boolean },
   signal: AbortSignal,
   receive: (event: string, data: Record<string, unknown>) => void,
 ) {

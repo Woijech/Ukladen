@@ -2,6 +2,7 @@ from email.errors import HeaderParseError
 from email.headerregistry import Address
 from pathlib import Path
 from typing import Annotated, Literal
+from uuid import UUID
 
 from pydantic import (
     AnyHttpUrl,
@@ -16,6 +17,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    ai_diagnostic_admin_ids: list[UUID] = Field(default_factory=list)
     ai_enabled: bool = False
     ai_actions_enabled: bool = False
     ai_reviews_enabled: bool = False

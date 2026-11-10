@@ -114,11 +114,13 @@ See [reminder recovery](reminders.md) and [material processing](materials.md).
 From `apps/backend`:
 
 ```bash
-uv sync --frozen --extra embeddings
+uv sync --frozen --extra embeddings --group evaluations
 uv run ruff check .
 uv run ruff format --check .
 uv run pyright
 uv run pytest
+uv run --group evaluations pytest evaluations
+uv run --group evaluations python -m evaluations.run --output /tmp/ukladen-ai-evaluations.json
 ```
 
 The optional CPU extra is needed for embedding type/numerical checks; these ordinary

@@ -74,6 +74,7 @@ class PostgresAgentRunners:
         real_models: OpenRouterModels | None = None,
         sources: SourceReader | None = None,
         actions_enabled: bool = False,
+        diagnostic_admin_ids: tuple[UUID, ...] = (),
     ) -> None:
         with sessions() as database:
             engine = database.get_bind()
@@ -83,6 +84,7 @@ class PostgresAgentRunners:
         self.real_models = real_models
         self.sources = sources
         self.actions_enabled = actions_enabled
+        self.diagnostic_admin_ids = diagnostic_admin_ids
 
     def instructions(self, user_id: UUID) -> str:
         with SqlAlchemyAiTransactions(self.sessions)(user_id) as repository:
@@ -131,7 +133,14 @@ class PostgresAgentRunners:
                     if self.real_models and run.offering_id is not None
                     else nullcontext(self.model())
                 )
-                with models as model:
+                from app.modules.ai.infrastructure.diagnostics import SqlAlchemyDiagnostics
+
+                with (
+                    models as model,
+                    SqlAlchemyDiagnostics(self.sessions).capturing(
+                        run, run.user_id in self.diagnostic_admin_ids
+                    ),
+                ):
                     tools_enabled = run.offering_id is None or (
                         self.real_models is not None
                         and self.real_models.access.configuration.offering(

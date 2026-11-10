@@ -1,0 +1,7 @@
+{
+  "name": "ukladen-promo-test",
+  "private": true,
+  "scripts": {"render": "remotion render src/index.tsx Ukladen test.mp4 --codec=h264 --crf=16 --pixel-format=yuv420p --concurrency=2 --muted", "typecheck": "tsc --noEmit"},
+  "dependencies": {"@remotion/cli": "4.0.390", "remotion": "4.0.390", "react": "19.0.0", "react-dom": "19.0.0"},
+  "devDependencies": {"typescript": "5.8.3", "@types/react": "19.0.12", "@types/react-dom": "19.0.4"}
+}

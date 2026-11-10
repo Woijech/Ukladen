@@ -527,3 +527,19 @@ main:not(.workspace-shell):not(.workspace-auth):not(.group-page):not(.landing)
     scroll-behavior: auto !important;
   }
 }
+
+.ai-diagnostic-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 12px;
+}
+.ai-diagnostic-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 12px;
+}
+.ai-diagnostic-facts dt { color: var(--muted); font-size: 13px; }
+.ai-diagnostic-facts dd { margin: 4px 0 0; font-variant-numeric: tabular-nums; }
+.ai-run-analysis, .ai-run-analysis .panel { min-width: 0; overflow-wrap: anywhere; }
+.ai-run-analysis summary { cursor: pointer; }
+.ai-run-analysis details[open] > summary { margin-bottom: 12px; }

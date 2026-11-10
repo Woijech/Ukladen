@@ -39,7 +39,7 @@ from app.modules.ai.application.agent import (
 )
 from app.modules.ai.application.lifecycle import ExecutionJournal
 from app.modules.ai.application.streaming import emit, stream_sink
-from app.modules.ai.infrastructure.accounting import AccountingMiddleware
+from app.modules.ai.infrastructure.accounting import AccountingMiddleware, capture_model_input
 from app.modules.ai.infrastructure.bounds import BoundedCalls
 from app.modules.ai.infrastructure.grounding import SourceTools
 from app.modules.ai.infrastructure.instructions import AssistantInstructions
@@ -134,9 +134,10 @@ class OfflineAgentRunner:
         if journal is not None:
             middleware.insert(4, AccountingMiddleware(journal))
         if sources is not None:
-            middleware.append(sources)
+            middleware.insert(len(middleware) - 1, sources)
         if instructions is not None:
             middleware.append(AssistantInstructions(instructions))
+        middleware.append(capture_model_input)
         self.graph = create_agent(
             model=model,
             tools=tools,
@@ -153,7 +154,7 @@ class OfflineAgentRunner:
     def run(self, request: AgentInput) -> AgentResult:
         if self.sources is not None:
             self.sources.scope = request.source_scope
-            self.sources.begin(request.source_only)
+            self.sources.begin(request.source_only, request.message)
         with tracing_context(enabled=False):
             config = self._config(request.conversation_id)
             state = self.graph.get_state(config)
