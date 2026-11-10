@@ -8,7 +8,7 @@ import { Modal } from "@/shared/ui";
 import { CalendarCard } from "./calendar-card";
 import { CalendarSelection } from "./calendar-selection";
 import { EventDetail } from "./event-detail";
-import { Navigation, NavIcon, primarySections, sections, type SectionKey } from "./navigation";
+import { Navigation, NavIcon, SectionLink, primarySections, sections, type SectionKey } from "./navigation";
 import {
   RequestError,
   SessionExpiredError,
@@ -38,6 +38,9 @@ import {
   startOfWeek,
 } from "./calendar-time";
 import "./workspace.css";
+import "./shell.css";
+import { useSectionLocation } from "./use-section-location";
+import { CommandPalette } from "./command-palette";
 import { CalendarTaskSessions } from "./task-planning";
 
 const WorkspaceViews = dynamic(
@@ -996,26 +999,39 @@ function CalendarWorkspace({
     const value = new URLSearchParams(window.location.search).get("page");
     return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ? value : null;
   });
-  const [section, setSection] = useState<SectionKey>(linkedPage ? "notes" : initialSection);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavigation, setMobileNavigation] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const { section, commitSection } = useSectionLocation(initialSection, dirty);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [pendingSearch, setPendingSearch] = useState<string | undefined>();
+  useEffect(() => {
+    function shortcuts(event: KeyboardEvent) {
+      if (event.isComposing || event.altKey || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "k") return;
+      if (document.querySelector("dialog[open]")) return;
+      event.preventDefault();
+      setPaletteOpen(true);
+    }
+    window.addEventListener("keydown", shortcuts);
+    return () => window.removeEventListener("keydown", shortcuts);
+  }, []);
   const [pendingSection, setPendingSection] = useState<SectionKey | null>(null);
   const [pageToOpen, setPageToOpen] = useState<string | null>(linkedPage);
   const navigationVersion = useRef(0);
-  function navigate(next: SectionKey) {
+  function navigate(next: SectionKey, search?: string) {
     navigationVersion.current++;
-    if (next === section) {
+    if (next === section && !search) {
       if (next === "calendar") setDetailEvent(null);
       setMobileNavigation(false);
       return;
     }
     if (dirty) {
+      setPendingSearch(search);
       setPendingSection(next);
       return;
     }
     if (next === "calendar") setDetailEvent(null);
-    setSection(next);
+    commitSection(next, search);
     setMobileNavigation(false);
   }
   function openPage(id: string) {
@@ -1492,6 +1508,7 @@ function CalendarWorkspace({
         event.currentTarget.querySelector<HTMLButtonElement>(trigger)?.focus();
       }}
     >
+      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={navigate} onSearch={query => navigate("search", query)} />}
       <a className="skip-link" href="#workspace-content">Перейти к содержимому</a>
       <aside className="sidebar">
         <a
@@ -1514,14 +1531,10 @@ function CalendarWorkspace({
         </button>
         <Navigation active={section} onNavigate={navigate} />
         <div className="sidebar-spacer" />
-        <button
-          className="nav-item settings-nav"
-          aria-label="Настройки"
-          onClick={() => navigate("settings")}
-        >
+        <SectionLink section="settings" className={`nav-item settings-nav ${section === "settings" ? "active" : ""}`} active={section === "settings"} onNavigate={navigate}>
           <NavIcon path={sections.find((item) => item.id === "settings")!.icon} />
           <span>Настройки</span>
-        </button>
+        </SectionLink>
         <div className="account-area">
           <button
             className="account-button"
@@ -1604,10 +1617,10 @@ function CalendarWorkspace({
             <button
               className="top-search icon-button"
               aria-label="Поиск по пространству"
-              onClick={() => navigate("search")}
+              onClick={() => setPaletteOpen(true)}
             >
               <NavIcon path={sections.find((item) => item.id === "search")!.icon} />
-              <span>Поиск</span>
+              <span>Поиск</span><kbd aria-hidden="true">⌘/Ctrl K</kbd>
             </button>
             <button
               className="icon-button notification-shortcut"
@@ -1628,10 +1641,10 @@ function CalendarWorkspace({
               {syncPending
                 ? "Загрузка расписания"
                 : calendarQuery.isFetching
-                  ? "Синхронизация"
+                  ? "Обновляем календарь"
                   : calendarQuery.isError
-                    ? "Нет соединения"
-                    : "Синхронизировано"}
+                    ? "Календарь недоступен"
+                    : "Календарь обновлён"}
             </span>
             <button
               className="avatar top-avatar"
@@ -2203,11 +2216,11 @@ function CalendarWorkspace({
       <nav className="mobile-dock" aria-label="Быстрые переходы">
         {primarySections.map((id) => {
           const item = sections.find((item) => item.id === id)!;
-          return <button type="button" key={id} aria-current={section === id ? "page" : undefined} onClick={() => navigate(id)}>
+          return <SectionLink key={id} section={id} active={section === id} onNavigate={navigate}>
             <NavIcon path={item.icon} /><span>{item.title}</span>
-          </button>;
+          </SectionLink>;
         })}
-        <button type="button" aria-label="Все разделы" onClick={() => setMobileNavigation(true)}>
+        <button type="button" aria-label="Все разделы" aria-expanded={mobileNavigation} aria-current={!primarySections.some(id => id === section) ? "page" : undefined} onClick={() => setMobileNavigation(true)}>
           <Icon name="menu" /><span>Ещё</span>
         </button>
       </nav>
@@ -2394,10 +2407,9 @@ function CalendarWorkspace({
           <Navigation
             active={section}
             onNavigate={navigate}
+            drawer
             footer={
-              <button className="nav-item" onClick={() => navigate("settings")}>
-                Настройки
-              </button>
+              <SectionLink section="settings" className="nav-item" active={section === "settings"} onNavigate={navigate}>Настройки</SectionLink>
             }
           />
         </Modal>
@@ -2423,7 +2435,8 @@ function CalendarWorkspace({
               className="danger-button"
               onClick={() => {
                 setDirty(false);
-                setSection(pendingSection);
+                commitSection(pendingSection, pendingSearch);
+                setPendingSearch(undefined);
                 setPendingSection(null);
                 setMobileNavigation(false);
               }}

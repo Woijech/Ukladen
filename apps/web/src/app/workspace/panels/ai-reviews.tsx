@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { pushWorkspaceLocation } from "../use-section-location";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestJson, writeJson } from "@/shared/api";
 import { ActionFeedback, Modal, QueryState, useAction } from "@/shared/ui";
@@ -274,7 +274,6 @@ function ReviewDialog({
   onClose: () => void;
   onSource: (source: Source) => void;
 }) {
-  const router = useRouter();
   const report = useQuery({
     queryKey: ["ai-review", id],
     queryFn: ({ signal }) => requestJson<Report>(`${aiBase}/reviews/${id}`, { signal }),
@@ -324,7 +323,7 @@ function ReviewDialog({
                 );
                 await client.invalidateQueries({ queryKey: ["ai-conversations"] });
                 onClose();
-                router.push(`/workspace/ai?chat=${encodeURIComponent(result.conversation_id)}`);
+                pushWorkspaceLocation(`/workspace/ai?chat=${encodeURIComponent(result.conversation_id)}`);
               }, "Чат открыт")}>
               Обсудить в AI-чате
             </button>

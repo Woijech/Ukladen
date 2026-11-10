@@ -40,37 +40,18 @@ test("shell supports skip navigation and Escape returns focus from menus", async
     await expect(page.locator(menu)).toHaveCount(0);
     await expect(page.locator(trigger)).toBeFocused();
   }
-  const more = page.locator(".sidebar").getByRole("button", { name: "Ещё", exact: true });
-  await more.click();
-  await page.keyboard.press("Escape");
-  await expect(more).toBeFocused();
-  await expect(page.locator(".secondary-navigation")).toHaveCount(0);
   await page.locator(".calendar-help summary").focus();
   await page.keyboard.press("Enter");
   await expect(page.locator("#calendar-create-help")).toBeVisible();
 });
 
-test("navigation starts with four core sections and reveals secondary tools on demand", async ({
-  page,
-}) => {
+test("desktop navigation exposes knowledge tools as real links", async ({ page }) => {
   await mockWorkspace(page);
   await page.goto("/workspace");
   const sidebar = page.locator(".sidebar");
-  for (const title of ["Календарь", "Заметки", "Задачи", "AI"])
-    await expect(
-      sidebar.getByRole("button", { name: title, exact: true }),
-    ).toBeVisible();
-  await expect(
-    sidebar.getByRole("button", { name: "Материалы", exact: true }),
-  ).toHaveCount(0);
-  await sidebar.getByRole("button", { name: "Ещё", exact: true }).click();
-  await expect(
-    sidebar.getByRole("button", { name: "Материалы", exact: true }),
-  ).toBeVisible();
-  await sidebar.getByRole("button", { name: "Ещё", exact: true }).click();
-  await expect(
-    sidebar.getByRole("button", { name: "Материалы", exact: true }),
-  ).toHaveCount(0);
+  for (const title of ["Календарь", "Заметки", "Задачи", "AI", "Базы данных", "Материалы"])
+    await expect(sidebar.getByRole("link", { name: title, exact: true })).toBeVisible();
+  await expect(sidebar.getByRole("link", { name: "Базы данных", exact: true })).toHaveAttribute("href", "/workspace?section=databases");
   await navigateSection(page, "Задачи");
   await expect(
     page.getByRole("heading", { name: "Задачи", exact: true }),

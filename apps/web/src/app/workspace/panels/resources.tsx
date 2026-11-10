@@ -587,7 +587,7 @@ export function SearchPanel({
   onOpenPage: (id: string) => void;
   onMaterials: () => void;
 }) {
-  const [search, setSearch] = useState({ text: "", source: "", offset: 0 });
+  const [search, setSearch] = useState(() => ({ text: new URLSearchParams(window.location.search).get("q")?.slice(0, 200) ?? "", source: "", offset: 0 }));
   const [materialId, setMaterialId] = useState<string | null>(null);
   const material = useQuery({
     queryKey: ["search-material", materialId],
@@ -631,6 +631,7 @@ export function SearchPanel({
           name="q"
           type="search"
           aria-label="Поисковый запрос"
+          defaultValue={search.text}
           placeholder="Что хочешь найти?"
           maxLength={200}
           required

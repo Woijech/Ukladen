@@ -775,7 +775,7 @@ for (const viewport of [
       await page
         .getByRole("button", { name: "Свернуть боковую панель" })
         .click();
-      await expect(page.locator(".sidebar")).toHaveCSS("width", "76px");
+      await expect(page.locator(".sidebar")).toHaveCSS("width", "64px");
     }
     await section(page, "Заметки");
     await page
@@ -805,6 +805,8 @@ for (const viewport of [
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator(".content-notes")).toBeVisible();
+    await section(page, "Календарь");
     await expect(page.locator(".calendar-card")).toBeVisible();
     await page.screenshot({
       path: info.outputPath("calendar-dark.png"),
@@ -856,13 +858,13 @@ test("mobile dock preserves dirty notes and opens all sections with keyboard foc
   await contentWorkspace(page);
   await expect(page.locator(".day-column")).toHaveCount(1);
   const dock = page.getByRole("navigation", { name: "Быстрые переходы" });
-  await dock.getByRole("button", { name: "Заметки", exact: true }).click();
+  await dock.getByRole("link", { name: "Заметки", exact: true }).click();
   await page.getByRole("button", { name: "Идеи для проекта", exact: true }).click();
   await page.getByLabel("Текст блока 1").fill("Несохранённая мысль");
-  await dock.getByRole("button", { name: "Задачи", exact: true }).click();
+  await dock.getByRole("link", { name: "Задачи", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(dock.getByRole("button", { name: "Задачи", exact: true })).toBeFocused();
+  await expect(dock.getByRole("link", { name: "Задачи", exact: true })).toBeFocused();
   await expect(page.getByLabel("Текст блока 1")).toHaveValue("Несохранённая мысль");
   await page.getByRole("button", { name: "Сохранить страницу", exact: true }).click();
   await dock.getByRole("button", { name: "Все разделы" }).click();
@@ -870,8 +872,8 @@ test("mobile dock preserves dirty notes and opens all sections with keyboard foc
   await page.keyboard.press("Escape");
   await expect(dock.getByRole("button", { name: "Все разделы" })).toBeFocused();
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect(dock.getByRole("button", { name: "Заметки", exact: true })).toHaveCSS("transition-duration", "0s");
-  for (const button of await dock.getByRole("button").all()) {
+  await expect(dock.getByRole("link", { name: "Заметки", exact: true })).toHaveCSS("transition-duration", "0s");
+  for (const button of await dock.locator("a, button").all()) {
     const box = (await button.boundingBox())!;
     expect(box.width).toBeGreaterThanOrEqual(44);
     expect(box.height).toBeGreaterThanOrEqual(44);
@@ -1112,6 +1114,7 @@ test("profile edits refresh calendar timezone without changing event instants", 
   await expect(
     page.getByRole("button", { name: "Профиль в боковой панели" }),
   ).toContainText("Александра");
+  await section(page, "Календарь");
   await page.locator(".event-card.personal-event").click();
   await page.getByRole("button", { name: "Изменить событие", exact: true }).click();
   await expect(page.locator(".calendar-timezone")).toContainText(
@@ -1810,4 +1813,18 @@ test("clicking blank note paper focuses the next block without changing existing
   await expect(page.getByLabel("Текст блока 2", { exact: true })).toHaveValue("Next thought");
   await expect(page.getByLabel("Текст блока 1", { exact: true })).toHaveValue("Сохранённый текст");
   expect(state.writes).toEqual([]);
+});
+
+test("browser back can retain a dirty page and leave after explicit confirmation", async ({ page }) => {
+  await contentWorkspace(page);
+  await section(page, "Заметки");
+  await page.getByRole("button", { name: "Идеи для проекта", exact: true }).click();
+  await page.getByLabel("Текст блока 1").fill("Keep this draft");
+  page.once("dialog", dialog => dialog.dismiss());
+  await page.goBack();
+  await expect(page).toHaveURL(/section=notes/);
+  await expect(page.getByLabel("Текст блока 1")).toHaveValue("Keep this draft");
+  page.once("dialog", dialog => dialog.accept());
+  await page.goBack();
+  await expect(page.locator(".calendar-card")).toBeVisible();
 });

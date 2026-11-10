@@ -45,7 +45,7 @@ existing system/light/dark choice and startup theme script remain authoritative.
 Use 4, 8, 12, 16, 24, 32 and 48px spacing steps. Small gaps connect controls;
 larger gaps separate contexts. There is one primary work surface per screen.
 
-- Desktop: a 224px navigation column and a quiet 60px utility bar. The calendar
+- Desktop: a 216px navigation column and a quiet 52px utility bar. The calendar
   gains a narrow day/source context column when there is room for seven readable
   days. At intermediate widths, context moves below the calendar.
 - Notes: a compact page index beside an uninterrupted document; the document has
@@ -60,9 +60,9 @@ larger gaps separate contexts. There is one primary work surface per screen.
 
 ## Navigation
 
-Calendar, Notes, Tasks and AI are primary destinations. More discloses all existing
-tools; settings and the account stay at the foot of the sidebar. A compact icon
-rail serves intermediate widths, with accessible names and tooltips retained.
+Desktop groups Calendar/Tasks, Notes/Databases/Materials and AI/utilities as direct
+links; settings and the account stay at the foot of the sidebar. A compact 64px
+icon rail serves intermediate widths, with accessible names and tooltips retained.
 Phones gain a labelled bottom navigation for the four primary destinations and
 More, opening the existing native navigation dialog. Safe-area and content padding
 reserve its space. Dirty-document navigation still uses the existing save guard.
@@ -127,3 +127,25 @@ light/dark captures at desktop, intermediate and phone widths. Verify keyboard,
 focus, overflow, text contrast and safe-area spacing. Mock content belongs only in
 tests. Provider calls, deployment and database changes are outside this redesign.
 Record actual results and the Anti-Slop Delivery Gate in the frontend design review.
+
+
+### Shared shell redesign, stage 1, 2026-11-11
+
+Implemented: Quiet Rhythm foundations with the existing A1 identity and native font
+stack. Shared border/control/source tokens now follow the approved redesign;
+spacing includes 48px and feedback/popover/panel timing tokens. Desktop navigation
+is 216px with grouped direct links to plans, knowledge and utilities, plus a 52px
+utility bar. Tablet/compact navigation uses a 64px rail. Phones retain the labelled
+dock and gain a searchable full-destination dialog with 44px links.
+
+Sections use real links and URL state with Back/Forward support. Cmd/Ctrl+K and the
+Search button open a keyboard-operated transition/search palette; content searches
+continue in the existing full-text results screen. Shared dialogs support explicit
+initial focus and contained scrolling. Calendar status names its resource rather
+than implying that every document is saved. Internal dirty exits retain the current
+confirmation; history exits use a browser confirmation and restore the entry when
+cancelled. No private drafts are persisted in browser storage.
+
+This stage does not implement the proposed mini-calendar, Time Strip, task detail
+layout, note autosave or database cell editors. Existing calendar/task/note/AI work
+surfaces remain. Verification and remaining limits: [stage 1 delivery](docs/development/frontend-redesign-stage-1.md).

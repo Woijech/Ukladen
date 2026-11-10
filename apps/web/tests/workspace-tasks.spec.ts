@@ -6,7 +6,7 @@ test.use({ timezoneId: "UTC" });
 test("tasks can be created, edited, filtered and nested without an academic group", async ({ page }) => {
   const state = await mockWorkspace(page);
   await page.goto("/workspace");
-  await page.getByRole("button", { name: "Задачи", exact: true }).click();
+  await page.getByRole("link", { name: "Задачи", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Задачи" })).toBeVisible();
   await expect(page.getByText("Пока нет задач. Создайте первую.")).toBeVisible();
 
@@ -43,7 +43,7 @@ test("version and hierarchy conflicts are visible and a draft is not silently ov
   const state = await mockWorkspace(page);
   state.tasks = [task()];
   await page.goto("/workspace");
-  await page.getByRole("button", { name: "Задачи", exact: true }).click();
+  await page.getByRole("link", { name: "Задачи", exact: true }).click();
   await page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /Prepare report/ }).click();
   await page.getByRole("button", { name: "Изменить", exact: true }).click();
   await page.getByLabel("Название").fill("My local draft");
@@ -66,7 +66,7 @@ test("moving a subtask and switching accounts discard private task state", async
   const state = await mockWorkspace(page);
   state.tasks = [task(), task({ id: "22222222-2222-4222-8222-222222222222", title: "Child", parent_id: "11111111-1111-4111-8111-111111111111" })];
   await page.goto("/workspace");
-  await page.getByRole("button", { name: "Задачи", exact: true }).click();
+  await page.getByRole("link", { name: "Задачи", exact: true }).click();
   await page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /Child/ }).click();
   await page.getByRole("button", { name: "Перенести" }).click();
   await page.getByRole("button", { name: /Без родителя/ }).click();
@@ -78,7 +78,7 @@ test("moving a subtask and switching accounts discard private task state", async
   state.tasks = [];
   await login(page);
   await page.getByRole("button", { name: "Пока без группы" }).click();
-  await page.getByRole("button", { name: "Задачи", exact: true }).click();
+  await page.getByRole("link", { name: "Задачи", exact: true }).click();
   await expect(page.getByText("Пока нет задач. Создайте первую.")).toBeVisible();
   await expect(page.getByText("Child")).toHaveCount(0);
 });
@@ -88,7 +88,7 @@ test("mobile navigation exposes tasks", async ({ page }) => {
   await mockWorkspace(page);
   await page.goto("/workspace");
   await page.getByRole("button", { name: "Открыть навигацию" }).click();
-  await page.getByRole("dialog", { name: "Навигация", exact: true }).getByRole("button", { name: "Задачи", exact: true }).click();
+  await page.getByRole("dialog", { name: "Навигация", exact: true }).getByRole("link", { name: "Задачи", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Задачи" })).toBeVisible();
 });
 
@@ -99,7 +99,7 @@ test("trash moves an active branch and restores only its batch root", async ({ p
   const grandchild = task({ id: "33333333-3333-4333-8333-333333333333", title: "Grandchild", parent_id: child.id, trashed_at: "2026-10-15T12:00:00Z", trash_batch_id: "33333333-3333-4333-8333-333333333333", version: 2 });
   state.tasks = [root, child, grandchild];
   await page.goto("/workspace");
-  await page.getByRole("button", { name: "Задачи", exact: true }).click();
+  await page.getByRole("link", { name: "Задачи", exact: true }).click();
   await page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /Prepare report/ }).click();
   await page.getByRole("button", { name: "В корзину" }).click();
   await expect(page.getByRole("group", { name: "Подтверждение удаления" })).toBeVisible();
@@ -125,7 +125,7 @@ test("trash moves an active branch and restores only its batch root", async ({ p
 test("quick task creation and completion work inline with versioned status-only writes", async ({ page }) => {
   const state = await mockWorkspace(page);
   await page.goto("/workspace");
-  await page.getByRole("button", { name: "Задачи", exact: true }).click();
+  await page.getByRole("link", { name: "Задачи", exact: true }).click();
   const quick = page.getByRole("textbox", { name: "Быстро добавить задачу" });
   await quick.fill("  Quick task  ");
   await quick.press("Enter");
@@ -146,7 +146,7 @@ test("inline task completion recovers from stale versions and hierarchy errors w
   const state = await mockWorkspace(page);
   state.tasks = [task()];
   await page.goto("/workspace");
-  await page.getByRole("button", { name: "Задачи", exact: true }).click();
+  await page.getByRole("link", { name: "Задачи", exact: true }).click();
   const complete = page.getByRole("checkbox", { name: "Завершить: Prepare report", exact: true });
   await expect(complete).toBeVisible();
   state.tasks[0].version = 2;

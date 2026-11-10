@@ -175,14 +175,21 @@ network font downloads. The complete visual direction and decision rationale are
   own content forms, resources, organization and optional relations.
 - `workspace/workspace.css`: shared workspace and panel layout. Reuse its panels,
   toolbar, form, list, action and confirmation patterns before adding variants.
+  `workspace/shell.css` owns the stage-1 navigation and palette refinements.
 
-The sidebar initially exposes Calendar, Notes, Tasks and AI; More reveals the existing
-secondary sections (dashboard, materials, databases, organization, search and inbox).
-Search and notifications also retain their topbar shortcuts. Settings stays in
-the footer. Selecting a secondary section never removes its existing functionality.
-The desktop sidebar can collapse. At intermediate widths it becomes an icon rail;
-at 760px and below a labelled bottom navigation and a native navigation dialog
-replace it. Page toolbars wrap, note lists stack and forms scroll within
+The 2026-11-11 stage-1 shell exposes grouped direct desktop links to calendar/tasks,
+notes/databases/materials and AI/organization/inbox/search/home, with settings/account
+at the foot. Links support native new-tab actions and section URLs. The shell uses
+`use-section-location.ts` for section history and compatibility with existing AI
+routes; dirty browser-history exits require explicit confirmation. Object-specific
+URL/filter/scroll restoration remains future work. Existing `?page=` links remain
+valid. Desktop navigation is 216px, the utility bar 52px; below 1280px a 64px icon
+rail reserves space. At 760px and below the labelled dock and a searchable native
+navigation dialog replace the sidebar. Cmd/Ctrl+K opens a keyboard palette for
+section transitions and a handoff to the existing full-text search screen. This
+stage adds no provider call or new backend contract. See the
+[stage-1 delivery](../development/frontend-redesign-stage-1.md).
+Page toolbars wrap, note lists stack and forms scroll within
 viewport-bounded dialogs. Dense calendars/tables scroll inside their own regions
 without making the document wider than the viewport. The calendar initially opens
 in day view on phones and week view on larger screens; both views remain selectable.

@@ -62,6 +62,7 @@ export function WorkspaceViews(props: ViewProps) {
   if (section === "search")
     return (
       <SearchPanel
+        key={typeof window === "undefined" ? "" : window.location.search}
         onOpenPage={onOpenPage}
         onMaterials={() => onNavigate("materials")}
       />

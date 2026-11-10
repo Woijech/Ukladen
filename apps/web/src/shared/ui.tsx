@@ -7,28 +7,38 @@ export function Modal({
   children,
   onClose,
   wide = false,
+  initialFocus,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
+  initialFocus?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
     const trigger = document.activeElement;
     dialog?.showModal();
+    if (initialFocus) dialog?.querySelector<HTMLElement>(initialFocus)?.focus();
     return () => {
       dialog?.close();
       if (trigger instanceof HTMLElement && trigger.isConnected)
         trigger.focus();
     };
-  }, []);
+  }, [initialFocus]);
   return (
     <dialog
       ref={ref}
       className={`ui-dialog ${wide ? "wide-dialog" : ""}`}
       aria-label={title}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && !event.defaultPrevented && !event.nativeEvent.isComposing) {
+          event.preventDefault();
+          event.stopPropagation();
+          onClose();
+        }
+      }}
       onCancel={(event) => {
         event.preventDefault();
         onClose();

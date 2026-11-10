@@ -42,6 +42,7 @@ import { SourcePicker, SourceViewer } from "./ai-sources";
 import { AiUsage, RunDetails } from "./ai-usage";
 import { ActionProposals } from "./ai-actions";
 import { NavIcon } from "../navigation";
+import { pushWorkspaceLocation } from "../use-section-location";
 import "./ai.css";
 
 const chatIcons = {
@@ -103,7 +104,7 @@ export function AiPanel({
   );
   function go(url: string) {
     if (dirty) setPendingUrl(url);
-    else window.history.pushState(null, "", url);
+    else pushWorkspaceLocation(url);
   }
   useEffect(() => {
     const prevent = (event: BeforeUnloadEvent) => {
@@ -171,7 +172,7 @@ export function AiPanel({
             className="danger-button"
             onClick={() => {
               changeDirty(false);
-              window.history.pushState(null, "", pendingUrl);
+              pushWorkspaceLocation(pendingUrl);
               setPendingUrl(null);
             }}
           >
