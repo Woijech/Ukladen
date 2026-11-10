@@ -4,7 +4,7 @@ import styles from "./brand.module.css";
 
 export function Brand() {
   return <span className={styles.brand}>
-    <Image className={styles.symbol} src={symbol} alt="" width={48} height={48} sizes="48px" />
+    <Image className={styles.symbol} src={symbol} alt="" width={48} height={48} sizes="48px" priority />
     <span>Ukladen</span>
   </span>;
 }

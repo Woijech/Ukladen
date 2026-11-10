@@ -1,6 +1,6 @@
 # Backend Implementation Roadmap
 
-Updated: 2026-10-28.
+Updated: 2026-11-09.
 Status: implementation roadmap; completed slices are marked below. This document does not authorize starting the
 next phase; request a concrete slice before implementing it. Pages/blocks/databases,
 mandatory table/calendar views, personal scope and AI execution modes are confirmed.
@@ -72,6 +72,12 @@ theme and dialogs. The 2026-10-28 calendar UI follow-up reduces primary navigati
 to calendar/notes/tasks with More for other sections, adds contextual event detail
 screens and versioned personal-event boundary resizing on the existing calendar API.
 No backend phase, official override editor or new relation schema is included. AI-04 UI is implemented locally; AI remains default-disabled.
+The separately requested 2026-11-09 visual redesign implements the
+[ink-and-paper visual system](../../DESIGN.md) across the existing frontend:
+calendar/day context, full-width notes, task list/detail, AI transcript/history,
+settings and authentication. AI joins the primary navigation; phones gain a labelled
+bottom navigation and initially open the day calendar. Backend/API capabilities,
+provider activation and database schemas are unchanged.
 The P-01–P-08 sections below preserve their original backend-slice scope; their
 verification history is not evidence of rerunning backend checks for the UI work.
 

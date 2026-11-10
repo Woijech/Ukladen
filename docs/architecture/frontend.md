@@ -152,13 +152,14 @@ conversions use platform `Intl`; no timezone dependency was added.
 ## Design system and structure
 
 The A1 calendar/note symbol remains the product identity. `src/app/globals.css`
-defines semantic CSS variables for surfaces, plum text, lavender accent, borders,
+defines semantic CSS variables for warm neutral surfaces, ink text, plum/lavender accent, borders,
 muted text, focus rings, destructive feedback and official-event teal. Components
 consume these tokens rather than inventing page palettes. `data-theme` selects
 light/dark/system; a small startup script prevents an incorrect initial theme.
 Only `ukladen-theme` is persisted locally. System mode follows the OS, and
 `prefers-reduced-motion` suppresses decorative transitions. System fonts avoid
-network font downloads. Use the existing spacing, radii, button and field classes.
+network font downloads. The complete visual direction and decision rationale are in
+[DESIGN.md](../../DESIGN.md). Use the existing spacing, radii, button and field classes.
 
 - `src/shared/api.ts`: same-origin cookie requests, fresh CSRF for writes, typed
   errors and global session-expiry/registration-completion handling.
@@ -175,15 +176,21 @@ network font downloads. Use the existing spacing, radii, button and field classe
 - `workspace/workspace.css`: shared workspace and panel layout. Reuse its panels,
   toolbar, form, list, action and confirmation patterns before adding variants.
 
-The sidebar initially exposes Calendar, Notes and Tasks; More reveals the existing
-secondary sections (dashboard, materials, databases, organization, search, inbox and
-AI). Search and notifications also retain their topbar shortcuts. Settings stays in
+The sidebar initially exposes Calendar, Notes, Tasks and AI; More reveals the existing
+secondary sections (dashboard, materials, databases, organization, search and inbox).
+Search and notifications also retain their topbar shortcuts. Settings stays in
 the footer. Selecting a secondary section never removes its existing functionality.
-The desktop sidebar can collapse. At 900px and below it becomes an explicit mobile
-navigation dialog; page toolbars wrap, note lists stack and forms scroll within
+The desktop sidebar can collapse. At intermediate widths it becomes an icon rail;
+at 760px and below a labelled bottom navigation and a native navigation dialog
+replace it. Page toolbars wrap, note lists stack and forms scroll within
 viewport-bounded dialogs. Dense calendars/tables scroll inside their own regions
-without making the document wider than the viewport. A day calendar is available
-alongside the week grid. Keyboard focus is visible, form labels are explicit and
+without making the document wider than the viewport. The calendar initially opens
+in day view on phones and week view on larger screens; both views remain selectable.
+At 1380px the selected-day agenda/source move alongside the time grid. Notes use an
+edge-to-edge document/index layout, tasks use a joined list/detail surface, and
+AI has a transcript/composer with collapsible history. Settings use separated rows.
+Keyboard focus is visible, a skip link reaches the working content, menus close
+with Escape and return focus, form labels are explicit and
 icon-only controls have accessible names. Native controls preserve platform input
 and keyboard behavior. No new runtime dependency was added: Tailwind, shadcn,
 Lucide, Motion and rich-editor packages are not required by this implementation.
@@ -380,3 +387,25 @@ notes/materials and abandoning late navigation reads after draft editing. Browse
 are mocked; no real provider traffic, deployment or running-database migration occurred.
 Backend checks/live integration were not rerun because backend code and contracts
 are unchanged.
+
+Executed on 2026-11-09 for the visual system redesign: frontend lint, TypeScript
+checking, production build, all **206 Chromium Playwright tests**, quiet Compose
+validation and diff checks passed. Light/dark captures cover public/auth surfaces
+at 320/390/834/1440px, workspace sections at 390/1024/1440px, and calendar, notes,
+dialogs and event details at 390/834/1440px. Browser contrast checks, mobile dirty
+navigation, reduced motion, skip navigation and menu focus return passed. The
+[design review](../development/frontend-design-review.md) records the Anti-Slop
+Delivery Gate and concrete interaction evidence. All browser APIs were mocked;
+no provider call, deployment, application migration or backend test rerun occurred.
+
+Executed on 2026-11-09 for the subsequent AI chat refinement: frontend lint,
+TypeScript checking, production build and all **214 Chromium Playwright tests**
+passed, including 39 AI scenarios. Quiet Compose validation passed. AI controls
+now use a scoped jade palette, editable starter questions, labelled source/send
+actions and a native response-options disclosure. Finite message/disclosure/dialog
+motion respects reduced motion. Light/dark chat and settings captures were checked
+at 320/390/834/1440px; phone reflow, source errors/progress, keyboard sending,
+focus return and confirmed deletion were exercised. The
+[AI design review](../development/ai-chat-design-review.md) records the follow-up
+Delivery Gate. Browser APIs were mocked; no live provider call, backend change,
+database migration or deployment occurred.

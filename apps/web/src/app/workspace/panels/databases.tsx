@@ -160,7 +160,6 @@ export function DatabasesPanel({
     <div className="feature-page">
       <div className="page-heading">
         <div>
-          <span className="greeting">ПОРЯДОК ПО ТВОИМ ПРАВИЛАМ</span>
           <h1>Базы данных</h1>
           <p className="heading-subtitle">
             Страницы с полями, таблицами и календарными видами.
@@ -427,7 +426,7 @@ function DatabaseDetail({
       </button>
       <div className="page-heading">
         <div>
-          <span className="greeting">ЛИЧНАЯ БАЗА</span>
+          <span className="greeting">Личная база</span>
           <h1>{database.data?.name ?? "База данных"}</h1>
           <p className="heading-subtitle">
             Общее содержимое страниц. Отдельные поля записей.

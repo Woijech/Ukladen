@@ -12,23 +12,23 @@ export default function Home() {
         <nav aria-label="Главная навигация">
           <ThemeToggle />
           <a href="/workspace">
-            Войти <span aria-hidden="true">↗</span>
+            Войти
           </a>
         </nav>
       </header>
       <section className="landing-hero" aria-labelledby="workspace-title">
         <div>
-          <span className="eyebrow">МЕНЬШЕ ХАОСА. БОЛЬШЕ СВОЕГО.</span>
+          <span className="eyebrow">Личное пространство для учёбы и жизни</span>
           <h1 id="workspace-title">
-            Всё важное —<br />
-            <span>в одном месте</span>
+            У каждого плана<br />
+            <span>своё место.</span>
           </h1>
           <p>
-            Расписание, личные планы и знания. Пространство, которое
-            подстраивается под твою жизнь, а не наоборот.
+            Держи перед глазами свою неделю, собирай заметки
+            и превращай большие планы в понятные задачи.
           </p>
           <a className="primary-button" href="/workspace">
-            Открыть календарь <span aria-hidden="true">→</span>
+            Открыть календарь
           </a>
         </div>
         <div className="landing-brand-art" aria-hidden="true">
@@ -37,14 +37,14 @@ export default function Home() {
       </section>
       <section className="landing-features" aria-label="Возможности Ukladen">
         <article>
-          <small>01 / ПЛАНИРУЙ</small>
+          <small>Календарь</small>
           <h2>Неделя в своём ритме</h2>
           <p>
-            Пары из IIS и личные события рядом. Учебная группа — по желанию.
+            Пары из IIS и личные события рядом. Учебная группа по желанию.
           </p>
         </article>
         <article>
-          <small>02 / СОХРАНЯЙ</small>
+          <small>Заметки</small>
           <h2>Место для твоих мыслей</h2>
           <p>
             Вложенные страницы, списки и материалы. Связи между ними выбираешь
@@ -52,8 +52,8 @@ export default function Home() {
           </p>
         </article>
         <article>
-          <small>03 / ОРГАНИЗУЙ</small>
-          <h2>Порядок без ограничений</h2>
+          <small>Организация</small>
+          <h2>Свои связи и порядок</h2>
           <p>
             Коллекции, теги и собственные базы. Без обязательных предметов и
             шаблонов.

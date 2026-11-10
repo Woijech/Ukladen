@@ -51,7 +51,7 @@ export const sections = [
   {
     id: "ai",
     title: "AI",
-    icon: "m12 3 2 6 6 3-6 2-2 6-2-6-6-2 6-3Z",
+    icon: "M4 4h16v12H9l-5 4Zm4 5h8m-8 3h5",
   },
   {
     id: "settings",
@@ -60,6 +60,7 @@ export const sections = [
   },
 ] as const;
 export type SectionKey = (typeof sections)[number]["id"];
+export const primarySections = ["calendar", "notes", "tasks", "ai"] as const;
 
 export function NavIcon({ path }: { path: string }) {
   return (
@@ -89,7 +90,7 @@ export function Navigation({
   footer?: ReactNode;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const primary = new Set<SectionKey>(["calendar", "notes", "tasks"]);
+  const primary = new Set<SectionKey>(primarySections);
   const secondaryActive = !primary.has(active) && active !== "settings";
   function item(section: (typeof sections)[number]) {
     return (
@@ -108,9 +109,14 @@ export function Navigation({
     );
   }
   return (
-    <nav className="workspace-navigation" aria-label="Разделы пространства">
-      <span className="sidebar-section-label">МОЁ ПРОСТРАНСТВО</span>
-      {(["calendar", "notes", "tasks"] as const).map((id) =>
+    <nav className="workspace-navigation" aria-label="Разделы пространства" onKeyDown={(event) => {
+      if (event.key === "Escape" && moreOpen) {
+        setMoreOpen(false);
+        event.currentTarget.querySelector<HTMLButtonElement>('button[aria-expanded]')?.focus();
+      }
+    }}>
+      <span className="sidebar-section-label">Рабочее пространство</span>
+      {primarySections.map((id) =>
         item(sections.find((section) => section.id === id)!),
       )}
       <button
@@ -121,8 +127,9 @@ export function Navigation({
         onClick={() => setMoreOpen(!moreOpen)}
         title="Ещё"
       >
-        <NavIcon path="M5 12h.01M12 12h.01M19 12h.01" />
+        <NavIcon path="M4 4h6v6H4Zm10 0h6v6h-6ZM4 14h6v6H4Zm10 0h6v6h-6Z" />
         <span>Ещё</span>
+        <span className="nav-disclosure" aria-hidden="true">{moreOpen ? "−" : "+"}</span>
       </button>
       {moreOpen && (
         <div

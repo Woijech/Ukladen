@@ -1,6 +1,6 @@
 # Ukladen Documentation Index
 
-Updated: 2026-10-29.
+Updated: 2026-11-09.
 
 ## Contract and reading order
 
@@ -24,6 +24,9 @@ Planned contracts do not override the current implemented API silently.
 - [AI](architecture/ai.md): planned tools, confirmed actions, retrieval and provider boundaries.
 - [Frontend](architecture/frontend.md): shared workspace design, calendar/tasks, page and database editors, materials/search, session isolation and timezone behavior.
 - [Brand exports](../assets/branding/README.md): approved Ukladen logo files and reuse in product screens.
+- [Visual system](../DESIGN.md): implemented typography, palette, layout, navigation and motion direction.
+- [Frontend design review](development/frontend-design-review.md): visual QA, interaction evidence and Anti-Slop Delivery Gate.
+- [AI chat design review](development/ai-chat-design-review.md): chat control refinement, finite motion and follow-up visual verification.
 - [Infrastructure](architecture/infrastructure.md): actual processes/storage/exposure.
 - [ADR 0001](adr/0001-use-seaweedfs.md): local object storage.
 - [ADR 0002](adr/0002-use-opaque-browser-sessions.md): browser authentication.

@@ -106,7 +106,6 @@ export function MaterialsPanel() {
     <div className="feature-page">
       <div className="page-heading">
         <div>
-          <span className="greeting">ТВОЯ БИБЛИОТЕКА</span>
           <h1>Материалы</h1>
           <p className="heading-subtitle">
             Файлы и ссылки, к которым хочется вернуться.
@@ -481,7 +480,7 @@ function MaterialCreate({
       }}
     >
       <form onSubmit={(event) => void submit(event)}>
-        <span className="greeting">БИБЛИОТЕКА</span>
+        <span className="greeting">Библиотека</span>
         <h2>{kind === "file" ? "Загрузить материал" : "Сохранить ссылку"}</h2>
         <p className="muted">
           {kind === "file"
@@ -609,7 +608,6 @@ export function SearchPanel({
     <div className="feature-page search-page">
       <div className="page-heading">
         <div>
-          <span className="greeting">НАЙДИ НУЖНОЕ</span>
           <h1>Поиск</h1>
           <p className="heading-subtitle">
             По страницам и тексту твоих материалов.
@@ -710,7 +708,7 @@ export function SearchPanel({
           />
           {material.data && (
             <>
-              <span className="greeting">МАТЕРИАЛ</span>
+              <span className="greeting">Материал</span>
               <h2>{material.data.title}</h2>
               <p className="muted">
                 {material.data.kind === "file"
@@ -796,7 +794,6 @@ export function NotificationsPanel({ timeZone }: { timeZone: string }) {
     <div className="feature-page">
       <div className="page-heading">
         <div>
-          <span className="greeting">НИЧЕГО НЕ УПУСТИ</span>
           <h1>Уведомления</h1>
           <p className="heading-subtitle">Напоминания и обзоры по твоим данным.</p>
         </div>

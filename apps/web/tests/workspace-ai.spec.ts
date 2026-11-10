@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { Proposal } from "../src/app/workspace/panels/ai-actions";
 import type { DiagnosticEvent } from "../src/app/workspace/panels/ai-run-analysis";
 import { login, mockWorkspace, navigateSection } from "./workspace-fixtures";
+import { checkWorkspaceVisuals } from "./design-checks";
 
 const chatId = "11111111-2222-4333-8444-555555555555";
 const pageId = "22222222-2222-4333-8444-555555555555";
@@ -271,6 +272,8 @@ async function mockAi(page: Page) {
     }
     if (path.endsWith("/messages"))
       return route.fulfill({ json: { items: state.messages } });
+    if (path === `/api/v1/ai/runs/${state.run?.id}` && method === "GET")
+      return route.fulfill({ json: state.run });
     if (path.endsWith("/cancel")) {
       state.run = { ...state.run, status: "cancelled" };
       return route.fulfill({ json: state.run });
@@ -309,19 +312,177 @@ async function mockAi(page: Page) {
   return state;
 }
 
+for (const width of [320, 390, 834, 1440]) {
+  test(`AI transcript and settings use the shared design system at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: width <= 390 ? 844 : 1000 });
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await mockAi(page);
+    await page.goto(`/workspace/ai?chat=${chatId}`);
+    await page.getByLabel("Сообщение AI").fill("Объясни заметку");
+    await page.getByRole("button", { name: "Отправить", exact: true }).click();
+    await expect(page.getByRole("log")).toContainText("Ответ по заметке");
+    for (const theme of ["light", "dark"]) {
+      const toggle = page.getByRole("button", { name: /Тема:/ }).first();
+      while ((await page.locator("html").getAttribute("data-theme")) !== theme) await toggle.click();
+      for (const [name, selector] of [["Чаты", ".ai-chat"], ["Настройки AI", ".ai-settings"], ["Использование", ".ai-usage"]]) {
+        await page.getByRole("button", { name, exact: true }).click();
+        if (name === "Чаты") {
+          const chat = page.locator(".ai-history-row > button:first-child").first();
+          if (!await chat.isVisible()) await page.getByText("История чатов", { exact: true }).click();
+          await chat.click();
+        }
+        await expect(page.locator(selector)).toBeVisible();
+        await expect(page.locator(".skeleton-stack")).toHaveCount(0);
+        await page.evaluate(() => window.scrollTo(0, 0));
+        const skip = await page.locator(".skip-link").boundingBox();
+        expect(skip!.y + skip!.height).toBeLessThanOrEqual(0);
+        await page.screenshot({ path: info.outputPath(`${name}-${theme}.png`), fullPage: true, animations: "disabled" });
+        await checkWorkspaceVisuals(page);
+        if (name === "Чаты") {
+          if (width <= 390) {
+            const composer = await page.locator(".ai-composer").boundingBox();
+            const layout = await page.locator(".ai-layout").boundingBox();
+            expect(composer!.y + composer!.height).toBeLessThanOrEqual(layout!.y + layout!.height);
+            await page.locator(".ai-composer").evaluate(el => el.scrollIntoView({ block: "center" }));
+            const send = await page.getByRole("button", { name: "Отправить", exact: true }).boundingBox();
+            const dock = await page.locator(".mobile-dock").boundingBox();
+            expect(send!.y + send!.height).toBeLessThan(dock!.y);
+          }
+          await page.getByText("Параметры ответа", { exact: true }).click();
+          await page.evaluate(() => window.scrollTo(0, 0));
+          await page.screenshot({ path: info.outputPath(`options-${theme}.png`), fullPage: true, animations: "disabled" });
+          await checkWorkspaceVisuals(page);
+          await page.getByText("Параметры ответа", { exact: true }).click();
+        }
+      }
+    }
+    expect(errors).toEqual([]);
+  });
+}
+
+for (const width of [390, 1440]) {
+  test(`AI welcome and new conversation are clear at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+    await mockAi(page);
+    await page.goto("/workspace/ai");
+    await expect(page.getByRole("heading", { name: "С чего начнём?" })).toBeVisible();
+    for (const theme of ["light", "dark"]) {
+      const toggle = page.getByRole("button", { name: /Тема:/ }).first();
+      while ((await page.locator("html").getAttribute("data-theme")) !== theme) await toggle.click();
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({ path: info.outputPath(`welcome-${theme}.png`), fullPage: true, animations: "disabled" });
+      await checkWorkspaceVisuals(page);
+    }
+    await page.getByRole("button", { name: "Начать беседу", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Создать чат", exact: true })).toBeEnabled();
+    await page.screenshot({ path: info.outputPath("new-chat-dark.png"), fullPage: true, animations: "disabled" });
+    await checkWorkspaceVisuals(page);
+    await page.getByRole("button", { name: "Создать чат", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Что хочешь прояснить?" })).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: info.outputPath("empty-chat-dark.png"), fullPage: true, animations: "disabled" });
+    await checkWorkspaceVisuals(page);
+    await expect(page.getByLabel("Сообщение AI")).toHaveValue("");
+  });
+}
+
+test("starter topics prepare an editable draft without sending a message", async ({ page }) => {
+  const state = await mockAi(page);
+  await page.goto("/workspace/ai");
+  for (const name of [/Мои планы/, /Следующий шаг/]) {
+    await page.getByRole("button", { name }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    expect(state.writes).toHaveLength(0);
+    await page.keyboard.press("Escape");
+  }
+  await page.getByRole("button", { name: /Разобраться в теме/ }).click();
+  await page.getByRole("button", { name: "Создать чат", exact: true }).click();
+  await expect(page.getByLabel("Сообщение AI")).toHaveValue("Помоги разобраться в моих заметках");
+  expect(state.writes.filter(item => item.path.endsWith("/messages/stream"))).toHaveLength(0);
+  await page.getByLabel("Сообщение AI").fill("Мой отредактированный вопрос");
+  await page.getByRole("button", { name: "Отправить", exact: true }).click();
+  await expect(page.getByRole("log")).toContainText("Ответ по заметке");
+  expect(state.writes.find(item => item.path.endsWith("/messages/stream"))!.body!.message).toBe("Мой отредактированный вопрос");
+});
+
+test("draft shortcuts preserve typing and send only with an explicit keyboard command", async ({ page }) => {
+  const state = await mockAi(page);
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  await page.getByRole("button", { name: "Мои планы", exact: true }).click();
+  const input = page.getByLabel("Сообщение AI");
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue("Что запланировано на завтра?");
+  await expect(page.getByRole("button", { name: "Следующий шаг", exact: true })).toBeDisabled();
+  await input.press("Enter");
+  await input.press("x");
+  expect(state.writes).toHaveLength(0);
+  await input.press("Control+Enter");
+  await expect(page.getByRole("log")).toContainText("Ответ по заметке");
+  const submitted = state.writes.filter(item => item.path.endsWith("/messages/stream"));
+  expect(submitted).toHaveLength(1);
+  expect(submitted[0].body!.message).toBe("Что запланировано на завтра?\nx");
+});
+
+test("answer options expose active modes and motion respects reduced motion", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  const state = await mockAi(page);
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  const summary = page.locator(".ai-response-options > summary");
+  await expect(page.getByLabel("Только мои источники", { exact: true })).toBeHidden();
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await page.getByLabel("Только мои источники", { exact: true }).check();
+  await summary.click();
+  await expect(summary).toContainText("Только мои источники");
+  await summary.click();
+  await expect(page.getByLabel("Только мои источники", { exact: true })).toBeChecked();
+  await page.getByLabel("Сообщение AI").fill("Объясни заметку");
+  await page.getByRole("button", { name: "Отправить", exact: true }).click();
+  await expect(page.getByRole("log")).toContainText("Ответ по заметке");
+  expect(state.writes.find(item => item.path.endsWith("/messages/stream"))!.body!.source_only).toBe(true);
+  const animation = () => page.locator(".ai-message").first().evaluate(el => getComputedStyle(el).animationName);
+  expect(await animation()).not.toBe("none");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  expect(await animation()).toBe("none");
+});
+
+test("chat detail and trash controls keep focus and require explicit deletion", async ({ page }) => {
+  const state = await mockAi(page);
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  await page.getByLabel("Сообщение AI").fill("Объясни заметку");
+  await page.getByRole("button", { name: "Отправить", exact: true }).click();
+  await expect(page.getByRole("log")).toContainText("Ответ по заметке");
+  const details = page.getByRole("button", { name: "Детали ответа", exact: true });
+  await details.click();
+  await expect(page.getByRole("dialog")).toContainText("Тариф неизвестен; стоимость не рассчитана.");
+  await page.keyboard.press("Escape");
+  await expect(details).toBeFocused();
+  const trash = page.getByRole("button", { name: "Удалить чат Подготовка", exact: true });
+  await trash.click();
+  await expect(page.getByRole("dialog")).toContainText("Переписка будет удалена без корзины.");
+  await page.keyboard.press("Escape");
+  await expect(trash).toBeFocused();
+  expect(state.writes.filter(item => item.path.endsWith(`/conversations/${chatId}`))).toHaveLength(0);
+  await trash.click();
+  await page.getByRole("dialog").getByRole("button", { name: "Удалить чат", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "С чего начнём?" })).toBeVisible();
+  expect(state.writes.filter(item => item.path.endsWith(`/conversations/${chatId}`))).toHaveLength(1);
+});
+
 test("AI sends selected sources once and opens current safe source text", async ({
   page,
 }) => {
   const state = await mockAi(page);
   await page.goto(`/workspace/ai?chat=${chatId}`);
   await page
-    .getByRole("button", { name: "Все источники", exact: true })
+    .getByRole("button", { name: "Источники: автоматически", exact: true })
     .click();
   await page.getByLabel("Все мои источники автоматически").uncheck();
   await page.getByLabel("Моя заметка", { exact: true }).check();
   await page.getByRole("button", { name: "Применить", exact: true }).click();
   await page.getByLabel("Сообщение AI").fill("Объясни заметку");
-  await page.getByRole("button", { name: "Отправить ↑" }).dblclick();
+  await page.getByRole("button", { name: "Отправить", exact: true }).dblclick();
   await expect(page.getByRole("log")).toContainText("Ответ по заметке");
   const submitted = state.writes.filter((item) =>
     item.path.endsWith("/messages/stream"),
@@ -364,7 +525,7 @@ test("broken streaming recovers the stored run without resubmission and can canc
   state.disconnect = true;
   await page.goto(`/workspace/ai?chat=${chatId}`);
   await page.getByLabel("Сообщение AI").fill("Долгий вопрос");
-  await page.getByRole("button", { name: "Отправить ↑" }).click();
+  await page.getByRole("button", { name: "Отправить", exact: true }).click();
   await expect(
     page.getByText("Соединение прервано. Восстановите состояние чата."),
   ).toBeVisible();
@@ -375,7 +536,7 @@ test("broken streaming recovers the stored run without resubmission and can canc
     state.writes.filter((item) => item.path.endsWith("/messages/stream")),
   ).toHaveLength(1);
   await page.getByRole("button", { name: "Остановить", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Отправить ↑" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Отправить", exact: true })).toBeVisible();
   expect(state.run!.status).toBe("cancelled");
   expect(
     state.writes.filter((item) => item.path.endsWith("/cancel")),
@@ -515,14 +676,14 @@ test("usage preserves unknowns and responsive source controls work with a keyboa
   ).toBeVisible();
   await page.goto(`/workspace/ai?chat=${chatId}`);
   await page
-    .getByRole("button", { name: "Все источники", exact: true })
+    .getByRole("button", { name: "Источники: автоматически", exact: true })
     .focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Все источники", exact: true }),
+    page.getByRole("button", { name: "Источники: автоматически", exact: true }),
   ).toBeFocused();
   await page.screenshot({
     path: test.info().outputPath("ai-mobile.png"),
@@ -552,18 +713,26 @@ test("logout and another account discard AI drafts and cached chats", async ({
 
 
 test("full-source processing requires sources, shows saved progress and cancels", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   const state = await mockAi(page);
   await page.goto(`/workspace/ai?chat=${chatId}`);
-  await page.getByLabel("Разобрать выбранные страницы и файлы целиком").check();
+  await page.getByText("Параметры ответа", { exact: true }).click();
+  await page.getByLabel("Разобрать документы целиком", { exact: true }).check();
   await page.getByLabel("Сообщение AI").fill("Сверь конспект с материалами лекции целиком");
-  await page.getByRole("button", { name: "Отправить ↑" }).click();
+  await page.getByRole("button", { name: "Отправить", exact: true }).click();
   await expect(page.getByText("Для полного разбора выбери страницы и файлы в источниках запроса.")).toBeVisible();
-  await page.getByRole("button", { name: "Все источники", exact: true }).click();
+  await page.screenshot({ path: test.info().outputPath("full-source-validation.png"), fullPage: true, animations: "disabled" });
+  await checkWorkspaceVisuals(page);
+  await page.getByRole("button", { name: "Источники: автоматически", exact: true }).click();
   await page.getByLabel("Все мои источники автоматически").uncheck();
   await page.getByLabel("Моя заметка", { exact: true }).check();
   await page.getByRole("button", { name: "Применить", exact: true }).click();
-  await page.getByRole("button", { name: "Отправить ↑" }).click();
+  await page.getByText("Параметры ответа", { exact: true }).click();
+  await page.getByRole("button", { name: "Отправить", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Читаю источники целиком · 25%" })).toBeVisible();
+  const composer = await page.locator(".ai-composer").boundingBox();
+  const layout = await page.locator(".ai-layout").boundingBox();
+  expect(composer!.y + composer!.height).toBeLessThanOrEqual(layout!.y + layout!.height);
   const sent = state.writes.find(item => item.path.endsWith("/messages/stream"));
   expect(sent?.body?.full_sources).toBe(true);
   await page.reload();
@@ -571,6 +740,8 @@ test("full-source processing requires sources, shows saved progress and cancels"
   await page.screenshot({ path: test.info().outputPath("full-source-progress.png"), fullPage: true });
   await page.getByRole("button", { name: "Остановить", exact: true }).click();
   await expect(page.getByText("Остановлено", { exact: true })).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("full-source-cancelled.png"), fullPage: true, animations: "disabled" });
+  await checkWorkspaceVisuals(page);
 });
 
 
@@ -874,8 +1045,9 @@ test("diagnostic chat defaults to demo, prefills a scenario and never auto-submi
   expect(state.writes.filter((item) => item.path.endsWith("/messages/stream"))).toHaveLength(0);
   const created = state.writes.find((item) => item.path.endsWith("/diagnostics/conversations"));
   expect(created?.body?.demo).toBe(true);
-  await page.getByLabel("Без веб-поиска, только мои источники").check();
-  await page.getByRole("button", { name: "Отправить ↑" }).click();
+  await page.getByText("Параметры ответа", { exact: true }).click();
+  await page.getByLabel("Только мои источники", { exact: true }).check();
+  await page.getByRole("button", { name: "Отправить", exact: true }).click();
   await expect(page.getByRole("log")).toContainText("Ответ по заметке");
   expect(state.writes.filter((item) => item.path.endsWith("/messages/stream"))).toHaveLength(1);
   expect(state.writes.find((item) => item.path.endsWith("/messages/stream"))?.body?.source_only).toBe(true);
