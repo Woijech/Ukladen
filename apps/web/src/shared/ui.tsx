@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from "react";
 
 export function Modal({
   title,
@@ -8,12 +8,16 @@ export function Modal({
   onClose,
   wide = false,
   initialFocus,
+  className = "",
+  style,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
   initialFocus?: string;
+  className?: string;
+  style?: CSSProperties;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -30,7 +34,8 @@ export function Modal({
   return (
     <dialog
       ref={ref}
-      className={`ui-dialog ${wide ? "wide-dialog" : ""}`}
+      className={`ui-dialog ${wide ? "wide-dialog" : ""} ${className}`}
+      style={style}
       aria-label={title}
       onKeyDown={(event) => {
         if (event.key === "Escape" && !event.defaultPrevented && !event.nativeEvent.isComposing) {

@@ -32,7 +32,7 @@ test("shell supports skip navigation and Escape returns focus from menus", async
   await expect(page.getByRole("link", { name: "Перейти к содержимому" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("#workspace-content")).toBeFocused();
-  for (const [trigger, menu] of [[".view-select", ".view-menu"], [".account-button", ".account-popover"], [".top-avatar", ".top-account-popover"]]) {
+  for (const [trigger, menu] of [[".account-button", ".account-popover"], [".top-avatar", ".top-account-popover"]]) {
     await page.locator(trigger).focus();
     await page.keyboard.press("Enter");
     await expect(page.locator(menu)).toBeVisible();
@@ -339,9 +339,8 @@ for (const width of [1440, 834, 390]) {
       return route.fulfill({ json: { items, limit: 200, offset: 0 } });
     });
     await page.goto("/workspace");
-    if (width <= 760) {
-      await page.locator(".view-select").click();
-      await page.getByRole("menuitemradio", { name: /Неделя/ }).click();
+    if (width <= 1100) {
+      await page.getByRole("button", { name: "Неделя", exact: true }).click();
     }
     await page
       .locator(".event-card")
@@ -522,8 +521,7 @@ test("mobile calendar tap opens a draft while a touch scroll does not", async ({
   const page = await context.newPage();
   const state = await mockWorkspace(page);
   await page.goto("/workspace");
-  await page.locator(".view-select").click();
-  await page.getByRole("menuitemradio", { name: /День/ }).click();
+  await page.getByRole("button", { name: "День", exact: true }).click();
   const point = await timePoint(page, 0, 10.5);
   await page.touchscreen.tap(point.x, point.y);
   await expect(page.getByLabel("Начало", { exact: true })).toHaveValue("2026-10-16T10:30");

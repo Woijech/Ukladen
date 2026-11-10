@@ -886,6 +886,7 @@ test("calendar source filters only change display, and day view keeps original e
   page,
 }) => {
   const { state, workspace } = await contentWorkspace(page);
+  await page.locator(".calendar-source-disclosure > summary").click();
   await page.getByLabel("Расписание IIS", { exact: true }).uncheck();
   await expect(page.locator(".event-card")).toHaveCount(1);
   await page.getByLabel("Личные события", { exact: true }).uncheck();
@@ -893,8 +894,7 @@ test("calendar source filters only change display, and day view keeps original e
   expect(state.writes).toHaveLength(0);
   expect(workspace.writes).toHaveLength(0);
   await page.getByLabel("Личные события", { exact: true }).check();
-  await page.getByRole("button", { name: /Неделя/ }).click();
-  await page.getByRole("menuitemradio", { name: /День/ }).click();
+  await page.getByRole("button", { name: "День", exact: true }).click();
   await expect(page.locator(".day-column")).toHaveCount(1);
   await page.locator(".event-card").click();
   await page.getByRole("button", { name: "Изменить событие", exact: true }).click();

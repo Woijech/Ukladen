@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import type { CalendarEvent } from "./workspace";
 import { prettyDate } from "./calendar-time";
 import { EventExtras } from "./panels/event-extras";
@@ -9,6 +10,7 @@ export function EventDetail({
   timeZone,
   onBack,
   onEdit,
+  onMove,
   onOpenPage,
   onOpenEvent,
 }: {
@@ -16,6 +18,7 @@ export function EventDetail({
   timeZone: string;
   onBack: () => void;
   onEdit: () => void;
+  onMove: () => void;
   onOpenPage: (id: string) => void;
   onOpenEvent: (
     id: string,
@@ -24,13 +27,15 @@ export function EventDetail({
   ) => Promise<void>;
 }) {
   const official = event.source === "official";
+  const back = useRef<HTMLButtonElement>(null);
+  useEffect(() => { back.current?.focus(); }, [event.id]);
   return (
     <article
       className="event-detail feature-page"
       aria-label="Страница события"
     >
       <header className="event-detail-toolbar">
-        <button className="text-action" onClick={onBack}>
+        <button ref={back} className="text-action" onClick={onBack}>
           ← К календарю
         </button>
         {!official && (
@@ -38,10 +43,13 @@ export function EventDetail({
             Изменить событие
           </button>
         )}
+        {!official && (
+          <button className="text-action" onClick={onMove}>Перенести событие</button>
+        )}
       </header>
       <div className="event-detail-sheet">
         <span className="greeting">
-          {official ? "РАСПИСАНИЕ IIS" : "ЛИЧНЫЙ КАЛЕНДАРЬ"}
+          {official ? "Расписание IIS" : "Личный календарь"}
         </span>
         <h1>{event.title}</h1>
         {official &&

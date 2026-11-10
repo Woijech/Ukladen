@@ -80,8 +80,9 @@ bottom navigation and initially open the day calendar. Backend/API capabilities,
 provider activation and database schemas are unchanged.
 The 2026-11-11 UX redesign stage 1 implements shared tokens, compact grouped
 section navigation, section URLs/history and a transition/search palette; see
-[stage-1 delivery](frontend-redesign-stage-1.md). Calendar, tasks, notes, database
-and AI work-surface redesign stages remain pending a separate request.
+[stage-1 delivery](frontend-redesign-stage-1.md). Calendar stage 2 is implemented locally with direct time manipulation and custom
+event date/time controls; see [stage-2 delivery](frontend-redesign-stage-2.md).
+Task, note, database and AI work-surface redesign stages remain pending a separate request.
 The P-01–P-08 sections below preserve their original backend-slice scope; their
 verification history is not evidence of rerunning backend checks for the UI work.
 

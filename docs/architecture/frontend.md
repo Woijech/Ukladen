@@ -192,8 +192,12 @@ stage adds no provider call or new backend contract. See the
 Page toolbars wrap, note lists stack and forms scroll within
 viewport-bounded dialogs. Dense calendars/tables scroll inside their own regions
 without making the document wider than the viewport. The calendar initially opens
-in day view on phones and week view on larger screens; both views remain selectable.
-At 1380px the selected-day agenda/source move alongside the time grid. Notes use an
+in day view up to 1100px and week view on larger screens; both views remain selectable.
+The stage-2 date toolbar switches Day/Week directly. A fine-pointer desktop sidebar
+month calendar complements the larger date dialog on compact/coarse-pointer layouts.
+Event details share a column at 1440px and above; narrower layouts use a focused
+detail surface while retaining the grid and restoring scroll/focus. The daily
+agenda, task projections and academic-source setup remain below the grid. Notes use an
 edge-to-edge document/index layout, tasks use a joined list/detail surface, and
 AI has a transcript/composer with collapsible history. Settings use separated rows.
 Keyboard focus is visible, a skip link reaches the working content, menus close
@@ -416,3 +420,16 @@ focus return and confirmed deletion were exercised. The
 [AI design review](../development/ai-chat-design-review.md) records the follow-up
 Delivery Gate. Browser APIs were mocked; no live provider call, backend change,
 database migration or deployment occurred.
+
+
+## Calendar UX stage 2, 2026-11-11
+
+Personal events support mouse whole-interval dragging, Alt+Up/Down preview with
+Enter/Escape, and explicit touch placement with Apply/Cancel. These reuse the
+versioned personal-event PATCH path and single-flight/error behavior. Existing
+range-create, resize, overlap lanes and DST/continuation semantics remain.
+The new event-only `EventTimeStrip` uses `CalendarMonth` and existing time helpers;
+it previews a custom date/clock/duration editor and applies to the form draft only.
+Its native exact-input alternative remains in a disclosure. Official facts stay
+read-only; no backend capability or provider activation is added. See
+[stage-2 delivery](../development/frontend-redesign-stage-2.md) for checks and limits.

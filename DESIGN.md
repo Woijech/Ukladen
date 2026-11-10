@@ -149,3 +149,24 @@ cancelled. No private drafts are persisted in browser storage.
 This stage does not implement the proposed mini-calendar, Time Strip, task detail
 layout, note autosave or database cell editors. Existing calendar/task/note/AI work
 surfaces remain. Verification and remaining limits: [stage 1 delivery](docs/development/frontend-redesign-stage-1.md).
+
+
+### Calendar redesign, stage 2, 2026-11-11
+
+Implemented: compact calendar heading/date toolbar, direct Day/Week selection,
+collapsible source controls and a desktop sidebar month calendar. The time grid
+uses viewport space; event details share a contextual column at 1440px and above,
+with a focused surface and Back on narrower screens. Day is the initial view up
+to 1100px; explicit Week choice remains available. Selecting an event retains the
+grid scroll and restores its trigger focus. Existing task projections, daily agenda
+and source setup remain available below the grid.
+
+Personal-event moving now supports mouse preview/commit, Alt+Up/Down with explicit
+Enter, and touch placement with separate Apply/Cancel. Resize/range selection,
+official read-only facts, original intervals and version/timezone/DST semantics
+remain. Event forms use a custom Time Strip with a month grid, editable tabular
+clock, minute/hour steppers, duration presets and timezone/offset selection.
+It is anchored and viewport-bounded on desktop and a bottom sheet on phones.
+All-minute/native exact input remains available in a secondary disclosure.
+Picker Apply updates a draft; only event Create/Save writes. No animation or
+provider dependency was added. See [stage-2 delivery](docs/development/frontend-redesign-stage-2.md).

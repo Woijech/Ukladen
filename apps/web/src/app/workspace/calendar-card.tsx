@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type PointerEvent, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { prettyDate } from "./calendar-time";
 import type { CalendarEvent } from "./workspace";
 
@@ -26,6 +27,7 @@ export function CalendarCard({
   disabled,
   onOpen,
   onResize,
+  onMove,
 }: {
   event: CalendarEvent;
   dayStart: number;
@@ -37,10 +39,64 @@ export function CalendarCard({
   disabled: boolean;
   onOpen: () => void;
   onResize: (event: CalendarEvent, edge: Edge, value: string) => Promise<void>;
+  onMove: (event: CalendarEvent, start: string, end: string) => Promise<void>;
 }) {
   const [preview, setPreview] = useState<Resize | null>(null);
   const active = useRef<Resize | null>(null);
   const [committing, setCommitting] = useState(false);
+  type Move = { event: CalendarEvent; x: number; y: number; offset: number; start: number; end: number; canvas: HTMLElement; dragged: boolean; pointer: boolean };
+  const moving = useRef<Move | null>(null);
+  const [movePreview, setMovePreview] = useState<Move | null>(null);
+  const suppressClick = useRef(false);
+  function cancelMove() {
+    if (moving.current?.pointer && moving.current.dragged) suppressClick.current = true;
+    moving.current = null;
+    setMovePreview(null);
+  }
+  async function commitMove() {
+    const session = moving.current;
+    moving.current = null;
+    if (!session?.dragged || session.start === Date.parse(event.starts_at)) { setMovePreview(null); return; }
+    suppressClick.current = session.pointer;
+    setCommitting(true);
+    try { await onMove(session.event, new Date(session.start).toISOString(), new Date(session.end).toISOString()); }
+    finally { setMovePreview(null); setCommitting(false); }
+  }
+  function beginMove(input: PointerEvent<HTMLButtonElement>) {
+    if (input.pointerType !== "mouse" || input.button !== 0 || event.source !== "personal" || disabled || committing || Date.parse(event.starts_at) < dayStart) return;
+    const canvas = input.currentTarget.closest<HTMLElement>(".day-canvas")!;
+    const start = Date.parse(event.starts_at);
+    moving.current = { event, x: input.clientX, y: input.clientY, offset: input.clientY - canvas.getBoundingClientRect().top - (start - dayStart) / 3_600_000 * hourHeight,
+      start, end: Date.parse(event.ends_at), canvas, dragged: false, pointer: true };
+    input.currentTarget.setPointerCapture(input.pointerId);
+  }
+  function moveEvent(input: PointerEvent<HTMLButtonElement>) {
+    const session = moving.current;
+    if (!session?.pointer) return;
+    if (!session.dragged && Math.hypot(input.clientX - session.x, input.clientY - session.y) < 6) return;
+    input.preventDefault();
+    const canvases = input.currentTarget.closest(".week-grid")?.querySelectorAll<HTMLElement>(".day-canvas");
+    const canvas = Array.from(canvases ?? []).find(column => { const box = column.getBoundingClientRect(); return input.clientX >= box.left && input.clientX < box.right; });
+    if (!canvas) return;
+    const minimum = Number(canvas.dataset.start);
+    const maximum = Number(canvas.dataset.end) - 60_000;
+    const delta = Math.round((input.clientY - canvas.getBoundingClientRect().top - session.offset) / hourHeight * 4) * step;
+    const start = Math.max(minimum, Math.min(maximum, minimum + delta));
+    const next = { ...session, canvas, start, end: start + Date.parse(session.event.ends_at) - Date.parse(session.event.starts_at), dragged: true };
+    moving.current = next; setMovePreview(next);
+  }
+  function moveKeys(input: KeyboardEvent<HTMLButtonElement>) {
+    if (event.source !== "personal" || disabled || committing) return;
+    if (input.key === "Escape" && moving.current) { input.preventDefault(); cancelMove(); }
+    else if (input.key === "Enter" && moving.current) { input.preventDefault(); void commitMove(); }
+    else if (input.altKey && ["ArrowUp", "ArrowDown"].includes(input.key)) {
+      input.preventDefault();
+      const canvas = input.currentTarget.closest<HTMLElement>(".day-canvas")!;
+      const start = (moving.current?.start ?? Date.parse(event.starts_at)) + (input.key === "ArrowDown" ? step : -step);
+      const next = { event: moving.current?.event ?? event, x: 0, y: 0, offset: 0, canvas, start, end: start + Date.parse(event.ends_at) - Date.parse(event.starts_at), dragged: true, pointer: false };
+      moving.current = next; setMovePreview(next);
+    }
+  }
   const start =
     preview?.edge === "starts_at" ? preview.value : Date.parse(event.starts_at);
   const end =
@@ -164,8 +220,9 @@ export function CalendarCard({
     change(session, session.value + (input.key === "ArrowDown" ? step : -step));
   }
   return (
+    <>
     <div
-      className={`event-card ${event.source === "official" ? "official-event" : "personal-event"} ${event.skipped ? "skipped-event" : ""} ${preview ? "resizing-event" : ""}`}
+      className={`event-card ${event.source === "official" ? "official-event" : "personal-event"} ${event.skipped ? "skipped-event" : ""} ${preview ? "resizing-event" : ""} ${movePreview ? "moving-event" : ""}`}
       style={{
         top: `${((clippedStart - dayStart) / 3_600_000) * hourHeight}px`,
         height: `${height}px`,
@@ -176,8 +233,14 @@ export function CalendarCard({
       <button
         type="button"
         className="event-card-open"
-        disabled={committing}
+        disabled={committing || disabled}
+        aria-describedby="calendar-move-help"
+        onPointerDown={beginMove} onPointerMove={moveEvent}
+        onPointerUp={() => { if (moving.current?.pointer) void commitMove(); }}
+        onPointerCancel={cancelMove} onLostPointerCapture={() => { if (moving.current?.pointer) cancelMove(); }}
+        onKeyDown={moveKeys} onBlur={() => { if (moving.current && !moving.current.pointer) cancelMove(); }}
         onClick={() => {
+          if (suppressClick.current) { suppressClick.current = false; return; }
           if (!active.current) onOpen();
         }}
         title={`${event.title}${event.location ? ` · ${event.location}` : ""}`}
@@ -255,5 +318,9 @@ export function CalendarCard({
         </span>
       )}
     </div>
+    {movePreview && createPortal(<div className="calendar-move-preview" style={{ top: `${(movePreview.start - Number(movePreview.canvas.dataset.start)) / 3_600_000 * hourHeight}px`, height: `${Math.max(28, (movePreview.end - movePreview.start) / 3_600_000 * hourHeight)}px` }}>
+      <strong>{event.title}</strong><span>{format(movePreview.start)} — {format(movePreview.end)}</span><span className="sr-only" role="status">Enter — сохранить, Escape — отменить.</span>
+    </div>, movePreview.canvas)}
+    </>
   );
 }
