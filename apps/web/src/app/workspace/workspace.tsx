@@ -133,15 +133,6 @@ type GroupContext = {
   period: { term_label: string | null; period_label: string | null } | null;
 };
 
-const weekdays = [
-  "Понедельник",
-  "Вторник",
-  "Среда",
-  "Четверг",
-  "Пятница",
-  "Суббота",
-  "Воскресенье",
-];
 const shortWeekdays = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
 const hourHeight = 54;
 
@@ -1046,6 +1037,12 @@ function CalendarWorkspace({
     dateKey(new Date(), userTimeZone),
   );
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [calendarContextOpen, setCalendarContextOpen] = useState(false);
+  const calendarContextTrigger = useRef<HTMLButtonElement>(null);
+  function closeCalendarContext() {
+    setCalendarContextOpen(false);
+    requestAnimationFrame(() => calendarContextTrigger.current?.focus({ preventScroll: true }));
+  }
   const [calendarView, setCalendarView] = useState<"week" | "day">(() =>
     window.matchMedia("(max-width: 1100px)").matches ? "day" : "week",
   );
@@ -1511,9 +1508,10 @@ function CalendarWorkspace({
 
   return (
     <main
-      className={`workspace-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
+      className={`workspace-shell ${section === "calendar" ? "calendar-shell" : ""} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
       onKeyDown={(event) => {
         if (event.key !== "Escape") return;
+        if (calendarContextOpen) { event.preventDefault(); closeCalendarContext(); return; }
         if (moveTarget) { event.preventDefault(); setMoveTarget(null); setMoveDraft(null); return; }
         const trigger = accountMenuOpen ? ".account-button" : topAccountMenuOpen ? ".top-avatar" : null;
         if (!trigger) return;
@@ -1544,7 +1542,6 @@ function CalendarWorkspace({
           <Icon name="menu" />
         </button>
         <Navigation active={section} onNavigate={navigate} />
-        {section === "calendar" && <div className="sidebar-calendar"><CalendarMonth key={selected.slice(0, 7)} selected={selected} timeZone={timeZone} onSelect={setSelected} /></div>}
         <div className="sidebar-spacer" />
         <SectionLink section="settings" className={`nav-item settings-nav ${section === "settings" ? "active" : ""}`} active={section === "settings"} onNavigate={navigate}>
           <NavIcon path={sections.find((item) => item.id === "settings")!.icon} />
@@ -1705,9 +1702,7 @@ function CalendarWorkspace({
         <div className={`content-wrap content-${section} ${detailEvent && section === "calendar" ? "calendar-inspecting" : ""}`} id="workspace-content" tabIndex={-1}>
           {section === "calendar" ? (
             <>
-              <div className="calendar-page-heading"><h1>Календарь</h1>
-                <button className="primary-button create-button" onClick={() => openCreate()}><Icon name="plus" /><span>Новое событие</span></button>
-              </div>
+              <h1 className="sr-only">Календарь</h1>
               {moveTarget && <div className="calendar-placement" role="region" aria-label="Перенос события">
                 <strong>{moveTarget.title}</strong><p>Выбери новое начало на сетке. Длительность сохранится.</p>
                 {moveDraft && <p role="status">{prettyDate(new Date(moveDraft.starts_at), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZoneName: "shortOffset" })}</p>}
@@ -1735,15 +1730,53 @@ function CalendarWorkspace({
                 </div>
               )}
               <div className="calendar-layout">
+                <aside id="calendar-context" className={`calendar-context ${calendarContextOpen ? "is-open" : ""}`} aria-label="Навигация календаря">
+                  <div className="calendar-context-heading"><strong>Календарь</strong><button type="button" className="text-action context-close" aria-label="Закрыть панель календарей" onClick={closeCalendarContext}>×</button></div>
+                  <div className="sidebar-calendar"><CalendarMonth key={selected.slice(0, 7)} selected={selected} timeZone={timeZone} onSelect={day => { setSelected(day); if (calendarContextOpen) closeCalendarContext(); }} /></div>
+                <details className="calendar-source-disclosure" open><summary>Мои календари</summary><div
+                  className="calendar-legend"
+                  aria-label="Отображаемые источники"
+                >
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={showPersonal}
+                      onChange={(event) =>
+                        setShowPersonal(event.target.checked)
+                      }
+                    />
+                    <span className="legend-dot personal-dot" />
+                    Личные события
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={showOfficial}
+                      onChange={(event) =>
+                        setShowOfficial(event.target.checked)
+                      }
+                    />
+                    <span className="legend-dot official-dot" />
+                    Расписание IIS
+                  </label>
+                  <small>Фильтры меняют только отображение</small>
+                </div></details>
+                  <button type="button" className="calendar-connect" onClick={() => setShowGroupPicker(true)}><Icon name="cap" /><span>{meQuery.data ? `Группа ${meQuery.data.group.name}` : "Подключить расписание"}</span></button>
+                  <p className="calendar-context-note">Расписание IIS доступно только для чтения. Личные события можно переносить.</p>
+                </aside>
               <section
                 className="calendar-card"
-                aria-label="Календарь на неделю"
+                aria-label={calendarView === "week" ? "Календарь на неделю" : "Календарь на день"}
               >
                 <div className="calendar-toolbar">
+                  <button type="button" ref={calendarContextTrigger} className="calendar-context-toggle secondary-button" aria-expanded={calendarContextOpen} aria-controls="calendar-context" onClick={() => {
+                    if (calendarContextOpen) closeCalendarContext();
+                    else { setCalendarContextOpen(true); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('#calendar-context .month-days [aria-pressed="true"]')?.focus()); }
+                  }}>Календари</button>
                   <div className="week-title">
-                    <button className="calendar-date-trigger" aria-label="Выбрать дату календаря" onClick={() => setDatePickerOpen(true)}>
+                    <button className="calendar-date-trigger" aria-label="Выбрать дату календаря" title={`${dateLabel} – ${weekEndLabel}`} onClick={() => setDatePickerOpen(true)}>
                     <strong>
-                      {calendarView === "week" ? <>{dateLabel} – {weekEndLabel}</> : prettyDate(selected, { weekday: "long", day: "numeric", month: "long" })}
+                      {prettyDate(selected, { month: "long", year: "numeric" })}
                     </strong></button>
                     <span>
                       {calendarView === "day" ? `Часовой пояс: ${timeZone}` : <>{prettyDate(selected, {
@@ -1801,37 +1834,10 @@ function CalendarWorkspace({
                       <button type="button" aria-pressed={calendarView === "day"} onClick={() => setCalendarView("day")}>День</button>
                       <button type="button" aria-pressed={calendarView === "week"} onClick={() => setCalendarView("week")}>Неделя</button>
                     </div>
+                    <button className="primary-button create-button" aria-label="Новое событие" onClick={() => openCreate()}><Icon name="plus" /><span>Новое событие</span></button>
                   </div>
                 </div>
 
-                <details className="calendar-source-disclosure"><summary>Источники и отображение</summary><div
-                  className="calendar-legend"
-                  aria-label="Отображаемые источники"
-                >
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={showPersonal}
-                      onChange={(event) =>
-                        setShowPersonal(event.target.checked)
-                      }
-                    />
-                    <span className="legend-dot personal-dot" />
-                    Личные события
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={showOfficial}
-                      onChange={(event) =>
-                        setShowOfficial(event.target.checked)
-                      }
-                    />
-                    <span className="legend-dot official-dot" />
-                    Расписание IIS
-                  </label>
-                  <small>Фильтры меняют только отображение</small>
-                </div></details>
                 <div
                   className="calendar-scroll"
                   ref={calendarScroll}
@@ -1843,10 +1849,7 @@ function CalendarWorkspace({
                     className={`week-grid ${calendarView === "day" ? "single-day-grid" : ""}`}
                   >
                     <div className="time-column">
-                      <div className="day-heading spacer-heading" />
-                      <div className="all-day-label">
-                        {clockChangeWeek ? "ОТ 00:00" : "СОБЫТИЕ"}
-                      </div>
+                      <div className="day-heading spacer-heading"><span title={timeZone}>{clockChangeWeek ? "От 00:00" : prettyDate(boundaries[0], { timeZoneName: "shortOffset" }).split(" ").at(-1)}</span></div>
                       {Array.from({ length: gridHours }, (_, index) => (
                         <div className="time-label" key={index}>
                           {clockChangeWeek
@@ -1877,11 +1880,6 @@ function CalendarWorkspace({
                             <span>{shortWeekdays[dayIndex]}</span>
                             <strong>{Number(day.slice(-2))}</strong>
                           </button>
-                          <button
-                            className="all-day-cell"
-                            onClick={() => openCreate(day)}
-                            aria-label={`Добавить событие на ${weekdays[dayIndex]}`}
-                          />
                           <div
                             className="day-canvas"
                             data-start={boundaries[dayIndex].getTime()}
@@ -1923,6 +1921,7 @@ function CalendarWorkspace({
                               hourHeight={hourHeight}
                               timeZone={timeZone}
                               disabled={resizeBusy}
+                              occupied={moveTarget ? [] : allEvents}
                               onCreate={(start, end) => {
                                 if (moveTarget) { setMoveDraft({ starts_at: start, ends_at: new Date(Date.parse(start) + Date.parse(moveTarget.ends_at) - Date.parse(moveTarget.starts_at)).toISOString() }); }
                                 else openCreate(day, start, end);
@@ -2134,7 +2133,7 @@ function CalendarWorkspace({
               <details className="calendar-help">
                 <summary>Управление календарём</summary>
                 <p id="calendar-create-help" className="calendar-interaction-hint">
-                  Нажми на свободное время или протяни интервал, чтобы создать событие.
+                  Нажми на свободное время или протяни интервал, чтобы создать событие. Выделение останавливается у соседнего события; намеренное пересечение можно задать в редакторе.
                   С клавиатуры: ↑ ↓ выбрать время, Shift + ↑ ↓ изменить длительность, Enter создать.
                 </p>
                 <p id="calendar-move-help" className="calendar-interaction-hint">Перетяни личное событие, чтобы перенести. Alt + ↑ ↓: на 15 минут; Enter сохранить, Esc отменить. На телефоне открой событие и выбери «Перенести событие».</p>
@@ -2192,22 +2191,19 @@ function CalendarWorkspace({
       </Modal>}
       {showEventForm && (
         <Modal
+          className="calendar-composer"
+          initialFocus="#event-title"
           title={editingEvent ? "Изменить событие" : "Новое событие"}
           onClose={closeEventForm}
         >
           <form className="event-modal" onSubmit={createEvent}>
             <span className="greeting">Личное событие</span>
             <h2>{editingEvent ? "Изменить событие" : "Новое событие"}</h2>
-            <p>
-              {editingEvent
-                ? "Можно изменить личный план. Учебные пары остаются без изменений."
-                : "Личное событие можно поставить в любое время, даже одновременно с парой."}
-            </p>
+
             <p className="calendar-timezone">Часовой пояс: {timeZone}</p>
             <label htmlFor="event-title">Название</label>
             <input
               id="event-title"
-              autoFocus
               required
               maxLength={200}
               value={title}

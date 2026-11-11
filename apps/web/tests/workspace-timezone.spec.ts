@@ -45,12 +45,12 @@ for (const browserZone of ["UTC", "America/Los_Angeles"]) {
       const ranges: string[] = [];
       page.on("request", request => { if (request.url().includes("/calendar/events?")) ranges.push(new URL(request.url()).searchParams.get("date_from")!); });
       await page.goto("/workspace");
-      await expect(page.locator(".week-title strong")).toContainText("19 октября");
+      await expect(page.locator(".calendar-date-trigger")).toHaveAttribute("title", /19 октября/);
       expect(ranges).toContain("2026-10-19");
       await page.getByRole("button", { name: "Предыдущая неделя" }).click();
-      await expect(page.locator(".week-title strong")).toContainText("12 октября");
+      await expect(page.locator(".calendar-date-trigger")).toHaveAttribute("title", /12 октября/);
       await page.getByRole("button", { name: "Сегодня", exact: true }).click();
-      await expect(page.locator(".week-title strong")).toContainText("19 октября");
+      await expect(page.locator(".calendar-date-trigger")).toHaveAttribute("title", /19 октября/);
       await page.getByRole("button", { name: "Новое событие", exact: true }).click();
       await expect(page.getByLabel("Начало", { exact: true })).toHaveValue("2026-10-19T10:00");
     });

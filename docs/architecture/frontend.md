@@ -193,8 +193,10 @@ Page toolbars wrap, note lists stack and forms scroll within
 viewport-bounded dialogs. Dense calendars/tables scroll inside their own regions
 without making the document wider than the viewport. The calendar initially opens
 in day view up to 1100px and week view on larger screens; both views remain selectable.
-The stage-2 date toolbar switches Day/Week directly. A fine-pointer desktop sidebar
-month calendar complements the larger date dialog on compact/coarse-pointer layouts.
+The calendar date toolbar switches Day/Week directly. Its calendar-specific 200px
+context column contains the mini-month and Personal/IIS source controls, alongside
+a compact application rail. On compact/coarse-pointer layouts the context column
+opens through Calendars; the larger date dialog remains available.
 Event details share a column at 1440px and above; narrower layouts use a focused
 detail surface while retaining the grid and restoring scroll/focus. The daily
 agenda, task projections and academic-source setup remain below the grid. Notes use an
@@ -433,3 +435,14 @@ it previews a custom date/clock/duration editor and applies to the form draft on
 Its native exact-input alternative remains in a disclosure. Official facts stay
 read-only; no backend capability or provider activation is added. See
 [stage-2 delivery](../development/frontend-redesign-stage-2.md) for checks and limits.
+
+
+## Calendar composition follow-up, 2026-11-11
+
+The calendar working area uses a joined context/grid/detail layout and a contextual
+right-hand event editor (phone bottom sheet). `CalendarSelection` bounds empty-grid
+creation to the free window around the pointer, including hidden loaded event sources,
+while explicit editing still permits intentional overlaps. Pointer-up retains a
+completed range until the click opens the draft, preventing touch click-through.
+No availability, timezone/DST, official-source or write contract changes. See
+[calendar refinement](../development/frontend-calendar-refinement.md).

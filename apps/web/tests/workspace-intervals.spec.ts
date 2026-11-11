@@ -40,7 +40,7 @@ test("an event starting before the week remains visible on Monday without naviga
   await expect(page.getByLabel("Название", { exact: true })).toHaveValue("Week continuation");
   await page.getByRole("button", { name: "Отмена", exact: true }).click();
   await page.getByRole("button", { name: /К календарю/ }).click();
-  await expect(page.locator(".week-title strong")).toContainText("12 октября");
+  await expect(page.locator(".calendar-date-trigger")).toHaveAttribute("title", /12 октября/);
   await expect(page.locator(".agenda-row")).toContainText("Week continuation");
 });
 

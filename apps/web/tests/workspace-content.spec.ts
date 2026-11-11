@@ -886,7 +886,6 @@ test("calendar source filters only change display, and day view keeps original e
   page,
 }) => {
   const { state, workspace } = await contentWorkspace(page);
-  await page.locator(".calendar-source-disclosure > summary").click();
   await page.getByLabel("Расписание IIS", { exact: true }).uncheck();
   await expect(page.locator(".event-card")).toHaveCount(1);
   await page.getByLabel("Личные события", { exact: true }).uncheck();

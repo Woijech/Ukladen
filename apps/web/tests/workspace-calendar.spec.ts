@@ -525,6 +525,7 @@ test("mobile calendar tap opens a draft while a touch scroll does not", async ({
   const point = await timePoint(page, 0, 10.5);
   await page.touchscreen.tap(point.x, point.y);
   await expect(page.getByLabel("Начало", { exact: true })).toHaveValue("2026-10-16T10:30");
+  await expect(page.getByRole("dialog", { name: "Дата и время события", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Отмена", exact: true }).click();
   const grid = page.locator(".calendar-selection");
   const start = await timePoint(page, 0, 10);

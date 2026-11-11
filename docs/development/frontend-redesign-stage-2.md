@@ -1,6 +1,9 @@
 # Frontend redesign stage 2: calendar and event time controls
 
 Date: 2026-11-11. Status: implemented locally; not merged or deployed.
+Follow-up: [calendar composition and safe selection](frontend-calendar-refinement.md)
+supersedes this report's working-area layout; verification below remains historical.
+
 Scope: Calendar only, following the approved [interaction specification](frontend-interaction-spec.md),
 [visual direction](frontend-visual-redesign.md) and [UX audit](frontend-ux-audit.md).
 Stage 1 remains documented [separately](frontend-redesign-stage-1.md).

@@ -222,7 +222,7 @@ export function CalendarCard({
   return (
     <>
     <div
-      className={`event-card ${event.source === "official" ? "official-event" : "personal-event"} ${event.skipped ? "skipped-event" : ""} ${preview ? "resizing-event" : ""} ${movePreview ? "moving-event" : ""}`}
+      className={`event-card ${height >= 76 ? "event-roomy" : ""} ${event.source === "official" ? "official-event" : "personal-event"} ${event.skipped ? "skipped-event" : ""} ${preview ? "resizing-event" : ""} ${movePreview ? "moving-event" : ""}`}
       style={{
         top: `${((clippedStart - dayStart) / 3_600_000) * hourHeight}px`,
         height: `${height}px`,

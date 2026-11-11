@@ -170,3 +170,20 @@ It is anchored and viewport-bounded on desktop and a bottom sheet on phones.
 All-minute/native exact input remains available in a secondary disclosure.
 Picker Apply updates a draft; only event Create/Save writes. No animation or
 provider dependency was added. See [stage-2 delivery](docs/development/frontend-redesign-stage-2.md).
+
+
+### Calendar composition refinement, 2026-11-11
+
+The calendar now uses a 64px application rail, a 200px calendar context column and
+an edge-to-edge time grid. The context column contains the mini-month and source
+controls; compact/coarse-pointer layouts open it through Calendars. The toolbar
+shows month/year, timezone, Today, arrows, Day/Week and New event. The empty row
+resembling all-day creation is removed; timed creation remains available.
+
+Event cards put titles first and use ellipsis instead of clipped text. The event
+editor is a right-hand contextual dialog and a phone bottom sheet, retaining the
+custom time control and exact-input alternative. Empty-grid click/drag creation
+stops at neighbouring loaded intervals, including hidden sources; intentional
+intersections remain possible in the explicit editor. Existing move/resize,
+official read-only facts and timezone/DST behavior remain. See the
+[calendar refinement delivery](docs/development/frontend-calendar-refinement.md).

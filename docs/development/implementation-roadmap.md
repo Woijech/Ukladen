@@ -82,6 +82,8 @@ The 2026-11-11 UX redesign stage 1 implements shared tokens, compact grouped
 section navigation, section URLs/history and a transition/search palette; see
 [stage-1 delivery](frontend-redesign-stage-1.md). Calendar stage 2 is implemented locally with direct time manipulation and custom
 event date/time controls; see [stage-2 delivery](frontend-redesign-stage-2.md).
+The owner-requested calendar composition/safe-selection follow-up is implemented
+locally; see [calendar refinement](frontend-calendar-refinement.md).
 Task, note, database and AI work-surface redesign stages remain pending a separate request.
 The P-01–P-08 sections below preserve their original backend-slice scope; their
 verification history is not evidence of rerunning backend checks for the UI work.
