@@ -1,12 +1,19 @@
 import { defineConfig } from "@playwright/test";
+import { testOrigin, testPort } from "./tests/test-origin";
 
 export default defineConfig({
   testDir: "./tests",
-  use: { baseURL: "http://127.0.0.1:3001", browserName: "chromium" },
+  use: {
+    baseURL: testOrigin,
+    browserName: "chromium",
+    launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
+      ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE }
+      : undefined,
+  },
   webServer: {
     command: "npm run start",
-    url: "http://127.0.0.1:3001/health",
-    env: { PORT: "3001" },
+    url: `${testOrigin}/health`,
+    env: { PORT: testPort },
     reuseExistingServer: false,
     timeout: 60_000,
   },

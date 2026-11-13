@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { requestJson, writeJson } from "@/shared/api";
+import { RequestError, requestJson, writeJson } from "@/shared/api";
 import {
   ActionFeedback,
   EmptyState,
@@ -15,6 +15,8 @@ import { dateKey, shiftDate, startOfWeek } from "../calendar-time";
 import { positionNoteMenu } from "./note-menu";
 import "./data-workspace.css";
 import type { PageSummary } from "./notes";
+import type { WorkspaceLocation } from "../workspace-location";
+import { isUnavailableObject, UnavailableObject } from "../unavailable-object";
 
 type List<T> = { items: T[]; limit: number; offset: number };
 type Database = {
@@ -64,6 +66,7 @@ type ViewQuery = {
   sorts: { property_id: string; direction: "asc" | "desc" }[];
 };
 type View = {
+  database_id: string;
   query?: ViewQuery;
   calendar_layout?: "day" | "week" | "month" | null;
   id: string;
@@ -93,6 +96,26 @@ const kinds: { value: Kind; label: string }[] = [
   { value: "url", label: "Ссылка" },
   { value: "date", label: "Дата" },
 ];
+
+type FormProtection = {
+  onBusyChange: (busy: boolean) => void;
+  onDirtyChange: (dirty: boolean) => void;
+};
+
+function useFormProtection(busy: boolean, callbacks: FormProtection) {
+  const [dirty, setDirty] = useState(false);
+  const current = useRef(callbacks);
+  useEffect(() => { current.current = callbacks; }, [callbacks]);
+  useLayoutEffect(() => {
+    current.current.onDirtyChange(dirty);
+    return () => current.current.onDirtyChange(false);
+  }, [dirty]);
+  useLayoutEffect(() => {
+    current.current.onBusyChange(busy);
+    return () => current.current.onBusyChange(false);
+  }, [busy]);
+  return () => setDirty(true);
+}
 
 function displayValue(
   value: Value | undefined,
@@ -132,16 +155,27 @@ export function DatabasesPanel({
   timeZone,
   onOpenPage,
   onDirtyChange,
+  onBusyChange,
+  location,
+  onNavigate,
+  onLocationChange,
 }: {
   timeZone: string;
   onOpenPage: (id: string) => void;
   onDirtyChange: (dirty: boolean) => void;
+  onBusyChange: (busy: boolean) => void;
+  location: WorkspaceLocation;
+  onNavigate: (location: WorkspaceLocation) => void;
+  onLocationChange: (location: WorkspaceLocation) => void;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const selected = location.databaseId;
   const [trashed, setTrashed] = useState(false);
   const [offset, setOffset] = useState(0);
   const [creating, setCreating] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [detailBusy, setDetailBusy] = useState(false);
   const action = useAction();
+  useLayoutEffect(() => { onBusyChange(action.busy || detailBusy); return () => onBusyChange(false); }, [action.busy, detailBusy, onBusyChange]);
   const client = useQueryClient();
   const databases = useQuery({
     queryKey: ["databases", trashed, offset],
@@ -154,11 +188,17 @@ export function DatabasesPanel({
   if (selected)
     return (
       <DatabaseDetail
+        key={`${selected}:${location.viewId ?? ""}`}
         id={selected}
+        viewId={location.viewId ?? null}
+        date={location.date}
+        onNavigate={onNavigate}
+        onLocationChange={onLocationChange}
         timeZone={timeZone}
-        onBack={() => setSelected(null)}
+        onBack={() => onNavigate({ section: "databases" })}
         onOpenPage={onOpenPage}
         onDirtyChange={onDirtyChange}
+        onBusyChange={setDetailBusy}
       />
     );
   return (
@@ -227,7 +267,7 @@ export function DatabasesPanel({
           <button
             className="database-card panel"
             key={database.id}
-            onClick={() => setSelected(database.id)}
+            onClick={() => onNavigate({ section: "databases", databaseId: database.id })}
           >
             <span
               className="database-symbol"
@@ -253,7 +293,10 @@ export function DatabasesPanel({
         />
       ) : null}
       {creating && (
-        <Modal title="Новая база" onClose={() => setCreating(false)}>
+        <Modal title="Новая база" onClose={() => {
+          if (action.busy || (createName.trim() && !window.confirm("Закрыть без сохранения новой базы?"))) return;
+          setCreating(false); setCreateName(""); onDirtyChange(false);
+        }}>
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -266,7 +309,9 @@ export function DatabasesPanel({
                 );
                 await client.invalidateQueries({ queryKey: ["databases"] });
                 setCreating(false);
-                setSelected(database.id);
+                setCreateName("");
+                onDirtyChange(false);
+                onLocationChange({ section: "databases", databaseId: database.id });
               });
             }}
           >
@@ -275,6 +320,8 @@ export function DatabasesPanel({
             <input
               id="database-name"
               name="name"
+              value={createName}
+              onChange={event => { setCreateName(event.target.value); onDirtyChange(Boolean(event.target.value.trim())); }}
               required
               maxLength={100}
               autoFocus
@@ -295,21 +342,32 @@ export function DatabasesPanel({
 
 function DatabaseDetail({
   id,
+  viewId,
+  date,
+  onNavigate,
+  onLocationChange,
   timeZone,
   onBack,
   onOpenPage,
   onDirtyChange,
+  onBusyChange,
 }: {
   id: string;
+  viewId: string | null;
+  date?: string;
+  onNavigate: (location: WorkspaceLocation) => void;
+  onLocationChange: (location: WorkspaceLocation) => void;
   timeZone: string;
   onBack: () => void;
   onOpenPage: (id: string) => void;
   onDirtyChange: (dirty: boolean) => void;
+  onBusyChange: (busy: boolean) => void;
 }) {
   const base = `/api/v1/workspace/databases/${id}`;
   const client = useQueryClient();
   const action = useAction();
-  const [viewId, setViewId] = useState<string | null>(null);
+  const [editorBusy, setEditorBusy] = useState(false);
+  useLayoutEffect(() => { onBusyChange(action.busy || editorBusy); return () => onBusyChange(false); }, [action.busy, editorBusy, onBusyChange]);
   const [offset, setOffset] = useState(0);
   const [trashRecords, setTrashRecords] = useState(false);
   const [dialog, setDialog] = useState<
@@ -332,10 +390,18 @@ function DatabaseDetail({
       setCellId(propertyId); setEditing(full);
     }, "");
   }
-  const [week, setWeek] = useState(() => dateKey(new Date(), timeZone));
+  const [today] = useState(() => dateKey(new Date(), timeZone));
+  const week = date ?? today;
+  function selectView(next: string | null) {
+    onNavigate({ section: "databases", databaseId: id, viewId: next ?? undefined });
+  }
+  function setWeek(update: (value: string) => string) {
+    onNavigate({ section: "databases", databaseId: id, viewId: viewId ?? undefined, date: update(week) });
+  }
   const database = useQuery({
     queryKey: ["database", id],
     queryFn: ({ signal }) => requestJson<Database>(base, { signal }),
+    retry: false,
   });
   const active = !!database.data && !database.data.trashed_at;
   const properties = useQuery({
@@ -353,7 +419,19 @@ function DatabaseDetail({
       requestJson<List<View>>(`${base}/views?limit=200`, { signal }),
     enabled: active,
   });
-  const selectedView = views.data?.items.find((item) => item.id === viewId);
+  const view = useQuery({
+    queryKey: ["database-view", id, viewId],
+    queryFn: async ({ signal }) => {
+      const result = await requestJson<View>(`${base}/views/${viewId}`, { signal });
+      if (result.database_id !== id || result.id !== viewId) throw new RequestError(404, "Объект недоступен");
+      return result;
+    },
+    enabled: active && !!viewId,
+    retry: false,
+  });
+  const selectedView = view.data;
+  const visibleViews = [...(views.data?.items ?? [])];
+  if (selectedView && !visibleViews.some(item => item.id === selectedView.id)) visibleViews.push(selectedView);
   const monthView = selectedView?.calendar_layout === "month";
   const dayView = selectedView?.calendar_layout === "day";
   const monthStart = `${week.slice(0, 7)}-01`;
@@ -388,8 +466,7 @@ function DatabaseDetail({
       ),
     enabled:
       active &&
-      views.isSuccess &&
-      (!viewId || !!selectedView) &&
+      (!viewId || view.isSuccess) &&
       selectedView?.layout !== "calendar",
   });
   const entries = useQuery({
@@ -412,6 +489,7 @@ function DatabaseDetail({
         "properties",
         "records",
         "database-views",
+        "database-view",
         "database-dates",
       ].map((key) =>
         client.invalidateQueries({
@@ -435,6 +513,7 @@ function DatabaseDetail({
         : "Запись восстановлена",
     );
   }
+  if (isUnavailableObject(database.error) || isUnavailableObject(view.error)) return <UnavailableObject onBack={onBack} />;
   return (
     <div className="feature-page databases-page">
       <button className="text-action back-link" disabled={editingCell} onClick={onBack}>
@@ -496,11 +575,12 @@ function DatabaseDetail({
       {active && (
         <>
           <QueryState
-            pending={properties.isPending || views.isPending}
-            error={properties.error || views.error}
+            pending={properties.isPending || views.isPending || (!!viewId && view.isPending)}
+            error={properties.error || views.error || view.error}
             retry={() => {
               void properties.refetch();
               void views.refetch();
+              if (viewId) void view.refetch();
             }}
           />
           <div className="panel">
@@ -510,19 +590,19 @@ function DatabaseDetail({
                   className={!viewId ? "selected" : ""}
                   disabled={editingCell}
                   onClick={() => {
-                    setViewId(null);
+                    selectView(null);
                     setOffset(0);
                   }}
                 >
                   ▦ Все записи
                 </button>
-                {views.data?.items.map((view) => (
+                {visibleViews.map((view) => (
                   <button
                     className={viewId === view.id ? "selected" : ""}
                     disabled={editingCell}
                     key={view.id}
                     onClick={() => {
-                      setViewId(view.id);
+                      selectView(view.id);
                       setTrashRecords(false);
                       setOffset(0);
                     }}
@@ -704,7 +784,7 @@ function DatabaseDetail({
                           {definitions.map((property) => (
                             <td key={property.id}>
                               {editing?.record.id === item.record.id && cellId === property.id ? (
-                                <RecordEditor inline base={base} properties={[property]} schema={schema} record={editing} onClose={closeRecord} onSaved={refresh} onDirtyChange={onDirtyChange} />
+                                <RecordEditor inline base={base} properties={[property]} schema={schema} record={editing} onClose={closeRecord} onSaved={refresh} onDirtyChange={onDirtyChange} onBusyChange={setEditorBusy} />
                               ) : (
                                 <button type="button" className="record-cell" aria-label={`Изменить ${property.name}: ${item.page.title}`} disabled={!!item.record.trashed_at || action.busy || !!editing} onClick={() => editRecord(item, property.id)}>
                                   {displayValue(item.record.values[property.id], property, timeZone)}
@@ -784,6 +864,7 @@ function DatabaseDetail({
           }}
           onSaved={refresh}
           onDirtyChange={onDirtyChange}
+          onBusyChange={setEditorBusy}
         />
       )}
       {dialog === "schema" && (
@@ -792,6 +873,8 @@ function DatabaseDetail({
           databaseId={id}
           onSaved={refresh}
           onClose={() => setDialog(null)}
+          onBusyChange={setEditorBusy}
+          onDirtyChange={onDirtyChange}
         />
       )}
       {dialog === "property" && (
@@ -800,6 +883,8 @@ function DatabaseDetail({
           schema={schema}
           onSaved={refresh}
           onClose={() => setDialog(null)}
+          onBusyChange={setEditorBusy}
+          onDirtyChange={onDirtyChange}
         />
       )}
       {(dialog === "view" || dialog === "edit-view") && (
@@ -810,6 +895,8 @@ function DatabaseDetail({
           editing={dialog === "edit-view" ? selectedView : undefined}
           onSaved={refresh}
           onClose={() => setDialog(null)}
+          onBusyChange={setEditorBusy}
+          onDirtyChange={onDirtyChange}
         />
       )}
       {dialog === "trash" && selectedView && (
@@ -833,7 +920,7 @@ function DatabaseDetail({
                     `${base}/views/${selectedView.id}?expected_version=${selectedView.version}`,
                     "DELETE",
                   );
-                  setViewId(null);
+                  onLocationChange({ section: "databases", databaseId: id });
                   setDialog(null);
                   await refresh();
                 }, "Вид удалён")
@@ -850,6 +937,8 @@ function DatabaseDetail({
           base={base}
           onClose={() => setDialog(null)}
           onSaved={refresh}
+          onBusyChange={setEditorBusy}
+          onDirtyChange={onDirtyChange}
         />
       )}
     </div>
@@ -865,9 +954,11 @@ function RecordEditor({
   onSaved,
   inline = false,
   onDirtyChange,
+  onBusyChange,
 }: {
   inline?: boolean;
   onDirtyChange: (dirty: boolean) => void;
+  onBusyChange: (busy: boolean) => void;
   base: string;
   properties: Property[];
   schema: number;
@@ -876,6 +967,7 @@ function RecordEditor({
   onSaved: () => Promise<void>;
 }) {
   const action = useAction();
+  useLayoutEffect(() => { onBusyChange(action.busy); return () => onBusyChange(false); }, [action.busy, onBusyChange]);
   const [expectedSchema] = useState(schema);
   const [fields] = useState(properties);
   const [dirty, setDirty] = useState(false);
@@ -1193,19 +1285,23 @@ function PropertyCreate({
   onSaved,
   onClose,
   editing,
+  onBusyChange,
+  onDirtyChange,
 }: {
   base: string;
   schema: number;
   onSaved: () => Promise<void>;
   onClose: () => void;
   editing?: Property;
-}) {
+} & FormProtection) {
   const [kind, setKind] = useState<Kind>(editing?.kind ?? "text");
   const [options, setOptions] = useState(editing?.options ?? []);
   const action = useAction();
+  const markDirty = useFormProtection(action.busy, { onBusyChange, onDirtyChange });
   return (
     <Modal title={editing ? "Изменить поле" : "Новое поле"} onClose={onClose}>
       <form
+        onChange={markDirty}
         onSubmit={(event) => {
           event.preventDefault();
           const data = new FormData(event.currentTarget);
@@ -1276,11 +1372,11 @@ function PropertyCreate({
                   className="icon-button"
                   type="button"
                   aria-label={`Удалить вариант ${index + 1}`}
-                  onClick={() =>
+                  onClick={() => { markDirty();
                     setOptions((items) =>
                       items.filter((item) => item.id !== option.id),
-                    )
-                  }
+                    );
+                  }}
                 >
                   ×
                 </button>
@@ -1290,12 +1386,12 @@ function PropertyCreate({
               className="secondary-button"
               type="button"
               disabled={options.length >= 100}
-              onClick={() =>
+              onClick={() => { markDirty();
                 setOptions((items) => [
                   ...items,
                   { id: crypto.randomUUID(), name: "" },
-                ])
-              }
+                ]);
+              }}
             >
               + Вариант
             </button>
@@ -1323,6 +1419,8 @@ function ViewCreate({
   onSaved,
   onClose,
   editing,
+  onBusyChange,
+  onDirtyChange,
 }: {
   base: string;
   schema: number;
@@ -1330,7 +1428,7 @@ function ViewCreate({
   onSaved: () => Promise<void>;
   onClose: () => void;
   editing?: View;
-}) {
+} & FormProtection) {
   const [layout, setLayout] = useState(editing?.layout ?? "table");
   const [automatic, setAutomatic] = useState(editing?.query?.columns == null);
   const [columns, setColumns] = useState(
@@ -1343,6 +1441,7 @@ function ViewCreate({
     editing?.query?.sorts ?? [],
   );
   const action = useAction();
+  const markDirty = useFormProtection(action.busy, { onBusyChange, onDirtyChange });
   const defaults = (property: Property | undefined): Value =>
     property?.kind === "checkbox"
       ? false
@@ -1356,6 +1455,7 @@ function ViewCreate({
       onClose={onClose}
     >
       <form
+        onChange={markDirty}
         onSubmit={(event) => {
           event.preventDefault();
           const data = new FormData(event.currentTarget);
@@ -1606,9 +1706,7 @@ function ViewCreate({
                 type="button"
                 className="icon-button"
                 aria-label={`Удалить фильтр ${index + 1}`}
-                onClick={() =>
-                  setFilters((items) => items.filter((_, i) => i !== index))
-                }
+                onClick={() => { markDirty(); setFilters((items) => items.filter((_, i) => i !== index)); }}
               >
                 ×
               </button>
@@ -1619,7 +1717,7 @@ function ViewCreate({
           type="button"
           className="secondary-button"
           disabled={filters.length >= 20 || !properties.length}
-          onClick={() =>
+          onClick={() => { markDirty();
             setFilters((items) => [
               ...items,
               {
@@ -1627,8 +1725,8 @@ function ViewCreate({
                 operator: "is_not_empty",
                 value: null,
               },
-            ])
-          }
+            ]);
+          }}
         >
           + Фильтр
         </button>
@@ -1682,9 +1780,7 @@ function ViewCreate({
               type="button"
               className="icon-button"
               aria-label={`Удалить сортировку ${index + 1}`}
-              onClick={() =>
-                setSorts((items) => items.filter((_, i) => i !== index))
-              }
+              onClick={() => { markDirty(); setSorts((items) => items.filter((_, i) => i !== index)); }}
             >
               ×
             </button>
@@ -1702,6 +1798,7 @@ function ViewCreate({
             )
           }
           onClick={() => {
+            markDirty();
             const property = properties.find(
               (item) =>
                 item.kind !== "multi_select" &&
@@ -1854,17 +1951,21 @@ function DatabaseSettings({
   base,
   onSaved,
   onClose,
+  onBusyChange,
+  onDirtyChange,
 }: {
   database: Database;
   base: string;
   onSaved: () => Promise<void>;
   onClose: () => void;
-}) {
+} & FormProtection) {
   const action = useAction();
+  const markDirty = useFormProtection(action.busy, { onBusyChange, onDirtyChange });
   const [confirm, setConfirm] = useState(false);
   return (
     <Modal title="Настройки базы" onClose={onClose}>
       <form
+        onChange={markDirty}
         onSubmit={(event) => {
           event.preventDefault();
           const data = new FormData(event.currentTarget);
@@ -1930,16 +2031,20 @@ function PropertyManager({
   databaseId,
   onSaved,
   onClose,
+  onBusyChange,
+  onDirtyChange,
 }: {
   base: string;
   databaseId: string;
   onSaved: () => Promise<void>;
   onClose: () => void;
-}) {
+} & FormProtection) {
   const [trashed, setTrashed] = useState(false);
   const [editing, setEditing] = useState<Property | null>(null);
   const [pending, setPending] = useState<Property | null>(null);
   const action = useAction();
+  const [editorBusy, setEditorBusy] = useState(false);
+  useLayoutEffect(() => { onBusyChange(action.busy || editorBusy); return () => onBusyChange(false); }, [action.busy, editorBusy, onBusyChange]);
   const query = useQuery({
     queryKey: ["property-manager", databaseId, trashed],
     queryFn: ({ signal }) =>
@@ -2011,6 +2116,8 @@ function PropertyManager({
           editing={editing}
           onSaved={refresh}
           onClose={() => setEditing(null)}
+          onBusyChange={setEditorBusy}
+          onDirtyChange={onDirtyChange}
         />
       )}{" "}
       {pending && query.data && (

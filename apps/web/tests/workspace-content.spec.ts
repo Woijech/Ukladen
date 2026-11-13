@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { testOrigin } from "./test-origin";
 import { writeFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { checkWorkspaceVisuals } from "./design-checks";
@@ -164,6 +165,7 @@ async function contentWorkspace(page: Page) {
     views: [
       {
         id: viewId,
+        database_id: databaseId,
         name: "Краткий вид",
         layout: "table",
         date_property_id: null,
@@ -197,7 +199,7 @@ async function contentWorkspace(page: Page) {
     if (method !== "GET") {
       expect(request.headers()["x-csrf-token"]).toBe("c".repeat(43));
       expect(request.headers().cookie).toContain("ukladen_csrf=");
-      expect(request.headers().origin).toBe("http://127.0.0.1:3001");
+      expect(request.headers().origin).toBe(testOrigin);
       state.writes.push({ path, method, body });
     }
     const list = (items: unknown[]) =>
@@ -366,6 +368,7 @@ async function contentWorkspace(page: Page) {
     }
     if (path === `${base}/views`) return list(state.views);
     if (path === `${base}/views/${viewId}`) {
+      if (method === "GET") return route.fulfill({ json: state.views[0] });
       expect(body!.expected_version).toBe(state.views[0].version);
       expect(body!.expected_schema_version).toBe(database.schema_version);
       Object.assign(state.views[0], body);
@@ -1488,7 +1491,7 @@ test("dragging blocks preserves their IDs and a copied page link opens the owned
     page.getByText("Ссылка скопирована", { exact: true }),
   ).toBeVisible();
   const link = await page.evaluate(() => navigator.clipboard.readText());
-  expect(link).toBe(`http://127.0.0.1:3001/workspace?page=${pageId}`);
+  expect(link).toBe(`${testOrigin}/workspace?section=notes&page=${pageId}`);
   await page.goto(link);
   await expect(
     page.getByLabel("Название страницы", { exact: true }),
@@ -1829,6 +1832,9 @@ test("browser back can retain a dirty page and leave after explicit confirmation
   await expect(page).toHaveURL(/section=notes/);
   await expect(page.getByLabel("Текст блока 1")).toHaveValue("Keep this draft");
   page.once("dialog", dialog => dialog.accept());
+  await page.goBack();
+  await expect(page).toHaveURL(/\/workspace\?section=notes$/);
+  await expect(page.getByLabel("Текст блока 1")).not.toBeVisible();
   await page.goBack();
   await expect(page.locator(".calendar-card")).toBeVisible();
 });

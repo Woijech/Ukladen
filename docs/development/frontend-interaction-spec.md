@@ -27,7 +27,13 @@ Tablet uses a 64px labelled-on-focus/tooltip rail, plus a navigation drawer with
 
 ### Location, links and return behavior
 
-Proposed canonical query contract: `/workspace?section=tasks&task=<uuid>`; Calendar uses `section=calendar&date=YYYY-MM-DD&view=day|week`; notes keep the existing `/workspace?page=<uuid>` link valid. Database selection uses `section=databases&database=<uuid>`. Preserve existing dedicated AI routes and their selection semantics; do not replace them silently. This is a frontend design proposal, not an existing route/API guarantee.
+The canonical object/date/layout query contract is implemented in the 2026-11-13
+[deep-link delivery](workspace-deep-links.md): tasks use `section=tasks&task=<uuid>`,
+calendar uses `section=calendar&date=YYYY-MM-DD&view=day|week`, pages use
+`section=notes&page=<uuid>`, and databases use `section=databases&database=<uuid>`
+with optional saved `view=<uuid>` and calendar `date`. Legacy `/workspace?page=<uuid>`
+links and dedicated AI routes remain valid. Filter/scroll and broader save-flow
+acceptance below remain targets, not claims that those additional behaviors exist.
 
 Navigation and object opening create history entries; transient popovers and typing do not. Filter changes replace the current entry; explicit selection of another date range may push it. Back from a task detail restores exact list filters, loaded rows, selection and scroll within the mounted session. Reload restores the URL's essential context; private drafts/scroll are not promised across reload. Validate URL values, use owned reads, and keep foreign/missing-object handling indistinguishable where required.
 

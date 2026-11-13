@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { testOrigin } from "./test-origin";
 
 const path = "/auth/reset-password";
 const token = "r".repeat(43);
@@ -26,7 +27,7 @@ test("login links to email recovery and accepts unknown accounts without disclos
     expect(request.method()).toBe("POST");
     expect(request.headers()["x-csrf-token"]).toBe(csrf);
     expect(request.headers().cookie).toContain(`ukladen_csrf=${csrf}`);
-    expect(request.headers().origin).toBe("http://127.0.0.1:3001");
+    expect(request.headers().origin).toBe(testOrigin);
     expect(request.headers().referer).toBeUndefined();
     emails.push(request.postDataJSON().email);
     await route.fulfill({ status: 202, json: { detail: "Password reset request accepted." } });
@@ -53,7 +54,7 @@ test("confirmation requires a matching password and one explicit CSRF-protected 
     expect(request.postDataJSON()).toEqual({ token, new_password: password });
     expect(request.headers()["x-csrf-token"]).toBe(csrf);
     expect(request.headers().cookie).toContain(`ukladen_csrf=${csrf}`);
-    expect(request.headers().origin).toBe("http://127.0.0.1:3001");
+    expect(request.headers().origin).toBe(testOrigin);
     expect(request.headers().referer).toBeUndefined();
     expect(request.url()).not.toContain(token);
     await route.fulfill({ status: 204 });

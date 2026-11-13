@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestJson, writeJson } from "@/shared/api";
 import { ActionFeedback, Modal, QueryState, useAction } from "@/shared/ui";
@@ -16,7 +16,7 @@ export function AiSettings({
 }) {
   const [instructionsDirty, setInstructionsDirty] = useState(false);
   const [reviewsDirty, setReviewsDirty] = useState(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     onDirtyChange(instructionsDirty || reviewsDirty);
     return () => onDirtyChange(false);
   }, [instructionsDirty, reviewsDirty, onDirtyChange]);
@@ -167,7 +167,7 @@ function InstructionsForm({
   const action = useAction();
   const client = useQueryClient();
   const dirty = instructions !== saved.instructions;
-  useEffect(() => {
+  useLayoutEffect(() => {
     onDirtyChange(dirty);
     return () => onDirtyChange(false);
   }, [dirty, onDirtyChange]);

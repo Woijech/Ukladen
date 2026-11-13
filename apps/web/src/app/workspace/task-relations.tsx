@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestJson, writeJson } from "@/shared/api";
 import { ActionFeedback, Modal, Pager, QueryState, useAction } from "@/shared/ui";
@@ -9,8 +9,9 @@ import type { Source } from "./panels/ai-api";
 import { SourceViewer } from "./panels/ai-sources";
 
 type Page = { id: string; title: string; trashed_at?: string | null };
-export function TaskRelations({ task, onSelectTask, onOpenPage }: { task: PlanningTask; onSelectTask: (id: string) => void; onOpenPage: (id: string) => void }) {
+export function TaskRelations({ task, onSelectTask, onOpenPage, onBusyChange }: { task: PlanningTask; onSelectTask: (id: string) => void; onOpenPage: (id: string) => void; onBusyChange: (busy: boolean) => void }) {
   const client = useQueryClient(); const action = useAction();
+  useLayoutEffect(() => { onBusyChange(action.busy); return () => onBusyChange(false); }, [action.busy, onBusyChange]);
   const [picker, setPicker] = useState<"tasks" | "pages" | null>(null);
   const [source, setSource] = useState<Source | null>(null);
   const [offset, setOffset] = useState(0);

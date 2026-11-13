@@ -172,6 +172,9 @@ network font downloads. The complete visual direction and decision rationale are
 - `src/app/workspace/workspace.tsx`: session boundary, group/sync flow, sidebar,
   topbar and original event renderer/forms. `navigation.tsx` owns section labels
   and the inline SVG icon set. Section navigation stays inside `/workspace`.
+- `src/instrumentation-client.ts` registers the early workspace traversal delegate;
+  `workspace-history-events.ts` connects it to the mounted location/draft guard before
+  Next.js can unmount an editor. It performs no tracking, storage or network calls.
 - `workspace/views.tsx`: dashboard, settings and section composition. The workspace
   views, note editor and database editor load lazily. Panels under `workspace/panels`
   own content forms, resources, organization and optional relations.
@@ -182,10 +185,12 @@ network font downloads. The complete visual direction and decision rationale are
 The 2026-11-11 stage-1 shell exposes grouped direct desktop links to calendar/tasks,
 notes/databases/materials and AI/organization/inbox/search/home, with settings/account
 at the foot. Links support native new-tab actions and section URLs. The shell uses
-`use-section-location.ts` for section history and compatibility with existing AI
-routes; dirty browser-history exits require explicit confirmation. Object-specific
-URL/filter/scroll restoration remains future work. Existing `?page=` links remain
-valid. Desktop navigation is 216px, the utility bar 52px; below 1280px a 64px icon
+`use-section-location.ts` for full typed location history and compatibility with existing AI
+routes. The 2026-11-13 [deep-link follow-up](../development/workspace-deep-links.md)
+adds task/page/database/view selections and calendar dates/layouts, direct owned reads,
+reload/Back/Forward restoration, dirty-edit confirmation and pending-write protection.
+Existing `?page=` links remain valid; filters and durable scroll restoration remain
+outside this slice. Desktop navigation is 216px, the utility bar 52px; below 1280px a 64px icon
 rail reserves space. At 760px and below the labelled dock and a searchable native
 navigation dialog replace the sidebar. Cmd/Ctrl+K opens a keyboard palette for
 section transitions and a handoff to the existing full-text search screen. This

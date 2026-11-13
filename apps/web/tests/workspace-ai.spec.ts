@@ -312,6 +312,24 @@ async function mockAi(page: Page) {
   return state;
 }
 
+test("browser history protects an AI settings draft before Next.js changes tabs", async ({ page }) => {
+  await mockAi(page);
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  await page.getByRole("button", { name: "Настройки AI", exact: true }).click();
+  await page.getByLabel("Личные инструкции").fill("Сохранить этот черновик");
+  await expect(page.getByLabel("Личные инструкции")).toHaveValue("Сохранить этот черновик");
+  let dialogKind = "";
+  page.once("dialog", dialog => { dialogKind = dialog.type(); return dialog.dismiss(); });
+  await page.goBack();
+  await expect.poll(() => dialogKind).toBe("confirm");
+  await expect(page).toHaveURL(/tab=settings/);
+  await expect(page.getByLabel("Личные инструкции")).toHaveValue("Сохранить этот черновик");
+  page.once("dialog", dialog => dialog.accept());
+  await page.goBack();
+  await expect(page.getByLabel("Сообщение AI")).toBeVisible();
+  await expect(page.getByLabel("Личные инструкции")).not.toBeVisible();
+});
+
 for (const width of [320, 390, 834, 1440]) {
   test(`AI transcript and settings use the shared design system at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: width <= 390 ? 844 : 1000 });

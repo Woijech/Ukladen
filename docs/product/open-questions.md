@@ -1,11 +1,18 @@
 # Product Decisions and Open Questions
 
-Updated: 2026-10-29.
+Updated: 2026-11-13.
 Status: decision register. Owner-confirmed scope is distinguished from open design
 choices. Proposed defaults are not owner confirmation; resolve relevant unknowns
 before implementing incompatible schemas, integrations or behavior.
 
 ## Confirmed direction
+
+- On 2026-11-13 the owner requested canonical workspace object/date/layout links,
+  reload/Back/Forward restoration, safe direct owned reads and retained draft/write
+  guards, with logical commits pushed to `workspace-deep-links`. The frontend-only
+  [delivery contract](../development/workspace-deep-links.md) preserves legacy page
+  links and existing AI routes. Filters/scroll, crash recovery and new backend/AI
+  phases are not included.
 
 - Combine a freely organized workspace/calendar with AI and public IIS schedule integration.
 - Standalone pages and events work without academic context; organization is optional.
