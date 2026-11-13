@@ -98,6 +98,7 @@ def test_http_owner_safe_fields_and_openapi(
         {"locale": "fr"},
         {"display_name": " "},
         {"timezone": "secret-invalid-zone"},
+        {"timezone": "UTC"},
     ],
 )
 def test_transport_errors_are_safe(
@@ -219,7 +220,11 @@ def test_live_google_profile_requires_password_setup(
     assert response.status_code == 200
     profile = response.json()
     assert profile["email_verified_at"] is not None
-    assert (profile["display_name"], profile["timezone"], profile["locale"]) == (None, "UTC", "ru")
+    assert (profile["display_name"], profile["timezone"], profile["locale"]) == (
+        None,
+        "Europe/Minsk",
+        "ru",
+    )
     response = live_client.patch(URL, headers=csrf_headers(live_client), json={"locale": "en"})
     assert response.status_code == 200 and response.json()["locale"] == "en"
     after = snapshot(concurrent_engine)
@@ -253,7 +258,11 @@ def test_live_profile_persistence_ownership_and_auth_preservation(
     response = live_client.get(URL)
     assert response.status_code == 200 and set(response.json()) == FIELDS
     profile = response.json()
-    assert (profile["display_name"], profile["timezone"], profile["locale"]) == (None, "UTC", "ru")
+    assert (profile["display_name"], profile["timezone"], profile["locale"]) == (
+        None,
+        "Europe/Minsk",
+        "ru",
+    )
     assert profile["email_verified_at"] is not None
     assert datetime.fromisoformat(profile["created_at"]).utcoffset() is not None
     assert snapshot(concurrent_engine) == initial
@@ -262,7 +271,7 @@ def test_live_profile_persistence_ownership_and_auth_preservation(
         {"display_name": " Alex "},
         {"timezone": "Europe/Minsk"},
         {"locale": "en"},
-        {"display_name": "Bob", "timezone": "Asia/Tokyo", "locale": "ru"},
+        {"display_name": "Bob", "timezone": "Europe/Minsk", "locale": "ru"},
         {"display_name": None},
     ):
         response = live_client.patch(URL, headers=headers, json=patch)
@@ -293,7 +302,7 @@ def test_live_profile_persistence_ownership_and_auth_preservation(
     assert live_client.cookies.get(SESSION_COOKIE) == token
     browser_login(live_client, "other@example.com")
     assert live_client.get(URL).json()["id"] == str(other_before["id"])
-    assert live_client.get(URL).json()["timezone"] == "UTC"
+    assert live_client.get(URL).json()["timezone"] == "Europe/Minsk"
 
 
 @pytest.mark.parametrize("method", ["get", "patch"])

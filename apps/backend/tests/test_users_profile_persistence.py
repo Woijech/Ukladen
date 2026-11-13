@@ -84,7 +84,11 @@ def test_migration_preserves_existing_password_and_google_accounts(
     with Session(database_connection, join_transaction_mode="create_savepoint") as database:
         for user_id in ids:
             profile = ProfileService(SqlAlchemyProfileRepository(database)).get(user_id)
-            assert (profile.display_name, profile.timezone, profile.locale) == (None, "UTC", "ru")
+            assert (profile.display_name, profile.timezone, profile.locale) == (
+                None,
+                "Europe/Minsk",
+                "ru",
+            )
             original = next(row for row in before["users"] if row["id"] == user_id)
             assert (
                 profile.created_at == original["created_at"]
@@ -93,7 +97,11 @@ def test_migration_preserves_existing_password_and_google_accounts(
         # The existing registration port needs no new input after upgrade.
         new_id = SqlAlchemyUserRegistration(database).create("new@example.com")
         profile = ProfileService(SqlAlchemyProfileRepository(database)).get(new_id)
-        assert (profile.display_name, profile.timezone, profile.locale) == (None, "UTC", "ru")
+        assert (profile.display_name, profile.timezone, profile.locale) == (
+            None,
+            "Europe/Minsk",
+            "ru",
+        )
         database.rollback()
     command.downgrade(config, "0002_auth_persistence")
     assert stored_auth() == before
@@ -200,7 +208,7 @@ def test_concurrent_partial_updates_preserve_unrelated_fields(
         user = database.get(UserModel, user_id)
         assert user
         if first_outcome == "rollback":
-            assert (user.display_name, user.timezone, user.locale) == (None, "UTC", "en")
+            assert (user.display_name, user.timezone, user.locale) == (None, "Europe/Minsk", "en")
         else:
             assert (user.display_name, user.timezone, user.locale) == (
                 "Alex",

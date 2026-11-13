@@ -12,13 +12,15 @@ contracts. Email/password changes and session management remain in auth.
 | Field | Default | Validation |
 | --- | --- | --- |
 | `display_name` | `null` | String trimmed with Python `str.strip()`, 1–100 characters after trimming, or explicit null to clear. |
-| `timezone` | `UTC` | Nonempty string accepted by standard-library `zoneinfo.ZoneInfo`; unknown identifiers and null are rejected. |
+| `timezone` | `Europe/Minsk` | Only `Europe/Minsk` is accepted. |
 | `locale` | `ru` | Exactly `ru` or `en`; null is rejected. |
 
 The backend image already includes system timezone data. Runtime verification
 checked `UTC`, `Europe/Minsk` and `America/New_York`; no timezone package or image
 change was required. Keep timezone data available when changing the base image.
-Timezone is a stored preference; API timestamps remain timezone-aware instants.
+Migration 0042 changes existing profiles to Minsk without changing event instants.
+API timestamps remain timezone-aware instants. Downgrading the migration does not
+restore previous profile timezones.
 
 ## Endpoints and security
 
@@ -46,7 +48,7 @@ and JSON token through `GET /api/v1/auth/csrf`. Both endpoints return HTTP 200 w
 ```
 
 Values above are illustrative; IDs and timestamps come from the stored account.
-New or migrated accounts initially return `display_name: null`, `timezone: UTC`
+New accounts initially return `display_name: null`, `timezone: Europe/Minsk`
 and `locale: ru`. Unverified active users and Google-only accounts are eligible.
 The response contains no credentials, tokens, hashes or internal auth records.
 `avatar_url` is null when no avatar exists, otherwise `/api/v1/users/me/avatar`.

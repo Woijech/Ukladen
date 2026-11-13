@@ -1093,15 +1093,16 @@ test("page attachment removal preserves material and block content", async ({
   expect(state.writes.map((item) => item.method)).toEqual(["PUT", "DELETE"]);
 });
 
-test("profile edits refresh calendar timezone without changing event instants", async ({
+test("profile edits preserve Minsk calendar time and event instants", async ({
   page,
 }) => {
   const { state, workspace } = await contentWorkspace(page);
+  workspace.timezone = "Europe/Minsk";
   const user = {
     id: workspace.userId,
     email: "test@example.com",
     display_name: null as string | null,
-    timezone: "UTC",
+    timezone: "Europe/Minsk",
     locale: "ru",
     avatar_url: null,
     updated_at: "2026-10-16T08:00:00Z",
@@ -1118,7 +1119,7 @@ test("profile edits refresh calendar timezone without changing event instants", 
   });
   await section(page, "Настройки");
   await page.getByLabel("Имя", { exact: true }).fill("Александра");
-  await page.getByLabel("Часовой пояс календаря").selectOption("Europe/Minsk");
+  await expect(page.getByText("Часовой пояс: Минск (Europe/Minsk).")).toBeVisible();
   await page.getByRole("button", { name: "Сохранить профиль" }).click();
   await expect(
     page.getByRole("button", { name: "Профиль в боковой панели" }),
@@ -1137,7 +1138,7 @@ test("profile edits refresh calendar timezone without changing event instants", 
     {
       path: "/api/v1/users/me",
       method: "PATCH",
-      body: { display_name: "Александра", timezone: "Europe/Minsk" },
+      body: { display_name: "Александра" },
     },
   ]);
 });

@@ -256,10 +256,9 @@ function SettingsPanel({ onChooseGroup, onDirtyChange }: { onChooseGroup: () => 
   );
 }
 function ProfileForm({ profile, onDirtyChange }: { profile: Profile; onDirtyChange: (dirty: boolean) => void }) {
-  const [timeZone, setTimeZone] = useState(profile.timezone);
   const [name, setName] = useState(profile.display_name ?? "");
-  const [confirmed, setConfirmed] = useState({ name: profile.display_name ?? "", timeZone: profile.timezone });
-  const dirty = name !== confirmed.name || timeZone !== confirmed.timeZone;
+  const [confirmed, setConfirmed] = useState(profile.display_name ?? "");
+  const dirty = name !== confirmed;
   const dirtyCallback = useRef(onDirtyChange);
   useEffect(() => { dirtyCallback.current = onDirtyChange; }, [onDirtyChange]);
   useEffect(() => {
@@ -270,9 +269,6 @@ function ProfileForm({ profile, onDirtyChange }: { profile: Profile; onDirtyChan
   }, [dirty]);
   const action = useAction();
   const client = useQueryClient();
-  const zones = Array.from(
-    new Set(["UTC", profile.timezone, ...Intl.supportedValuesOf("timeZone")]),
-  );
   return (
     <form
       className="panel profile-form"
@@ -282,9 +278,8 @@ function ProfileForm({ profile, onDirtyChange }: { profile: Profile; onDirtyChan
         void action.run(async () => {
           await writeJson("/api/v1/users/me", "PATCH", {
             display_name: values.get("name") || null,
-            timezone: timeZone,
           });
-          setConfirmed({ name, timeZone });
+          setConfirmed(name);
           await client.invalidateQueries({ queryKey: ["settings-profile"] });
           window.dispatchEvent(new Event("ukladen:profile-updated"));
         });
@@ -301,29 +296,11 @@ function ProfileForm({ profile, onDirtyChange }: { profile: Profile; onDirtyChan
         id="profile-name"
         name="name"
         value={name}
-        onChange={event => { setName(event.target.value); dirtyCallback.current(event.target.value !== confirmed.name || timeZone !== confirmed.timeZone); }}
+        onChange={event => { setName(event.target.value); dirtyCallback.current(event.target.value !== confirmed); }}
         maxLength={100}
         placeholder="Как к тебе обращаться?"
       />
-      <label className="field-label" htmlFor="profile-timezone">
-        Часовой пояс календаря
-      </label>
-      <select
-        className="ui-input"
-        id="profile-timezone"
-        value={timeZone}
-        onChange={event => { setTimeZone(event.target.value); dirtyCallback.current(name !== confirmed.name || event.target.value !== confirmed.timeZone); }}
-      >
-        {zones.map((zone) => (
-          <option key={zone} value={zone}>
-            {zone}
-          </option>
-        ))}
-      </select>
-      <p className="muted">
-        Изменяет отображение дат. Сохранённые события остаются в своих исходных
-        моментах времени.
-      </p>
+      <p className="muted">Часовой пояс: Минск (Europe/Minsk).</p>
       <ActionFeedback error={dirty ? action.error : ""} notice="" />
       <p className="profile-save-state muted" role="status">{action.busy ? "Сохраняем…" : dirty ? action.error ? "Ошибка сохранения" : "Есть изменения" : "Сохранено"}</p>
       <button className="primary-button" disabled={action.busy || !dirty}>

@@ -177,7 +177,7 @@ calls calendar. Deleting a view preserves content.
 
 Date-only values remain inclusive calendar dates; offset-aware timed values normalize
 to UTC. Optional timed ends are exclusive and strictly later; no end means one instant.
-The profile's IANA timezone defines the requested date window, including DST. A
+The profile timezone is fixed to `Europe/Minsk` and defines the requested date window. A
 projection always has `blocks_time: false`. Recurring/all-day personal events and
 task deadlines remain separate, unimplemented slices under Q-05/07. See
 [database contracts](../development/databases.md) for bounds and error behavior.

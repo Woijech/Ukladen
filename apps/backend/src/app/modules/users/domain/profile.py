@@ -2,7 +2,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 class ProfileUnavailable(Exception):
@@ -42,10 +41,8 @@ def normalize_profile_changes(changes: Mapping[str, object]) -> dict[str, str | 
             if not 1 <= len(value) <= 100:
                 raise InvalidProfile("Invalid display name.")
         elif field == "timezone":
-            try:
-                ZoneInfo(value)
-            except ZoneInfoNotFoundError, ValueError:
-                raise InvalidProfile("Invalid timezone.") from None
+            if value != "Europe/Minsk":
+                raise InvalidProfile("Only Europe/Minsk is supported.")
         elif value not in {"ru", "en"}:
             raise InvalidProfile("Invalid locale.")
         result[field] = value

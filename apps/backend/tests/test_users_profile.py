@@ -31,6 +31,8 @@ from app.modules.users.presentation.schemas import ProfilePatch, ProfileResponse
         {"timezone": "../UTC"},
         {"timezone": "/etc/passwd"},
         {"timezone": " UTC "},
+        {"timezone": "UTC"},
+        {"timezone": "America/New_York"},
         {"timezone": 1},
         {"locale": None},
         {"locale": ""},
@@ -69,8 +71,6 @@ def test_invalid_changes_are_rejected_at_both_boundaries(changes: dict[str, obje
         ({"display_name": " \u00a0" + "я" * 100 + " "}, {"display_name": "я" * 100}),
         ({"display_name": None}, {"display_name": None}),
         ({"timezone": "Europe/Minsk"}, {"timezone": "Europe/Minsk"}),
-        ({"timezone": "America/New_York"}, {"timezone": "America/New_York"}),
-        ({"timezone": "UTC"}, {"timezone": "UTC"}),
         ({"locale": "en"}, {"locale": "en"}),
         ({"locale": "ru"}, {"locale": "ru"}),
         (

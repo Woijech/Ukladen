@@ -248,8 +248,8 @@ Lucide, Motion and rich-editor packages are not required by this implementation.
 - The inbox supports unread filtering/read marking. Event details create one-shot
   reminders; the pending list displays the latest 50 and permits cancellation.
   Task deadlines, recurring reminders and other delivery channels are unavailable.
-- Settings edit display name/timezone and upload/delete a private avatar. Timezone
-  changes refresh the session/calendar without rewriting event instants. Avatar
+- Settings edit display name and upload/delete a private avatar. The timezone is
+  fixed to Europe/Minsk without rewriting event instants. Avatar
   files use the existing raw API and limits, never public optimized-image caching.
 
 Actions show pending/success/error feedback and recoverable destructive operations
