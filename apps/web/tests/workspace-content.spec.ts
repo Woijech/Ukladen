@@ -1489,7 +1489,7 @@ test("dragging blocks preserves their IDs and a copied page link opens the owned
     page.getByText("Ссылка скопирована", { exact: true }),
   ).toBeVisible();
   const link = await page.evaluate(() => navigator.clipboard.readText());
-  expect(link).toBe(`${testOrigin}/workspace?page=${pageId}`);
+  expect(link).toBe(`${testOrigin}/workspace?section=notes&page=${pageId}`);
   await page.goto(link);
   await expect(
     page.getByLabel("Название страницы", { exact: true }),
@@ -1830,6 +1830,9 @@ test("browser back can retain a dirty page and leave after explicit confirmation
   await expect(page).toHaveURL(/section=notes/);
   await expect(page.getByLabel("Текст блока 1")).toHaveValue("Keep this draft");
   page.once("dialog", dialog => dialog.accept());
+  await page.goBack();
+  await expect(page).toHaveURL(/\/workspace\?section=notes$/);
+  await expect(page.getByLabel("Текст блока 1")).not.toBeVisible();
   await page.goBack();
   await expect(page.locator(".calendar-card")).toBeVisible();
 });

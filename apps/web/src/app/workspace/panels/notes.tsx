@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageAttachments } from "./attachments";
 import { positionNoteMenu } from "./note-menu";
+import { workspaceHref } from "../workspace-location";
+import { isUnavailableObject, UnavailableObject } from "../unavailable-object";
 import { NoteBlocks } from "./note-blocks";
 import { useNoteDraft } from "./use-note-draft";
 import "./notes.css";
@@ -44,7 +46,7 @@ export type Block =
 export type Note = PageSummary & { document: { schema_version: 1; blocks: Block[] } };
 type PageList = { items: PageSummary[]; limit: number; offset: number };
 
-type Destination = { id: string; action?: "move" | "trash" | "restore" };
+type Destination = { id: string | null; action?: "move" | "trash" | "restore" };
 
 // shortcut: load all summaries for complete nesting; use lazy branches for large libraries.
 async function pageSummaries(trashed: boolean, signal: AbortSignal) {
@@ -60,13 +62,17 @@ async function pageSummaries(trashed: boolean, signal: AbortSignal) {
 }
 
 export function NotesPanel({
-  initialPage,
+  selectedId,
+  onSelectPage,
+  onBusyChange,
   onDirtyChange,
 }: {
-  initialPage: string | null;
+  selectedId: string | null;
+  onSelectPage: (id: string | null) => void;
+  onBusyChange: (busy: boolean) => void;
   onDirtyChange: (dirty: boolean) => void;
 }) {
-  const [selected, setSelected] = useState<string | null>(initialPage);
+  const selected = selectedId;
   const [trashed, setTrashed] = useState(false);
   const [creating, setCreating] = useState<{ parent: string | null } | null>(
     null,
@@ -108,7 +114,9 @@ export function NotesPanel({
     queryFn: ({ signal }) =>
       requestJson<Note>(`/api/v1/notes/pages/${selected}`, { signal }),
     enabled: !!selected,
+    retry: false,
   });
+  useEffect(() => { onBusyChange(busy || action.busy); return () => onBusyChange(false); }, [busy, action.busy, onBusyChange]);
   const dirtyCallback = useRef(onDirtyChange);
   const mounted = useRef(true);
   useEffect(() => { dirtyCallback.current = onDirtyChange; }, [onDirtyChange]);
@@ -123,7 +131,7 @@ export function NotesPanel({
     if (mounted.current) dirtyCallback.current(value || Boolean(creating && createTitle.trim()));
   }
   function go(destination: Destination) {
-    setSelected(destination.id);
+    onSelectPage(destination.id);
     setIntent(destination);
     setPending(null);
     setTreeOpen(false);
@@ -403,11 +411,11 @@ export function NotesPanel({
         <div className="note-canvas">
           {selected ? (
             <>
-              <QueryState
+              {isUnavailableObject(note.error) ? <UnavailableObject onBack={() => go({ id: null })} /> : <QueryState
                 pending={note.isPending}
                 error={note.error}
                 retry={() => void note.refetch()}
-              />
+              />}
               {note.data && (
                 <NoteEditor
                   key={note.data.id}
@@ -664,8 +672,7 @@ function NoteEditor({
                 <button
                   type="button"
                   onClick={async () => {
-                    const url = new URL("/workspace", window.location.origin);
-                    url.searchParams.set("page", note.id);
+                    const url = new URL(workspaceHref({ section: "notes", pageId: note.id }), window.location.origin);
                     try {
                       await navigator.clipboard.writeText(url.href);
                       setCopyNotice("Ссылка скопирована");

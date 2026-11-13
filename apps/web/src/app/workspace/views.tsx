@@ -27,11 +27,14 @@ const TasksPanel = dynamic(() =>
 import { OrganizationPanel, type EventTarget } from "./panels/organization";
 import type { SectionKey } from "./navigation";
 import "./utility-workspace.css";
+import type { WorkspaceLocation } from "./workspace-location";
 
 type ViewProps = {
   section: SectionKey;
   timeZone: string;
-  pageToOpen: string | null;
+  location: WorkspaceLocation;
+  onLocationChange: (location: WorkspaceLocation, replace?: boolean) => void;
+  onBusyChange: (busy: boolean) => void;
   onOpenPage: (id: string) => void;
   onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
   onNavigate: (section: SectionKey) => void;
@@ -49,12 +52,13 @@ export function WorkspaceViews(props: ViewProps) {
       </Suspense>
     );
   if (section === "tasks")
-    return <TasksPanel timeZone={timeZone} onSessionEnd={props.onSessionEnd} onOpenPage={onOpenPage} onDirtyChange={props.onDirtyChange} />;
+    return <TasksPanel selectedId={props.location.taskId ?? null} onSelectTask={id => props.onLocationChange({ section: "tasks", taskId: id ?? undefined })} onBusyChange={props.onBusyChange} timeZone={timeZone} onSessionEnd={props.onSessionEnd} onOpenPage={onOpenPage} onDirtyChange={props.onDirtyChange} />;
   if (section === "notes")
     return (
       <NotesPanel
-        key={props.pageToOpen}
-        initialPage={props.pageToOpen}
+        selectedId={props.location.pageId ?? null}
+        onSelectPage={id => props.onLocationChange({ section: "notes", pageId: id ?? undefined })}
+        onBusyChange={props.onBusyChange}
         onDirtyChange={props.onDirtyChange}
       />
     );

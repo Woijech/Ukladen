@@ -990,13 +990,10 @@ function CalendarWorkspace({
   onboarding: boolean;
 }) {
   const queryClient = useQueryClient();
-  const [linkedPage] = useState(() => {
-    const value = new URLSearchParams(window.location.search).get("page");
-    return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ? value : null;
-  });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavigation, setMobileNavigation] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [panelBusy, setPanelBusy] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
   const [moveTarget, setMoveTarget] = useState<CalendarEvent | null>(null);
   const [moveDraft, setMoveDraft] = useState<{ starts_at: string; ends_at: string } | null>(null);
@@ -1019,8 +1016,8 @@ function CalendarWorkspace({
     return () => window.removeEventListener("keydown", shortcuts);
   }, []);
   const [pendingLocation, setPendingLocation] = useState<{ location: WorkspaceLocation; replace: boolean } | null>(null);
-  const [pageToOpen, setPageToOpen] = useState<string | null>(linkedPage);
   const navigationVersion = useRef(0);
+  useEffect(() => { navigationVersion.current++; }, [workspaceLocation]);
   function navigateTo(next: WorkspaceLocation, replace = false) {
     if (navigationProtection.current.busy) {
       setToast("Дождись завершения сохранения перед переходом.");
@@ -1043,8 +1040,7 @@ function CalendarWorkspace({
       : { section: next, query: search });
   }
   function openPage(id: string) {
-    setPageToOpen(id);
-    navigate("notes");
+    navigateTo({ section: "notes", pageId: id });
   }
   const calendarScroll = useRef<HTMLDivElement>(null);
   const [calendarMemory, setCalendarMemory] = useState(() => ({
@@ -1255,9 +1251,9 @@ function CalendarWorkspace({
   useEffect(() => {
     navigationProtection.current = {
       dirty: dirty || (showEventForm && eventFormSnapshot.current !== JSON.stringify([title, location, description, startValue, endValue, startInstant, endInstant])),
-      busy: saving || resizeBusy || deletingEvent,
+      busy: panelBusy || saving || resizeBusy || deletingEvent,
     };
-  }, [dirty, showEventForm, title, location, description, startValue, endValue, startInstant, endInstant, saving, resizeBusy, deletingEvent]);
+  }, [dirty, showEventForm, title, location, description, startValue, endValue, startInstant, endInstant, panelBusy, saving, resizeBusy, deletingEvent]);
   const startOptions = useMemo(
     () => localInstants(startValue, timeZone, editingEvent?.starts_at),
     [startValue, timeZone, editingEvent?.starts_at],
@@ -2165,7 +2161,9 @@ function CalendarWorkspace({
               key={discardVersion}
               section={section}
               timeZone={timeZone}
-              pageToOpen={pageToOpen}
+              location={workspaceLocation}
+              onLocationChange={commitLocation}
+              onBusyChange={setPanelBusy}
               onOpenPage={openPage}
               onOpenEvent={openLinkedEvent}
               onNavigate={navigate}
@@ -2418,7 +2416,9 @@ function CalendarWorkspace({
             </button>
             <button
               className="danger-button"
+              disabled={panelBusy || saving || resizeBusy || deletingEvent}
               onClick={() => {
+                if (navigationProtection.current.busy) return;
                 setDirty(false);
                 discardDrafts();
                 commitLocation(pendingLocation.location, pendingLocation.replace);

@@ -8,6 +8,7 @@ import { Modal } from "@/shared/ui";
 import "./tasks-panel.css";
 import { PlanningButton } from "./task-planning";
 import { TaskRelations } from "./task-relations";
+import { isUnavailableObject, UnavailableObject } from "./unavailable-object";
 
 import { TaskRows, TaskPropertyEditor, statusLabels, priorityLabels, type Task, type TaskSummary, type TaskPatch, type TaskField, type Status, type Priority, type PatchTask } from "./task-controls";
 
@@ -33,8 +34,9 @@ async function writeTask(path: string, method: "POST" | "PATCH", payload: Record
   return writeJson<Task>(path, method, payload);
 }
 
-function TaskForm({ task, parentId, initialTitle = "", timeZone, onClose, onSaved, onSessionEnd, onDirtyChange }: {
+function TaskForm({ task, parentId, initialTitle = "", timeZone, onClose, onSaved, onSessionEnd, onDirtyChange, onBusyChange }: {
   onDirtyChange: (dirty: boolean) => void;
+  onBusyChange: (busy: boolean) => void;
   task: Task | null; parentId: string | null; initialTitle?: string; timeZone: string; onClose: () => void; onSaved: (saved: Task) => void; onSessionEnd: () => void;
 }) {
   const [snapshot, setSnapshot] = useState(task);
@@ -101,6 +103,7 @@ function TaskForm({ task, parentId, initialTitle = "", timeZone, onClose, onSave
   const [initialDraft, setInitialDraft] = useState(() => JSON.stringify([task?.title ?? initialTitle, task?.description ?? "", task?.status ?? "todo", task?.priority ?? "normal", deadline, remaining, estimate]));
   const dirty = JSON.stringify([title, description, status, priority, deadline, remaining, estimate]) !== initialDraft;
   useEffect(() => { onDirtyChange(dirty || busy); return () => onDirtyChange(false); }, [dirty, busy, onDirtyChange]);
+  useEffect(() => { onBusyChange(busy); return () => onBusyChange(false); }, [busy, onBusyChange]);
   function close() {
     if (busy) return;
     if (!dirty || window.confirm("Закрыть без сохранения изменений задачи?")) onClose();
@@ -130,11 +133,12 @@ function TaskForm({ task, parentId, initialTitle = "", timeZone, onClose, onSave
   </Modal>;
 }
 
-function ParentPicker({ task, onClose, onMoved, onSessionEnd }: { task: Task; onClose: () => void; onMoved: (saved: Task) => void; onSessionEnd: () => void }) {
+function ParentPicker({ task, onClose, onMoved, onSessionEnd, onBusyChange }: { task: Task; onClose: () => void; onMoved: (saved: Task) => void; onSessionEnd: () => void; onBusyChange: (busy: boolean) => void }) {
   const [offset, setOffset] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const query = useQuery({ queryKey: ["tasks-parent-picker", offset], queryFn: ({ signal }) => requestJson<TaskList>(taskListPath(offset), { signal }), retry: false });
+  useEffect(() => { onBusyChange(busy); return () => onBusyChange(false); }, [busy, onBusyChange]);
 
   async function move(parentId: string | null) {
     setBusy(true); setError("");
@@ -156,7 +160,9 @@ function ParentPicker({ task, onClose, onMoved, onSessionEnd }: { task: Task; on
   </Modal>;
 }
 
-function TaskDetails({ id, timeZone, onSelect, onCreateChild, onEdit, onUpdated, onTrashed, onRestored, onSessionEnd, onOpenPage, onPatch, onQuickChild, onProperty, onDirtyChange }: {
+function TaskDetails({ id, timeZone, onSelect, onBack, onCreateChild, onEdit, onUpdated, onTrashed, onRestored, onSessionEnd, onOpenPage, onPatch, onQuickChild, onProperty, onDirtyChange, onBusyChange }: {
+  onBack: () => void;
+  onBusyChange: (busy: boolean) => void;
   onOpenPage: (id: string) => void;
   onDirtyChange: (id: string, dirty: boolean) => void;
   onPatch: PatchTask; onQuickChild: (title: string, parentId?: string) => Promise<boolean>;
@@ -171,17 +177,20 @@ function TaskDetails({ id, timeZone, onSelect, onCreateChild, onEdit, onUpdated,
   function closeDescription() { setDescriptionEditing(false); requestAnimationFrame(() => descriptionTrigger.current?.focus({ preventScroll: true })); }
   const [childTitle, setChildTitle] = useState("");
   const [inlineBusy, setInlineBusy] = useState(false);
+  const [moveBusy, setMoveBusy] = useState(false);
   const objectMenu = useRef<HTMLDetailsElement>(null);
   const [showPicker, setShowPicker] = useState(false);
   const [confirmTrash, setConfirmTrash] = useState(false);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
   const detail = useQuery({ queryKey: ["task-detail", id], queryFn: ({ signal }) => requestJson<Task>(`/api/v1/tasks/${id}`, { signal }), retry: false });
+  useEffect(() => { onBusyChange(busy || inlineBusy || moveBusy); return () => onBusyChange(false); }, [busy, inlineBusy, moveBusy, onBusyChange]);
   const children = useQuery({ queryKey: ["task-children", id, childrenOffset], queryFn: ({ signal }) => requestJson<TaskList>(taskListPath(childrenOffset, "all", "all", id), { signal }), enabled: detail.data?.trashed_at === null, retry: false });
   const parent = useQuery({ queryKey: ["task-detail", detail.data?.parent_id], queryFn: ({ signal }) => requestJson<Task>(`/api/v1/tasks/${detail.data?.parent_id}`, { signal }), enabled: Boolean(detail.data?.parent_id), retry: false });
   useEffect(() => { onDirtyChange(`description:${id}`, descriptionEditing && descriptionDraft !== (detail.data?.description ?? "")); return () => onDirtyChange(`description:${id}`, false); }, [id, descriptionEditing, descriptionDraft, detail.data?.description, onDirtyChange]);
   useEffect(() => { onDirtyChange(`child:${id}`, Boolean(childTitle.trim())); return () => onDirtyChange(`child:${id}`, false); }, [id, childTitle, onDirtyChange]);
   if (detail.isPending) return <section className="task-detail" role="status">Загружаем задачу…</section>;
+  if (isUnavailableObject(detail.error)) return <UnavailableObject onBack={onBack} />;
   if (detail.isError) return <section className="task-detail"><div className="task-error" role="alert">{detail.error instanceof Error ? detail.error.message : "Не удалось открыть задачу."} <button onClick={() => void detail.refetch()}>Повторить</button></div></section>;
   const task = detail.data;
   const canRestore = task.trashed_at !== null && task.trash_batch_id === task.id;
@@ -227,17 +236,19 @@ function TaskDetails({ id, timeZone, onSelect, onCreateChild, onEdit, onUpdated,
     {children.data && (childrenOffset > 0 || children.data.items.length === pageSize) && <div className="task-pagination"><button type="button" disabled={childrenOffset === 0} onClick={() => setChildrenOffset(childrenOffset - pageSize)}>Назад</button><span>Страница {childrenOffset / pageSize + 1}</span><button type="button" disabled={children.data.items.length < pageSize} onClick={() => setChildrenOffset(childrenOffset + pageSize)}>Далее</button></div>}
     <PlanningButton timezone={timeZone} taskId={task.id} label="Сессии и планирование задачи" />
     <TaskRelations task={task} onSelectTask={onSelect} onOpenPage={onOpenPage} />
-    {showPicker && <ParentPicker task={task} onClose={() => { setShowPicker(false); void detail.refetch(); }} onMoved={saved => { setShowPicker(false); onUpdated(saved); }} onSessionEnd={onSessionEnd} />}
+    {showPicker && <ParentPicker task={task} onClose={() => { setShowPicker(false); void detail.refetch(); }} onMoved={saved => { setShowPicker(false); onUpdated(saved); }} onSessionEnd={onSessionEnd} onBusyChange={setMoveBusy} />}
     </>}
   </section>;
 }
 
-export function TasksPanel({ timeZone, onSessionEnd, onOpenPage, onDirtyChange }: { timeZone: string; onSessionEnd: () => void; onOpenPage: (id: string) => void; onDirtyChange: (dirty: boolean) => void }) {
+export function TasksPanel({ selectedId, onSelectTask, onBusyChange, timeZone, onSessionEnd, onOpenPage, onDirtyChange }: { selectedId: string | null; onSelectTask: (id: string | null) => void; onBusyChange: (busy: boolean) => void; timeZone: string; onSessionEnd: () => void; onOpenPage: (id: string) => void; onDirtyChange: (dirty: boolean) => void }) {
   const client = useQueryClient();
   const [view, setView] = useState<"active" | "trash">("active");
   const [status, setStatus] = useState<TaskFilter>("all");
   const [priority, setPriority] = useState<PriorityFilter>("all");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const setSelectedId = onSelectTask;
+  const [detailBusy, setDetailBusy] = useState(false);
+  const [formBusy, setFormBusy] = useState(false);
   const [form, setForm] = useState<{ task: Task | null; parentId: string | null; initialTitle?: string } | null>(null);
   const [property, setProperty] = useState<{ task: TaskSummary; field: TaskField; position: CSSProperties } | null>(null);
   const [sort, setSort] = useState("created");
@@ -247,6 +258,7 @@ export function TasksPanel({ timeZone, onSessionEnd, onOpenPage, onDirtyChange }
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [quickTitle, setQuickTitle] = useState("");
   const [quickBusy, setQuickBusy] = useState(false);
+  useEffect(() => { onBusyChange(quickBusy || detailBusy || formBusy); return () => onBusyChange(false); }, [quickBusy, detailBusy, formBusy, onBusyChange]);
   const [quickError, setQuickError] = useState("");
   const [undo, setUndo] = useState<{ task: TaskSummary; changes: TaskPatch } | null>(null);
   const [draftReset, setDraftReset] = useState(0);
@@ -268,6 +280,7 @@ export function TasksPanel({ timeZone, onSessionEnd, onOpenPage, onDirtyChange }
     return () => { window.removeEventListener("beforeunload", unload); dirtyCallback.current(false); };
   }, []);
   function canChangeList() {
+    if (quickBusy || detailBusy || formBusy) return false;
     if (![...dirtyDrafts.current].some(id => id !== "quick")) return true;
     if (!window.confirm("Изменить список без сохранения правок задачи?")) return false;
     setDraftReset(value => value + 1);
@@ -386,9 +399,9 @@ export function TasksPanel({ timeZone, onSessionEnd, onOpenPage, onDirtyChange }
         </div>
         {view === "active" && <form className="task-quick-add" onSubmit={event => { event.preventDefault(); void addTask(quickTitle); }}><label className="task-quick-field"><span className="sr-only">Быстро добавить задачу</span><input name="quick-task-title" autoComplete="off" ref={quickInput} placeholder="+ Добавить задачу…" maxLength={200} required pattern={".*\\S.*"} value={quickTitle} disabled={quickBusy} onChange={event => setQuickTitle(event.target.value)} onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); setQuickTitle(""); } }} /></label><button type="submit" className="task-secondary" disabled={quickBusy || !quickTitle.trim()}>{quickBusy ? "Сохраняем…" : "Добавить"}</button><button type="button" className="text-action" onClick={() => setForm({ task: null, parentId: null, initialTitle: quickTitle })}>Подробнее</button></form>}
       </section>
-      {selectedId && <div className="task-detail-surface"><button type="button" className="task-back text-action" onClick={back}>← К списку задач</button><TaskDetails onDirtyChange={markDirty} key={`${selectedId}:${draftReset}`} id={selectedId} timeZone={timeZone} onOpenPage={onOpenPage} onSelect={handleSelectTask} onCreateChild={parentId => setForm({ task: null, parentId })} onEdit={task => setForm({ task, parentId: null })} onUpdated={updated} onPatch={(task, changes) => patchTask(task, changes)} onQuickChild={addTask} onProperty={(task, field, trigger) => openProperty(task, field, trigger)} onTrashed={task => changedTrash(task, "trash")} onRestored={task => changedTrash(task, "active")} onSessionEnd={onSessionEnd} /></div>}
+      {selectedId && <div className="task-detail-surface"><button type="button" className="task-back text-action" onClick={back}>← К списку задач</button><TaskDetails onBack={back} onBusyChange={setDetailBusy} onDirtyChange={markDirty} key={`${selectedId}:${draftReset}`} id={selectedId} timeZone={timeZone} onOpenPage={onOpenPage} onSelect={handleSelectTask} onCreateChild={parentId => setForm({ task: null, parentId })} onEdit={task => setForm({ task, parentId: null })} onUpdated={updated} onPatch={(task, changes) => patchTask(task, changes)} onQuickChild={addTask} onProperty={(task, field, trigger) => openProperty(task, field, trigger)} onTrashed={task => changedTrash(task, "trash")} onRestored={task => changedTrash(task, "active")} onSessionEnd={onSessionEnd} /></div>}
     </div>
     {property && <TaskPropertyEditor key={`${property.task.id}:${property.task.version}:${property.field}`} {...property} timeZone={timeZone} busy={quickBusy} error={quickError} onSave={(task, changes) => patchTask(task, changes)} onReload={() => void reloadProperty()} onClose={() => setProperty(null)} />}
-    {form && <TaskForm onDirtyChange={markFormDirty} {...form} timeZone={timeZone} onClose={() => setForm(null)} onSaved={task => { if (form.initialTitle !== undefined) setQuickTitle(""); setForm(null); updated(task); setUndo(null); }} onSessionEnd={onSessionEnd} />}
+    {form && <TaskForm onBusyChange={setFormBusy} onDirtyChange={markFormDirty} {...form} timeZone={timeZone} onClose={() => setForm(null)} onSaved={task => { if (form.initialTitle !== undefined) setQuickTitle(""); setForm(null); updated(task); setUndo(null); }} onSessionEnd={onSessionEnd} />}
   </div>;
 }
