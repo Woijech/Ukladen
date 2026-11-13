@@ -70,7 +70,7 @@ export function WorkspaceViews(props: ViewProps) {
   if (section === "notifications")
     return <NotificationsPanel timeZone={timeZone} />;
   if (section === "databases")
-    return <DatabasesPanel timeZone={timeZone} onOpenPage={onOpenPage} />;
+    return <DatabasesPanel timeZone={timeZone} onOpenPage={onOpenPage} onDirtyChange={props.onDirtyChange} />;
   if (section === "organization")
     return <OrganizationPanel events={props.events} onOpenPage={onOpenPage} />;
   if (section === "settings")

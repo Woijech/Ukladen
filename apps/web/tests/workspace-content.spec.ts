@@ -423,10 +423,8 @@ async function contentWorkspace(page: Page) {
       return list([organization]);
     if (path === `/api/v1/workspace/collections/${organizationId}/members`)
       return list(state.members);
-    if (
-      path ===
-      `/api/v1/workspace/collections/${organizationId}/members/page/${pageId}`
-    ) {
+    if (path.startsWith(`/api/v1/workspace/collections/${organizationId}/members/page/`)) {
+      const memberPageId = path.split("/").at(-1)!;
       state.members =
         method === "PUT"
           ? [
@@ -434,9 +432,9 @@ async function contentWorkspace(page: Page) {
                 membership: {
                   id: "member-1",
                   target_type: "page",
-                  target_id: pageId,
+                  target_id: memberPageId,
                 },
-                target: note,
+                target: state.pages.find(item => item.id === memberPageId)!,
               },
             ]
           : [];
@@ -636,6 +634,7 @@ test("saved table edits fetch full records and patch only touched fields, preser
   await page.getByRole("button", { name: /Учебные проекты/ }).click();
   await page.getByRole("button", { name: /Краткий вид/ }).click();
   await expect(page.locator(".records-table th")).toHaveCount(3);
+  await page.getByLabel("Действия записи Идеи для проекта", { exact: true }).click();
   await page.getByRole("button", { name: "Изменить", exact: true }).click();
   await page.getByLabel("Описание", { exact: true }).fill("Новое описание");
   await page
@@ -1974,3 +1973,76 @@ test("inline page capture participates in the workspace dirty navigation guard",
   await expect(page.getByRole("heading", { name: "Задачи", exact: true })).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
+
+
+test("database cells edit only one property inline and retain failed drafts", async ({ page }) => {
+  const { state } = await contentWorkspace(page);
+  await section(page, "Базы данных");
+  await page.getByRole("button", { name: /Учебные проекты/ }).click();
+  await page.getByRole("button", { name: /Краткий вид/ }).click();
+  await page.getByRole("button", { name: "Изменить Описание: Идеи для проекта", exact: true }).click();
+  const editor = page.getByRole("form", { name: "Редактировать Описание" });
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await editor.getByLabel("Описание", { exact: true }).fill("Правка в ячейке");
+  await page.route(`**/records/${recordId}`, async route => {
+    if (route.request().method() === "PATCH") { await route.fulfill({ status: 409, json: {} }); await page.unroute(`**/records/${recordId}`); }
+    else await route.fallback();
+  });
+  await editor.getByRole("button", { name: "Сохранить запись", exact: true }).click();
+  await expect(editor.getByRole("alert")).toBeVisible();
+  await expect(editor.getByLabel("Описание", { exact: true })).toHaveValue("Правка в ячейке");
+  await editor.getByRole("button", { name: "Сохранить запись", exact: true }).click();
+  await expect(editor).toHaveCount(0);
+  expect(state.writes.find(write => write.path.endsWith(`/records/${recordId}`))?.body?.values).toEqual({ [propertyId]: "Правка в ячейке" });
+  expect(state.record.record.values[hiddenId]).toBeNull();
+});
+
+test("collection member picker reaches pages beyond the first two hundred", async ({ page }) => {
+  const { state } = await contentWorkspace(page);
+  for (let index = 0; index < 205; index++) state.pages.push({ ...state.note, id: randomUUID(), title: `Документ ${index}` });
+  await section(page, "Коллекции и теги");
+  await page.getByRole("button", { name: "Учёба", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить", exact: false }).first().click();
+  const dialog = page.getByRole("dialog", { name: "Добавить связь", exact: true });
+  for (let index = 0; index < 4; index++) await dialog.getByRole("button", { name: "Далее", exact: true }).click();
+  await expect(page.getByLabel("Объект", { exact: true }).getByRole("option", { name: "Документ 204", exact: true })).toHaveCount(1);
+  await page.getByLabel("Объект", { exact: true }).selectOption({ label: "Документ 204" });
+  await dialog.getByRole("button", { name: "Добавить", exact: true }).click();
+  await expect(page.locator(".organization-layout")).toContainText("Документ 204");
+});
+
+
+for (const width of [390, 834, 1440]) {
+  test(`database inline controls and collection detail fit both themes at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await contentWorkspace(page);
+    for (const theme of ["light", "dark"]) {
+      const toggle = page.getByRole("button", { name: /Тема:/ }).first();
+      while (await page.locator("html").getAttribute("data-theme") !== theme) await toggle.click();
+      await section(page, "Базы данных");
+      await page.getByRole("button", { name: /Учебные проекты/ }).click();
+      await page.getByRole("button", { name: "Изменить Описание: Идеи для проекта", exact: true }).click();
+      const cell = page.getByRole("form", { name: "Редактировать Описание" });
+      await expect(cell).toBeVisible();
+      if (width === 390) {
+        const box = (await cell.boundingBox())!;
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+        await expect(cell.getByRole("button", { name: "Сохранить запись", exact: true })).toBeInViewport();
+      }
+      await page.screenshot({ path: info.outputPath(`database-${theme}.png`), fullPage: true, animations: "disabled" });
+      await checkWorkspaceVisuals(page);
+      await page.getByLabel("Описание", { exact: true }).press("Escape");
+      await section(page, "Коллекции и теги");
+      await page.getByRole("button", { name: "Учёба", exact: true }).click();
+      if (width <= 900) {
+        await expect(page.locator(".organization-layout > aside")).toBeHidden();
+        await page.getByRole("button", { name: "← Коллекции и теги", exact: true }).click();
+        await expect(page.getByRole("button", { name: "Учёба", exact: true })).toBeVisible();
+        await page.getByRole("button", { name: "Учёба", exact: true }).click();
+      }
+      await page.screenshot({ path: info.outputPath(`collection-${theme}.png`), fullPage: true, animations: "disabled" });
+      await checkWorkspaceVisuals(page);
+    }
+  });
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestJson, writeJson } from "@/shared/api";
 import {
@@ -12,6 +12,8 @@ import {
   useAction,
 } from "@/shared/ui";
 import { dateKey, shiftDate, startOfWeek } from "../calendar-time";
+import { positionNoteMenu } from "./note-menu";
+import "./data-workspace.css";
 import type { PageSummary } from "./notes";
 
 type List<T> = { items: T[]; limit: number; offset: number };
@@ -129,9 +131,11 @@ function displayValue(
 export function DatabasesPanel({
   timeZone,
   onOpenPage,
+  onDirtyChange,
 }: {
   timeZone: string;
   onOpenPage: (id: string) => void;
+  onDirtyChange: (dirty: boolean) => void;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [trashed, setTrashed] = useState(false);
@@ -154,10 +158,11 @@ export function DatabasesPanel({
         timeZone={timeZone}
         onBack={() => setSelected(null)}
         onOpenPage={onOpenPage}
+        onDirtyChange={onDirtyChange}
       />
     );
   return (
-    <div className="feature-page">
+    <div className="feature-page databases-page">
       <div className="page-heading">
         <div>
           <h1>Базы данных</h1>
@@ -234,7 +239,7 @@ export function DatabasesPanel({
             <span>
               {database.trashed_at
                 ? "В корзине · восстановить"
-                : "Таблицы, страницы и даты"}{" "}
+                : "Открыть"}{" "}
               <span aria-hidden="true">→</span>
             </span>
           </button>
@@ -293,11 +298,13 @@ function DatabaseDetail({
   timeZone,
   onBack,
   onOpenPage,
+  onDirtyChange,
 }: {
   id: string;
   timeZone: string;
   onBack: () => void;
   onOpenPage: (id: string) => void;
+  onDirtyChange: (dirty: boolean) => void;
 }) {
   const base = `/api/v1/workspace/databases/${id}`;
   const client = useQueryClient();
@@ -316,6 +323,15 @@ function DatabaseDetail({
     | null
   >(null);
   const [editing, setEditing] = useState<RecordItem | null>(null);
+  const [cellId, setCellId] = useState<string | null>(null);
+  const editingCell = !!editing && !!cellId;
+  function closeRecord() { setEditing(null); setCellId(null); }
+  function editRecord(item: RecordItem, propertyId: string | null = null) {
+    void action.run(async () => {
+      const full = await requestJson<RecordItem>(`${base}/records/${item.record.id}`);
+      setCellId(propertyId); setEditing(full);
+    }, "");
+  }
   const [week, setWeek] = useState(() => dateKey(new Date(), timeZone));
   const database = useQuery({
     queryKey: ["database", id],
@@ -420,8 +436,8 @@ function DatabaseDetail({
     );
   }
   return (
-    <div className="feature-page">
-      <button className="text-action back-link" onClick={onBack}>
+    <div className="feature-page databases-page">
+      <button className="text-action back-link" disabled={editingCell} onClick={onBack}>
         ← Все базы
       </button>
       <div className="page-heading">
@@ -436,6 +452,7 @@ function DatabaseDetail({
           <div className="heading-actions">
             <button
               className="secondary-button"
+              disabled={editingCell}
               onClick={() => setDialog("rename")}
             >
               Настроить
@@ -443,7 +460,7 @@ function DatabaseDetail({
             <button
               className="primary-button"
               onClick={() => setDialog("record")}
-              disabled={!properties.data}
+              disabled={editingCell || !properties.data}
             >
               + Запись
             </button>
@@ -491,6 +508,7 @@ function DatabaseDetail({
               <div className="view-tabs" aria-label="Виды базы">
                 <button
                   className={!viewId ? "selected" : ""}
+                  disabled={editingCell}
                   onClick={() => {
                     setViewId(null);
                     setOffset(0);
@@ -501,6 +519,7 @@ function DatabaseDetail({
                 {views.data?.items.map((view) => (
                   <button
                     className={viewId === view.id ? "selected" : ""}
+                    disabled={editingCell}
                     key={view.id}
                     onClick={() => {
                       setViewId(view.id);
@@ -513,7 +532,7 @@ function DatabaseDetail({
                 ))}
                 <button
                   onClick={() => setDialog("view")}
-                  disabled={!properties.data}
+                  disabled={editingCell || !properties.data}
                 >
                   + Вид
                 </button>
@@ -521,6 +540,7 @@ function DatabaseDetail({
               <div className="row-actions">
                 <button
                   className="text-action"
+                  disabled={editingCell}
                   onClick={() => setDialog("schema")}
                 >
                   Поля
@@ -528,7 +548,7 @@ function DatabaseDetail({
                 <button
                   className="text-action"
                   onClick={() => setDialog("property")}
-                  disabled={!properties.data}
+                  disabled={editingCell || !properties.data}
                 >
                   + Поле
                 </button>
@@ -640,6 +660,7 @@ function DatabaseDetail({
                   </span>
                   <button
                     className="text-action"
+                    disabled={editingCell}
                     onClick={() => {
                       setTrashRecords((value) => !value);
                       setOffset(0);
@@ -682,49 +703,23 @@ function DatabaseDetail({
                           </td>
                           {definitions.map((property) => (
                             <td key={property.id}>
-                              {displayValue(
-                                item.record.values[property.id],
-                                property,
-                                timeZone,
+                              {editing?.record.id === item.record.id && cellId === property.id ? (
+                                <RecordEditor inline base={base} properties={[property]} schema={schema} record={editing} onClose={closeRecord} onSaved={refresh} onDirtyChange={onDirtyChange} />
+                              ) : (
+                                <button type="button" className="record-cell" aria-label={`Изменить ${property.name}: ${item.page.title}`} disabled={!!item.record.trashed_at || action.busy || !!editing} onClick={() => editRecord(item, property.id)}>
+                                  {displayValue(item.record.values[property.id], property, timeZone)}
+                                </button>
                               )}
                             </td>
                           ))}
                           <td>
-                            <div className="row-actions">
-                              {!item.record.trashed_at && (
-                                <button
-                                  className="text-action"
-                                  disabled={action.busy || !definitions.length}
-                                  onClick={() =>
-                                    void action.run(async () => {
-                                      const full =
-                                        await requestJson<RecordItem>(
-                                          `${base}/records/${item.record.id}`,
-                                        );
-                                      setEditing(full);
-                                    }, "")
-                                  }
-                                >
-                                  Изменить
-                                </button>
-                              )}
-                              <button
-                                className="text-action"
-                                disabled={action.busy}
-                                onClick={() =>
-                                  void recordLifecycle(
-                                    item,
-                                    item.record.trashed_at
-                                      ? "restore"
-                                      : "trash",
-                                  )
-                                }
-                              >
-                                {item.record.trashed_at
-                                  ? "Восстановить"
-                                  : "В корзину"}
-                              </button>
-                            </div>
+                            <details className="note-menu data-row-menu" onToggle={event => positionNoteMenu(event.currentTarget)} onKeyDown={event => { if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); } }}>
+                              <summary aria-label={`Действия записи ${item.page.title}`}>···</summary>
+                              <div className="note-menu-items">
+                                {!item.record.trashed_at && <button disabled={action.busy || !!editing || !definitions.length} onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); editRecord(item); }}>Изменить</button>}
+                                <button disabled={action.busy || !!editing} onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); void recordLifecycle(item, item.record.trashed_at ? "restore" : "trash"); }}>{item.record.trashed_at ? "Восстановить" : "В корзину"}</button>
+                              </div>
+                            </details>
                           </td>
                         </tr>
                       ))}
@@ -747,11 +742,11 @@ function DatabaseDetail({
                 )}
                 {records.data &&
                 (offset || records.data.items.length === 50) ? (
-                  <Pager
+                  <fieldset className="record-fields" disabled={editingCell}><Pager
                     offset={offset}
                     count={records.data.items.length}
                     onChange={setOffset}
-                  />
+                  /></fieldset>
                 ) : null}
               </>
             )}
@@ -759,6 +754,7 @@ function DatabaseDetail({
           {selectedView && (
             <button
               className="text-action configure-view"
+              disabled={editingCell}
               onClick={() => setDialog("edit-view")}
             >
               Настроить вид
@@ -767,6 +763,7 @@ function DatabaseDetail({
           {selectedView && (
             <button
               className="text-action delete-view"
+              disabled={editingCell}
               onClick={() => setDialog("trash")}
             >
               Удалить этот вид
@@ -775,7 +772,7 @@ function DatabaseDetail({
         </>
       )}
       <ActionFeedback {...action} />
-      {(dialog === "record" || editing) && (
+      {(dialog === "record" || (editing && !cellId)) && (
         <RecordEditor
           base={base}
           properties={properties.data?.items ?? []}
@@ -786,6 +783,7 @@ function DatabaseDetail({
             setDialog(null);
           }}
           onSaved={refresh}
+          onDirtyChange={onDirtyChange}
         />
       )}
       {dialog === "schema" && (
@@ -865,7 +863,11 @@ function RecordEditor({
   record,
   onClose,
   onSaved,
+  inline = false,
+  onDirtyChange,
 }: {
+  inline?: boolean;
+  onDirtyChange: (dirty: boolean) => void;
   base: string;
   properties: Property[];
   schema: number;
@@ -874,6 +876,17 @@ function RecordEditor({
   onSaved: () => Promise<void>;
 }) {
   const action = useAction();
+  const [expectedSchema] = useState(schema);
+  const [fields] = useState(properties);
+  const [dirty, setDirty] = useState(false);
+  const dirtyCallback = useRef(onDirtyChange);
+  useEffect(() => { dirtyCallback.current = onDirtyChange; }, [onDirtyChange]);
+  useEffect(() => {
+    dirtyCallback.current(dirty);
+    const prevent = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ""; } };
+    window.addEventListener("beforeunload", prevent);
+    return () => { dirtyCallback.current(false); window.removeEventListener("beforeunload", prevent); };
+  }, [dirty]);
   const touched = useRef(new Set<string>());
   const [pageMode, setPageMode] = useState("new");
   const [pageOffset, setPageOffset] = useState(0);
@@ -891,7 +904,7 @@ function RecordEditor({
     const data = new FormData(event.currentTarget);
     await action.run(async () => {
       const values: Record<string, Value> = {};
-      for (const property of properties) {
+      for (const property of fields) {
         if (record && !touched.current.has(property.id)) continue;
         const raw = String(data.get(property.id) ?? "");
         if (property.kind === "checkbox")
@@ -925,7 +938,7 @@ function RecordEditor({
       if (record)
         await writeJson(`${base}/records/${record.record.id}`, "PATCH", {
           expected_version: record.record.version,
-          expected_schema_version: schema,
+          expected_schema_version: expectedSchema,
           values,
         });
       else
@@ -934,19 +947,18 @@ function RecordEditor({
             ? { page_id: data.get("page_id") }
             : { title: data.get("title") }),
           values,
-          expected_schema_version: schema,
+          expected_schema_version: expectedSchema,
         });
       await onSaved();
       onClose();
     });
   }
-  return (
-    <Modal
-      title={record ? "Изменить запись" : "Новая запись"}
-      onClose={onClose}
-    >
-      <form
+  const editor = (
+      <form className={inline ? "cell-editor" : undefined} aria-label={inline ? `Редактировать ${fields[0]?.name}` : undefined}
+        onKeyDown={event => { if (inline && event.key === "Escape" && !action.busy) { event.preventDefault(); event.stopPropagation(); onClose(); } }}
         onChange={(event) => {
+          setDirty(true);
+          dirtyCallback.current(true);
           const target = event.target;
           if (
             target instanceof HTMLInputElement ||
@@ -960,7 +972,9 @@ function RecordEditor({
         }}
         onSubmit={(event) => void submit(event)}
       >
-        <h2>{record ? record.page.title : "Новая запись"}</h2>
+        <fieldset className="record-fields" disabled={action.busy}>
+        {inline && record && <p className="cell-record-title">{record.page.title}</p>}
+        {!inline && <h2>{record ? record.page.title : "Новая запись"}</h2>}
         {!record && (
           <>
             <label htmlFor="record-page-mode">Страница записи</label>
@@ -1016,16 +1030,15 @@ function RecordEditor({
             )}
           </>
         )}
-        <p className="muted">
-          Поля принадлежат этой записи. Даты не резервируют время в календаре.
-        </p>
-        {properties.map((property) => {
+        {!inline && <p className="muted">Поля принадлежат этой записи. Даты не резервируют время в календаре.</p>}
+        {fields.map((property) => {
           const value = record?.record.values[property.id];
           return (
             <div className="record-field" key={property.id}>
               <label htmlFor={`field-${property.id}`}>{property.name}</label>
               {property.kind === "checkbox" ? (
                 <input
+                  autoFocus={inline}
                   id={`field-${property.id}`}
                   name={property.id}
                   type="checkbox"
@@ -1034,6 +1047,7 @@ function RecordEditor({
               ) : property.kind === "select" ||
                 property.kind === "multi_select" ? (
                 <select
+                  autoFocus={inline}
                   id={`field-${property.id}`}
                   name={property.id}
                   multiple={property.kind === "multi_select"}
@@ -1059,6 +1073,7 @@ function RecordEditor({
               ) : property.kind === "date" ? (
                 <DateFields
                   property={property}
+                  autoFocus={inline}
                   value={
                     value && typeof value === "object" && !Array.isArray(value)
                       ? value
@@ -1067,6 +1082,7 @@ function RecordEditor({
                 />
               ) : (
                 <input
+                  autoFocus={inline}
                   id={`field-${property.id}`}
                   name={property.id}
                   type={
@@ -1089,6 +1105,7 @@ function RecordEditor({
           );
         })}
         <ActionFeedback {...action} />
+        {action.error && <p className="muted">При сбое сети можно повторить сохранение. Если запись изменилась, скопируй правку, отмени редактирование и открой поле заново.</p>}
         <div className="modal-actions">
           <button type="button" className="secondary-button" onClick={onClose}>
             Отмена
@@ -1097,22 +1114,25 @@ function RecordEditor({
             {action.busy ? "Сохраняем…" : "Сохранить запись"}
           </button>
         </div>
+        </fieldset>
       </form>
-    </Modal>
   );
+  return inline ? editor : <Modal title={record ? "Изменить запись" : "Новая запись"} onClose={() => { if (!action.busy) onClose(); }}>{editor}</Modal>;
 }
 
 function DateFields({
   property,
   value,
+  autoFocus = false,
 }: {
+  autoFocus?: boolean;
   property: Property;
   value: DateValue | null;
 }) {
   const [kind, setKind] = useState(value?.kind ?? "date");
   return (
     <>
-      <select
+      <select autoFocus={autoFocus}
         id={`field-${property.id}`}
         name={`${property.id}-kind`}
         value={kind}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestJson, writeJson } from "@/shared/api";
 import {
@@ -11,6 +11,7 @@ import {
   QueryState,
   useAction,
 } from "@/shared/ui";
+import "./data-workspace.css";
 import type { PageSummary } from "./notes";
 export type EventTarget = {
   source: "personal" | "official";
@@ -39,6 +40,7 @@ export function OrganizationPanel({
   events: EventTarget[];
   onOpenPage: (id: string) => void;
 }) {
+  const root = useRef<HTMLDivElement>(null);
   const [kind, setKind] = useState<"collections" | "tags">("collections");
   const [selected, setSelected] = useState<Organization | null>(null);
   const [offset, setOffset] = useState(0);
@@ -46,6 +48,7 @@ export function OrganizationPanel({
   const [editing, setEditing] = useState<Organization | "new" | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [pageOffset, setPageOffset] = useState(0);
   const [targetType, setTargetType] = useState("page");
   const base = `/api/v1/workspace/${kind}`;
   const client = useQueryClient();
@@ -68,12 +71,12 @@ export function OrganizationPanel({
     enabled: !!selected,
   });
   const pages = useQuery({
-    queryKey: ["member-page-options"],
+    queryKey: ["member-page-options", pageOffset],
     queryFn: ({ signal }) =>
-      requestJson<{ items: PageSummary[] }>("/api/v1/notes/pages?limit=200", {
+      requestJson<{ items: PageSummary[] }>(`/api/v1/notes/pages?limit=50&offset=${pageOffset}`, {
         signal,
       }),
-    enabled: adding,
+    enabled: adding && targetType === "page",
   });
   async function refresh() {
     await Promise.all([
@@ -82,7 +85,7 @@ export function OrganizationPanel({
     ]);
   }
   return (
-    <div className="feature-page">
+    <div ref={root} className={`feature-page organization-page ${selected ? "organization-selected" : ""}`}>
       <div className="page-heading">
         <div>
           <h1>Коллекции и теги</h1>
@@ -126,6 +129,7 @@ export function OrganizationPanel({
           {items.data?.items.map((item) => (
             <button
               key={item.id}
+              data-organization-id={item.id}
               className={`tree-row ${selected?.id === item.id ? "selected" : ""}`}
               onClick={() => {
                 setSelected(item);
@@ -155,6 +159,7 @@ export function OrganizationPanel({
         <section className="panel">
           {selected ? (
             <>
+              <button className="text-action organization-back" onClick={() => { setSelected(null); requestAnimationFrame(() => root.current?.querySelector<HTMLElement>(`[data-organization-id="${selected.id}"]`)?.focus()); }}>← Коллекции и теги</button>
               <div className="panel-toolbar">
                 <h2>{selected.name}</h2>
                 <div className="row-actions">
@@ -382,10 +387,10 @@ export function OrganizationPanel({
             <label htmlFor="member-target">Объект</label>
             <QueryState
               pending={targetType === "page" && pages.isPending}
-              error={pages.error}
+              error={targetType === "page" ? pages.error : null}
               retry={() => void pages.refetch()}
             />
-            <select id="member-target" name="target" required key={targetType}>
+            <select id="member-target" name="target" required key={`${targetType}-${pageOffset}`}>
               <option value="">Выбрать…</option>
               {targetType === "page"
                 ? pages.data?.items.map((page) => (
@@ -404,9 +409,10 @@ export function OrganizationPanel({
                       </option>
                     ))}
             </select>
+            {targetType === "page" && pages.data && (pageOffset > 0 || pages.data.items.length === 50) && <Pager offset={pageOffset} count={pages.data.items.length} onChange={setPageOffset} />}
             <p className="muted">
               {targetType === "page"
-                ? "Первые 200 активных страниц."
+                ? "Активные страницы, по 50 на странице."
                 : "События выбранной недели календаря."}{" "}
               Добавление сохраняет только явную связь.
             </p>
