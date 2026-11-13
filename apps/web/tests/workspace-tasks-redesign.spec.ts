@@ -139,7 +139,7 @@ test("dirty inline edits guard filtering and workspace navigation", async ({ pag
   await expect(page.locator(".calendar-card")).toBeVisible();
 });
 
-for (const width of [320, 390, 834, 1440]) {
+for (const width of [320, 390, 768, 834, 1440]) {
   test(`task queue, inspector and property editor fit both themes at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: width <= 390 ? 844 : 1000 });
     const state = await setup(page);
@@ -232,8 +232,8 @@ test("applying an unchanged deadline preserves seconds", async ({ page }) => {
   expect(state.writes[0].body).toEqual({ expected_version: 1, deadline_at: "2026-10-16T18:00:37.000Z" });
 });
 
-test.describe("task touch interactions", () => {
-  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+for (const touchWidth of [390, 768]) test.describe(`task touch interactions at ${touchWidth}px`, () => {
+  test.use({ viewport: { width: touchWidth, height: 844 }, hasTouch: true, isMobile: true });
   test("tap edits priority and focused details return to the same row", async ({ page }) => {
     const state = await setup(page);
     await row(page).getByRole("button", { name: "Изменить приоритет", exact: true }).tap();

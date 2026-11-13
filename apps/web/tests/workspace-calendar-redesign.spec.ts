@@ -191,12 +191,13 @@ test("move conflicts retain authoritative geometry and do not claim success", as
   await expect(page.locator(".toast")).toHaveCount(0);
 });
 
-test.describe("touch placement", () => {
-  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+for (const touchWidth of [390, 768]) test.describe(`touch placement at ${touchWidth}px`, () => {
+  test.use({ viewport: { width: touchWidth, height: 844 }, hasTouch: true, isMobile: true });
   test("touch uses an explicit destination preview and confirmation", async ({ page }) => {
     const state = await mockWorkspace(page);
     state.events = [calendarEvent({ starts_at: "2026-10-16T14:00:00Z", ends_at: "2026-10-16T15:00:00Z" })];
     await page.goto("/workspace");
+    await page.getByRole("button", { name: "День", exact: true }).tap();
     await page.locator(".event-card-open").tap();
     await page.getByRole("button", { name: "Перенести событие", exact: true }).tap();
     await expect(page.getByRole("region", { name: "Перенос события", exact: true })).toBeVisible();

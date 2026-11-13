@@ -840,7 +840,7 @@ for (const viewport of [
   });
 }
 
-for (const width of [390, 1024, 1440]) {
+for (const width of [390, 768, 1024, 1440]) {
   test(`design system covers secondary sections in both themes at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 1000 });
     const errors: string[] = [];
@@ -1660,7 +1660,7 @@ test("page navigation retains a conflicting or invalid draft and moving excludes
   );
 });
 
-for (const width of [1440, 834, 390, 320]) {
+for (const width of [1440, 834, 768, 390, 320]) {
   test(`notes canvas and block menu fit light and dark themes at ${width}px`, async ({
     page,
   }, info) => {
@@ -1926,10 +1926,10 @@ test("typing after a save starts stays dirty until a separate explicit save", as
   expect(state.note.document.blocks[0].text).toBe("Ещё не отправлено");
 });
 
-test.describe("notes touch interactions", () => {
+for (const touchWidth of [390, 768]) test.describe(`notes touch interactions at ${touchWidth}px`, () => {
   test.use({ hasTouch: true });
   test("page library retains a creation draft and touch can insert and reorder blocks", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+    await page.setViewportSize({ width: touchWidth, height: 844 });
     await contentWorkspace(page);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await section(page, "Заметки");
@@ -2013,7 +2013,7 @@ test("collection member picker reaches pages beyond the first two hundred", asyn
 });
 
 
-for (const width of [390, 834, 1440]) {
+for (const width of [390, 768, 834, 1440]) {
   test(`database inline controls and collection detail fit both themes at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 1000 });
     await contentWorkspace(page);
@@ -2047,3 +2047,63 @@ for (const width of [390, 834, 1440]) {
     }
   });
 }
+
+
+for (const width of [390, 768, 1440]) {
+  test(`final review note menus fit and Escape dismisses only the active menu at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await contentWorkspace(page);
+    await section(page, "Заметки");
+    const actions = page.getByLabel("Действия страницы Идеи для проекта", { exact: true });
+    await actions.click();
+    const menu = actions.locator("..").locator(".note-menu-items");
+    await page.screenshot({ path: info.outputPath("page-menu-before-check.png") });
+    await writeFile(info.outputPath("menu-geometry.json"), JSON.stringify(await menu.evaluate(element => ({ menu: element.getBoundingClientRect().toJSON(), trigger: element.parentElement?.querySelector("summary")?.getBoundingClientRect().toJSON(), dialog: element.closest("dialog")?.getBoundingClientRect().toJSON(), transform: element.closest("dialog") && getComputedStyle(element.closest("dialog")!).transform, position: getComputedStyle(element).position }))));
+    await expect(menu.getByRole("button", { name: "Переместить", exact: true })).toBeInViewport({ ratio: 1 });
+    const bounds = (await menu.boundingBox())!;
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: info.outputPath("page-menu.png"), animations: "disabled" });
+    await actions.press("Escape");
+    if (width <= 1100) await expect(page.getByRole("dialog", { name: "Страницы", exact: true })).toBeVisible();
+    await expect(actions).toBeFocused();
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await actions.click();
+    await expect(menu.getByRole("button", { name: "Переместить", exact: true })).toBeInViewport({ ratio: 1 });
+    await actions.press("Escape");
+    if (width <= 1100) await expect(page.getByRole("dialog", { name: "Страницы", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Идеи для проекта", exact: true }).click();
+    await page.getByLabel("Текст блока 1").focus();
+    await page.getByLabel("Действия блока 1", { exact: true }).click();
+    await expect(page.getByLabel("Удалить блок 1", { exact: true })).toBeInViewport({ ratio: 1 });
+    await page.keyboard.press("Escape");
+    await expect(page.getByLabel("Действия блока 1", { exact: true })).toBeFocused();
+  });
+}
+
+test("final review database editor Save is fully visible at 768px", async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1000 });
+  await contentWorkspace(page);
+  await section(page, "Базы данных");
+  await page.getByRole("button", { name: /Учебные проекты/ }).click();
+  await page.getByRole("button", { name: "Изменить Описание: Идеи для проекта", exact: true }).click();
+  await expect(page.getByRole("form", { name: "Редактировать Описание" }).getByRole("button", { name: "Сохранить запись", exact: true })).toBeInViewport({ ratio: 1 });
+});
+
+
+test("final review full record Escape retains a dirty draft until explicit discard", async ({ page }) => {
+  await contentWorkspace(page);
+  await section(page, "Базы данных");
+  await page.getByRole("button", { name: /Учебные проекты/ }).click();
+  await page.getByLabel("Действия записи Идеи для проекта", { exact: true }).click();
+  await page.getByRole("button", { name: "Изменить", exact: true }).click();
+  await page.getByLabel("Описание", { exact: true }).fill("Сохранить эту правку");
+  await page.keyboard.press("Escape");
+  const guard = page.getByRole("dialog", { name: "Несохранённая запись", exact: true });
+  await expect(guard).toBeVisible();
+  await guard.getByRole("button", { name: "Продолжить редактирование", exact: true }).click();
+  await expect(page.getByLabel("Описание", { exact: true })).toHaveValue("Сохранить эту правку");
+  await page.keyboard.press("Escape");
+  await guard.getByRole("button", { name: "Не сохранять", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});

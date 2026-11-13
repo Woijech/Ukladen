@@ -28,7 +28,7 @@ async function conversation(page: Page) {
   return writes;
 }
 
-for (const width of [320, 390, 834, 1440]) {
+for (const width of [320, 390, 768, 834, 1440]) {
   test(`focused AI transcript and history fit both themes at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 1000 });
     const writes = await conversation(page);

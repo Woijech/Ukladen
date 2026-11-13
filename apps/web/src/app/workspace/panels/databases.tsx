@@ -879,6 +879,12 @@ function RecordEditor({
   const [expectedSchema] = useState(schema);
   const [fields] = useState(properties);
   const [dirty, setDirty] = useState(false);
+  const [closing, setClosing] = useState(false);
+  function requestClose() {
+    if (action.busy) return;
+    if (!inline && dirty) setClosing(true);
+    else onClose();
+  }
   const dirtyCallback = useRef(onDirtyChange);
   useEffect(() => { dirtyCallback.current = onDirtyChange; }, [onDirtyChange]);
   useEffect(() => {
@@ -1107,7 +1113,7 @@ function RecordEditor({
         <ActionFeedback {...action} />
         {action.error && <p className="muted">При сбое сети можно повторить сохранение. Если запись изменилась, скопируй правку, отмени редактирование и открой поле заново.</p>}
         <div className="modal-actions">
-          <button type="button" className="secondary-button" onClick={onClose}>
+          <button type="button" className="secondary-button" onClick={requestClose}>
             Отмена
           </button>
           <button className="primary-button" disabled={action.busy}>
@@ -1117,7 +1123,17 @@ function RecordEditor({
         </fieldset>
       </form>
   );
-  return inline ? editor : <Modal title={record ? "Изменить запись" : "Новая запись"} onClose={() => { if (!action.busy) onClose(); }}>{editor}</Modal>;
+  return inline ? editor : <>
+    <Modal title={record ? "Изменить запись" : "Новая запись"} onClose={requestClose}>{editor}</Modal>
+    {closing && <Modal title="Несохранённая запись" onClose={() => setClosing(false)}>
+      <h2>Оставить изменения записи?</h2>
+      <p>Правки ещё не сохранены. Продолжи редактирование или явно откажись от них.</p>
+      <div className="modal-actions">
+        <button className="secondary-button" onClick={() => setClosing(false)}>Продолжить редактирование</button>
+        <button className="danger-button" onClick={onClose}>Не сохранять</button>
+      </div>
+    </Modal>}
+  </>;
 }
 
 function DateFields({

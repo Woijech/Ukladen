@@ -48,7 +48,7 @@ test("theme choices apply directly without profile writes even when storage is u
   expect(state.writes).toEqual([]);
 });
 
-for (const width of [320, 390, 834, 1440]) {
+for (const width of [320, 390, 768, 834, 1440]) {
   test(`settings and utility home fit both themes at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 1000 });
     await mockWorkspace(page);

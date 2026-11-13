@@ -92,7 +92,7 @@ test("keyboard creation skips occupied time and clips duration at the next bound
   expect(state.writes).toEqual([]);
 });
 
-for (const width of [320, 390, 834, 1440]) {
+for (const width of [320, 390, 768, 834, 1440]) {
   test(`calendar composition and contextual editing at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: width < 400 ? 844 : 1000 });
     const state = await mockWorkspace(page);
