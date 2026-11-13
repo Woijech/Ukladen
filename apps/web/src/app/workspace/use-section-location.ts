@@ -1,61 +1,93 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { sections, sectionHref, type SectionKey } from "./navigation";
-
-function readSection(fallback: SectionKey): SectionKey {
-  if (window.location.pathname.startsWith("/workspace/ai")) return "ai";
-  const params = new URLSearchParams(window.location.search);
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.get("page") ?? "")) return "notes";
-  return sections.find(item => item.id === params.get("section"))?.id ?? fallback;
-}
+import { type SectionKey } from "./navigation";
+import { readWorkspaceLocation, workspaceHref, type WorkspaceLocation } from "./workspace-location";
 
 export function pushWorkspaceLocation(url: string) {
   const next = (window.history.state?.ukladenPosition ?? 0) + 1;
-  window.history.pushState({ ukladenPosition: next }, "", url);
+  window.history.pushState({ ...window.history.state, ukladenPosition: next }, "", url);
   window.dispatchEvent(new Event("ukladen:location-pushed"));
 }
 
-export function useSectionLocation(fallback: SectionKey, dirty: boolean) {
-  const [location, setLocation] = useState(() => ({ section: readSection(fallback) }));
+export function useSectionLocation(
+  fallback: SectionKey,
+  protection: () => { dirty: boolean; busy: boolean },
+  onDiscard?: () => void,
+) {
+  const read = () => readWorkspaceLocation(window.location.pathname, window.location.search, fallback);
+  const [location, setLocation] = useState(() => read().location);
+  const [notice, setNotice] = useState("");
+  const [discardVersion, setDiscardVersion] = useState(0);
+  const protect = useRef(protection);
+  useEffect(() => { protect.current = protection; }, [protection]);
+  const discard = useRef(onDiscard);
+  useEffect(() => { discard.current = onDiscard; }, [onDiscard]);
+  function discardDrafts() {
+    discard.current?.();
+    setDiscardVersion(value => value + 1);
+  }
   const position = useRef(0);
   const restoring = useRef(false);
+  const currentUrl = useRef("");
   useEffect(() => {
     position.current = window.history.state?.ukladenPosition ?? 0;
-    window.history.replaceState({ ukladenPosition: position.current }, "");
+    window.history.replaceState({ ...window.history.state, ukladenPosition: position.current }, "");
+    currentUrl.current = window.location.pathname + window.location.search;
   }, []);
   useEffect(() => {
+    function accept() {
+      const parsed = readWorkspaceLocation(window.location.pathname, window.location.search, fallback);
+      if (parsed.invalid) {
+        window.history.replaceState(window.history.state, "", workspaceHref(parsed.location));
+        setNotice("Некорректные параметры ссылки удалены. Проверь выбранный объект или дату.");
+      }
+      position.current = window.history.state?.ukladenPosition ?? 0;
+      currentUrl.current = window.location.pathname + window.location.search;
+      setLocation(parsed.location);
+    }
+    accept();
     function back() {
       if (restoring.current) { restoring.current = false; return; }
       const next = window.history.state?.ukladenPosition;
-      if (dirty && !window.confirm("Есть несохранённые изменения. Перейти без сохранения?")) {
+      const guard = protect.current();
+      if (guard.busy || (guard.dirty && !window.confirm("Есть несохранённые изменения. Перейти без сохранения?"))) {
+        if (guard.busy) setNotice("Дождись завершения сохранения перед переходом.");
         if (typeof next === "number" && next !== position.current) {
           restoring.current = true;
           window.history.go(position.current - next);
+        } else {
+          // Entries not created by Ukladen have no relative history position.
+          window.history.pushState({ ...window.history.state, ukladenPosition: position.current }, "", currentUrl.current);
         }
         return;
       }
-      position.current = next ?? 0;
-      setLocation({ section: readSection(fallback) });
+      if (guard.dirty) discardDrafts();
+      accept();
     }
-    const pushed = () => {
-      position.current = window.history.state?.ukladenPosition ?? 0;
-      setLocation({ section: readSection(fallback) });
-    };
     window.addEventListener("popstate", back);
-    window.addEventListener("ukladen:location-pushed", pushed);
+    window.addEventListener("ukladen:location-pushed", accept);
     return () => {
       window.removeEventListener("popstate", back);
-      window.removeEventListener("ukladen:location-pushed", pushed);
+      window.removeEventListener("ukladen:location-pushed", accept);
     };
-  }, [dirty, fallback]);
+  }, [fallback]);
 
-  function commitSection(next: SectionKey, query?: string) {
-    const url = sectionHref(next) + (query ? `&q=${encodeURIComponent(query)}` : "");
+  function commitLocation(next: WorkspaceLocation, replace = false) {
+    const url = workspaceHref(next);
     if (window.location.pathname + window.location.search !== url) {
-      pushWorkspaceLocation(url);
+      if (replace) {
+        window.history.replaceState(window.history.state, "", url);
+        window.dispatchEvent(new Event("ukladen:location-pushed"));
+      } else pushWorkspaceLocation(url);
     }
-    setLocation({ section: next });
+    setLocation(next);
   }
-  return { section: location.section, commitSection };
+  function commitSection(section: SectionKey, query?: string) {
+    commitLocation({ section, query });
+  }
+  return {
+    section: location.section, location, commitLocation, commitSection, notice,
+    discardVersion, discardDrafts,
+  };
 }
