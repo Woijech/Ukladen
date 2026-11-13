@@ -7,6 +7,24 @@ function subscribe(callback: () => void) {
   return () => window.removeEventListener("ukladen:theme", callback);
 }
 
+function applyTheme(theme: string) {
+  document.documentElement.dataset.theme = theme;
+  try { localStorage.setItem("ukladen-theme", theme); }
+  catch { /* Theme remains available without storage. */ }
+  window.dispatchEvent(new Event("ukladen:theme"));
+}
+
+export function ThemeOptions() {
+  const theme = useSyncExternalStore(subscribe, () => document.documentElement.dataset.theme ?? "system", () => "system");
+  return <div className="theme-options" role="group" aria-label="Оформление приложения">
+    {([["light", "Светлая"], ["dark", "Тёмная"], ["system", "Системная"]] as const).map(([value, label]) => (
+      <button type="button" key={value} data-theme-option={value} aria-pressed={theme === value} onClick={() => applyTheme(value)}>
+        <span className="theme-preview" aria-hidden="true"><span /><span /></span>{label}
+      </button>
+    ))}
+  </div>;
+}
+
 export function ThemeToggle() {
   const theme = useSyncExternalStore(
     subscribe,
@@ -16,13 +34,7 @@ export function ThemeToggle() {
   function change() {
     const next =
       theme === "system" ? "light" : theme === "light" ? "dark" : "system";
-    document.documentElement.dataset.theme = next;
-    try {
-      localStorage.setItem("ukladen-theme", next);
-    } catch {
-      /* Theme remains available without storage. */
-    }
-    window.dispatchEvent(new Event("ukladen:theme"));
+    applyTheme(next);
   }
   return (
     <button

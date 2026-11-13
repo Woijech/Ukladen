@@ -298,3 +298,15 @@ warnings remain. Local documentation links and `git diff --check` passed.
 The slice uses migrations 0014–0017; no running-stack database was migrated.
 Frontend checks are not applicable because this slice changes no frontend code.
 No frontend UI, P-06 planning, deployment or push is included.
+
+
+## Database UX redesign — 2026-11-13
+
+The existing API now backs compact definition rows and explicit single-cell editing.
+Desktop/tablet edits stay in the table; phones use a bounded bottom panel above the
+dock. Opening a cell fetches the complete record; Save PATCHes only the touched field
+with pinned schema/record versions. Escape/Cancel explicitly discards the draft,
+errors retain values, and the full record form remains in the row menu. All seven
+field kinds use existing validation/controls. Date values and page ownership are
+unchanged; saved view query editing remains available. See the
+[stage-5 delivery](frontend-redesign-stage-5.md) for tests and remaining limits.

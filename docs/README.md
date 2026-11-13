@@ -29,6 +29,7 @@ Planned contracts do not override the current implemented API silently.
 - [Notes UX redesign stage 4](development/frontend-redesign-stage-4.md): focused document canvas, page finding/capture, contextual blocks and safe manual saving.
 - [Data UX redesign stage 5](development/frontend-redesign-stage-5.md): inline record fields, compact database rows and paginated collection membership.
 - [AI UX redesign stage 6](development/frontend-redesign-stage-6-ai.md): focused transcript/history, shared palette, source clarity and preserved HITL verification.
+- [Settings and utility redesign](development/frontend-redesign-stage-6-utilities.md): direct theme choice, guarded profile editing, working Home and compact resource actions.
 - [Calendar composition refinement](development/frontend-calendar-refinement.md): joined calendar layout, safe range creation and follow-up verification.
 - [Calendar UX redesign stage 2](development/frontend-redesign-stage-2.md): implemented calendar controls, temporal editor and verification.
 - [Frontend design review](development/frontend-design-review.md): visual QA, interaction evidence and Anti-Slop Delivery Gate.

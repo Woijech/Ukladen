@@ -90,7 +90,11 @@ detail; see [stage-3 delivery](frontend-redesign-stage-3.md).
 Notes stage 4 is implemented locally under the 2026-11-13 request: focused document
 canvas, inline page creation, title filtering, contextual block tools and safe manual
 save recovery; see [stage-4 delivery](frontend-redesign-stage-4.md).
-Database and AI work-surface redesign stages remain pending a separate request.
+The remaining requested UI slices are implemented locally: database/cell and collection
+flows ([stage 5](frontend-redesign-stage-5.md)), focused AI conversation with preserved
+HITL ([stage 6 AI](frontend-redesign-stage-6-ai.md)), and settings/utility surfaces
+([stage 6 utilities](frontend-redesign-stage-6-utilities.md)). They are not deployed;
+planned backend capabilities and manual release checks remain separate.
 The P-01–P-08 sections below preserve their original backend-slice scope; their
 verification history is not evidence of rerunning backend checks for the UI work.
 

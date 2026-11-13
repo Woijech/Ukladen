@@ -1848,6 +1848,7 @@ test("explicit saves retain typing in flight and serialize a requested follow-up
   await page.getByLabel("Текст блока 1").fill("Первый снимок");
   await page.keyboard.press("Control+s");
   await expect(page.locator(".note-meta")).toContainText("Сохраняем");
+  await expect.poll(() => requests).toBe(1);
   await page.getByLabel("Текст блока 1").fill("Продолжение во время запроса");
   await page.keyboard.press("Control+s");
   expect(requests).toBe(1);

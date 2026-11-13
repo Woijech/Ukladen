@@ -231,13 +231,15 @@ Lucide, Motion and rich-editor packages are not required by this implementation.
   upload rechecks metadata before retrying the same reservation. No remote fetching
   or new file processing is performed in the browser.
 - Collections/tags expose explicit page/event membership and safe removal of
-  references. Page choices are bounded to 200; event choices use the loaded calendar
-  week. Member lists paginate. Broader selection needs a future search picker.
+  references. Page choices paginate in 50-item batches; event choices use the loaded
+  calendar week. Member lists paginate. A search picker remains a future improvement.
 - Databases expose definitions, seven typed property kinds, stable select-option
   IDs, schema/version checks, recoverable fields/records and existing/new page
   records. Saved table views support typed filters, sorting and visible columns;
   date-bound calendar views support day/week/month. Editing fetches the full record
-  and PATCH sends touched fields only, preserving hidden/null values. Date-only
+  and PATCH sends touched fields only, preserving hidden/null values. Cells edit in
+  place (a fixed bottom panel on phones); the complete record form remains in the
+  context menu. Date-only
   values stay dates; timed inputs require explicit offsets. Timed end midnight is
   exclusive. Date edits use record forms; drag moves and mixed event/database
   display remain API-only. No formulas or task behavior is implied by record fields.
@@ -483,3 +485,25 @@ Backend/API/schema, CSRF, ownership, private links, attachments and recoverable 
 trash/restore are unchanged. Drafts are memory-only; automatic save, crash recovery,
 rich text and revision history are not implemented. See the
 [stage-4 report](../development/frontend-redesign-stage-4.md) for verification.
+
+
+### Remaining workspaces — 2026-11-13
+
+Data workspaces now use compact database rows, contextual record actions, single-cell
+forms and paginated collection member selection. Schema/record versions and touched-only
+PATCH semantics are retained. The cell editor pins its initial schema definitions and
+version; a conflict never silently adopts a newer baseline. See
+[stage 5](../development/frontend-redesign-stage-5.md).
+
+AI inherits the shared action palette and uses explicit modal history below 900px,
+readable transcripts, local contextual copy and an unambiguous explicit no-sources
+scope label. Source payloads/citations, streaming recovery/cancel, model identity and
+immutable HITL previews/confirmations are unchanged. See
+[stage 6 AI](../development/frontend-redesign-stage-6-ai.md).
+
+Settings exposes direct three-way theme selection and guarded explicit profile saving.
+Home provides working shortcuts/content rather than a promotional hero. Materials
+keep primary open/download actions with Edit/Trash in a context menu; Search/Inbox
+share the denser utility layout. New style sheets are scoped to their workspaces.
+No backend, database, dependency, auth/provider activation or deployment was changed.
+See [stage 6 utilities](../development/frontend-redesign-stage-6-utilities.md).

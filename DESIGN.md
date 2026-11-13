@@ -19,7 +19,7 @@ Use the native humanist sans stack, starting with Segoe UI and system-ui. Its op
 Cyrillic letterforms suit long Russian labels, and local fonts avoid network shifts.
 Body text is 15px with 1.6 line height; controls are 13–14px. Page titles use a fluid
 28–36px scale, medium weight and modest negative tracking. Note titles reach 40px;
-the document body stays at 16px and a comfortable reading width. Calendar times
+the document body uses 18px (17px on phones) and a comfortable reading width. Calendar times
 use tabular numerals. Metadata uses sentence case, never tracked uppercase.
 
 ## Colors and surfaces

@@ -1,0 +1,54 @@
+.dashboard .page-heading h1, .settings-page .page-heading h1, .materials-page .page-heading h1, .search-page .page-heading h1, .notifications-page .page-heading h1 { font-size: 24px; }
+.home-start { padding: 24px 0 32px; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
+.home-start h2 { margin: 0 0 16px; font-size: 18px; }
+.home-work-links { display: flex; flex-wrap: wrap; gap: 12px; }
+.dashboard .dashboard-grid { gap: 32px; }
+.dashboard .dashboard-grid > .panel { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.dashboard .panel-toolbar { padding-inline: 0; }
+.dashboard .dashboard-page { padding-inline: 0; min-height: 48px; }
+.dashboard .quick-access { padding: 0; }
+.dashboard .quick-access > button { border-radius: 0; min-height: 64px; }
+.settings-page { max-width: 1080px; }
+.settings-sections { display: flex; flex-wrap: wrap; gap: 8px 24px; padding: 0 0 16px; border-bottom: 1px solid var(--border); }
+.settings-sections a { min-height: 44px; display: inline-flex; align-items: center; text-decoration: none; font-size: 14px; }
+.settings-page section[id] { scroll-margin-top: 72px; }
+.profile-fields { min-width: 0; padding: 0; margin: 0; border: 0; display: grid; grid-template-columns: minmax(180px, .8fr) minmax(0, 2fr); gap: 12px 24px; }
+.profile-fields > :is(h2, p, button) { grid-column: 1 / -1; margin: 0; }
+.profile-fields > button { justify-self: start; }
+.profile-fields > label { margin: 0; align-self: center; }
+.profile-fields > :is(input, select) { width: 100%; margin: 0; }
+.settings-page .setting-section { align-items: flex-start; }
+.theme-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.theme-options button { display: grid; gap: 8px; justify-items: center; min-width: 88px; padding: 10px; border: 1px solid var(--border); border-radius: 6px; color: var(--text); background: var(--surface); font-size: 13px; }
+.theme-options button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.theme-preview { display: grid; grid-template-columns: 12px 36px; height: 30px; overflow: hidden; border: 1px solid var(--field-border); border-radius: 3px; background: var(--surface); }
+.theme-preview > :first-child { background: #eeedea; }
+.theme-preview > :last-child { background: #fff; }
+[data-theme-option="dark"] .theme-preview > :first-child { background: #1c1c1f; }
+[data-theme-option="dark"] .theme-preview > :last-child { background: #222225; }
+[data-theme-option="system"] .theme-preview { background: linear-gradient(90deg, #fff 50%, #222225 50%); }
+[data-theme-option="system"] .theme-preview > span { background: transparent; }
+.materials-page .panel, .search-page .panel, .notifications-page .panel { border-radius: 0; box-shadow: none; }
+.materials-page .resource-row { padding: 16px; gap: 12px; }
+.materials-page .resource-row .row-actions { flex-shrink: 0; }
+.materials-page .resource-actions summary { min-height: 44px; min-width: 44px; }
+.materials-page .resource-actions .note-menu-items { max-height: calc(100dvh - 16px); overflow-y: auto; }
+.materials-page .resource-actions button { width: 100%; text-align: left; min-height: 44px; }
+.search-page .search-bar { border: 0; padding-inline: 0; background: transparent; }
+.notifications-page .inbox-row { padding: 16px; }
+.notifications-page .inbox-row small { font-size: 12px; }
+@media (max-width: 900px) {
+  .settings-page .setting-section { flex-direction: column; gap: 16px; }
+  .profile-fields { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .profile-fields > label { margin-top: 8px; }
+  .theme-options button { min-height: 44px; }
+  .dashboard .dashboard-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .materials-page .resource-row { flex-wrap: wrap; }
+  .materials-page .resource-row .row-actions { width: 100%; justify-content: flex-end; }
+  .materials-page .resource-copy { min-width: 0; flex: 1; }
+  .notifications-page .notification-layout { grid-template-columns: minmax(0, 1fr); }
+  .theme-options { width: 100%; }
+  .theme-options button { flex: 1; min-width: 0; }
+}
