@@ -34,6 +34,7 @@ type ViewProps = {
   timeZone: string;
   location: WorkspaceLocation;
   onLocationChange: (location: WorkspaceLocation, replace?: boolean) => void;
+  onNavigateLocation: (location: WorkspaceLocation) => void;
   onBusyChange: (busy: boolean) => void;
   onOpenPage: (id: string) => void;
   onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
@@ -74,7 +75,7 @@ export function WorkspaceViews(props: ViewProps) {
   if (section === "notifications")
     return <NotificationsPanel timeZone={timeZone} />;
   if (section === "databases")
-    return <DatabasesPanel timeZone={timeZone} onOpenPage={onOpenPage} onDirtyChange={props.onDirtyChange} />;
+    return <DatabasesPanel location={props.location} onNavigate={props.onNavigateLocation} onLocationChange={props.onLocationChange} onBusyChange={props.onBusyChange} timeZone={timeZone} onOpenPage={onOpenPage} onDirtyChange={props.onDirtyChange} />;
   if (section === "organization")
     return <OrganizationPanel events={props.events} onOpenPage={onOpenPage} />;
   if (section === "settings")

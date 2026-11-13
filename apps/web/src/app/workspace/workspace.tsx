@@ -2163,6 +2163,7 @@ function CalendarWorkspace({
               timeZone={timeZone}
               location={workspaceLocation}
               onLocationChange={commitLocation}
+              onNavigateLocation={navigateTo}
               onBusyChange={setPanelBusy}
               onOpenPage={openPage}
               onOpenEvent={openLinkedEvent}

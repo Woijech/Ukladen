@@ -165,6 +165,7 @@ async function contentWorkspace(page: Page) {
     views: [
       {
         id: viewId,
+        database_id: databaseId,
         name: "Краткий вид",
         layout: "table",
         date_property_id: null,
@@ -367,6 +368,7 @@ async function contentWorkspace(page: Page) {
     }
     if (path === `${base}/views`) return list(state.views);
     if (path === `${base}/views/${viewId}`) {
+      if (method === "GET") return route.fulfill({ json: state.views[0] });
       expect(body!.expected_version).toBe(state.views[0].version);
       expect(body!.expected_schema_version).toBe(database.schema_version);
       Object.assign(state.views[0], body);

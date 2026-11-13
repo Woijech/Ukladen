@@ -65,10 +65,16 @@ export function useSectionLocation(
       if (guard.dirty) discardDrafts();
       accept();
     }
+    function unload(event: BeforeUnloadEvent) {
+      const guard = protect.current();
+      if (guard.dirty || guard.busy) { event.preventDefault(); event.returnValue = ""; }
+    }
     window.addEventListener("popstate", back);
+    window.addEventListener("beforeunload", unload);
     window.addEventListener("ukladen:location-pushed", accept);
     return () => {
       window.removeEventListener("popstate", back);
+      window.removeEventListener("beforeunload", unload);
       window.removeEventListener("ukladen:location-pushed", accept);
     };
   }, [fallback]);
