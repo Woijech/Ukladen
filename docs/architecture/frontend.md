@@ -105,8 +105,10 @@ uses the default-disabled AI backend and explains missing activation/configurati
 read-only; override editing and saved event-calendar views remain API-only.
 
 Tasks use the same desktop/mobile navigation, shared API client, per-identity
-query cache and native dialogs as the other workspace sections. The paginated
-list supports status/priority filters, detail/edit forms, exact deadlines/effort,
+query cache and native dialogs as the other workspace sections. The load-more
+queue supports server status/priority filters, explicitly loaded-only grouping,
+sorting/search, inline title/description/capture and contextual property pickers,
+with full detail/edit forms and exact deadlines/effort,
 arbitrary-depth subtasks and parent moves. Branch trash requires confirmation;
 only a trash-batch root can restore its batch, preserving earlier independent
 deletions. The backend validates hierarchy and optimistic versions. Version
@@ -446,3 +448,15 @@ while explicit editing still permits intentional overlaps. Pointer-up retains a
 completed range until the click opens the draft, preventing touch click-through.
 No availability, timezone/DST, official-source or write contract changes. See
 [calendar refinement](../development/frontend-calendar-refinement.md).
+
+
+## Task UX stage 3, 2026-11-13
+
+The task list uses compact rows and an optional 380px detail surface. At up to
+1100px, selection shows focused details with Back/scroll/filter/focus restoration.
+`task-controls.tsx` owns row presentation, inline title editing and anchored native
+property/context dialogs; `tasks-panel.tsx` owns infinite-page reads, serialized
+versioned writes, guarded one-step Undo and dirty-navigation registration.
+Empty relation disclosures hide unused pagers. All task/planning/lifecycle API
+contracts remain unchanged. See [stage-3 delivery](../development/frontend-redesign-stage-3.md)
+for actual verification, keyboard/touch behavior and loaded-data limits.

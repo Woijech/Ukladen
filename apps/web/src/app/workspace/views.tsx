@@ -49,7 +49,7 @@ export function WorkspaceViews(props: ViewProps) {
       </Suspense>
     );
   if (section === "tasks")
-    return <TasksPanel timeZone={timeZone} onSessionEnd={props.onSessionEnd} onOpenPage={onOpenPage} />;
+    return <TasksPanel timeZone={timeZone} onSessionEnd={props.onSessionEnd} onOpenPage={onOpenPage} onDirtyChange={props.onDirtyChange} />;
   if (section === "notes")
     return (
       <NotesPanel

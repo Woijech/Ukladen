@@ -126,12 +126,14 @@ test("task dependencies use current versions and page unlinking preserves endpoi
   });
   await page.goto("/workspace"); await expect(page.locator(".content-wrap")).toBeVisible(); await navigateSection(page, "Задачи");
   await page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /Prepare report/ }).click();
+  await page.locator(".task-relation-section summary").filter({ hasText: "Предшественники" }).click();
   await page.getByRole("button", { name: "Добавить предшественника" }).click();
   await page.getByRole("dialog", { name: "Выбрать предшественника" }).getByRole("button", { name: "Read sources", exact: true }).click();
   await expect(page.getByText("Есть незавершённые или недоступные предшественники.")).toBeVisible();
   await page.getByRole("button", { name: "Убрать зависимость" }).click();
   await expect(page.getByRole("button", { name: "Убрать зависимость" })).toHaveCount(0);
   expect(versions).toEqual([1, 2]);
+  await page.locator(".task-relation-section summary").filter({ hasText: "Связанные страницы" }).click();
   await page.getByRole("button", { name: "Связать страницу" }).click();
   await page.getByRole("dialog", { name: "Выбрать страницу" }).getByRole("button", { name: "Assignment", exact: true }).click();
   await expect(page.getByRole("region", { name: "Связи задачи" }).getByRole("button", { name: "Assignment", exact: true })).toBeVisible();

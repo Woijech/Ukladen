@@ -187,3 +187,18 @@ stops at neighbouring loaded intervals, including hidden sources; intentional
 intersections remain possible in the explicit editor. Existing move/resize,
 official read-only facts and timezone/DST behavior remain. See the
 [calendar refinement delivery](docs/development/frontend-calendar-refinement.md).
+
+
+### Task redesign, stage 3, 2026-11-13
+
+The task queue uses compact 44px desktop rows with explicit status, priority, deadline
+and context actions. Phone rows use two levels with 44px property targets. Inline
+title/description editing, repeated quick capture and child capture reuse current
+versioned writes. Small property dialogs replace the full form for common edits;
+the custom deadline surface shares the month calendar/time conversion helpers.
+Status/priority filters remain server queries. Sort/group/search explicitly operate
+on loaded rows with a visible count and Load more. The list remains the main plane;
+selection opens a 380px inspector or a focused compact-screen surface with Back.
+Dirty drafts and pending saves are guarded, and one-step property Undo checks the
+returned version. Empty relations collapse. Planning, hierarchy and branch recovery
+remain available. See [stage-3 delivery](docs/development/frontend-redesign-stage-3.md).

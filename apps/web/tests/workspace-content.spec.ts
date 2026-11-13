@@ -756,6 +756,7 @@ for (const viewport of [
       path: info.outputPath("tasks-light.png"),
       animations: "disabled",
     });
+    if (viewport.width <= 1100) await page.getByRole("button", { name: "К списку задач", exact: false }).click();
     await page.getByRole("button", { name: "Новая задача" }).click();
     const taskDialog = page.getByRole("dialog", {
       name: "Новая задача",

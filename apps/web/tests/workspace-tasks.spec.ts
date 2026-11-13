@@ -34,7 +34,7 @@ test("tasks can be created, edited, filtered and nested without an academic grou
   await page.getByRole("region", { name: "Детали задачи" }).getByRole("button", { name: "Prepare report" }).click();
   await expect(page.getByRole("region", { name: "Детали задачи" })).toContainText("Write outline");
 
-  await page.getByRole("region", { name: "Список задач" }).getByLabel("Статус").selectOption("todo");
+  await page.locator(".task-list-filters").getByLabel("Статус", { exact: true }).selectOption("todo");
   await expect(page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /Write outline/ })).toBeVisible();
   await expect(page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /Prepare report/ })).toHaveCount(0);
 });
@@ -68,6 +68,7 @@ test("moving a subtask and switching accounts discard private task state", async
   await page.goto("/workspace");
   await page.getByRole("link", { name: "Задачи", exact: true }).click();
   await page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /Child/ }).click();
+  await page.locator(".task-object-menu > summary").click();
   await page.getByRole("button", { name: "Перенести" }).click();
   await page.getByRole("button", { name: /Без родителя/ }).click();
   await expect(page.getByRole("region", { name: "Детали задачи" })).not.toContainText("Подзадача:");
@@ -94,18 +95,20 @@ test("mobile navigation exposes tasks", async ({ page }) => {
 
 test("trash moves an active branch and restores only its batch root", async ({ page }) => {
   const state = await mockWorkspace(page);
-  const root = task();
+  const root = task({ deadline_at: "2026-10-30T18:00:00Z" });
   const child = task({ id: "22222222-2222-4222-8222-222222222222", title: "Child", parent_id: root.id });
   const grandchild = task({ id: "33333333-3333-4333-8333-333333333333", title: "Grandchild", parent_id: child.id, trashed_at: "2026-10-15T12:00:00Z", trash_batch_id: "33333333-3333-4333-8333-333333333333", version: 2 });
   state.tasks = [root, child, grandchild];
   await page.goto("/workspace");
   await page.getByRole("link", { name: "Задачи", exact: true }).click();
   await page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /Prepare report/ }).click();
+  await page.locator(".task-object-menu > summary").click();
   await page.getByRole("button", { name: "В корзину" }).click();
   await expect(page.getByRole("group", { name: "Подтверждение удаления" })).toBeVisible();
   await page.getByRole("button", { name: "Подтвердить" }).click();
   await expect(page.getByRole("button", { name: "Корзина" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("region", { name: "Детали задачи" }).getByRole("button", { name: "Восстановить ветку" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Детали задачи" })).toContainText("30 октября");
   expect(state.tasks.map(item => item.trash_batch_id)).toEqual([root.id, root.id, grandchild.id]);
   await page.getByRole("region", { name: "Список задач" }).getByRole("button", { name: /Child/ }).click();
   await expect(page.getByRole("region", { name: "Детали задачи" })).toContainText("Восстановление доступно через корень");

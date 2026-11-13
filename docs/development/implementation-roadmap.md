@@ -84,7 +84,10 @@ section navigation, section URLs/history and a transition/search palette; see
 event date/time controls; see [stage-2 delivery](frontend-redesign-stage-2.md).
 The owner-requested calendar composition/safe-selection follow-up is implemented
 locally; see [calendar refinement](frontend-calendar-refinement.md).
-Task, note, database and AI work-surface redesign stages remain pending a separate request.
+Task stage 3 is implemented locally under the 2026-11-13 request: compact queue,
+inline capture/editing, property pickers, loaded-only grouping/sort and contextual
+detail; see [stage-3 delivery](frontend-redesign-stage-3.md).
+Note, database and AI work-surface redesign stages remain pending a separate request.
 The P-01–P-08 sections below preserve their original backend-slice scope; their
 verification history is not evidence of rerunning backend checks for the UI work.
 
