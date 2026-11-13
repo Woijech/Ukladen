@@ -171,3 +171,20 @@ when their test URLs are unset. Tests send no external email or Google requests.
 Academic profiles and group selection use the separate [academics API](academic-profile.md).
 Frontend profiles, account deletion, administrative management and public user
 lookup are outside this slice and not implemented here.
+
+### Minsk timezone regression coverage
+
+Calendar date projection uses the supported `Europe/Minsk` profile timezone.
+For example, the local day `2026-10-25` spans the half-open UTC interval
+`[2026-10-24T21:00:00Z, 2026-10-25T21:00:00Z)`. Tests retain inclusive-start,
+exclusive-end and overlapping-interval checks without changing stored instants.
+
+Calendar and task migration round trips crossing migration 0042 explicitly expect
+legacy UTC profiles to become `Europe/Minsk`, including after downgrade. They
+still compare every other user field exactly, including creation/update timestamps,
+and retain the task storage data-loss guard.
+
+Verification on 2026-11-13: Ruff lint/format checks, Pyright, the full backend
+pytest suite (`2123 passed`) and `docker compose config --quiet` passed. Integration
+checks used disposable PostgreSQL, Redis and SeaweedFS services, not application
+data or real AI providers.

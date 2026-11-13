@@ -28,8 +28,14 @@ def test_migration_preserves_users_and_refuses_data_loss(database_connection: Co
         insert(UserModel).values(id=owner, email="task-migration@example.com")
     )
     before = list(database_connection.execute(select(UserModel.__table__)).mappings())
+    assert before[0]["timezone"] == "UTC"
+    # Migration 0042 normalizes legacy timezones without restoring them on downgrade.
+    expected_users = [{**user, "timezone": "Europe/Minsk"} for user in before]
     command.upgrade(config, "head")
     command.check(config)
+    assert (
+        list(database_connection.execute(select(UserModel.__table__)).mappings()) == expected_users
+    )
     database_connection.execute(
         insert(TaskModel).values(id=uuid4(), user_id=owner, title="Keep me")
     )
@@ -39,7 +45,9 @@ def test_migration_preserves_users_and_refuses_data_loss(database_connection: Co
     database_connection.execute(delete(TaskModel))
     command.downgrade(config, "0021_google_email_confirmations")
     assert "tasks" not in inspect(database_connection).get_table_names()
-    assert list(database_connection.execute(select(UserModel.__table__)).mappings()) == before
+    assert (
+        list(database_connection.execute(select(UserModel.__table__)).mappings()) == expected_users
+    )
     command.upgrade(config, "head")
     command.check(config)
 
