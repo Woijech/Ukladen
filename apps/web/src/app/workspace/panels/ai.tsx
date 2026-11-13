@@ -42,7 +42,9 @@ import { SourcePicker, SourceViewer } from "./ai-sources";
 import { AiUsage, RunDetails } from "./ai-usage";
 import { ActionProposals } from "./ai-actions";
 import { NavIcon } from "../navigation";
+import { pushWorkspaceLocation } from "../use-section-location";
 import "./ai.css";
+import "./ai-workspace.css";
 
 const chatIcons = {
   chat: "M4 4h16v12H9l-5 4Zm4 5h8m-8 3h5",
@@ -103,7 +105,7 @@ export function AiPanel({
   );
   function go(url: string) {
     if (dirty) setPendingUrl(url);
-    else window.history.pushState(null, "", url);
+    else pushWorkspaceLocation(url);
   }
   useEffect(() => {
     const prevent = (event: BeforeUnloadEvent) => {
@@ -171,7 +173,7 @@ export function AiPanel({
             className="danger-button"
             onClick={() => {
               changeDirty(false);
-              window.history.pushState(null, "", pendingUrl);
+              pushWorkspaceLocation(pendingUrl);
               setPendingUrl(null);
             }}
           >
@@ -198,7 +200,7 @@ function ChatArea({
   const [offset, setOffset] = useState(0);
   const [creating, setCreating] = useState(false);
   const [starter, setStarter] = useState("");
-  const [historyOpen, setHistoryOpen] = useState(() => !window.matchMedia("(max-width: 650px)").matches);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [deleting, setDeleting] = useState<Conversation | null>(null);
   const action = useAction();
   const client = useQueryClient();
@@ -211,6 +213,58 @@ function ChatArea({
         { signal },
       ),
   });
+  const historyPanel = list.data ? <>
+            <button
+              className="primary-button ai-new-chat"
+              onClick={() => { setStarter(""); setCreating(true); setHistoryOpen(false); }}
+            >
+              <NavIcon path={chatIcons.add} /> Новый чат
+            </button>
+            <div className="ai-history-list">
+            <h2 className="ai-history-label">Беседы</h2>
+            {list.data.items.map((chat) => (
+              <div className="ai-history-row" key={chat.id}>
+                <button
+                  className={selected === chat.id ? "active" : ""}
+                  aria-current={selected === chat.id ? "true" : undefined}
+                  onClick={() => {
+                    setStarter("");
+                    onChoose(chat.id);
+                    setHistoryOpen(false);
+                  }}
+                >
+                  <span className="ai-history-title"><NavIcon path={chatIcons.chat} />{chat.title}</span>
+                  <small>
+                    {chat.provider === "fake" ? "Демонстрация" : chat.model}
+                  </small>
+                </button>
+                <button
+                  className="icon-button"
+                  aria-label={`Удалить чат ${chat.title}`}
+                  onClick={() => { setDeleting(chat); setHistoryOpen(false); }}
+                >
+                  <NavIcon path={chatIcons.trash} />
+                </button>
+              </div>
+            ))}
+            {list.data.items.length === 0 && (
+              <p className="muted">
+                Начни новую беседу. История останется здесь.
+              </p>
+            )}
+            {(offset > 0 || list.data.items.length === 20) && <Pager
+              offset={offset}
+              count={list.data.items.length}
+              size={20}
+              onChange={setOffset}
+            />}
+            <p className="ai-retention muted">
+              30 дней с последнего твоего сообщения. Удаление чата
+              окончательное.
+            </p>
+            </div>
+
+  </> : null;
   return (
     <>
       <QueryState
@@ -226,57 +280,12 @@ function ChatArea({
       )}
       {list.data && (
         <div className="ai-layout panel">
-          <aside className="ai-history" aria-label="История чатов">
-            <button
-              className="primary-button ai-new-chat"
-              onClick={() => { setStarter(""); setCreating(true); }}
-            >
-              <NavIcon path={chatIcons.add} /> Новый чат
-            </button>
-            <details className="ai-history-list" open={historyOpen} onToggle={(event) => setHistoryOpen(event.currentTarget.open)}>
-            <summary>История чатов</summary>
-            {list.data.items.map((chat) => (
-              <div className="ai-history-row" key={chat.id}>
-                <button
-                  className={selected === chat.id ? "active" : ""}
-                  aria-current={selected === chat.id ? "true" : undefined}
-                  onClick={() => {
-                    setStarter("");
-                    onChoose(chat.id);
-                    if (window.matchMedia("(max-width: 650px)").matches) setHistoryOpen(false);
-                  }}
-                >
-                  <span className="ai-history-title"><NavIcon path={chatIcons.chat} />{chat.title}</span>
-                  <small>
-                    {chat.provider === "fake" ? "Демонстрация" : chat.model}
-                  </small>
-                </button>
-                <button
-                  className="icon-button"
-                  aria-label={`Удалить чат ${chat.title}`}
-                  onClick={() => setDeleting(chat)}
-                >
-                  <NavIcon path={chatIcons.trash} />
-                </button>
-              </div>
-            ))}
-            {list.data.items.length === 0 && (
-              <p className="muted">
-                Начни новую беседу. История останется здесь.
-              </p>
-            )}
-            <Pager
-              offset={offset}
-              count={list.data.items.length}
-              size={20}
-              onChange={setOffset}
-            />
-            <p className="ai-retention muted">
-              30 дней с последнего твоего сообщения. Удаление чата
-              окончательное.
-            </p>
-            </details>
-          </aside>
+          <div className="ai-mobile-history-toolbar">
+            <button className="secondary-button" aria-haspopup="dialog" aria-expanded={historyOpen} onClick={() => setHistoryOpen(true)}>История чатов</button>
+            <button className="text-action" aria-label="Начать новый чат" onClick={() => { setStarter(""); setCreating(true); }}>+ Новый чат</button>
+          </div>
+          {historyOpen && <Modal title="История чатов" onClose={() => setHistoryOpen(false)}><div className="ai-history-sheet">{historyPanel}</div></Modal>}
+          <aside className="ai-history" aria-label="История чатов">{!historyOpen && historyPanel}</aside>
           {selected ? (
             <Chat key={selected} id={selected} initialPrompt={starter} onDirtyChange={onDirtyChange} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
           ) : (
@@ -535,6 +544,11 @@ function Chat({
   const [picking, setPicking] = useState(false);
   const [source, setSource] = useState<Source | null>(null);
   const [details, setDetails] = useState(false);
+  const [copyNotice, setCopyNotice] = useState("");
+  async function copyMessage(message: Message) {
+    try { await navigator.clipboard.writeText(message.content); setCopyNotice("Сообщение скопировано"); }
+    catch { setCopyNotice("Не удалось скопировать. Выдели текст и скопируй его вручную."); }
+  }
   const [streaming, setStreaming] = useState(false);
   const [hasPending, setHasPending] = useState(false);
   const [draft, setDraft] = useState({ id: "", text: "" });
@@ -754,7 +768,10 @@ function Chat({
                 key={message.id}
                 className={`ai-message ${message.role === "user" ? "from-user" : "from-ai"}`}
               >
-                <strong>{message.role === "user" ? "Ты" : "Ukladen AI"}</strong>
+                <div className="ai-message-heading">
+                  <strong>{message.role === "user" ? "Ты" : "Ukladen AI"}</strong>
+                  <button type="button" className="text-action ai-copy-message" aria-label={`Копировать ${message.role === "user" ? "сообщение" : "ответ"} ${message.sequence}`} onClick={() => void copyMessage(message)}>Копировать</button>
+                </div>
                 <div className="ai-message-text">
                   <CitedText
                     text={message.content}
@@ -797,6 +814,7 @@ function Chat({
             <ActionProposals chatId={id} runId={run?.id} running={!!running} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
             <div ref={bottom} />
           </div>
+          {copyNotice && <p className="ai-copy-notice muted" role="status">{copyNotice}</p>}
           {run && (
             <div className={`ai-run-status ${running ? "is-running" : ""}`}>
               <span role="status" key={progress || run.status}>
@@ -855,7 +873,9 @@ function Chat({
                 <NavIcon path={chatIcons.sources} />
                 {scope === null
                   ? "Источники: автоматически"
-                  : `Источники: ${scope.page_ids.length + scope.material_ids.length + scope.database_ids.length + scope.task_ids.length}${scope.calendar ? " + календарь" : ""}`}
+                   : !(scope.page_ids.length + scope.material_ids.length + scope.database_ids.length + scope.task_ids.length) && !scope.calendar
+                    ? "Источники: без источников"
+                    : `Источники: ${scope.page_ids.length + scope.material_ids.length + scope.database_ids.length + scope.task_ids.length}${scope.calendar ? " + календарь" : ""}`}
               </button>
               {running ? (
                 <button

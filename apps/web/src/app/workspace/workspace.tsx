@@ -7,8 +7,10 @@ import { ThemeToggle } from "@/shared/theme";
 import { Modal } from "@/shared/ui";
 import { CalendarCard } from "./calendar-card";
 import { CalendarSelection } from "./calendar-selection";
+import { CalendarMonth } from "./calendar-month";
+import { EventTimeStrip } from "./event-time-strip";
 import { EventDetail } from "./event-detail";
-import { Navigation, NavIcon, primarySections, sections, type SectionKey } from "./navigation";
+import { Navigation, NavIcon, SectionLink, primarySections, sections, type SectionKey } from "./navigation";
 import {
   RequestError,
   SessionExpiredError,
@@ -38,6 +40,10 @@ import {
   startOfWeek,
 } from "./calendar-time";
 import "./workspace.css";
+import "./shell.css";
+import "./calendar-workspace.css";
+import { useSectionLocation } from "./use-section-location";
+import { CommandPalette } from "./command-palette";
 import { CalendarTaskSessions } from "./task-planning";
 
 const WorkspaceViews = dynamic(
@@ -127,15 +133,6 @@ type GroupContext = {
   period: { term_label: string | null; period_label: string | null } | null;
 };
 
-const weekdays = [
-  "Понедельник",
-  "Вторник",
-  "Среда",
-  "Четверг",
-  "Пятница",
-  "Суббота",
-  "Воскресенье",
-];
 const shortWeekdays = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
 const hourHeight = 54;
 
@@ -996,26 +993,39 @@ function CalendarWorkspace({
     const value = new URLSearchParams(window.location.search).get("page");
     return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ? value : null;
   });
-  const [section, setSection] = useState<SectionKey>(linkedPage ? "notes" : initialSection);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavigation, setMobileNavigation] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const { section, commitSection } = useSectionLocation(initialSection, dirty);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [pendingSearch, setPendingSearch] = useState<string | undefined>();
+  useEffect(() => {
+    function shortcuts(event: KeyboardEvent) {
+      if (event.isComposing || event.altKey || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "k") return;
+      if (document.querySelector("dialog[open]")) return;
+      event.preventDefault();
+      setPaletteOpen(true);
+    }
+    window.addEventListener("keydown", shortcuts);
+    return () => window.removeEventListener("keydown", shortcuts);
+  }, []);
   const [pendingSection, setPendingSection] = useState<SectionKey | null>(null);
   const [pageToOpen, setPageToOpen] = useState<string | null>(linkedPage);
   const navigationVersion = useRef(0);
-  function navigate(next: SectionKey) {
+  function navigate(next: SectionKey, search?: string) {
     navigationVersion.current++;
-    if (next === section) {
+    if (next === section && !search) {
       if (next === "calendar") setDetailEvent(null);
       setMobileNavigation(false);
       return;
     }
     if (dirty) {
+      setPendingSearch(search);
       setPendingSection(next);
       return;
     }
     if (next === "calendar") setDetailEvent(null);
-    setSection(next);
+    commitSection(next, search);
     setMobileNavigation(false);
   }
   function openPage(id: string) {
@@ -1026,9 +1036,15 @@ function CalendarWorkspace({
   const [selected, setSelected] = useState(() =>
     dateKey(new Date(), userTimeZone),
   );
-  const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [calendarContextOpen, setCalendarContextOpen] = useState(false);
+  const calendarContextTrigger = useRef<HTMLButtonElement>(null);
+  function closeCalendarContext() {
+    setCalendarContextOpen(false);
+    requestAnimationFrame(() => calendarContextTrigger.current?.focus({ preventScroll: true }));
+  }
   const [calendarView, setCalendarView] = useState<"week" | "day">(() =>
-    window.matchMedia("(max-width: 760px)").matches ? "day" : "week",
+    window.matchMedia("(max-width: 1100px)").matches ? "day" : "week",
   );
   const [showEventForm, setShowEventForm] = useState(false);
   const [showGroupPicker, setShowGroupPicker] = useState(onboarding);
@@ -1055,6 +1071,8 @@ function CalendarWorkspace({
   const [resizeBusy, setResizeBusy] = useState(false);
   const [resizeError, setResizeError] = useState("");
   const resizeLock = useRef(false);
+  const [moveTarget, setMoveTarget] = useState<CalendarEvent | null>(null);
+  const [moveDraft, setMoveDraft] = useState<{ starts_at: string; ends_at: string } | null>(null);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
 
   const weekStart = useMemo(() => startOfWeek(selected), [selected]);
@@ -1133,7 +1151,7 @@ function CalendarWorkspace({
   useEffect(() => {
     if (calendarScroll.current)
       calendarScroll.current.scrollTop = 8 * hourHeight;
-  }, [range.from, showGroupPicker, section, detailEvent]);
+  }, [range.from, showGroupPicker, section]);
 
   const syncStatus =
     syncStatusQuery.data?.group_id === meQuery.data?.group.id
@@ -1202,7 +1220,9 @@ function CalendarWorkspace({
     queryClient,
   ]);
 
+  const eventFormSnapshot = useRef("");
   function openCreate(date = selected, start?: string, end?: string) {
+    eventFormSnapshot.current = JSON.stringify(["", "", "", start ? dateTimeLocal(new Date(start), timeZone) : `${date}T10:00`, end ? dateTimeLocal(new Date(end), timeZone) : `${date}T11:00`, start ?? "", end ?? ""]);
     setEditingEvent(null);
     setSelected(date);
     setStartValue(start ? dateTimeLocal(new Date(start), timeZone) : `${date}T10:00`);
@@ -1282,7 +1302,9 @@ function CalendarWorkspace({
     ]);
   }
 
+  const eventTrigger = useRef<HTMLElement | null>(null);
   function openEvent(item: CalendarEvent) {
+    eventTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     navigationVersion.current++;
     setDetailEvent(item);
   }
@@ -1309,12 +1331,8 @@ function CalendarWorkspace({
     navigate("calendar");
     openEvent(item);
   }
-  async function resizeEvent(
-    item: CalendarEvent,
-    edge: "starts_at" | "ends_at",
-    value: string,
-  ) {
-    if (item.source !== "personal" || resizeLock.current) return;
+  async function saveEventTime(item: CalendarEvent, changes: { starts_at?: string; ends_at?: string }) {
+    if (item.source !== "personal" || resizeLock.current) return false;
     resizeLock.current = true;
     setResizeBusy(true);
     setResizeError("");
@@ -1322,10 +1340,11 @@ function CalendarWorkspace({
       await writeJson(
         `/api/v1/calendar/personal-events/${item.source_event_id}`,
         "PATCH",
-        { expected_version: item.version, [edge]: value },
+        { expected_version: item.version, ...changes },
       );
       await queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] });
       setToast("Время события изменено");
+      return true;
     } catch (error) {
       setResizeError(
         error instanceof Error
@@ -1333,6 +1352,7 @@ function CalendarWorkspace({
           : "Не удалось изменить время. Изменение не подтверждено.",
       );
       await queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] });
+      return false;
     } finally {
       resizeLock.current = false;
       setResizeBusy(false);
@@ -1340,6 +1360,7 @@ function CalendarWorkspace({
   }
   function editEvent(item: CalendarEvent) {
     if (item.source !== "personal") return;
+    eventFormSnapshot.current = JSON.stringify([item.title, item.location ?? "", item.description ?? "", dateTimeLocal(new Date(item.starts_at), timeZone), dateTimeLocal(new Date(item.ends_at), timeZone), new Date(item.starts_at).toISOString(), new Date(item.ends_at).toISOString()]);
     setEditingEvent(item);
     setTitle(item.title);
     setLocation(item.location ?? "");
@@ -1350,6 +1371,12 @@ function CalendarWorkspace({
     setEndInstant(new Date(item.ends_at).toISOString());
     setFormError("");
     setShowEventForm(true);
+  }
+
+  function closeEventForm() {
+    if (saving) return;
+    const changed = eventFormSnapshot.current !== JSON.stringify([title, location, description, startValue, endValue, startInstant, endInstant]);
+    if (!changed || window.confirm("Закрыть событие без сохранения изменений?")) setShowEventForm(false);
   }
 
   async function createEvent(event: FormEvent<HTMLFormElement>) {
@@ -1481,17 +1508,19 @@ function CalendarWorkspace({
 
   return (
     <main
-      className={`workspace-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
+      className={`workspace-shell ${section === "calendar" ? "calendar-shell" : ""} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
       onKeyDown={(event) => {
         if (event.key !== "Escape") return;
-        const trigger = viewMenuOpen ? ".view-select" : accountMenuOpen ? ".account-button" : topAccountMenuOpen ? ".top-avatar" : null;
+        if (calendarContextOpen) { event.preventDefault(); closeCalendarContext(); return; }
+        if (moveTarget) { event.preventDefault(); setMoveTarget(null); setMoveDraft(null); return; }
+        const trigger = accountMenuOpen ? ".account-button" : topAccountMenuOpen ? ".top-avatar" : null;
         if (!trigger) return;
-        setViewMenuOpen(false);
         setAccountMenuOpen(false);
         setTopAccountMenuOpen(false);
         event.currentTarget.querySelector<HTMLButtonElement>(trigger)?.focus();
       }}
     >
+      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={navigate} onSearch={query => navigate("search", query)} />}
       <a className="skip-link" href="#workspace-content">Перейти к содержимому</a>
       <aside className="sidebar">
         <a
@@ -1514,14 +1543,10 @@ function CalendarWorkspace({
         </button>
         <Navigation active={section} onNavigate={navigate} />
         <div className="sidebar-spacer" />
-        <button
-          className="nav-item settings-nav"
-          aria-label="Настройки"
-          onClick={() => navigate("settings")}
-        >
+        <SectionLink section="settings" className={`nav-item settings-nav ${section === "settings" ? "active" : ""}`} active={section === "settings"} onNavigate={navigate}>
           <NavIcon path={sections.find((item) => item.id === "settings")!.icon} />
           <span>Настройки</span>
-        </button>
+        </SectionLink>
         <div className="account-area">
           <button
             className="account-button"
@@ -1604,10 +1629,10 @@ function CalendarWorkspace({
             <button
               className="top-search icon-button"
               aria-label="Поиск по пространству"
-              onClick={() => navigate("search")}
+              onClick={() => setPaletteOpen(true)}
             >
               <NavIcon path={sections.find((item) => item.id === "search")!.icon} />
-              <span>Поиск</span>
+              <span>Поиск</span><kbd aria-hidden="true">⌘/Ctrl K</kbd>
             </button>
             <button
               className="icon-button notification-shortcut"
@@ -1628,10 +1653,10 @@ function CalendarWorkspace({
               {syncPending
                 ? "Загрузка расписания"
                 : calendarQuery.isFetching
-                  ? "Синхронизация"
+                  ? "Обновляем календарь"
                   : calendarQuery.isError
-                    ? "Нет соединения"
-                    : "Синхронизировано"}
+                    ? "Календарь недоступен"
+                    : "Календарь обновлён"}
             </span>
             <button
               className="avatar top-avatar"
@@ -1674,46 +1699,16 @@ function CalendarWorkspace({
           )}
         </header>
 
-        <div className={`content-wrap content-${section}`} id="workspace-content" tabIndex={-1}>
-          {section === "calendar" && detailEvent ? (
-            <EventDetail
-              event={
-                allEvents.find((event) => event.id === detailEvent.id) ??
-                detailEvent
-              }
-              timeZone={timeZone}
-              onBack={() => {
-                navigationVersion.current++;
-                setDetailEvent(null);
-              }}
-              onEdit={() =>
-                editEvent(
-                  allEvents.find((event) => event.id === detailEvent.id) ??
-                    detailEvent,
-                )
-              }
-              onOpenPage={openPage}
-              onOpenEvent={openLinkedEvent}
-            />
-          ) : section === "calendar" ? (
+        <div className={`content-wrap content-${section} ${detailEvent && section === "calendar" ? "calendar-inspecting" : ""}`} id="workspace-content" tabIndex={-1}>
+          {section === "calendar" ? (
             <>
-              <div className="page-heading">
-                <div>
-                  <div className="greeting">{prettyDate(selected, { month: "long", year: "numeric" })}</div>
-                  <h1>Календарь</h1>
-                  <p className="heading-subtitle">
-                    Личные планы и учебное расписание, собранные вместе.
-                  </p>
-                </div>
-                <button
-                  className="primary-button create-button"
-                  onClick={() => openCreate()}
-                >
-                  <Icon name="plus" />
-                  <span>Новое событие</span>
-                </button>
-              </div>
-
+              <h1 className="sr-only">Календарь</h1>
+              {moveTarget && <div className="calendar-placement" role="region" aria-label="Перенос события">
+                <strong>{moveTarget.title}</strong><p>Выбери новое начало на сетке. Длительность сохранится.</p>
+                {moveDraft && <p role="status">{prettyDate(new Date(moveDraft.starts_at), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZoneName: "shortOffset" })}</p>}
+                <button type="button" className="secondary-button" disabled={resizeBusy} onClick={() => { setMoveTarget(null); setMoveDraft(null); }}>Отменить перенос</button>
+                <button type="button" className="primary-button" disabled={!moveDraft || resizeBusy} onClick={async () => { if (moveDraft && await saveEventTime(moveTarget, moveDraft)) { setMoveTarget(null); setMoveDraft(null); } }}>Применить перенос</button>
+              </div>}
               {resizeBusy && (
                 <p className="action-notice" role="status">
                   Сохраняем время…
@@ -1735,15 +1730,54 @@ function CalendarWorkspace({
                 </div>
               )}
               <div className="calendar-layout">
+                <aside id="calendar-context" className={`calendar-context ${calendarContextOpen ? "is-open" : ""}`} aria-label="Навигация календаря">
+                  <div className="calendar-context-heading"><strong>Календарь</strong><button type="button" className="text-action context-close" aria-label="Закрыть панель календарей" onClick={closeCalendarContext}>×</button></div>
+                  <div className="sidebar-calendar"><CalendarMonth key={selected.slice(0, 7)} selected={selected} timeZone={timeZone} onSelect={day => { setSelected(day); if (calendarContextOpen) closeCalendarContext(); }} /></div>
+                <details className="calendar-source-disclosure" open><summary>Мои календари</summary><div
+                  className="calendar-legend"
+                  aria-label="Отображаемые источники"
+                >
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={showPersonal}
+                      onChange={(event) =>
+                        setShowPersonal(event.target.checked)
+                      }
+                    />
+                    <span className="legend-dot personal-dot" />
+                    Личные события
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={showOfficial}
+                      onChange={(event) =>
+                        setShowOfficial(event.target.checked)
+                      }
+                    />
+                    <span className="legend-dot official-dot" />
+                    Расписание IIS
+                  </label>
+                  <small>Фильтры меняют только отображение</small>
+                </div></details>
+                  <button type="button" className="calendar-connect" onClick={() => setShowGroupPicker(true)}><Icon name="cap" /><span>{meQuery.data ? `Группа ${meQuery.data.group.name}` : "Подключить расписание"}</span></button>
+                  <p className="calendar-context-note">Расписание IIS доступно только для чтения. Личные события можно переносить.</p>
+                </aside>
               <section
                 className="calendar-card"
-                aria-label="Календарь на неделю"
+                aria-label={calendarView === "week" ? "Календарь на неделю" : "Календарь на день"}
               >
                 <div className="calendar-toolbar">
+                  <button type="button" ref={calendarContextTrigger} className="calendar-context-toggle secondary-button" aria-expanded={calendarContextOpen} aria-controls="calendar-context" onClick={() => {
+                    if (calendarContextOpen) closeCalendarContext();
+                    else { setCalendarContextOpen(true); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('#calendar-context .month-days [aria-pressed="true"]')?.focus()); }
+                  }}>Календари</button>
                   <div className="week-title">
+                    <button className="calendar-date-trigger" aria-label="Выбрать дату календаря" title={`${dateLabel} – ${weekEndLabel}`} onClick={() => setDatePickerOpen(true)}>
                     <strong>
-                      {calendarView === "week" ? <>{dateLabel} – {weekEndLabel}</> : prettyDate(selected, { weekday: "long", day: "numeric", month: "long" })}
-                    </strong>
+                      {prettyDate(selected, { month: "long", year: "numeric" })}
+                    </strong></button>
                     <span>
                       {calendarView === "day" ? `Часовой пояс: ${timeZone}` : <>{prettyDate(selected, {
                         weekday: "long",
@@ -1796,100 +1830,14 @@ function CalendarWorkspace({
                         ›
                       </button>
                     </div>
-                    <div className="view-picker">
-                      <button
-                        type="button"
-                        className="view-select"
-                        aria-haspopup="menu"
-                        aria-expanded={viewMenuOpen}
-                        aria-controls="calendar-view-menu"
-                        onClick={() => setViewMenuOpen((open) => !open)}
-                      >
-                        <Icon name="calendar" />{" "}
-                        {calendarView === "week" ? "Неделя" : "День"}{" "}
-                        <span>⌄</span>
-                      </button>
-                      {viewMenuOpen && (
-                        <div
-                          className="view-menu"
-                          id="calendar-view-menu"
-                          role="menu"
-                          aria-label="Вид календаря"
-                        >
-                          <div className="view-menu-title">Вид календаря</div>
-                          <button
-                            type="button"
-                            role="menuitemradio"
-                            aria-checked={calendarView === "week"}
-                            onClick={() => {
-                              setCalendarView("week");
-                              setViewMenuOpen(false);
-                            }}
-                          >
-                            <span>Неделя</span>
-                            <small>7 дней</small>
-                            {calendarView === "week" && (
-                              <strong aria-hidden="true">✓</strong>
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            role="menuitemradio"
-                            aria-checked={calendarView === "day"}
-                            onClick={() => {
-                              setCalendarView("day");
-                              setViewMenuOpen(false);
-                            }}
-                          >
-                            <span>День</span>
-                            <small>Выбранный день</small>
-                            {calendarView === "day" && (
-                              <strong aria-hidden="true">✓</strong>
-                            )}
-                          </button>
-                          <button type="button" role="menuitem" disabled>
-                            <span>Месяц</span>
-                            <small>Пока недоступен</small>
-                          </button>
-                          <p>
-                            Это настройка отображения календаря. Расписание IIS
-                            загружается отдельно и показывается здесь после
-                            успешного импорта.
-                          </p>
-                        </div>
-                      )}
+                    <div className="calendar-view-switch" role="group" aria-label="Вид календаря">
+                      <button type="button" aria-pressed={calendarView === "day"} onClick={() => setCalendarView("day")}>День</button>
+                      <button type="button" aria-pressed={calendarView === "week"} onClick={() => setCalendarView("week")}>Неделя</button>
                     </div>
+                    <button className="primary-button create-button" aria-label="Новое событие" onClick={() => openCreate()}><Icon name="plus" /><span>Новое событие</span></button>
                   </div>
                 </div>
 
-                <div
-                  className="calendar-legend"
-                  aria-label="Отображаемые источники"
-                >
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={showPersonal}
-                      onChange={(event) =>
-                        setShowPersonal(event.target.checked)
-                      }
-                    />
-                    <span className="legend-dot personal-dot" />
-                    Личные события
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={showOfficial}
-                      onChange={(event) =>
-                        setShowOfficial(event.target.checked)
-                      }
-                    />
-                    <span className="legend-dot official-dot" />
-                    Расписание IIS
-                  </label>
-                  <small>Фильтры меняют только отображение</small>
-                </div>
                 <div
                   className="calendar-scroll"
                   ref={calendarScroll}
@@ -1901,10 +1849,7 @@ function CalendarWorkspace({
                     className={`week-grid ${calendarView === "day" ? "single-day-grid" : ""}`}
                   >
                     <div className="time-column">
-                      <div className="day-heading spacer-heading" />
-                      <div className="all-day-label">
-                        {clockChangeWeek ? "ОТ 00:00" : "ВЕСЬ ДЕНЬ"}
-                      </div>
+                      <div className="day-heading spacer-heading"><span title={timeZone}>{clockChangeWeek ? "От 00:00" : prettyDate(boundaries[0], { timeZoneName: "shortOffset" }).split(" ").at(-1)}</span></div>
                       {Array.from({ length: gridHours }, (_, index) => (
                         <div className="time-label" key={index}>
                           {clockChangeWeek
@@ -1935,13 +1880,10 @@ function CalendarWorkspace({
                             <span>{shortWeekdays[dayIndex]}</span>
                             <strong>{Number(day.slice(-2))}</strong>
                           </button>
-                          <button
-                            className="all-day-cell"
-                            onClick={() => openCreate(day)}
-                            aria-label={`Добавить событие на ${weekdays[dayIndex]}`}
-                          />
                           <div
                             className="day-canvas"
+                            data-start={boundaries[dayIndex].getTime()}
+                            data-end={boundaries[dayIndex + 1].getTime()}
                             style={{
                               height: `${dayHours[dayIndex] * hourHeight}px`,
                             }}
@@ -1979,8 +1921,13 @@ function CalendarWorkspace({
                               hourHeight={hourHeight}
                               timeZone={timeZone}
                               disabled={resizeBusy}
-                              onCreate={(start, end) => openCreate(day, start, end)}
+                              occupied={moveTarget ? [] : allEvents}
+                              onCreate={(start, end) => {
+                                if (moveTarget) { setMoveDraft({ starts_at: start, ends_at: new Date(Date.parse(start) + Date.parse(moveTarget.ends_at) - Date.parse(moveTarget.starts_at)).toISOString() }); }
+                                else openCreate(day, start, end);
+                              }}
                             />
+                            {moveTarget && moveDraft && Date.parse(moveDraft.starts_at) >= boundaries[dayIndex].getTime() && Date.parse(moveDraft.starts_at) < boundaries[dayIndex + 1].getTime() && <div className="calendar-move-preview" style={{ top: `${(Date.parse(moveDraft.starts_at) - boundaries[dayIndex].getTime()) / 3_600_000 * hourHeight}px`, height: `${Math.max(28, (Date.parse(moveDraft.ends_at) - Date.parse(moveDraft.starts_at)) / 3_600_000 * hourHeight)}px` }}>{moveTarget.title}</div>}
                             {dayEvents.map((segment) => {
                               const item = segment.originalEvent;
                               const column = columns.get(item.id) ?? {
@@ -1997,12 +1944,13 @@ function CalendarWorkspace({
                                   count={column.count}
                                   hourHeight={hourHeight}
                                   timeZone={timeZone}
-                                  disabled={resizeBusy}
+                                  disabled={resizeBusy || !!moveTarget}
                                   onOpen={() => {
                                     setSelected(day);
                                     openEvent(item);
                                   }}
-                                  onResize={resizeEvent}
+                                  onResize={async (item, edge, value) => { await saveEventTime(item, { [edge]: value }); }}
+                                  onMove={async (item, start, end) => { await saveEventTime(item, { starts_at: start, ends_at: end }); }}
                                 />
                               );
                             })}
@@ -2077,6 +2025,31 @@ function CalendarWorkspace({
                 )}
               </section>
 
+              <aside className="calendar-event-inspector" hidden={!detailEvent} aria-label="Детали события">
+                {detailEvent && (
+            <EventDetail
+              event={
+                allEvents.find((event) => event.id === detailEvent.id) ??
+                detailEvent
+              }
+              timeZone={timeZone}
+              onBack={() => {
+                navigationVersion.current++;
+                setDetailEvent(null);
+                requestAnimationFrame(() => { if (eventTrigger.current?.isConnected) eventTrigger.current.focus({ preventScroll: true }); else calendarScroll.current?.focus({ preventScroll: true }); });
+              }}
+              onEdit={() =>
+                editEvent(
+                  allEvents.find((event) => event.id === detailEvent.id) ??
+                    detailEvent,
+                )
+              }
+              onMove={() => { setMoveTarget(allEvents.find(event => event.id === detailEvent.id) ?? detailEvent); setMoveDraft(null); setDetailEvent(null); requestAnimationFrame(() => calendarScroll.current?.focus()); }}
+              onOpenPage={openPage}
+              onOpenEvent={openLinkedEvent}
+            />
+                )}
+              </aside>
               <div className="below-grid">
                 <section className="selected-day-card">
                   <div className="section-title">
@@ -2160,9 +2133,10 @@ function CalendarWorkspace({
               <details className="calendar-help">
                 <summary>Управление календарём</summary>
                 <p id="calendar-create-help" className="calendar-interaction-hint">
-                  Нажми на свободное время или протяни интервал, чтобы создать событие.
+                  Нажми на свободное время или протяни интервал, чтобы создать событие. Выделение останавливается у соседнего события; намеренное пересечение можно задать в редакторе.
                   С клавиатуры: ↑ ↓ выбрать время, Shift + ↑ ↓ изменить длительность, Enter создать.
                 </p>
+                <p id="calendar-move-help" className="calendar-interaction-hint">Перетяни личное событие, чтобы перенести. Alt + ↑ ↓: на 15 минут; Enter сохранить, Esc отменить. На телефоне открой событие и выбери «Перенести событие».</p>
                 <p id="calendar-resize-help" className="calendar-interaction-hint">
                   Потяни за край личного события, чтобы изменить время.
                   С клавиатуры: ↑ ↓ изменить на 15 минут, Enter сохранить, Esc отменить.
@@ -2203,39 +2177,43 @@ function CalendarWorkspace({
       <nav className="mobile-dock" aria-label="Быстрые переходы">
         {primarySections.map((id) => {
           const item = sections.find((item) => item.id === id)!;
-          return <button type="button" key={id} aria-current={section === id ? "page" : undefined} onClick={() => navigate(id)}>
+          return <SectionLink key={id} section={id} active={section === id} onNavigate={navigate}>
             <NavIcon path={item.icon} /><span>{item.title}</span>
-          </button>;
+          </SectionLink>;
         })}
-        <button type="button" aria-label="Все разделы" onClick={() => setMobileNavigation(true)}>
+        <button type="button" aria-label="Все разделы" aria-expanded={mobileNavigation} aria-current={!primarySections.some(id => id === section) ? "page" : undefined} onClick={() => setMobileNavigation(true)}>
           <Icon name="menu" /><span>Ещё</span>
         </button>
       </nav>
 
+      {datePickerOpen && <Modal title="Выбрать дату календаря" className="calendar-date-dialog" onClose={() => setDatePickerOpen(false)}>
+        <h2>Дата календаря</h2><CalendarMonth key={selected.slice(0, 7)} selected={selected} timeZone={timeZone} onSelect={day => { setSelected(day); setDatePickerOpen(false); }} />
+      </Modal>}
       {showEventForm && (
         <Modal
+          className="calendar-composer"
+          initialFocus="#event-title"
           title={editingEvent ? "Изменить событие" : "Новое событие"}
-          onClose={() => setShowEventForm(false)}
+          onClose={closeEventForm}
         >
           <form className="event-modal" onSubmit={createEvent}>
-            <span className="greeting">ЛИЧНЫЙ КАЛЕНДАРЬ</span>
+            <span className="greeting">Личное событие</span>
             <h2>{editingEvent ? "Изменить событие" : "Новое событие"}</h2>
-            <p>
-              {editingEvent
-                ? "Можно изменить личный план. Учебные пары остаются без изменений."
-                : "Личное событие можно поставить в любое время, даже одновременно с парой."}
-            </p>
+
             <p className="calendar-timezone">Часовой пояс: {timeZone}</p>
             <label htmlFor="event-title">Название</label>
             <input
               id="event-title"
-              autoFocus
               required
               maxLength={200}
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               placeholder="Например, подготовка к экзамену"
             />
+            <EventTimeStrip timeZone={timeZone} originalStart={editingEvent?.starts_at} originalEnd={editingEvent?.ends_at}
+              value={{ start: startValue, end: endValue, startInstant, endInstant }}
+              onChange={value => { setStartValue(value.start); setEndValue(value.end); setStartInstant(value.startInstant); setEndInstant(value.endInstant); }} />
+            <details className="event-exact-dates"><summary>Точный ввод даты и времени</summary>
             <div className="form-row">
               <div>
                 <label htmlFor="event-start">Начало</label>
@@ -2306,6 +2284,7 @@ function CalendarWorkspace({
                 )}
               </div>
             </div>
+            </details>
             <label htmlFor="event-location">
               Место <span className="optional">необязательно</span>
             </label>
@@ -2335,7 +2314,7 @@ function CalendarWorkspace({
               <button
                 type="button"
                 className="cancel-button"
-                onClick={() => setShowEventForm(false)}
+                onClick={closeEventForm}
               >
                 Отмена
               </button>
@@ -2394,10 +2373,9 @@ function CalendarWorkspace({
           <Navigation
             active={section}
             onNavigate={navigate}
+            drawer
             footer={
-              <button className="nav-item" onClick={() => navigate("settings")}>
-                Настройки
-              </button>
+              <SectionLink section="settings" className="nav-item" active={section === "settings"} onNavigate={navigate}>Настройки</SectionLink>
             }
           />
         </Modal>
@@ -2423,7 +2401,8 @@ function CalendarWorkspace({
               className="danger-button"
               onClick={() => {
                 setDirty(false);
-                setSection(pendingSection);
+                commitSection(pendingSection, pendingSearch);
+                setPendingSearch(undefined);
                 setPendingSection(null);
                 setMobileNavigation(false);
               }}

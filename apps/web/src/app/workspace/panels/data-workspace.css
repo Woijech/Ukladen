@@ -1,0 +1,42 @@
+.databases-page .page-heading, .organization-page .page-heading { margin-bottom: 20px; }
+.databases-page .page-heading h1, .organization-page .page-heading h1 { font-size: 24px; }
+.databases-page .greeting { display: none; }
+.databases-page .database-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; border-block: 1px solid var(--border); }
+.databases-page .database-card { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 16px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; box-shadow: none; text-align: left; }
+.databases-page .database-card:last-child { border-bottom: 0; }
+.databases-page .database-card h2 { margin: 0; font-size: 16px; overflow-wrap: anywhere; }
+.databases-page .database-symbol { font-size: 24px; margin: 0; }
+.databases-page .database-card > span:last-child { font-size: 13px; color: var(--muted); }
+.databases-page .panel, .organization-page .panel { border-radius: 0; box-shadow: none; }
+.databases-page .records-table td { padding: 4px 8px; vertical-align: top; }
+.databases-page .record-cell { width: 100%; min-height: 44px; padding: 8px; border: 1px solid transparent; border-radius: 4px; text-align: left; background: transparent; color: var(--text); font-size: 14px; overflow-wrap: anywhere; }
+.databases-page .record-cell:not(:disabled):hover { border-color: var(--border); background: var(--hover); }
+.databases-page .record-cell:disabled { opacity: 1; }
+.databases-page .data-row-menu summary { min-width: 44px; min-height: 44px; }
+.databases-page .note-menu-items { max-height: calc(100dvh - 16px); overflow: auto; }
+.record-fields { min-width: 0; padding: 0; margin: 0; border: 0; }
+.cell-editor { min-width: 260px; max-width: 360px; margin: 4px 0; padding: 12px; border: 1px solid var(--accent); border-radius: var(--radius-sm); background: var(--surface); }
+.cell-editor .record-field { display: grid; gap: 8px; }
+.cell-editor .record-field > label { font-size: 13px; color: var(--muted); }
+.cell-editor input:not([type="checkbox"]), .cell-editor select { width: 100%; min-width: 0; padding: 8px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; }
+.cell-editor .modal-actions { margin-top: 12px; gap: 8px; flex-wrap: wrap; }
+.cell-editor button { min-height: 36px; }
+.organization-page .organization-layout { grid-template-columns: 240px minmax(0, 1fr); }
+.organization-page .resource-row { padding: 12px 16px; }
+.organization-back { display: none; }
+@media (max-width: 900px) {
+  .organization-page .organization-layout { grid-template-columns: minmax(0, 1fr); }
+  .organization-page:not(.organization-selected) .organization-layout > section { display: none; }
+  .organization-page.organization-selected .organization-layout > aside { display: none; }
+  .organization-back { display: inline-flex; padding: 12px 16px; min-height: 44px; }
+  .databases-page .database-card { grid-template-columns: 32px minmax(0, 1fr); gap: 8px 12px; }
+  .databases-page .database-card > span:last-child { grid-column: 2; }
+  .databases-page .view-tabs { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; }
+  .databases-page .view-tabs button { flex-shrink: 0; min-height: 44px; }
+  .cell-editor button, .organization-page .tree-row { min-height: 44px; }
+}
+
+.cell-record-title { margin: 0 0 12px; color: var(--text); font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .databases-page .cell-editor { position: fixed; left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 40; min-width: 0; max-width: none; max-height: 60dvh; overflow-y: auto; padding: 16px; box-shadow: var(--shadow-lg); }
+}

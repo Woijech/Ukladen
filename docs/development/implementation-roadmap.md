@@ -78,6 +78,23 @@ calendar/day context, full-width notes, task list/detail, AI transcript/history,
 settings and authentication. AI joins the primary navigation; phones gain a labelled
 bottom navigation and initially open the day calendar. Backend/API capabilities,
 provider activation and database schemas are unchanged.
+The 2026-11-11 UX redesign stage 1 implements shared tokens, compact grouped
+section navigation, section URLs/history and a transition/search palette; see
+[stage-1 delivery](frontend-redesign-stage-1.md). Calendar stage 2 is implemented locally with direct time manipulation and custom
+event date/time controls; see [stage-2 delivery](frontend-redesign-stage-2.md).
+The owner-requested calendar composition/safe-selection follow-up is implemented
+locally; see [calendar refinement](frontend-calendar-refinement.md).
+Task stage 3 is implemented locally under the 2026-11-13 request: compact queue,
+inline capture/editing, property pickers, loaded-only grouping/sort and contextual
+detail; see [stage-3 delivery](frontend-redesign-stage-3.md).
+Notes stage 4 is implemented locally under the 2026-11-13 request: focused document
+canvas, inline page creation, title filtering, contextual block tools and safe manual
+save recovery; see [stage-4 delivery](frontend-redesign-stage-4.md).
+The remaining requested UI slices are implemented locally: database/cell and collection
+flows ([stage 5](frontend-redesign-stage-5.md)), focused AI conversation with preserved
+HITL ([stage 6 AI](frontend-redesign-stage-6-ai.md)), and settings/utility surfaces
+([stage 6 utilities](frontend-redesign-stage-6-utilities.md)). They are not deployed;
+planned backend capabilities and manual release checks remain separate.
 The P-01–P-08 sections below preserve their original backend-slice scope; their
 verification history is not evidence of rerunning backend checks for the UI work.
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { positionNoteMenu } from "./note-menu";
 import { ReviewNotificationButton } from "./ai-reviews";
 
 import { useRef, useState, type FormEvent } from "react";
@@ -103,7 +104,7 @@ export function MaterialsPanel() {
     );
   }
   return (
-    <div className="feature-page">
+    <div className="feature-page materials-page">
       <div className="page-heading">
         <div>
           <h1>Материалы</h1>
@@ -287,20 +288,25 @@ export function MaterialsPanel() {
                         Повторить
                       </button>
                     )}
+                    <details className="note-menu resource-actions" onToggle={event => positionNoteMenu(event.currentTarget)} onKeyDown={event => { if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); } }}>
+                      <summary aria-label={`Действия материала ${item.title}`}>···</summary>
+                      <div className="note-menu-items" onClick={event => { if ((event.target as HTMLElement).closest("button")) event.currentTarget.closest("details")?.removeAttribute("open"); }}>
                     <button
                       className="icon-button"
                       aria-label={`Изменить ${item.title}`}
                       onClick={() => setEditing(item)}
                     >
-                      ✎
+                      Изменить
                     </button>
                     <button
                       className="icon-button"
                       aria-label={`В корзину: ${item.title}`}
                       onClick={() => setTrash(item)}
                     >
-                      ×
+                      В корзину
                     </button>
+                      </div>
+                    </details>
                   </>
                 )}
               </div>
@@ -587,7 +593,7 @@ export function SearchPanel({
   onOpenPage: (id: string) => void;
   onMaterials: () => void;
 }) {
-  const [search, setSearch] = useState({ text: "", source: "", offset: 0 });
+  const [search, setSearch] = useState(() => ({ text: new URLSearchParams(window.location.search).get("q")?.slice(0, 200) ?? "", source: "", offset: 0 }));
   const [materialId, setMaterialId] = useState<string | null>(null);
   const material = useQuery({
     queryKey: ["search-material", materialId],
@@ -631,6 +637,7 @@ export function SearchPanel({
           name="q"
           type="search"
           aria-label="Поисковый запрос"
+          defaultValue={search.text}
           placeholder="Что хочешь найти?"
           maxLength={200}
           required
@@ -791,7 +798,7 @@ export function NotificationsPanel({ timeZone }: { timeZone: string }) {
       minute: "2-digit",
     }).format(new Date(value));
   return (
-    <div className="feature-page">
+    <div className="feature-page notifications-page">
       <div className="page-heading">
         <div>
           <h1>Уведомления</h1>

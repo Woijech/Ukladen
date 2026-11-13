@@ -45,12 +45,12 @@ for (const browserZone of ["UTC", "America/Los_Angeles"]) {
       const ranges: string[] = [];
       page.on("request", request => { if (request.url().includes("/calendar/events?")) ranges.push(new URL(request.url()).searchParams.get("date_from")!); });
       await page.goto("/workspace");
-      await expect(page.locator(".week-title strong")).toContainText("19 октября");
+      await expect(page.locator(".calendar-date-trigger")).toHaveAttribute("title", /19 октября/);
       expect(ranges).toContain("2026-10-19");
       await page.getByRole("button", { name: "Предыдущая неделя" }).click();
-      await expect(page.locator(".week-title strong")).toContainText("12 октября");
+      await expect(page.locator(".calendar-date-trigger")).toHaveAttribute("title", /12 октября/);
       await page.getByRole("button", { name: "Сегодня", exact: true }).click();
-      await expect(page.locator(".week-title strong")).toContainText("19 октября");
+      await expect(page.locator(".calendar-date-trigger")).toHaveAttribute("title", /19 октября/);
       await page.getByRole("button", { name: "Новое событие", exact: true }).click();
       await expect(page.getByLabel("Начало", { exact: true })).toHaveValue("2026-10-19T10:00");
     });
@@ -66,6 +66,7 @@ test.describe("daylight-saving input and layout", () => {
     await page.goto("/workspace");
     await page.getByRole("button", { name: "Новое событие", exact: true }).click();
     await page.getByLabel("Название", { exact: true }).fill("Spring gap");
+    await page.locator(".event-exact-dates > summary").click();
     await page.getByLabel("Начало", { exact: true }).fill("2026-03-08T02:30");
     await page.getByLabel("Окончание", { exact: true }).fill("2026-03-08T03:30");
     await page.locator(".event-modal").getByRole("button", { name: "Добавить событие" }).click();
@@ -83,6 +84,7 @@ test.describe("daylight-saving input and layout", () => {
     await expect(page.locator(".day-canvas").last()).toHaveCSS("height", "1350px");
     await page.getByRole("button", { name: "Новое событие", exact: true }).click();
     await page.getByLabel("Название", { exact: true }).fill("Second occurrence");
+    await page.locator(".event-exact-dates > summary").click();
     await page.getByLabel("Начало", { exact: true }).fill("2026-11-01T01:30");
     await page.getByLabel("Окончание", { exact: true }).fill("2026-11-01T02:30");
     await page.getByLabel("Смещение начала", { exact: true }).selectOption("2026-11-01T06:30:00.000Z");

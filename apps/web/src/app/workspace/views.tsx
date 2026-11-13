@@ -1,13 +1,12 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import symbol from "@/shared/assets/ukladen-avatar.png";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { csrfToken, requestJson, writeJson } from "@/shared/api";
 import { ActionFeedback, QueryState, useAction } from "@/shared/ui";
-import { ThemeToggle } from "@/shared/theme";
+import { ThemeOptions } from "@/shared/theme";
 const NotesPanel = dynamic(() =>
   import("./panels/notes").then((module) => module.NotesPanel),
 );
@@ -27,6 +26,7 @@ const TasksPanel = dynamic(() =>
 );
 import { OrganizationPanel, type EventTarget } from "./panels/organization";
 import type { SectionKey } from "./navigation";
+import "./utility-workspace.css";
 
 type ViewProps = {
   section: SectionKey;
@@ -49,7 +49,7 @@ export function WorkspaceViews(props: ViewProps) {
       </Suspense>
     );
   if (section === "tasks")
-    return <TasksPanel timeZone={timeZone} onSessionEnd={props.onSessionEnd} onOpenPage={onOpenPage} />;
+    return <TasksPanel timeZone={timeZone} onSessionEnd={props.onSessionEnd} onOpenPage={onOpenPage} onDirtyChange={props.onDirtyChange} />;
   if (section === "notes")
     return (
       <NotesPanel
@@ -62,6 +62,7 @@ export function WorkspaceViews(props: ViewProps) {
   if (section === "search")
     return (
       <SearchPanel
+        key={typeof window === "undefined" ? "" : window.location.search}
         onOpenPage={onOpenPage}
         onMaterials={() => onNavigate("materials")}
       />
@@ -69,11 +70,11 @@ export function WorkspaceViews(props: ViewProps) {
   if (section === "notifications")
     return <NotificationsPanel timeZone={timeZone} />;
   if (section === "databases")
-    return <DatabasesPanel timeZone={timeZone} onOpenPage={onOpenPage} />;
+    return <DatabasesPanel timeZone={timeZone} onOpenPage={onOpenPage} onDirtyChange={props.onDirtyChange} />;
   if (section === "organization")
     return <OrganizationPanel events={props.events} onOpenPage={onOpenPage} />;
   if (section === "settings")
-    return <SettingsPanel onChooseGroup={props.onChooseGroup} />;
+    return <SettingsPanel onChooseGroup={props.onChooseGroup} onDirtyChange={props.onDirtyChange} />;
   return (
     <HomePanel
       onNavigate={onNavigate}
@@ -111,33 +112,17 @@ function HomePanel({
       <div className="page-heading">
         <div>
           <span className="greeting">{date}</span>
-          <h1>Место для самого важного</h1>
-          <p className="heading-subtitle">Немного ясности для нового дня.</p>
+          <h1>Главная</h1>
         </div>
       </div>
-      <div className="dashboard-hero panel">
-        <div>
-          <span className="greeting">В своём ритме</span>
-          <h2>
-            Не нужно держать
-            <br />
-            всё в голове.
-          </h2>
-          <p>
-            Посмотри планы, запиши мысль или вернись к материалам. Здесь всё
-            твоё.
-          </p>
-          <button
-            className="primary-button"
-            onClick={() => onNavigate("calendar")}
-          >
-            Открыть календарь
-          </button>
+      <section className="home-start" aria-label="Начать работу">
+        <h2>Продолжить работу</h2>
+        <div className="home-work-links">
+          <button className="primary-button" onClick={() => onNavigate("calendar")}>Открыть календарь</button>
+          <button className="secondary-button" onClick={() => onNavigate("tasks")}>Задачи</button>
+          <button className="secondary-button" onClick={() => onNavigate("notes")}>Заметки</button>
         </div>
-        <div className="dashboard-mark" aria-hidden="true">
-          <Image src={symbol} alt="" width={200} height={200} />
-        </div>
-      </div>
+      </section>
       <div className="dashboard-grid">
         <section className="panel">
           <div className="panel-toolbar">
@@ -171,7 +156,7 @@ function HomePanel({
           <button onClick={() => onNavigate("materials")}>
             <span>▱</span>
             <div>
-              <strong>Твоя библиотека</strong>
+              <strong>Материалы</strong>
               <small>Файлы и полезные ссылки</small>
             </div>
             →
@@ -179,7 +164,7 @@ function HomePanel({
           <button onClick={() => onNavigate("databases")}>
             <span>▦</span>
             <div>
-              <strong>Своя система</strong>
+              <strong>Базы данных</strong>
               <small>Базы данных и представления</small>
             </div>
             →
@@ -187,7 +172,7 @@ function HomePanel({
           <button onClick={() => onNavigate("notifications")}>
             <span>◷</span>
             <div>
-              <strong>Ничего не упустить</strong>
+              <strong>Уведомления</strong>
               <small>Напоминания и входящие</small>
             </div>
             →
@@ -207,7 +192,7 @@ type Profile = {
   avatar_url: string | null;
   updated_at: string;
 };
-function SettingsPanel({ onChooseGroup }: { onChooseGroup: () => void }) {
+function SettingsPanel({ onChooseGroup, onDirtyChange }: { onChooseGroup: () => void; onDirtyChange: (dirty: boolean) => void }) {
   const profile = useQuery({
     queryKey: ["settings-profile"],
     queryFn: ({ signal }) =>
@@ -226,13 +211,16 @@ function SettingsPanel({ onChooseGroup }: { onChooseGroup: () => void }) {
         error={profile.error}
         retry={() => void profile.refetch()}
       />
+      <nav className="settings-sections" aria-label="Разделы настроек">
+        <a href="#profile-settings">Профиль</a><a href="#appearance-settings">Оформление</a><a href="#schedule-settings">Расписание</a><a href="#assistant-settings">AI</a>
+      </nav>
       {profile.data && (
-        <>
+        <section id="profile-settings" aria-label="Профиль">
           <AvatarSettings profile={profile.data} />
-          <ProfileForm key={profile.data.id} profile={profile.data} />
-        </>
+          <ProfileForm key={profile.data.id} profile={profile.data} onDirtyChange={onDirtyChange} />
+        </section>
       )}
-      <section className="panel setting-section">
+      <section id="appearance-settings" className="panel setting-section">
         <div>
           <h2>Внешний вид</h2>
           <p>
@@ -240,9 +228,9 @@ function SettingsPanel({ onChooseGroup }: { onChooseGroup: () => void }) {
             оформления.
           </p>
         </div>
-        <ThemeToggle />
+        <ThemeOptions />
       </section>
-      <section className="panel setting-section">
+      <section id="schedule-settings" className="panel setting-section">
         <div>
           <h2>Учебное расписание</h2>
           <p>
@@ -254,7 +242,7 @@ function SettingsPanel({ onChooseGroup }: { onChooseGroup: () => void }) {
           Настроить группу
         </button>
       </section>
-      <section className="panel setting-section">
+      <section id="assistant-settings" className="panel setting-section">
         <div>
           <h2>Помощник Ukladen</h2>
           <p>
@@ -267,13 +255,20 @@ function SettingsPanel({ onChooseGroup }: { onChooseGroup: () => void }) {
     </div>
   );
 }
-function ProfileForm({ profile }: { profile: Profile }) {
-  const [timeZone, setTimeZone] = useState(profile.timezone);
+function ProfileForm({ profile, onDirtyChange }: { profile: Profile; onDirtyChange: (dirty: boolean) => void }) {
+  const [name, setName] = useState(profile.display_name ?? "");
+  const [confirmed, setConfirmed] = useState(profile.display_name ?? "");
+  const dirty = name !== confirmed;
+  const dirtyCallback = useRef(onDirtyChange);
+  useEffect(() => { dirtyCallback.current = onDirtyChange; }, [onDirtyChange]);
+  useEffect(() => {
+    dirtyCallback.current(dirty);
+    const prevent = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ""; } };
+    window.addEventListener("beforeunload", prevent);
+    return () => { dirtyCallback.current(false); window.removeEventListener("beforeunload", prevent); };
+  }, [dirty]);
   const action = useAction();
   const client = useQueryClient();
-  const zones = Array.from(
-    new Set(["UTC", profile.timezone, ...Intl.supportedValuesOf("timeZone")]),
-  );
   return (
     <form
       className="panel profile-form"
@@ -283,13 +278,14 @@ function ProfileForm({ profile }: { profile: Profile }) {
         void action.run(async () => {
           await writeJson("/api/v1/users/me", "PATCH", {
             display_name: values.get("name") || null,
-            timezone: timeZone,
           });
+          setConfirmed(name);
           await client.invalidateQueries({ queryKey: ["settings-profile"] });
           window.dispatchEvent(new Event("ukladen:profile-updated"));
         });
       }}
     >
+      <fieldset className="profile-fields" disabled={action.busy}>
       <h2>Личный профиль</h2>
       <p className="muted">{profile.email}</p>
       <label className="field-label" htmlFor="profile-name">
@@ -299,33 +295,18 @@ function ProfileForm({ profile }: { profile: Profile }) {
         className="ui-input"
         id="profile-name"
         name="name"
-        defaultValue={profile.display_name ?? ""}
+        value={name}
+        onChange={event => { setName(event.target.value); dirtyCallback.current(event.target.value !== confirmed); }}
         maxLength={100}
         placeholder="Как к тебе обращаться?"
       />
-      <label className="field-label" htmlFor="profile-timezone">
-        Часовой пояс календаря
-      </label>
-      <select
-        className="ui-input"
-        id="profile-timezone"
-        value={timeZone}
-        onChange={(event) => setTimeZone(event.target.value)}
-      >
-        {zones.map((zone) => (
-          <option key={zone} value={zone}>
-            {zone}
-          </option>
-        ))}
-      </select>
-      <p className="muted">
-        Изменяет отображение дат. Сохранённые события остаются в своих исходных
-        моментах времени.
-      </p>
-      <ActionFeedback {...action} />
-      <button className="primary-button" disabled={action.busy}>
-        Сохранить профиль
+      <p className="muted">Часовой пояс: Минск (Europe/Minsk).</p>
+      <ActionFeedback error={dirty ? action.error : ""} notice="" />
+      <p className="profile-save-state muted" role="status">{action.busy ? "Сохраняем…" : dirty ? action.error ? "Ошибка сохранения" : "Есть изменения" : "Сохранено"}</p>
+      <button className="primary-button" disabled={action.busy || !dirty}>
+        {action.busy ? "Сохраняем…" : "Сохранить профиль"}
       </button>
+      </fieldset>
     </form>
   );
 }

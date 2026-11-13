@@ -304,3 +304,15 @@ task/calendar block, dependency, page link or reminder UI in this slice.
 The 2026-10-25 workspace integration preserves these task flows in the redesigned
 shell. Combined browser and responsive verification is recorded in the
 [frontend guide](../architecture/frontend.md#current-verification-and-runtime).
+
+
+## Task UX stage 3, 2026-11-13
+
+The existing API now backs a compact load-more queue, server status/priority filters,
+loaded-only grouping/sort/search, row title/property editing, repeated quick capture
+and inline child/description editing. Contextual detail uses a focused compact-screen
+path with Back; branch trash/restore, dependencies, page links and planning remain.
+Writes use existing CSRF/version checks; one-step property Undo is another guarded
+PATCH. Deadline picking preserves profile timezone, gaps/folds and unchanged seconds.
+No task schema/provider/API changes. The [stage-3 report](frontend-redesign-stage-3.md)
+records verification and explicit limits. Earlier dated results above remain historical.

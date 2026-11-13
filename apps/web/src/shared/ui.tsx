@@ -1,34 +1,49 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from "react";
 
 export function Modal({
   title,
   children,
   onClose,
   wide = false,
+  initialFocus,
+  className = "",
+  style,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
+  initialFocus?: string;
+  className?: string;
+  style?: CSSProperties;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
     const trigger = document.activeElement;
     dialog?.showModal();
+    if (initialFocus) dialog?.querySelector<HTMLElement>(initialFocus)?.focus();
     return () => {
       dialog?.close();
       if (trigger instanceof HTMLElement && trigger.isConnected)
         trigger.focus();
     };
-  }, []);
+  }, [initialFocus]);
   return (
     <dialog
       ref={ref}
-      className={`ui-dialog ${wide ? "wide-dialog" : ""}`}
+      className={`ui-dialog ${wide ? "wide-dialog" : ""} ${className}`}
+      style={style}
       aria-label={title}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && !event.defaultPrevented && !event.nativeEvent.isComposing) {
+          event.preventDefault();
+          event.stopPropagation();
+          onClose();
+        }
+      }}
       onCancel={(event) => {
         event.preventDefault();
         onClose();

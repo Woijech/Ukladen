@@ -177,6 +177,34 @@ save, page-page link schema, editor library, backend migration or new dependency
 introduced by this UI slice. Large libraries currently require all page summaries
 for the tree/parent picker; lazy branch loading is a future performance improvement.
 
+## Focused document UI — 2026-11-13
+
+The owner-requested stage-4 redesign retains the same flat block document API.
+The desktop library is 224px wide; tablet/phone users explicitly open the page list.
+Title filtering preserves matching ancestors. Root/child creation is inline and
+retains its entered title after a failed request or closing/reopening the mobile list.
+Document titles wrap and grow; body text uses a restrained reading column. Slash/plus
+insertion, block conversions, Markdown source, all H1–H6 headings, both list styles,
+checkboxes and HTTP(S) link blocks remain available. Menus are viewport-bounded;
+block insertion, conversion, reorder and deletion have touch/keyboard controls.
+
+Block deletion is immediate in the local draft with one-level structural undo;
+movement is also undoable. Undo reinserts/reorders the affected block against current
+neighbors instead of replacing the document, preserving later edits in other blocks.
+A subsequent structural action replaces that undo entry; changing/reloading the page
+clears it. Branch trash continues to require explicit confirmation and is recoverable.
+
+Save stays explicit (button or Ctrl/Cmd+S). The document remains editable during a
+write. Later typing stays dirty; a follow-up shortcut explicitly queues another save.
+Metadata success advances the baseline before the document write, so a failed body
+save retries at the correct version without repeating unchanged metadata. Background
+query updates cannot silently replace a draft's version. Reload is an explicit discard
+confirmation. Drafts are memory-only and protected by the existing navigation/unload
+guards; autosave, offline/crash recovery and revision history remain unimplemented.
+
+See [stage-4 delivery and verification](frontend-redesign-stage-4.md). The dated checks
+below describe the older slice and have not been repurposed as current evidence.
+
 ## Further Notion-style capabilities
 
 This is a capability inventory, not authorization for the next slice. Detailed

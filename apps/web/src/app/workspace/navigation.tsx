@@ -80,71 +80,53 @@ export function NavIcon({ path }: { path: string }) {
   );
 }
 
-export function Navigation({
-  active,
-  onNavigate,
-  footer,
-}: {
-  active: SectionKey;
-  onNavigate: (section: SectionKey) => void;
-  footer?: ReactNode;
+export function sectionHref(section: SectionKey) {
+  return `/workspace?section=${section}`;
+}
+
+export function SectionLink({ section, onNavigate, children, className, active }: {
+  section: SectionKey; onNavigate: (section: SectionKey) => void;
+  children: ReactNode; className?: string; active?: boolean;
 }) {
-  const [moreOpen, setMoreOpen] = useState(false);
-  const primary = new Set<SectionKey>(primarySections);
-  const secondaryActive = !primary.has(active) && active !== "settings";
-  function item(section: (typeof sections)[number]) {
-    return (
-      <button
-        type="button"
-        className={`nav-item ${active === section.id ? "active" : ""}`}
-        aria-current={active === section.id ? "page" : undefined}
-        key={section.id}
-        aria-label={section.title}
-        onClick={() => onNavigate(section.id)}
-        title={section.title}
-      >
-        <NavIcon path={section.icon} />
-        <span>{section.title}</span>
-      </button>
-    );
-  }
-  return (
-    <nav className="workspace-navigation" aria-label="Разделы пространства" onKeyDown={(event) => {
-      if (event.key === "Escape" && moreOpen) {
-        setMoreOpen(false);
-        event.currentTarget.querySelector<HTMLButtonElement>('button[aria-expanded]')?.focus();
-      }
-    }}>
-      <span className="sidebar-section-label">Рабочее пространство</span>
-      {primarySections.map((id) =>
-        item(sections.find((section) => section.id === id)!),
-      )}
-      <button
-        type="button"
-        className={`nav-item ${secondaryActive ? "active" : ""}`}
-        aria-label="Ещё"
-        aria-expanded={moreOpen}
-        onClick={() => setMoreOpen(!moreOpen)}
-        title="Ещё"
-      >
-        <NavIcon path="M4 4h6v6H4Zm10 0h6v6h-6ZM4 14h6v6H4Zm10 0h6v6h-6Z" />
-        <span>Ещё</span>
-        <span className="nav-disclosure" aria-hidden="true">{moreOpen ? "−" : "+"}</span>
-      </button>
-      {moreOpen && (
-        <div
-          className="secondary-navigation"
-          aria-label="Дополнительные разделы"
-        >
-          {sections
-            .filter(
-              (section) =>
-                !primary.has(section.id) && section.id !== "settings",
-            )
-            .map(item)}
-        </div>
-      )}
-      {footer}
-    </nav>
-  );
+  const title = sections.find(item => item.id === section)!.title;
+  return <a href={sectionHref(section)} className={className} title={title}
+    aria-label={title} aria-current={active ? "page" : undefined}
+    onClick={event => {
+      if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      onNavigate(section);
+    }}>{children}</a>;
+}
+
+const groups: { label: string; items: SectionKey[] }[] = [
+  { label: "Планы", items: ["calendar", "tasks"] },
+  { label: "Знания", items: ["notes", "databases", "materials"] },
+  { label: "Инструменты", items: ["ai", "organization", "notifications", "search", "home"] },
+];
+
+export function Navigation({ active, onNavigate, drawer = false, footer }: {
+  active: SectionKey; onNavigate: (section: SectionKey) => void;
+  drawer?: boolean; footer?: ReactNode;
+}) {
+  const [filter, setFilter] = useState("");
+  return <nav className="workspace-navigation" aria-label="Разделы пространства">
+    {drawer && <label className="navigation-filter">Найти раздел
+      <input type="search" value={filter} onChange={event => setFilter(event.target.value)}
+        placeholder="Название раздела…" autoComplete="off" />
+    </label>}
+    {groups.map(group => {
+      const items = group.items.filter(id => sections.find(item => item.id === id)!.title.toLocaleLowerCase("ru").includes(filter.toLocaleLowerCase("ru")));
+      return items.length ? <div className="navigation-group" role="group" aria-label={group.label} key={group.label}>
+        {items.map(id => {
+          const item = sections.find(section => section.id === id)!;
+          return <SectionLink key={id} section={id} className={`nav-item ${active === id ? "active" : ""}`}
+            active={active === id} onNavigate={onNavigate}>
+            <NavIcon path={item.icon} /><span>{item.title}</span>
+          </SectionLink>;
+        })}
+      </div> : null;
+    })}
+    {filter && !sections.some(item => item.title.toLocaleLowerCase("ru").includes(filter.toLocaleLowerCase("ru"))) && <p role="status">Раздел не найден. Измените запрос.</p>}
+    {(!filter || "настройки".includes(filter.toLocaleLowerCase("ru"))) && footer}
+  </nav>;
 }

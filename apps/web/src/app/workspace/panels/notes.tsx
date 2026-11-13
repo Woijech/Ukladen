@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageAttachments } from "./attachments";
+import { positionNoteMenu } from "./note-menu";
 import { NoteBlocks } from "./note-blocks";
+import { useNoteDraft } from "./use-note-draft";
+import "./notes.css";
 import { requestJson, writeJson } from "@/shared/api";
 import {
   ActionFeedback,
@@ -38,7 +41,7 @@ export type Block =
       style: "bulleted" | "numbered";
     }
   | { id: string; type: "link"; text: string; url: string };
-type Note = PageSummary & { document: { schema_version: 1; blocks: Block[] } };
+export type Note = PageSummary & { document: { schema_version: 1; blocks: Block[] } };
 type PageList = { items: PageSummary[]; limit: number; offset: number };
 
 type Destination = { id: string; action?: "move" | "trash" | "restore" };
@@ -73,7 +76,10 @@ export function NotesPanel({
   const [pending, setPending] = useState<Destination | null>(null);
   const [intent, setIntent] = useState<Destination | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [treeOpen, setTreeOpen] = useState(true);
+  const [treeOpen, setTreeOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [createTitle, setCreateTitle] = useState("");
+  function startCreating(parent: string | null) { setCreateTitle(""); setCreating({ parent }); }
   const [focusTitle, setFocusTitle] = useState<string | null>(null);
   const client = useQueryClient();
   const action = useAction();
@@ -103,14 +109,24 @@ export function NotesPanel({
       requestJson<Note>(`/api/v1/notes/pages/${selected}`, { signal }),
     enabled: !!selected,
   });
+  const dirtyCallback = useRef(onDirtyChange);
+  const mounted = useRef(true);
+  useEffect(() => { dirtyCallback.current = onDirtyChange; }, [onDirtyChange]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; dirtyCallback.current(false); };
+  }, []);
+  const hasDraft = dirty || Boolean(creating && createTitle.trim());
+  useEffect(() => { dirtyCallback.current(hasDraft); }, [hasDraft]);
   function changeDirty(value: boolean) {
     setDirty(value);
-    onDirtyChange(value);
+    if (mounted.current) dirtyCallback.current(value || Boolean(creating && createTitle.trim()));
   }
   function go(destination: Destination) {
     setSelected(destination.id);
     setIntent(destination);
     setPending(null);
+    setTreeOpen(false);
   }
   function choose(destination: Destination) {
     if (busy) return;
@@ -120,16 +136,25 @@ export function NotesPanel({
   }
   useEffect(() => {
     function prevent(event: BeforeUnloadEvent) {
-      if (dirty) {
+      if (hasDraft) {
         event.preventDefault();
         event.returnValue = "";
       }
     }
     window.addEventListener("beforeunload", prevent);
     return () => window.removeEventListener("beforeunload", prevent);
-  }, [dirty]);
+  }, [hasDraft]);
   async function refresh() {
     await client.invalidateQueries({ queryKey: ["pages"] });
+  }
+  const visible = new Set<string>();
+  for (const page of summaries) {
+    if (!page.title.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())) continue;
+    let current: PageSummary | undefined = page;
+    while (current && !visible.has(current.id)) {
+      visible.add(current.id);
+      current = summaries.find(item => item.id === current!.parent_id);
+    }
   }
   function tree(parent: string | null, ancestors: Set<string> = new Set()) {
     const children = childrenByParent.get(parent) ?? [];
@@ -141,10 +166,10 @@ export function NotesPanel({
         }
       >
         {children
-          .filter((page) => !ancestors.has(page.id))
+          .filter((page) => !ancestors.has(page.id) && visible.has(page.id))
           .map((page) => {
             const hasChildren = childrenByParent.has(page.id);
-            const expanded = !collapsed.has(page.id);
+            const expanded = !!search.trim() || !collapsed.has(page.id);
             return (
               <li key={page.id}>
                 <div
@@ -183,16 +208,19 @@ export function NotesPanel({
                     <button
                       className="tree-child-add"
                       aria-label={`Добавить страницу в ${page.title}`}
-                      disabled={busy}
-                      onClick={() => setCreating({ parent: page.id })}
+                      disabled={busy || action.busy}
+                      onClick={() => startCreating(page.id)}
                     >
                       +
                     </button>
                   )}
                   <details
                     className="note-menu tree-menu"
+                    onToggle={event => positionNoteMenu(event.currentTarget)}
                     onKeyDown={(event) => {
-                      if (event.key === "Escape") {
+                      if (event.key === "Escape" && event.currentTarget.open) {
+                        event.preventDefault();
+                        event.stopPropagation();
                         event.currentTarget.open = false;
                         event.currentTarget.querySelector("summary")?.focus();
                       }
@@ -244,36 +272,19 @@ export function NotesPanel({
       </ul>
     );
   }
-  return (
-    <div className="feature-page notes-page">
-      <h1 className="notes-desktop-title sr-only">Заметки</h1>
-      <div className="notes-mobile-toolbar">
-        <h1>Заметки</h1>
-        <button
-          className="secondary-button"
-          aria-expanded={treeOpen}
-          aria-controls="notes-page-tree"
-          onClick={() => setTreeOpen(!treeOpen)}
-        >
-          Страницы {treeOpen ? "↑" : "↓"}
-        </button>
-      </div>
-      <div className="notes-layout">
-        <aside
-          id="notes-page-tree"
-          className={`page-tree ${treeOpen ? "tree-open" : ""}`}
-        >
+  const treePanel = <>
           <div className="panel-toolbar">
             <strong>Страницы</strong>
             <button
               className="text-action"
               aria-label="Новая страница"
-              disabled={busy}
-              onClick={() => setCreating({ parent: null })}
+              disabled={busy || action.busy}
+              onClick={() => { startCreating(null); if (window.matchMedia("(max-width: 1100px)").matches) setTreeOpen(true); }}
             >
               +
             </button>
           </div>
+          <input type="search" className="note-page-search" aria-label="Найти страницу" placeholder="Найти страницу…" value={search} onChange={event => setSearch(event.target.value)} />
           <button
             className="notes-trash-toggle text-action"
             aria-pressed={trashed}
@@ -296,66 +307,8 @@ export function NotesPanel({
               {trashed ? "Корзина пуста" : "Начни с первой страницы"}
             </p>
           )}
-          {tree(null)}
-        </aside>
-        <div className="note-canvas">
-          {selected ? (
-            <>
-              <QueryState
-                pending={note.isPending}
-                error={note.error}
-                retry={() => void note.refetch()}
-              />
-              {note.data && (
-                <NoteEditor
-                  key={note.data.id}
-                  note={note.data}
-                  pages={active.data ?? []}
-                  onSelect={(id) => choose({ id })}
-                  onDirtyChange={changeDirty}
-                  onBusyChange={setBusy}
-                  focusTitle={focusTitle === note.data.id}
-                  intent={intent}
-                  onCloseIntent={() => setIntent(null)}
-                  pending={pending}
-                  onCancelPending={() => setPending(null)}
-                  onDiscard={() => {
-                    changeDirty(false);
-                    if (pending) go(pending);
-                  }}
-                  onSaved={async (updated) => {
-                    client.setQueryData(["page", updated.id], updated);
-                    await refresh();
-                    if (pending) go(pending);
-                  }}
-                />
-              )}
-            </>
-          ) : (
-            <EmptyState title="Пространство для твоих мыслей" icon="▤">
-              <p>
-                Выбери страницу слева или создай новую.
-                <br />
-                Предметы и учебная группа не нужны.
-              </p>
-              <button
-                className="primary-button"
-                onClick={() => setCreating({ parent: null })}
-              >
-                Создать страницу
-              </button>
-            </EmptyState>
-          )}
-        </div>
-      </div>
-      {creating && (
-        <Modal
-          title="Новая страница"
-          onClose={() => {
-            if (!action.busy) setCreating(null);
-          }}
-        >
-          <form
+          {creating && (          <form className="note-create-form" aria-label="Новая страница"
+            onKeyDown={event => { if (event.key === "Escape" && !action.busy) { event.preventDefault(); event.stopPropagation(); setCreating(null); } }}
             onSubmit={(event) => {
               event.preventDefault();
               const values = new FormData(event.currentTarget);
@@ -383,7 +336,7 @@ export function NotesPanel({
               }, "Страница создана");
             }}
           >
-            <h2>Новая страница</h2>
+            <strong>Новая страница</strong>
             {creating.parent && (
               <p className="muted">
                 Внутри:{" "}
@@ -393,10 +346,12 @@ export function NotesPanel({
                 }
               </p>
             )}
-            <label htmlFor="new-page-title">Название страницы</label>
+            <label htmlFor="new-page-title">Название новой страницы</label>
             <input
               id="new-page-title"
               name="title"
+              value={createTitle}
+              onChange={event => setCreateTitle(event.target.value)}
               maxLength={200}
               required
               pattern={".*\\S.*"}
@@ -418,9 +373,84 @@ export function NotesPanel({
                 Создать
               </button>
             </div>
-          </form>
-        </Modal>
-      )}
+          </form>)}
+          {search && !visible.size && <p className="muted tree-empty">Страницы не найдены</p>}
+          {tree(null)}
+  </>;
+  return (
+    <div className="feature-page notes-page">
+      <h1 className="notes-desktop-title sr-only">Заметки</h1>
+      <div className="notes-mobile-toolbar">
+        <h1>Заметки</h1>
+        <button
+          className="secondary-button"
+          aria-expanded={treeOpen}
+          aria-controls={treeOpen ? "notes-page-tree-sheet" : "notes-page-tree"}
+          onClick={() => setTreeOpen(!treeOpen)}
+        >
+          Страницы {treeOpen ? "↑" : "↓"}
+        </button>
+      </div>
+      {treeOpen && <Modal title="Страницы" onClose={() => setTreeOpen(false)}><div id="notes-page-tree-sheet" className="note-tree-sheet">{treePanel}</div></Modal>}
+      <div className="notes-layout">
+        <aside
+          id="notes-page-tree"
+          className={`page-tree ${treeOpen ? "tree-in-sheet" : ""}`}
+        >
+          {!treeOpen && treePanel}
+
+        </aside>
+        <div className="note-canvas">
+          {selected ? (
+            <>
+              <QueryState
+                pending={note.isPending}
+                error={note.error}
+                retry={() => void note.refetch()}
+              />
+              {note.data && (
+                <NoteEditor
+                  key={note.data.id}
+                  note={note.data}
+                  pages={active.data ?? []}
+                  onSelect={(id) => choose({ id })}
+                  onDirtyChange={changeDirty}
+                  onBusyChange={setBusy}
+                  focusTitle={focusTitle === note.data.id}
+                  intent={intent}
+                  onCloseIntent={() => setIntent(null)}
+                  pending={pending}
+                  onCancelPending={() => setPending(null)}
+                  onDiscard={() => {
+                    changeDirty(false);
+                    if (pending) go(pending);
+                  }}
+                  onSaved={async (updated, complete = true) => {
+                    client.setQueryData(["page", updated.id], updated);
+                    await refresh();
+                    if (pending && complete) go(pending);
+                  }}
+                />
+              )}
+            </>
+          ) : (
+            <EmptyState title="Пространство для твоих мыслей" icon="▤">
+              <p>
+                Выбери страницу слева или создай новую.
+                <br />
+                Предметы и учебная группа не нужны.
+              </p>
+              <button
+                className="primary-button"
+                onClick={() => { startCreating(null); if (window.matchMedia("(max-width: 1100px)").matches) setTreeOpen(true); }}
+              >
+                Создать страницу
+              </button>
+            </EmptyState>
+          )}
+        </div>
+      </div>
+
     </div>
   );
 }
@@ -444,7 +474,7 @@ function NoteEditor({
   onSelect: (id: string) => void;
   onDirtyChange: (dirty: boolean) => void;
   onBusyChange: (busy: boolean) => void;
-  onSaved: (note: Note) => Promise<void>;
+  onSaved: (note: Note, complete?: boolean) => Promise<void>;
   focusTitle: boolean;
   intent: Destination | null;
   onCloseIntent: () => void;
@@ -452,11 +482,11 @@ function NoteEditor({
   onCancelPending: () => void;
   onDiscard: () => void;
 }) {
-  const [title, setTitle] = useState(note.title);
-  const [parent, setParent] = useState(note.parent_id ?? "");
-  const [blocks, setBlocks] = useState<Block[]>(note.document.blocks);
-  const [version, setVersion] = useState(note.version);
-  const [dirty, setDirty] = useState(false);
+  const draft = useNoteDraft(note, onDirtyChange, onSaved);
+  const { title, parent, blocks, version, dirty, saving } = draft;
+  const setTitle = (value: string) => draft.update({ title: value });
+  const setParent = (value: string) => draft.update({ parent: value });
+  const setBlocks = (value: Block[]) => draft.update({ blocks: value });
   const [trashConfirm, setTrashConfirm] = useState(false);
   const [reloadConfirm, setReloadConfirm] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
@@ -470,21 +500,26 @@ function NoteEditor({
       ? note.trash_batch_id
       : null;
   const locked = readonly || action.busy;
+  const operationsLocked = action.busy || saving;
+  const error = draft.error || (readonly ? action.error : "");
   useEffect(() => {
-    onBusyChange(action.busy);
+    onBusyChange(operationsLocked);
     return () => onBusyChange(false);
-  }, [action.busy, onBusyChange]);
+  }, [operationsLocked, onBusyChange]);
   useEffect(() => {
     const editor = form.current;
     function shortcut(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        if (dirty && !locked) editor?.requestSubmit();
+        if (dirty && !locked) {
+          if (saving && editor?.checkValidity()) void draft.save();
+          else if (!saving) editor?.requestSubmit();
+        }
       }
     }
     window.addEventListener("keydown", shortcut);
     return () => window.removeEventListener("keydown", shortcut);
-  }, [dirty, locked]);
+  }, [dirty, locked, saving, draft]);
   const links = useQuery({
     queryKey: ["page-events", note.id],
     queryFn: ({ signal }) =>
@@ -517,48 +552,10 @@ function NoteEditor({
     return !page.trashed_at;
   }
   async function adopt(fresh: Note) {
-    setTitle(fresh.title);
-    setParent(fresh.parent_id ?? "");
-    setBlocks(fresh.document.blocks);
-    setVersion(fresh.version);
-    setDirty(false);
-    onDirtyChange(false);
+    draft.adopt(fresh);
     await onSaved(fresh);
   }
-  function changed() {
-    setDirty(true);
-    onDirtyChange(true);
-  }
-  async function save() {
-    if (locked || !dirty) return;
-    await action.run(async () => {
-      let current = { ...note, version };
-      if (title.trim() !== note.title || parent !== (note.parent_id ?? "")) {
-        current = await writeJson<Note>(
-          `/api/v1/notes/pages/${note.id}`,
-          "PATCH",
-          {
-            title: title.trim(),
-            parent_id: parent || null,
-            expected_version: version,
-          },
-        );
-        setVersion(current.version);
-      }
-      const result = await writeJson<{
-        version: number;
-        document: Note["document"];
-      }>(`/api/v1/notes/pages/${note.id}/document`, "PUT", {
-        expected_version: current.version,
-        document: { schema_version: 1, blocks },
-      });
-      setVersion(result.version);
-      setTitle(current.title);
-      setDirty(false);
-      onDirtyChange(false);
-      await onSaved({ ...current, ...result });
-    });
-  }
+  function save() { if (locked) return Promise.resolve(false); return draft.save(); }
   const requested = intent?.id === note.id ? intent.action : undefined;
   function closeDialogs() {
     setMoveOpen(false);
@@ -583,6 +580,8 @@ function NoteEditor({
         ref={form}
         id="note-editor-form"
         className="note-editor"
+        tabIndex={-1}
+        aria-label={`Документ: ${title}`}
         onSubmit={(event) => {
           event.preventDefault();
           void save();
@@ -596,7 +595,7 @@ function NoteEditor({
                 <span aria-hidden="true"> / </span>
                 <button
                   type="button"
-                  disabled={action.busy}
+                  disabled={operationsLocked}
                   onClick={() => onSelect(page.id)}
                 >
                   {page.title}
@@ -610,9 +609,9 @@ function NoteEditor({
             <span className="note-meta" role="status">
               {readonly
                 ? "В корзине"
-                : action.busy
+                : operationsLocked
                   ? "Сохраняем…"
-                  : action.error
+                  : error
                     ? "Ошибка сохранения"
                     : dirty
                       ? "Есть изменения"
@@ -621,17 +620,18 @@ function NoteEditor({
             </span>
             {!readonly && (
               <button
-                className="primary-button"
-                disabled={!dirty || action.busy}
+                className="secondary-button note-save-button"
+                aria-label="Сохранить страницу"
+                disabled={!dirty || operationsLocked}
               >
-                Сохранить страницу
+                Сохранить
               </button>
             )}
             {readonly && (
               <button
                 type="button"
                 className="secondary-button"
-                disabled={action.busy}
+                disabled={operationsLocked}
                 onClick={() =>
                   restoreRoot ? onSelect(restoreRoot) : void restore()
                 }
@@ -643,6 +643,7 @@ function NoteEditor({
             )}
             <details
               className="note-menu"
+              onToggle={event => positionNoteMenu(event.currentTarget)}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
                   event.currentTarget.open = false;
@@ -679,7 +680,7 @@ function NoteEditor({
                   <>
                     <button
                       type="button"
-                      disabled={action.busy}
+                      disabled={operationsLocked}
                       onClick={() => setMoveOpen(true)}
                     >
                       Переместить
@@ -687,7 +688,7 @@ function NoteEditor({
                     <button
                       type="button"
                       className="danger-text"
-                      disabled={action.busy}
+                      disabled={operationsLocked}
                       onClick={() => setTrashConfirm(true)}
                     >
                       В корзину
@@ -710,38 +711,43 @@ function NoteEditor({
           <label className="sr-only" htmlFor="note-title">
             Название страницы
           </label>
-          <input
+          <textarea
             id="note-title"
+            name="title"
             className="note-title"
             aria-label="Название страницы"
             value={title}
             maxLength={200}
             required
-            pattern={".*\\S.*"}
+            rows={1}
             autoFocus={focusTitle}
             disabled={locked}
+            ref={element => {
+              if (element) { element.style.height = "auto"; element.style.height = `${element.scrollHeight}px`; }
+            }}
             onKeyDown={event => {
               if (event.key === "Enter" && !event.nativeEvent.isComposing) {
                 event.preventDefault();
-                event.currentTarget.closest(".note-sheet")?.querySelector<HTMLTextAreaElement>("textarea:not([disabled])")?.focus();
+                form.current?.querySelector<HTMLElement>(".blocks-editor .block-text, .block-empty-line")?.focus();
               }
             }}
-            onChange={(event) => {
-              setTitle(event.target.value);
-              changed();
+            onChange={event => {
+              const value = event.target.value.replace(/[\r\n]+/g, " ");
+              event.currentTarget.setCustomValidity(value.trim() ? "" : "Укажи название страницы.");
+              setTitle(value);
             }}
           />
           <NoteBlocks
+            key={draft.epoch}
             blocks={blocks}
             disabled={locked}
             readonly={readonly}
             onChange={(next) => {
               setBlocks(next);
-              changed();
             }}
           />
-          <ActionFeedback error={action.error} notice="" />
-          {action.error && (
+          <ActionFeedback error={error} notice="" />
+          {error && (
             <div className="note-conflict-actions">
               <button
                 type="button"
@@ -755,7 +761,7 @@ function NoteEditor({
                 className="text-action"
                 onClick={() =>
                   form.current
-                    ?.querySelector<HTMLInputElement>(".note-title")
+                    ?.querySelector<HTMLTextAreaElement>(".note-title")
                     ?.focus()
                 }
               >
@@ -803,7 +809,7 @@ function NoteEditor({
                 <button
                   className="tree-row"
                   key={page.id}
-                  disabled={action.busy}
+                  disabled={operationsLocked}
                   onClick={() => onSelect(page.id)}
                 >
                   ↳ {page.title}
@@ -823,7 +829,6 @@ function NoteEditor({
             disabled={locked}
             onChange={(event) => {
               setParent(event.target.value);
-              changed();
             }}
           >
             <option value="">Корневая страница</option>
@@ -854,7 +859,7 @@ function NoteEditor({
             </button>
             <button
               className="primary-button"
-              disabled={action.busy}
+              disabled={operationsLocked}
               onClick={() => {
                 if (restoreRoot) {
                   closeDialogs();
@@ -879,23 +884,20 @@ function NoteEditor({
             Сохрани страницу или продолжи редактирование. Переход без сохранения
             удалит текущий черновик.
           </p>
-          <ActionFeedback error={navigationError || action.error} notice="" />
+          <ActionFeedback error={navigationError || error} notice="" />
           <div className="modal-actions">
             <button
               className="secondary-button"
-              disabled={action.busy}
+              disabled={operationsLocked}
               onClick={onCancelPending}
             >
               Продолжить редактирование
             </button>
             <button
               className="danger-button"
-              disabled={action.busy}
+              disabled={operationsLocked}
               onClick={() => {
-                setTitle(note.title);
-                setParent(note.parent_id ?? "");
-                setBlocks(note.document.blocks);
-                setDirty(false);
+                draft.discard();
                 onDiscard();
               }}
             >
@@ -903,7 +905,7 @@ function NoteEditor({
             </button>
             <button
               className="primary-button"
-              disabled={action.busy}
+              disabled={operationsLocked}
               onClick={() => {
                 if (form.current?.checkValidity()) {
                   setNavigationError("");
@@ -936,7 +938,7 @@ function NoteEditor({
             </button>
             <button
               className="danger-button"
-              disabled={action.busy}
+              disabled={operationsLocked}
               onClick={() =>
                 void action.run(async () => {
                   await adopt(
@@ -962,14 +964,14 @@ function NoteEditor({
           <div className="modal-actions">
             <button
               className="secondary-button"
-              disabled={action.busy}
+              disabled={operationsLocked}
               onClick={closeDialogs}
             >
               Отмена
             </button>
             <button
               className="danger-button"
-              disabled={action.busy}
+              disabled={operationsLocked}
               onClick={() =>
                 void action.run(async () => {
                   await adopt(

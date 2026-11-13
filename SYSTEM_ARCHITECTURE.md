@@ -510,6 +510,9 @@ preferences
 account state
 ```
 
+The user timezone is fixed to `Europe/Minsk`. Stored event timestamps remain
+absolute instants; profile migration does not rewrite them.
+
 ## 5.3 academics
 
 Own academic group/subgroup selection, verified public context and directories.

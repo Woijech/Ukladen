@@ -147,7 +147,6 @@ export async function navigateSection(page: Page, name: string) {
   const isMobile = await mobile.isVisible();
   if (isMobile) await mobile.click();
   const scope = isMobile ? page.getByRole("dialog", { name: "Навигация", exact: true }) : page.locator(".sidebar");
-  const target = scope.getByRole("button", { name, exact: true });
-  if (!await target.isVisible()) await scope.getByRole("button", { name: "Ещё", exact: true }).click();
+  const target = scope.getByRole("link", { name, exact: true });
   await target.click();
 }

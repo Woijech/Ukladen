@@ -10,7 +10,7 @@ class ProfilePatch(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     display_name: str | None = Field(default=None, max_length=100)
-    timezone: str = Field(default="UTC", min_length=1)
+    timezone: str = Field(default="Europe/Minsk", min_length=1)
     locale: Literal["ru", "en"] = "ru"
 
     @field_validator("display_name", mode="before")

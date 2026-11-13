@@ -19,7 +19,7 @@ Use the native humanist sans stack, starting with Segoe UI and system-ui. Its op
 Cyrillic letterforms suit long Russian labels, and local fonts avoid network shifts.
 Body text is 15px with 1.6 line height; controls are 13–14px. Page titles use a fluid
 28–36px scale, medium weight and modest negative tracking. Note titles reach 40px;
-the document body stays at 16px and a comfortable reading width. Calendar times
+the document body uses 18px (17px on phones) and a comfortable reading width. Calendar times
 use tabular numerals. Metadata uses sentence case, never tracked uppercase.
 
 ## Colors and surfaces
@@ -45,7 +45,7 @@ existing system/light/dark choice and startup theme script remain authoritative.
 Use 4, 8, 12, 16, 24, 32 and 48px spacing steps. Small gaps connect controls;
 larger gaps separate contexts. There is one primary work surface per screen.
 
-- Desktop: a 224px navigation column and a quiet 60px utility bar. The calendar
+- Desktop: a 216px navigation column and a quiet 52px utility bar. The calendar
   gains a narrow day/source context column when there is room for seven readable
   days. At intermediate widths, context moves below the calendar.
 - Notes: a compact page index beside an uninterrupted document; the document has
@@ -60,9 +60,9 @@ larger gaps separate contexts. There is one primary work surface per screen.
 
 ## Navigation
 
-Calendar, Notes, Tasks and AI are primary destinations. More discloses all existing
-tools; settings and the account stay at the foot of the sidebar. A compact icon
-rail serves intermediate widths, with accessible names and tooltips retained.
+Desktop groups Calendar/Tasks, Notes/Databases/Materials and AI/utilities as direct
+links; settings and the account stay at the foot of the sidebar. A compact 64px
+icon rail serves intermediate widths, with accessible names and tooltips retained.
 Phones gain a labelled bottom navigation for the four primary destinations and
 More, opening the existing native navigation dialog. Safe-area and content padding
 reserve its space. Dirty-document navigation still uses the existing save guard.
@@ -127,3 +127,78 @@ light/dark captures at desktop, intermediate and phone widths. Verify keyboard,
 focus, overflow, text contrast and safe-area spacing. Mock content belongs only in
 tests. Provider calls, deployment and database changes are outside this redesign.
 Record actual results and the Anti-Slop Delivery Gate in the frontend design review.
+
+
+### Shared shell redesign, stage 1, 2026-11-11
+
+Implemented: Quiet Rhythm foundations with the existing A1 identity and native font
+stack. Shared border/control/source tokens now follow the approved redesign;
+spacing includes 48px and feedback/popover/panel timing tokens. Desktop navigation
+is 216px with grouped direct links to plans, knowledge and utilities, plus a 52px
+utility bar. Tablet/compact navigation uses a 64px rail. Phones retain the labelled
+dock and gain a searchable full-destination dialog with 44px links.
+
+Sections use real links and URL state with Back/Forward support. Cmd/Ctrl+K and the
+Search button open a keyboard-operated transition/search palette; content searches
+continue in the existing full-text results screen. Shared dialogs support explicit
+initial focus and contained scrolling. Calendar status names its resource rather
+than implying that every document is saved. Internal dirty exits retain the current
+confirmation; history exits use a browser confirmation and restore the entry when
+cancelled. No private drafts are persisted in browser storage.
+
+This stage does not implement the proposed mini-calendar, Time Strip, task detail
+layout, note autosave or database cell editors. Existing calendar/task/note/AI work
+surfaces remain. Verification and remaining limits: [stage 1 delivery](docs/development/frontend-redesign-stage-1.md).
+
+
+### Calendar redesign, stage 2, 2026-11-11
+
+Implemented: compact calendar heading/date toolbar, direct Day/Week selection,
+collapsible source controls and a desktop sidebar month calendar. The time grid
+uses viewport space; event details share a contextual column at 1440px and above,
+with a focused surface and Back on narrower screens. Day is the initial view up
+to 1100px; explicit Week choice remains available. Selecting an event retains the
+grid scroll and restores its trigger focus. Existing task projections, daily agenda
+and source setup remain available below the grid.
+
+Personal-event moving now supports mouse preview/commit, Alt+Up/Down with explicit
+Enter, and touch placement with separate Apply/Cancel. Resize/range selection,
+official read-only facts, original intervals and version/timezone/DST semantics
+remain. Event forms use a custom Time Strip with a month grid, editable tabular
+clock, minute/hour steppers, duration presets and timezone/offset selection.
+It is anchored and viewport-bounded on desktop and a bottom sheet on phones.
+All-minute/native exact input remains available in a secondary disclosure.
+Picker Apply updates a draft; only event Create/Save writes. No animation or
+provider dependency was added. See [stage-2 delivery](docs/development/frontend-redesign-stage-2.md).
+
+
+### Calendar composition refinement, 2026-11-11
+
+The calendar now uses a 64px application rail, a 200px calendar context column and
+an edge-to-edge time grid. The context column contains the mini-month and source
+controls; compact/coarse-pointer layouts open it through Calendars. The toolbar
+shows month/year, timezone, Today, arrows, Day/Week and New event. The empty row
+resembling all-day creation is removed; timed creation remains available.
+
+Event cards put titles first and use ellipsis instead of clipped text. The event
+editor is a right-hand contextual dialog and a phone bottom sheet, retaining the
+custom time control and exact-input alternative. Empty-grid click/drag creation
+stops at neighbouring loaded intervals, including hidden sources; intentional
+intersections remain possible in the explicit editor. Existing move/resize,
+official read-only facts and timezone/DST behavior remain. See the
+[calendar refinement delivery](docs/development/frontend-calendar-refinement.md).
+
+
+### Task redesign, stage 3, 2026-11-13
+
+The task queue uses compact 44px desktop rows with explicit status, priority, deadline
+and context actions. Phone rows use two levels with 44px property targets. Inline
+title/description editing, repeated quick capture and child capture reuse current
+versioned writes. Small property dialogs replace the full form for common edits;
+the custom deadline surface shares the month calendar/time conversion helpers.
+Status/priority filters remain server queries. Sort/group/search explicitly operate
+on loaded rows with a visible count and Load more. The list remains the main plane;
+selection opens a 380px inspector or a focused compact-screen surface with Back.
+Dirty drafts and pending saves are guarded, and one-step property Undo checks the
+returned version. Empty relations collapse. Planning, hierarchy and branch recovery
+remain available. See [stage-3 delivery](docs/development/frontend-redesign-stage-3.md).

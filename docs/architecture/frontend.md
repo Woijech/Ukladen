@@ -105,8 +105,10 @@ uses the default-disabled AI backend and explains missing activation/configurati
 read-only; override editing and saved event-calendar views remain API-only.
 
 Tasks use the same desktop/mobile navigation, shared API client, per-identity
-query cache and native dialogs as the other workspace sections. The paginated
-list supports status/priority filters, detail/edit forms, exact deadlines/effort,
+query cache and native dialogs as the other workspace sections. The load-more
+queue supports server status/priority filters, explicitly loaded-only grouping,
+sorting/search, inline title/description/capture and contextual property pickers,
+with full detail/edit forms and exact deadlines/effort,
 arbitrary-depth subtasks and parent moves. Branch trash requires confirmation;
 only a trash-batch root can restore its batch, preserving earlier independent
 deletions. The backend validates hierarchy and optimistic versions. Version
@@ -175,18 +177,31 @@ network font downloads. The complete visual direction and decision rationale are
   own content forms, resources, organization and optional relations.
 - `workspace/workspace.css`: shared workspace and panel layout. Reuse its panels,
   toolbar, form, list, action and confirmation patterns before adding variants.
+  `workspace/shell.css` owns the stage-1 navigation and palette refinements.
 
-The sidebar initially exposes Calendar, Notes, Tasks and AI; More reveals the existing
-secondary sections (dashboard, materials, databases, organization, search and inbox).
-Search and notifications also retain their topbar shortcuts. Settings stays in
-the footer. Selecting a secondary section never removes its existing functionality.
-The desktop sidebar can collapse. At intermediate widths it becomes an icon rail;
-at 760px and below a labelled bottom navigation and a native navigation dialog
-replace it. Page toolbars wrap, note lists stack and forms scroll within
+The 2026-11-11 stage-1 shell exposes grouped direct desktop links to calendar/tasks,
+notes/databases/materials and AI/organization/inbox/search/home, with settings/account
+at the foot. Links support native new-tab actions and section URLs. The shell uses
+`use-section-location.ts` for section history and compatibility with existing AI
+routes; dirty browser-history exits require explicit confirmation. Object-specific
+URL/filter/scroll restoration remains future work. Existing `?page=` links remain
+valid. Desktop navigation is 216px, the utility bar 52px; below 1280px a 64px icon
+rail reserves space. At 760px and below the labelled dock and a searchable native
+navigation dialog replace the sidebar. Cmd/Ctrl+K opens a keyboard palette for
+section transitions and a handoff to the existing full-text search screen. This
+stage adds no provider call or new backend contract. See the
+[stage-1 delivery](../development/frontend-redesign-stage-1.md).
+Page toolbars wrap, note lists stack and forms scroll within
 viewport-bounded dialogs. Dense calendars/tables scroll inside their own regions
 without making the document wider than the viewport. The calendar initially opens
-in day view on phones and week view on larger screens; both views remain selectable.
-At 1380px the selected-day agenda/source move alongside the time grid. Notes use an
+in day view up to 1100px and week view on larger screens; both views remain selectable.
+The calendar date toolbar switches Day/Week directly. Its calendar-specific 200px
+context column contains the mini-month and Personal/IIS source controls, alongside
+a compact application rail. On compact/coarse-pointer layouts the context column
+opens through Calendars; the larger date dialog remains available.
+Event details share a column at 1440px and above; narrower layouts use a focused
+detail surface while retaining the grid and restoring scroll/focus. The daily
+agenda, task projections and academic-source setup remain below the grid. Notes use an
 edge-to-edge document/index layout, tasks use a joined list/detail surface, and
 AI has a transcript/composer with collapsible history. Settings use separated rows.
 Keyboard focus is visible, a skip link reaches the working content, menus close
@@ -203,7 +218,7 @@ Lucide, Motion and rich-editor packages are not required by this implementation.
   complete tree; bodies load on selection. On phones the tree is a compact toggled
   list. A shared searchable slash/plus picker supports text, H1–H6, native bulleted/
   numbered lists, checkboxes and HTTP links. Native drag handles and up/down actions
-  retain UUIDs; block removal is confirmed. Safe text/heading and list-style changes
+  retain UUIDs; block removal and movement have one-level local undo. Safe text/heading and list-style changes
   preserve data. Manual saves and Ctrl/Cmd+S retain page versions, duplicate-submit
   guards, partial-save recovery and explicit conflict reload. Page navigation offers
   save, stay or discard, with browser unload protection. Compact page menus expose
@@ -216,13 +231,15 @@ Lucide, Motion and rich-editor packages are not required by this implementation.
   upload rechecks metadata before retrying the same reservation. No remote fetching
   or new file processing is performed in the browser.
 - Collections/tags expose explicit page/event membership and safe removal of
-  references. Page choices are bounded to 200; event choices use the loaded calendar
-  week. Member lists paginate. Broader selection needs a future search picker.
+  references. Page choices paginate in 50-item batches; event choices use the loaded
+  calendar week. Member lists paginate. A search picker remains a future improvement.
 - Databases expose definitions, seven typed property kinds, stable select-option
   IDs, schema/version checks, recoverable fields/records and existing/new page
   records. Saved table views support typed filters, sorting and visible columns;
   date-bound calendar views support day/week/month. Editing fetches the full record
-  and PATCH sends touched fields only, preserving hidden/null values. Date-only
+  and PATCH sends touched fields only, preserving hidden/null values. Cells edit in
+  place (a fixed bottom panel on phones); the complete record form remains in the
+  context menu. Date-only
   values stay dates; timed inputs require explicit offsets. Timed end midnight is
   exclusive. Date edits use record forms; drag moves and mixed event/database
   display remain API-only. No formulas or task behavior is implied by record fields.
@@ -231,8 +248,8 @@ Lucide, Motion and rich-editor packages are not required by this implementation.
 - The inbox supports unread filtering/read marking. Event details create one-shot
   reminders; the pending list displays the latest 50 and permits cancellation.
   Task deadlines, recurring reminders and other delivery channels are unavailable.
-- Settings edit display name/timezone and upload/delete a private avatar. Timezone
-  changes refresh the session/calendar without rewriting event instants. Avatar
+- Settings edit display name and upload/delete a private avatar. The timezone is
+  fixed to Europe/Minsk without rewriting event instants. Avatar
   files use the existing raw API and limits, never public optimized-image caching.
 
 Actions show pending/success/error feedback and recoverable destructive operations
@@ -409,3 +426,84 @@ focus return and confirmed deletion were exercised. The
 [AI design review](../development/ai-chat-design-review.md) records the follow-up
 Delivery Gate. Browser APIs were mocked; no live provider call, backend change,
 database migration or deployment occurred.
+
+
+## Calendar UX stage 2, 2026-11-11
+
+Personal events support mouse whole-interval dragging, Alt+Up/Down preview with
+Enter/Escape, and explicit touch placement with Apply/Cancel. These reuse the
+versioned personal-event PATCH path and single-flight/error behavior. Existing
+range-create, resize, overlap lanes and DST/continuation semantics remain.
+The new event-only `EventTimeStrip` uses `CalendarMonth` and existing time helpers;
+it previews a custom date/clock/duration editor and applies to the form draft only.
+Its native exact-input alternative remains in a disclosure. Official facts stay
+read-only; no backend capability or provider activation is added. See
+[stage-2 delivery](../development/frontend-redesign-stage-2.md) for checks and limits.
+
+
+## Calendar composition follow-up, 2026-11-11
+
+The calendar working area uses a joined context/grid/detail layout and a contextual
+right-hand event editor (phone bottom sheet). `CalendarSelection` bounds empty-grid
+creation to the free window around the pointer, including hidden loaded event sources,
+while explicit editing still permits intentional overlaps. Pointer-up retains a
+completed range until the click opens the draft, preventing touch click-through.
+No availability, timezone/DST, official-source or write contract changes. See
+[calendar refinement](../development/frontend-calendar-refinement.md).
+
+
+## Task UX stage 3, 2026-11-13
+
+The task list uses compact rows and an optional 380px detail surface. At up to
+1100px, selection shows focused details with Back/scroll/filter/focus restoration.
+`task-controls.tsx` owns row presentation, inline title editing and anchored native
+property/context dialogs; `tasks-panel.tsx` owns infinite-page reads, serialized
+versioned writes, guarded one-step Undo and dirty-navigation registration.
+Empty relation disclosures hide unused pagers. All task/planning/lifecycle API
+contracts remain unchanged. See [stage-3 delivery](../development/frontend-redesign-stage-3.md)
+for actual verification, keyboard/touch behavior and loaded-data limits.
+
+
+### Notes redesign stage 4 — 2026-11-13
+
+The notes area uses a 224px page library on desktop and an explicitly opened library
+modal at 1100px and below. Title filtering includes matching pages and their ancestors;
+it does not search document bodies or alter nesting. Root/child capture uses an inline
+form with an in-memory title draft. Page navigation keeps the existing dirty guard.
+Document typography, wrapping titles and contextual tools reuse the A1/theme tokens.
+Slash/plus insertion shares a viewport-bounded portal menu over the existing flat
+block schema. Native drag/drop has an insertion indicator; labelled move actions
+remain available to keyboard and touch. A one-level structural undo applies its
+inverse to current blocks, preserving subsequent text edits and UUIDs.
+
+Manual save and Ctrl/Cmd+S remain explicit. The draft controller pins the confirmed
+version independently from query refetches, advances it after each successful write,
+and serializes explicitly requested saves. Typing during a pending write remains
+local and dirty unless the user requests a follow-up save. Only a complete save may
+finish pending page navigation. Explicit reload/adopt resets structural undo.
+Backend/API/schema, CSRF, ownership, private links, attachments and recoverable branch
+trash/restore are unchanged. Drafts are memory-only; automatic save, crash recovery,
+rich text and revision history are not implemented. See the
+[stage-4 report](../development/frontend-redesign-stage-4.md) for verification.
+
+
+### Remaining workspaces — 2026-11-13
+
+Data workspaces now use compact database rows, contextual record actions, single-cell
+forms and paginated collection member selection. Schema/record versions and touched-only
+PATCH semantics are retained. The cell editor pins its initial schema definitions and
+version; a conflict never silently adopts a newer baseline. See
+[stage 5](../development/frontend-redesign-stage-5.md).
+
+AI inherits the shared action palette and uses explicit modal history below 900px,
+readable transcripts, local contextual copy and an unambiguous explicit no-sources
+scope label. Source payloads/citations, streaming recovery/cancel, model identity and
+immutable HITL previews/confirmations are unchanged. See
+[stage 6 AI](../development/frontend-redesign-stage-6-ai.md).
+
+Settings exposes direct three-way theme selection and guarded explicit profile saving.
+Home provides working shortcuts/content rather than a promotional hero. Materials
+keep primary open/download actions with Edit/Trash in a context menu; Search/Inbox
+share the denser utility layout. New style sheets are scoped to their workspaces.
+No backend, database, dependency, auth/provider activation or deployment was changed.
+See [stage 6 utilities](../development/frontend-redesign-stage-6-utilities.md).

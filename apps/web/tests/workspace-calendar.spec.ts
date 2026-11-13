@@ -32,7 +32,7 @@ test("shell supports skip navigation and Escape returns focus from menus", async
   await expect(page.getByRole("link", { name: "Перейти к содержимому" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("#workspace-content")).toBeFocused();
-  for (const [trigger, menu] of [[".view-select", ".view-menu"], [".account-button", ".account-popover"], [".top-avatar", ".top-account-popover"]]) {
+  for (const [trigger, menu] of [[".account-button", ".account-popover"], [".top-avatar", ".top-account-popover"]]) {
     await page.locator(trigger).focus();
     await page.keyboard.press("Enter");
     await expect(page.locator(menu)).toBeVisible();
@@ -40,37 +40,18 @@ test("shell supports skip navigation and Escape returns focus from menus", async
     await expect(page.locator(menu)).toHaveCount(0);
     await expect(page.locator(trigger)).toBeFocused();
   }
-  const more = page.locator(".sidebar").getByRole("button", { name: "Ещё", exact: true });
-  await more.click();
-  await page.keyboard.press("Escape");
-  await expect(more).toBeFocused();
-  await expect(page.locator(".secondary-navigation")).toHaveCount(0);
   await page.locator(".calendar-help summary").focus();
   await page.keyboard.press("Enter");
   await expect(page.locator("#calendar-create-help")).toBeVisible();
 });
 
-test("navigation starts with four core sections and reveals secondary tools on demand", async ({
-  page,
-}) => {
+test("desktop navigation exposes knowledge tools as real links", async ({ page }) => {
   await mockWorkspace(page);
   await page.goto("/workspace");
   const sidebar = page.locator(".sidebar");
-  for (const title of ["Календарь", "Заметки", "Задачи", "AI"])
-    await expect(
-      sidebar.getByRole("button", { name: title, exact: true }),
-    ).toBeVisible();
-  await expect(
-    sidebar.getByRole("button", { name: "Материалы", exact: true }),
-  ).toHaveCount(0);
-  await sidebar.getByRole("button", { name: "Ещё", exact: true }).click();
-  await expect(
-    sidebar.getByRole("button", { name: "Материалы", exact: true }),
-  ).toBeVisible();
-  await sidebar.getByRole("button", { name: "Ещё", exact: true }).click();
-  await expect(
-    sidebar.getByRole("button", { name: "Материалы", exact: true }),
-  ).toHaveCount(0);
+  for (const title of ["Календарь", "Заметки", "Задачи", "AI", "Базы данных", "Материалы"])
+    await expect(sidebar.getByRole("link", { name: title, exact: true })).toBeVisible();
+  await expect(sidebar.getByRole("link", { name: "Базы данных", exact: true })).toHaveAttribute("href", "/workspace?section=databases");
   await navigateSection(page, "Задачи");
   await expect(
     page.getByRole("heading", { name: "Задачи", exact: true }),
@@ -358,9 +339,8 @@ for (const width of [1440, 834, 390]) {
       return route.fulfill({ json: { items, limit: 200, offset: 0 } });
     });
     await page.goto("/workspace");
-    if (width <= 760) {
-      await page.locator(".view-select").click();
-      await page.getByRole("menuitemradio", { name: /Неделя/ }).click();
+    if (width <= 1100) {
+      await page.getByRole("button", { name: "Неделя", exact: true }).click();
     }
     await page
       .locator(".event-card")
@@ -541,11 +521,11 @@ test("mobile calendar tap opens a draft while a touch scroll does not", async ({
   const page = await context.newPage();
   const state = await mockWorkspace(page);
   await page.goto("/workspace");
-  await page.locator(".view-select").click();
-  await page.getByRole("menuitemradio", { name: /День/ }).click();
+  await page.getByRole("button", { name: "День", exact: true }).click();
   const point = await timePoint(page, 0, 10.5);
   await page.touchscreen.tap(point.x, point.y);
   await expect(page.getByLabel("Начало", { exact: true })).toHaveValue("2026-10-16T10:30");
+  await expect(page.getByRole("dialog", { name: "Дата и время события", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Отмена", exact: true }).click();
   const grid = page.locator(".calendar-selection");
   const start = await timePoint(page, 0, 10);

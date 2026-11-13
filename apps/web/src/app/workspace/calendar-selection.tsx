@@ -16,6 +16,7 @@ export function CalendarSelection({
   hourHeight,
   timeZone,
   disabled,
+  occupied = [],
   onCreate,
 }: {
   dayStart: number;
@@ -23,6 +24,7 @@ export function CalendarSelection({
   hourHeight: number;
   timeZone: string;
   disabled: boolean;
+  occupied?: { starts_at: string; ends_at: string }[];
   onCreate: (start: string, end: string) => void;
 }) {
   const [preview, setPreview] = useState<[number, number] | null>(null);
@@ -32,7 +34,9 @@ export function CalendarSelection({
     x: number;
     y: number;
     touch: boolean;
+    bounds: [number, number];
   } | null>(null);
+  const pendingRange = useRef<[number, number] | null>(null);
   const keyboardPreview = useRef<HTMLSpanElement>(null);
   const scrollPreview = useRef(false);
   useLayoutEffect(() => {
@@ -57,49 +61,69 @@ export function CalendarSelection({
     month: "long",
   }).format(new Date(dayStart));
   const clamp = (value: number) =>
-    Math.max(dayStart, Math.min(dayEnd - step, value));
-  const defaultRange = (value: number): [number, number] => [
-    clamp(value),
-    Math.min(dayEnd, clamp(value) + 3_600_000),
-  ];
-
-  function position(event: PointerEvent<HTMLButtonElement>, round = false) {
-    const offset =
-      ((event.clientY - event.currentTarget.getBoundingClientRect().top) /
-        hourHeight) *
-      3_600_000;
-    return Math.max(
-      dayStart,
-      Math.min(
-        dayEnd,
-        dayStart +
-          (round ? Math.round(offset / step) : Math.floor(offset / step)) *
-            step,
-      ),
-    );
+    Math.max(dayStart, Math.min(dayEnd - 60_000, value));
+  function freeWindow(value: number): [number, number] | null {
+    let lower = dayStart;
+    let upper = dayEnd;
+    for (const event of occupied) {
+      const start = Date.parse(event.starts_at);
+      const end = Date.parse(event.ends_at);
+      if (value >= start && value < end) return null;
+      if (end <= value) lower = Math.max(lower, end);
+      if (start > value) upper = Math.min(upper, start);
+    }
+    return upper > lower ? [lower, upper] : null;
+  }
+  function defaultRange(value: number): [number, number] | null {
+    const start = clamp(value);
+    const bounds = freeWindow(start);
+    return bounds ? [start, Math.min(bounds[1], start + 3_600_000)] : null;
+  }
+  function keyboardRange(value = dayStart + 10 * 3_600_000, direction = 1) {
+    for (let point = value; point >= dayStart && point < dayEnd; point += direction * step) {
+      const range = defaultRange(point);
+      if (range) return range;
+    }
+    return null;
+  }
+  function initialRange() {
+    return keyboardRange() ?? keyboardRange(dayStart + 10 * 3_600_000 - step, -1);
+  }
+  function position(event: PointerEvent<HTMLButtonElement>, snap: "floor" | "round" | "none" = "floor") {
+    const offset = ((event.clientY - event.currentTarget.getBoundingClientRect().top) / hourHeight) * 3_600_000;
+    const delta = snap === "none" ? offset : (snap === "round" ? Math.round(offset / step) : Math.floor(offset / step)) * step;
+    return Math.max(dayStart, Math.min(dayEnd, dayStart + delta));
+  }
+  function pointerRange(event: PointerEvent<HTMLButtonElement>) {
+    const bounds = freeWindow(position(event, "none"));
+    return bounds ? defaultRange(Math.max(bounds[0], position(event))) : null;
   }
   function cancel() {
     active.current = null;
+    pendingRange.current = null;
     setPreview(null);
   }
   function begin(event: PointerEvent<HTMLButtonElement>) {
     if (event.button !== 0 || disabled) return;
-    const anchor = clamp(position(event));
+    const range = pointerRange(event);
+    if (!range) { cancel(); return; }
+    const anchor = range[0];
     active.current = {
       anchor,
       current: anchor,
       x: event.clientX,
       y: event.clientY,
       touch: event.pointerType === "touch",
+      bounds: freeWindow(anchor)!,
     };
-    setPreview(defaultRange(anchor));
+    setPreview(range);
     event.currentTarget.setPointerCapture(event.pointerId);
   }
   function move(event: PointerEvent<HTMLButtonElement>) {
     const gesture = active.current;
     if (!gesture) {
       if (event.pointerType === "mouse" && event.buttons === 0)
-        setPreview(defaultRange(position(event)));
+        setPreview(pointerRange(event));
       return;
     }
     if (gesture.touch) {
@@ -108,7 +132,7 @@ export function CalendarSelection({
         cancel();
       return;
     }
-    gesture.current = position(event, true);
+    gesture.current = Math.max(gesture.bounds[0], Math.min(gesture.bounds[1], position(event, "round")));
     setPreview(
       gesture.current === gesture.anchor
         ? defaultRange(gesture.anchor)
@@ -129,10 +153,7 @@ export function CalendarSelection({
             Math.max(gesture.anchor, gesture.current),
           ];
     cancel();
-    onCreate(
-      new Date(range[0]).toISOString(),
-      new Date(range[1]).toISOString(),
-    );
+    if (range) pendingRange.current = [range[0], range[1]];
   }
   function keyboard(event: KeyboardEvent<HTMLButtonElement>) {
     if (event.key === "Escape") {
@@ -143,20 +164,24 @@ export function CalendarSelection({
     if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
     event.preventDefault();
     scrollPreview.current = true;
-    const range = preview ?? defaultRange(dayStart + 10 * 3_600_000);
+    const range = preview ?? initialRange();
+    if (!range) return;
     const delta = event.key === "ArrowUp" ? -step : step;
+    const bounds = freeWindow(range[0]);
+    if (!bounds) { setPreview(keyboardRange(range[0], delta > 0 ? 1 : -1)); return; }
     setPreview(
       event.shiftKey
         ? [
             range[0],
-            Math.max(range[0] + step, Math.min(dayEnd, range[1] + delta)),
+            Math.max(range[0] + Math.min(step, bounds[1] - range[0]), Math.min(bounds[1], range[1] + delta)),
           ]
-        : defaultRange(range[0] + delta),
+        : keyboardRange(range[0] + delta, delta > 0 ? 1 : -1) ?? range,
     );
   }
   function createFromKeyboard() {
-    const range = preview ?? defaultRange(dayStart + 10 * 3_600_000);
+    const range = preview ?? initialRange();
     cancel();
+    if (!range) return;
     onCreate(
       new Date(range[0]).toISOString(),
       new Date(range[1]).toISOString(),
@@ -173,15 +198,21 @@ export function CalendarSelection({
       onPointerMove={move}
       onPointerUp={finish}
       onPointerCancel={cancel}
-      onLostPointerCapture={cancel}
+      onLostPointerCapture={() => { if (active.current) cancel(); }}
       onPointerLeave={() => {
         if (!active.current) setPreview(null);
       }}
-      onFocus={() => setPreview(defaultRange(dayStart + 10 * 3_600_000))}
+      onFocus={() => setPreview(initialRange())}
       onBlur={cancel}
       onKeyDown={keyboard}
       onClick={(event) => {
         if (event.detail === 0) createFromKeyboard();
+        else if (pendingRange.current) {
+          const [start, end] = pendingRange.current;
+          pendingRange.current = null;
+          // Open after the completed click so touch cannot activate the new dialog underneath.
+          onCreate(new Date(start).toISOString(), new Date(end).toISOString());
+        }
       }}
     >
       {preview && (
