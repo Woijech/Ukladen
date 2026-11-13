@@ -27,20 +27,21 @@ def test_date_projection_preserves_date_kind_and_timezone_overlap(calendar_clien
     client = calendar_client
     assert (
         client.patch(
-            "/api/v1/users/me", headers=csrf_headers(client), json={"timezone": "Europe/Berlin"}
+            "/api/v1/users/me", headers=csrf_headers(client), json={"timezone": "Europe/Minsk"}
         ).status_code
         == 200
     )
     db = create_database(client)
     prop = create_property(client, db, "date")
+    # Minsk's civil day spans [2026-10-24T21:00:00Z, 2026-10-25T21:00:00Z).
     payloads = [
         {"kind": "date", "start": "2026-10-25"},
         {"kind": "date", "start": "2026-10-24", "end": "2026-10-25"},
-        {"kind": "datetime", "start": "2026-10-24T22:00:00Z"},
-        {"kind": "datetime", "start": "2026-10-25T22:59:59Z"},
-        {"kind": "datetime", "start": "2026-10-24T20:00:00Z", "end": "2026-10-24T22:00:01Z"},
-        {"kind": "datetime", "start": "2026-10-24T20:00:00Z", "end": "2026-10-24T22:00:00Z"},
-        {"kind": "datetime", "start": "2026-10-25T23:00:00Z"},
+        {"kind": "datetime", "start": "2026-10-24T21:00:00Z"},
+        {"kind": "datetime", "start": "2026-10-25T20:59:59Z"},
+        {"kind": "datetime", "start": "2026-10-24T19:00:00Z", "end": "2026-10-24T21:00:01Z"},
+        {"kind": "datetime", "start": "2026-10-24T19:00:00Z", "end": "2026-10-24T21:00:00Z"},
+        {"kind": "datetime", "start": "2026-10-25T21:00:00Z"},
         {"kind": "date", "start": "2026-10-26"},
     ]
     records = [create_record(client, db, values={prop["id"]: value}) for value in payloads]
@@ -49,7 +50,7 @@ def test_date_projection_preserves_date_kind_and_timezone_overlap(calendar_clien
     response = client.get(entries_path(db, view))
     assert response.status_code == 200, response.text
     result = response.json()
-    assert result["timezone"] == "Europe/Berlin" and result["view"]["calendar_layout"] == "month"
+    assert result["timezone"] == "Europe/Minsk" and result["view"]["calendar_layout"] == "month"
     assert [item["record_id"] for item in result["entries"]] == [
         r["record"]["id"] for r in records[:5]
     ]
