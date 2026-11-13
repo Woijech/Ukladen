@@ -3,10 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import { type SectionKey } from "./navigation";
 import { readWorkspaceLocation, workspaceHref, type WorkspaceLocation } from "./workspace-location";
+import { subscribeWorkspaceTraversal } from "./workspace-history-events";
+
+function historyState(position: number) {
+  const state = { ...window.history.state, ukladenPosition: position };
+  // Next.js copies its internal state back; passing these markers skips URL synchronization.
+  delete state.__NA;
+  delete state._N;
+  return state;
+}
 
 export function pushWorkspaceLocation(url: string) {
   const next = (window.history.state?.ukladenPosition ?? 0) + 1;
-  window.history.pushState({ ...window.history.state, ukladenPosition: next }, "", url);
+  window.history.pushState(historyState(next), "", url);
   window.dispatchEvent(new Event("ukladen:location-pushed"));
 }
 
@@ -39,26 +48,27 @@ export function useSectionLocation(
     function accept() {
       const parsed = readWorkspaceLocation(window.location.pathname, window.location.search, fallback);
       if (parsed.invalid) {
-        window.history.replaceState(window.history.state, "", workspaceHref(parsed.location));
-        setNotice("Некорректные параметры ссылки удалены. Проверь выбранный объект или дату.");
+        window.history.replaceState(historyState(window.history.state?.ukladenPosition ?? position.current), "", workspaceHref(parsed.location));
       }
+      setNotice(parsed.invalid ? "Некорректные параметры ссылки удалены. Проверь выбранный объект или дату." : "");
       position.current = window.history.state?.ukladenPosition ?? 0;
       currentUrl.current = window.location.pathname + window.location.search;
       setLocation(parsed.location);
     }
     accept();
-    function back() {
-      if (restoring.current) { restoring.current = false; return; }
+    function back(event: PopStateEvent) {
+      if (restoring.current) { event.stopImmediatePropagation(); restoring.current = false; return; }
       const next = window.history.state?.ukladenPosition;
       const guard = protect.current();
       if (guard.busy || (guard.dirty && !window.confirm("Есть несохранённые изменения. Перейти без сохранения?"))) {
+        event.stopImmediatePropagation();
         if (guard.busy) setNotice("Дождись завершения сохранения перед переходом.");
         if (typeof next === "number" && next !== position.current) {
           restoring.current = true;
           window.history.go(position.current - next);
         } else {
           // Entries not created by Ukladen have no relative history position.
-          window.history.pushState({ ...window.history.state, ukladenPosition: position.current }, "", currentUrl.current);
+          window.history.pushState(historyState(position.current), "", currentUrl.current);
         }
         return;
       }
@@ -69,11 +79,11 @@ export function useSectionLocation(
       const guard = protect.current();
       if (guard.dirty || guard.busy) { event.preventDefault(); event.returnValue = ""; }
     }
-    window.addEventListener("popstate", back);
+    const unsubscribe = subscribeWorkspaceTraversal(back);
     window.addEventListener("beforeunload", unload);
     window.addEventListener("ukladen:location-pushed", accept);
     return () => {
-      window.removeEventListener("popstate", back);
+      unsubscribe();
       window.removeEventListener("beforeunload", unload);
       window.removeEventListener("ukladen:location-pushed", accept);
     };
@@ -83,17 +93,14 @@ export function useSectionLocation(
     const url = workspaceHref(next);
     if (window.location.pathname + window.location.search !== url) {
       if (replace) {
-        window.history.replaceState(window.history.state, "", url);
+        window.history.replaceState(historyState(position.current), "", url);
         window.dispatchEvent(new Event("ukladen:location-pushed"));
       } else pushWorkspaceLocation(url);
     }
     setLocation(next);
   }
-  function commitSection(section: SectionKey, query?: string) {
-    commitLocation({ section, query });
-  }
   return {
-    section: location.section, location, commitLocation, commitSection, notice,
+    section: location.section, location, commitLocation, notice,
     discardVersion, discardDrafts,
   };
 }

@@ -28,11 +28,13 @@ async function mockNotes(page: Page) {
 test("calendar date and explicit layout survive reload, back and forward", async ({ page }) => {
   const state = await mockWorkspace(page);
   await page.goto("/workspace?section=calendar&date=2026-11-13&view=day");
+  await page.evaluate(() => window.history.replaceState({ ...window.history.state, testMarker: "retained" }, ""));
   await expect(page.getByRole("region", { name: "Календарь на день", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Следующий день", exact: true }).click();
   await expect(page).toHaveURL(/date=2026-11-14&view=day/);
   await page.getByRole("button", { name: "Неделя", exact: true }).click();
   await expect(page).toHaveURL(/date=2026-11-14&view=week/);
+  expect(await page.evaluate(() => ({ marker: window.history.state.testMarker, next: window.history.state.__NA }))).toEqual({ marker: "retained", next: true });
   await page.reload();
   await expect(page.getByRole("region", { name: "Календарь на неделю", exact: true })).toBeVisible();
   await page.goBack();
@@ -42,6 +44,25 @@ test("calendar date and explicit layout survive reload, back and forward", async
   await page.goForward();
   await expect(page).toHaveURL(/date=2026-11-14&view=day/);
   expect(state.writes).toEqual([]);
+});
+
+test("an explicit week layout wins over the mobile default after reload", async ({ page }) => {
+  await mockWorkspace(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/workspace?section=calendar&date=2026-11-13&view=week");
+  await expect(page.getByRole("region", { name: "Календарь на неделю", exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("region", { name: "Календарь на неделю", exact: true })).toBeVisible();
+});
+
+test("an invalid task identifier is replaced before an object request is issued", async ({ page }) => {
+  await mockWorkspace(page);
+  const detailReads: string[] = [];
+  page.on("request", request => { if (/\/api\/v1\/tasks\/[^/?]+$/.test(new URL(request.url()).pathname)) detailReads.push(request.url()); });
+  await page.goto("/workspace?section=tasks&task=not-a-uuid");
+  await expect(page).toHaveURL(/\/workspace\?section=tasks$/);
+  await expect(page.getByRole("alert").filter({ hasText: "Некорректные параметры ссылки" })).toBeVisible();
+  expect(detailReads).toEqual([]);
 });
 
 test("malformed calendar values are replaced with safe defaults without an extra history entry", async ({ page }) => {
@@ -133,6 +154,32 @@ test("legacy page links and page-to-page history retain a rejected dirty draft",
   await expect(page.getByLabel("Текст блока 1")).toHaveValue("Текст 2");
 });
 
+test("a page outside its loaded tree opens directly and forbidden reads return safely", async ({ page }) => {
+  await mockNotes(page);
+  await page.route("**/api/v1/notes/pages?**", route => route.fulfill({ json: { items: [], limit: 200, offset: 0 } }));
+  await page.goto(`/workspace?section=notes&page=${firstId}`);
+  await expect(page.getByLabel("Текст блока 1")).toHaveValue("Текст 1");
+  await page.route(`**/api/v1/notes/pages/${firstId}`, route => route.fulfill({ status: 403, json: {} }));
+  await page.reload();
+  await expect(page.getByText("Объект недоступен", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Текст блока 1")).not.toBeVisible();
+  await page.getByRole("button", { name: "К списку", exact: true }).click();
+  await expect(page).toHaveURL(/\/workspace\?section=notes$/);
+});
+
+test("a failed ownership recheck hides a previously cached page body", async ({ page }) => {
+  await mockNotes(page);
+  await page.goto(`/workspace?section=notes&page=${firstId}`);
+  await expect(page.getByLabel("Текст блока 1")).toHaveValue("Текст 1");
+  await page.getByRole("button", { name: "Страница 2", exact: true }).click();
+  await expect(page.getByLabel("Текст блока 1")).toHaveValue("Текст 2");
+  await page.route(`**/api/v1/notes/pages/${firstId}`, route => route.fulfill({ status: 404, json: {} }));
+  await page.clock.fastForward(31_000);
+  await page.goBack();
+  await expect(page.getByText("Объект недоступен", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Текст блока 1")).not.toBeVisible();
+});
+
 test("browser history cannot leave a page while its explicit save is pending", async ({ page }) => {
   const { notes } = await mockNotes(page);
   let release!: () => void;
@@ -151,4 +198,54 @@ test("browser history cannot leave a page while its explicit save is pending", a
   expect(notes[1].document.blocks[0].text).toBe("Сохранённая мысль");
   await page.goBack();
   await expect(page.getByLabel("Текст блока 1")).toHaveValue("Текст 1");
+});
+
+test("history waits for an in-flight task description update", async ({ page }) => {
+  const state = await mockWorkspace(page);
+  state.tasks = [task(), task({ id: secondId, title: "Следующая задача" })];
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route(`**/api/v1/tasks/${secondId}`, async route => {
+    if (route.request().method() === "PATCH") await gate;
+    await route.fallback();
+  });
+  await page.goto(`/workspace?section=tasks&task=${firstId}`);
+  await page.locator(".task-row").filter({ hasText: "Следующая задача" }).click();
+  await page.getByRole("button", { name: "Добавить описание", exact: true }).click();
+  await page.getByLabel("Описание задачи", { exact: true }).fill("Дождаться записи");
+  await page.getByRole("button", { name: "Сохранить описание", exact: true }).click();
+  await expect(page.getByLabel("Описание задачи", { exact: true })).toBeDisabled();
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`task=${secondId}`));
+  release();
+  await expect(page.locator(".task-description")).toHaveText("Дождаться записи");
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`task=${firstId}`));
+  expect(state.tasks[1].description).toBe("Дождаться записи");
+});
+
+test("history cannot leave a task planning dialog while work preferences are being saved", async ({ page }) => {
+  const state = await mockWorkspace(page);
+  state.tasks = [task()];
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/api/v1/tasks/planning/preferences", async route => {
+    if (route.request().method() !== "PUT") return route.fallback();
+    await gate;
+    await route.fulfill({ json: { ...route.request().postDataJSON(), version: 1 } });
+  });
+  await page.goto("/workspace?section=tasks");
+  await page.locator(".task-row").filter({ hasText: "Prepare report" }).click();
+  await page.getByRole("button", { name: "Сессии и планирование задачи", exact: true }).click();
+  await page.getByText("Часы работы и перерывы", { exact: true }).click();
+  const save = page.getByRole("button", { name: "Сохранить часы работы", exact: true });
+  await save.click();
+  await expect(save).toBeDisabled();
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`task=${firstId}`));
+  await expect(page.getByRole("dialog", { name: "Планирование задач", exact: true })).toBeVisible();
+  release();
+  await expect(save).toBeEnabled();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/workspace\?section=tasks$/);
 });

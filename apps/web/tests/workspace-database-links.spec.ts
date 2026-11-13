@@ -99,3 +99,25 @@ test("history retains a dirty database cell on refusal and discards it only on a
   await page.goBack();
   await expect(page.locator(".database-calendar")).toBeVisible();
 });
+
+test("history cannot leave a database cell while a versioned update is pending", async ({ page }) => {
+  await mockDatabase(page);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route(`**${base}/records/${recordId}`, async route => {
+    if (route.request().method() === "PATCH") await gate;
+    await route.fallback();
+  });
+  await page.goto(`${href}&view=${viewId}&date=2026-11-13`);
+  await page.getByRole("button", { name: "▦ Все записи", exact: true }).click();
+  await page.getByRole("button", { name: "Изменить Описание: Страница записи", exact: true }).click();
+  await page.getByLabel("Описание", { exact: true }).fill("Записываем поле");
+  await page.getByRole("button", { name: "Сохранить запись", exact: true }).click();
+  await expect(page.getByLabel("Описание", { exact: true })).toBeDisabled();
+  await page.goBack();
+  await expect(page).toHaveURL(href);
+  release();
+  await expect(page.locator(".cell-editor")).not.toBeVisible();
+  await page.goBack();
+  await expect(page.locator(".database-calendar")).toBeVisible();
+});

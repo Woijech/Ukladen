@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RequestError, requestJson, writeJson } from "@/shared/api";
 import { ActionFeedback, Modal, Pager, QueryState, useAction } from "@/shared/ui";
@@ -56,11 +56,12 @@ export function PlanDetails({ plan, titles = {} }: { plan: WorkPlan; titles?: Re
 
 function minuteText(value: number) { return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`; }
 function minuteValue(value: string) { const [hours, minutes] = value.split(":").map(Number); return hours * 60 + minutes; }
-function PreferencesForm({ preferences, onSaved }: { preferences: Preferences; onSaved: () => Promise<unknown> }) {
+function PreferencesForm({ preferences, onSaved, onBusyChange }: { preferences: Preferences; onSaved: () => Promise<unknown>; onBusyChange: (busy: boolean) => void }) {
   const [windows, setWindows] = useState(preferences.windows);
   const [session, setSession] = useState(preferences.session_minutes);
   const [pause, setPause] = useState(preferences.break_minutes);
   const action = useAction();
+  useLayoutEffect(() => { onBusyChange(action.busy); return () => onBusyChange(false); }, [action.busy, onBusyChange]);
   return <form className="work-form" onSubmit={event => { event.preventDefault(); void action.run(async () => {
     await writeJson(planningBase + "/preferences", "PUT", { expected_version: preferences.version, windows, session_minutes: session, break_minutes: pause });
     await onSaved();
@@ -83,7 +84,7 @@ function LocalTimeInput({ label, value, choice, onChange, onChoice, timezone }: 
   return <label>{label}<input type="datetime-local" required value={value} onChange={event => { onChange(event.target.value); onChoice(""); }} />{value && options.length === 0 && <span className="form-error">Такого местного времени нет.</span>}{options.length > 1 && <select required aria-label={`${label}: смещение`} value={choice} onChange={event => onChoice(event.target.value)}><option value="">Выберите смещение часов</option>{options.map(option => <option key={option} value={option}>{workTime(option, timezone)} · {option}</option>)}</select>}</label>;
 }
 
-function SessionEditor({ taskId, timezone, current, onSaved, onClose }: { taskId: string; timezone: string; current?: WorkSession; onSaved: () => Promise<unknown>; onClose: () => void }) {
+function SessionEditor({ taskId, timezone, current, onSaved, onClose, onBusyChange }: { taskId: string; timezone: string; current?: WorkSession; onSaved: () => Promise<unknown>; onClose: () => void; onBusyChange: (busy: boolean) => void }) {
   const [start, setStart] = useState(current ? dateTimeLocal(new Date(current.starts_at), timezone) : "");
   const [end, setEnd] = useState(current ? dateTimeLocal(new Date(current.ends_at), timezone) : "");
   const [startChoice, setStartChoice] = useState(""); const [endChoice, setEndChoice] = useState("");
@@ -91,6 +92,7 @@ function SessionEditor({ taskId, timezone, current, onSaved, onClose }: { taskId
   const [ack, setAck] = useState(false);
   const [check, setCheck] = useState<{ payload: Record<string, unknown>; snapshot: string; conflict: boolean; verified: boolean } | null>(null);
   const action = useAction();
+  useLayoutEffect(() => { onBusyChange(action.busy); return () => onBusyChange(false); }, [action.busy, onBusyChange]);
   function edited(change: () => void) { change(); setCheck(null); setAck(false); }
   async function inspect(event: FormEvent) { event.preventDefault(); await action.run(async () => {
     const payload = { task_id: taskId, starts_at: resolveLocalTime(start, timezone, startChoice, current?.starts_at), ends_at: resolveLocalTime(end, timezone, endChoice, current?.ends_at), ...(current ? { session_id: current.id } : {}) };
@@ -112,12 +114,16 @@ function SessionEditor({ taskId, timezone, current, onSaved, onClose }: { taskId
   </form>;
 }
 
-export function PlanningButton({ timezone, taskId, label = "Планирование" }: { timezone: string; taskId?: string; label?: string }) {
+export function PlanningButton({ timezone, taskId, label = "Планирование", onBusyChange }: { timezone: string; taskId?: string; label?: string; onBusyChange: (busy: boolean) => void }) {
   const [open, setOpen] = useState(false);
-  return <><button className="task-secondary" type="button" onClick={() => setOpen(true)}>{label}</button>{open && <PlanningDialog timezone={timezone} taskId={taskId} onClose={() => setOpen(false)} />}</>;
+  return <><button className="task-secondary" type="button" onClick={() => setOpen(true)}>{label}</button>{open && <PlanningDialog timezone={timezone} taskId={taskId} onClose={() => setOpen(false)} onBusyChange={onBusyChange} />}</>;
 }
-function PlanningDialog({ timezone, taskId, onClose }: { timezone: string; taskId?: string; onClose: () => void }) {
+function PlanningDialog({ timezone, taskId, onClose, onBusyChange }: { timezone: string; taskId?: string; onClose: () => void; onBusyChange: (busy: boolean) => void }) {
   const client = useQueryClient(); const action = useAction();
+  const [preferencesBusy, setPreferencesBusy] = useState(false);
+  const [sessionBusy, setSessionBusy] = useState(false);
+  const busy = action.busy || preferencesBusy || sessionBusy;
+  useLayoutEffect(() => { onBusyChange(busy); return () => onBusyChange(false); }, [busy, onBusyChange]);
   const [clock, setClock] = useState(Date.now);
   useEffect(() => { const timer = window.setInterval(() => setClock(Date.now()), 30000); return () => window.clearInterval(timer); }, []);
   const [selected, setSelected] = useState<string[]>(taskId ? [taskId] : []);
@@ -136,10 +142,10 @@ function PlanningDialog({ timezone, taskId, onClose }: { timezone: string; taskI
   const titles = Object.fromEntries([...(tasks.data?.items ?? []), ...(detail.data ? [detail.data] : [])].map(item => [item.id, item.title]));
   async function refresh() { await Promise.all([client.invalidateQueries({ queryKey: ["work-sessions"] }), client.invalidateQueries({ queryKey: ["calendar-task-sessions"] }), client.invalidateQueries({ queryKey: ["workspace-calendar"] })]); }
   function changed(change: () => void) { change(); setPlan(null); setPartial(false); }
-  return <Modal title="Планирование задач" wide onClose={() => { if (!action.busy) onClose(); }}><div className="work-planning">
+  return <Modal title="Планирование задач" wide onClose={() => { if (!busy) onClose(); }}><div className="work-planning">
     <h2>Планирование задач</h2><p>Часовой пояс: {timezone}. Укажите остаток работы в самой задаче. Подзадачи планируются без повторного учёта родителя.</p>
     <QueryState pending={preferences.isPending} error={preferences.error} retry={() => void preferences.refetch()} />
-    {preferences.data && <details><summary>Часы работы и перерывы</summary>{preferences.data.version > 0 && <p role="status">Сохранённые настройки: версия {preferences.data.version}</p>}<PreferencesForm key={preferences.data.version} preferences={preferences.data} onSaved={async () => { changed(() => {}); await preferences.refetch(); }} /></details>}
+    {preferences.data && <details><summary>Часы работы и перерывы</summary>{preferences.data.version > 0 && <p role="status">Сохранённые настройки: версия {preferences.data.version}</p>}<PreferencesForm key={preferences.data.version} preferences={preferences.data} onBusyChange={setPreferencesBusy} onSaved={async () => { changed(() => {}); await preferences.refetch(); }} /></details>}
     <section><h3>Задачи для плана</h3><QueryState pending={tasks.isPending} error={tasks.error} retry={() => void tasks.refetch()} />
       {tasks.data?.items.filter(item => ["todo", "in_progress"].includes(item.status)).map(item => <label key={item.id} className="checkbox-label"><input type="checkbox" checked={selected.includes(item.id)} onChange={event => changed(() => setSelected(event.target.checked ? [...selected, item.id] : selected.filter(id => id !== item.id)))} />{item.title} · остаток: {item.remaining_minutes == null ? "не указан" : `${item.remaining_minutes} мин`}</label>)}
       <Pager offset={offset} count={tasks.data?.items.length ?? 0} size={20} onChange={setOffset} /><p>Выбрано: {selected.length}</p>
@@ -163,12 +169,12 @@ function PlanningDialog({ timezone, taskId, onClose }: { timezone: string; taskI
       {sessions.data?.filter(item => !taskId || item.task_id === taskId).map(item => <div className="work-session" key={item.id}><p><strong>{titles[item.task_id] ?? "Рабочая сессия"}</strong> · {workTime(item.starts_at, timezone)} — {workTime(item.ends_at, timezone)}{item.cancelled ? " · отменена" : item.pinned ? " · закреплена" : ""}</p>{!item.cancelled && Date.parse(item.starts_at) > clock && <div className="work-actions"><button className="secondary-button" disabled={action.busy} onClick={() => setEditing({ taskId: item.task_id, current: item })}>Перенести сессию</button><button className="secondary-button" disabled={action.busy} onClick={() => void action.run(async () => { await writeJson(`${planningBase}/sessions/${item.id}`, "PATCH", { expected_version: item.version, pinned: !item.pinned }); setPlan(null); await refresh(); })}>{item.pinned ? "Открепить" : "Закрепить"}</button><button className="secondary-button" disabled={action.busy} onClick={() => void action.run(async () => { await writeJson(`${planningBase}/sessions/${item.id}`, "PATCH", { expected_version: item.version, cancel: true }); setPlan(null); await refresh(); })}>Отменить сессию</button></div>}</div>)}
       {!sessions.data?.length && !sessions.isPending && <p>Сессий в этом периоде нет.</p>}
       {selected.length === 1 && <button className="secondary-button" onClick={() => setEditing({ taskId: selected[0] })}>Добавить сессию вручную</button>}
-      {editing && <SessionEditor key={editing.current?.id ?? editing.taskId} taskId={editing.taskId} current={editing.current} timezone={timezone} onSaved={async () => { setPlan(null); await refresh(); }} onClose={() => setEditing(null)} />}
+      {editing && <SessionEditor key={editing.current?.id ?? editing.taskId} taskId={editing.taskId} current={editing.current} timezone={timezone} onBusyChange={setSessionBusy} onSaved={async () => { setPlan(null); await refresh(); }} onClose={() => setEditing(null)} />}
     </section><ActionFeedback {...action} />
   </div></Modal>;
 }
 
-export function CalendarTaskSessions({ from, to, timezone }: { from: string; to: string; timezone: string }) {
+export function CalendarTaskSessions({ from, to, timezone, onBusyChange }: { from: string; to: string; timezone: string; onBusyChange: (busy: boolean) => void }) {
   const [showSessions, setShowSessions] = useState(true);
   const [showDeadlines, setShowDeadlines] = useState(false);
   const start = dayStart(from, timezone).toISOString();
@@ -179,8 +185,8 @@ export function CalendarTaskSessions({ from, to, timezone }: { from: string; to:
     <label className="checkbox-label"><input type="checkbox" checked={showSessions} onChange={event => setShowSessions(event.target.checked)} />Показывать рабочие сессии</label>
     <label className="checkbox-label"><input type="checkbox" checked={showDeadlines} onChange={event => setShowDeadlines(event.target.checked)} />Показывать сроки задач</label>
     <QueryState pending={enabled && query.isPending} error={query.error} retry={() => void query.refetch()} />
-    {showSessions && query.data?.sessions.map(item => <div key={item.source_event_id}><p><strong>{item.title}</strong> · {workTime(item.starts_at, timezone)} — {workTime(item.ends_at, timezone)}{item.pinned ? " · закреплена" : ""}</p><PlanningButton timezone={timezone} taskId={item.task_id} label="Открыть сессию задачи" /></div>)}
-    {showDeadlines && query.data?.deadlines.map(item => <div key={item.task_id}><p><strong>Срок: {item.title}</strong> · {workTime(item.deadline_at, timezone)} · не занимает время</p><PlanningButton timezone={timezone} taskId={item.task_id} label="Планировать задачу" /></div>)}
+    {showSessions && query.data?.sessions.map(item => <div key={item.source_event_id}><p><strong>{item.title}</strong> · {workTime(item.starts_at, timezone)} — {workTime(item.ends_at, timezone)}{item.pinned ? " · закреплена" : ""}</p><PlanningButton timezone={timezone} taskId={item.task_id} label="Открыть сессию задачи" onBusyChange={onBusyChange} /></div>)}
+    {showDeadlines && query.data?.deadlines.map(item => <div key={item.task_id}><p><strong>Срок: {item.title}</strong> · {workTime(item.deadline_at, timezone)} · не занимает время</p><PlanningButton timezone={timezone} taskId={item.task_id} label="Планировать задачу" onBusyChange={onBusyChange} /></div>)}
     {enabled && query.data && !query.data.sessions.length && !query.data.deadlines.length && <p className="muted">В выбранных источниках задач нет записей на эту неделю.</p>}
     <p className="muted">Эти фильтры меняют только отображение. Рабочие сессии продолжают учитываться как занятость.</p>
   </section>;

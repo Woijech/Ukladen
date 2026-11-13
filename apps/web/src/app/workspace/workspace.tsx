@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { ThemeToggle } from "@/shared/theme";
@@ -994,6 +994,7 @@ function CalendarWorkspace({
   const [mobileNavigation, setMobileNavigation] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [panelBusy, setPanelBusy] = useState(false);
+  const [planningBusy, setPlanningBusy] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
   const [moveTarget, setMoveTarget] = useState<CalendarEvent | null>(null);
   const [moveDraft, setMoveDraft] = useState<{ starts_at: string; ends_at: string } | null>(null);
@@ -1018,6 +1019,10 @@ function CalendarWorkspace({
   const [pendingLocation, setPendingLocation] = useState<{ location: WorkspaceLocation; replace: boolean } | null>(null);
   const navigationVersion = useRef(0);
   useEffect(() => { navigationVersion.current++; }, [workspaceLocation]);
+  const reportDirty = useCallback((value: boolean) => {
+    if (value) navigationVersion.current++;
+    setDirty(value);
+  }, []);
   function navigateTo(next: WorkspaceLocation, replace = false) {
     if (navigationProtection.current.busy) {
       setToast("Дождись завершения сохранения перед переходом.");
@@ -1248,12 +1253,13 @@ function CalendarWorkspace({
   const [endValue, setEndValue] = useState("");
   const [startInstant, setStartInstant] = useState("");
   const [endInstant, setEndInstant] = useState("");
-  useEffect(() => {
+  // Navigation guards must be current before newly rendered controls become interactive.
+  useLayoutEffect(() => {
     navigationProtection.current = {
       dirty: dirty || (showEventForm && eventFormSnapshot.current !== JSON.stringify([title, location, description, startValue, endValue, startInstant, endInstant])),
-      busy: panelBusy || saving || resizeBusy || deletingEvent,
+      busy: panelBusy || planningBusy || saving || resizeBusy || deletingEvent,
     };
-  }, [dirty, showEventForm, title, location, description, startValue, endValue, startInstant, endInstant, panelBusy, saving, resizeBusy, deletingEvent]);
+  }, [dirty, showEventForm, title, location, description, startValue, endValue, startInstant, endInstant, panelBusy, planningBusy, saving, resizeBusy, deletingEvent]);
   const startOptions = useMemo(
     () => localInstants(startValue, timeZone, editingEvent?.starts_at),
     [startValue, timeZone, editingEvent?.starts_at],
@@ -2011,7 +2017,7 @@ function CalendarWorkspace({
                     </button>
                   </div>
                 )}
-                <CalendarTaskSessions from={range.from} to={range.to} timezone={timeZone} />
+                <CalendarTaskSessions from={range.from} to={range.to} timezone={timeZone} onBusyChange={setPlanningBusy} />
                 {!!calendarQuery.data?.warnings.length && (
                   <p className="schedule-warning">
                     Учебное расписание может быть неактуальным. Проверь источник
@@ -2168,10 +2174,7 @@ function CalendarWorkspace({
               onOpenPage={openPage}
               onOpenEvent={openLinkedEvent}
               onNavigate={navigate}
-              onDirtyChange={(value) => {
-                if (value) navigationVersion.current++;
-                setDirty(value);
-              }}
+              onDirtyChange={reportDirty}
               onChooseGroup={() => setShowGroupPicker(true)}
               onSessionEnd={onSessionEnd}
               events={allEvents}
@@ -2417,7 +2420,7 @@ function CalendarWorkspace({
             </button>
             <button
               className="danger-button"
-              disabled={panelBusy || saving || resizeBusy || deletingEvent}
+              disabled={panelBusy || planningBusy || saving || resizeBusy || deletingEvent}
               onClick={() => {
                 if (navigationProtection.current.busy) return;
                 setDirty(false);

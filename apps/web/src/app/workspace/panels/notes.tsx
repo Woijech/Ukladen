@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageAttachments } from "./attachments";
 import { positionNoteMenu } from "./note-menu";
@@ -116,7 +116,7 @@ export function NotesPanel({
     enabled: !!selected,
     retry: false,
   });
-  useEffect(() => { onBusyChange(busy || action.busy); return () => onBusyChange(false); }, [busy, action.busy, onBusyChange]);
+  useLayoutEffect(() => { onBusyChange(busy || action.busy); return () => onBusyChange(false); }, [busy, action.busy, onBusyChange]);
   const dirtyCallback = useRef(onDirtyChange);
   const mounted = useRef(true);
   useEffect(() => { dirtyCallback.current = onDirtyChange; }, [onDirtyChange]);
@@ -416,7 +416,7 @@ export function NotesPanel({
                 error={note.error}
                 retry={() => void note.refetch()}
               />}
-              {note.data && (
+              {note.data && !isUnavailableObject(note.error) && (
                 <NoteEditor
                   key={note.data.id}
                   note={note.data}
@@ -510,7 +510,7 @@ function NoteEditor({
   const locked = readonly || action.busy;
   const operationsLocked = action.busy || saving;
   const error = draft.error || (readonly ? action.error : "");
-  useEffect(() => {
+  useLayoutEffect(() => {
     onBusyChange(operationsLocked);
     return () => onBusyChange(false);
   }, [operationsLocked, onBusyChange]);

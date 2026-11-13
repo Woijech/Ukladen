@@ -413,6 +413,7 @@ for (const width of [1440, 834, 390]) {
         page.getByRole("button", { name: "Next session", exact: true }),
       ).toBeDisabled();
       await navigateSection(page, "Заметки");
+      await page.getByRole("button", { name: "Общий конспект", exact: true }).click();
       await page.getByLabel("Текст блока 1").fill("Черновик после перехода");
       release();
       await (await delivered).finished();

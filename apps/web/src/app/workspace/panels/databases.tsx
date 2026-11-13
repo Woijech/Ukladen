@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RequestError, requestJson, writeJson } from "@/shared/api";
 import {
@@ -106,11 +106,11 @@ function useFormProtection(busy: boolean, callbacks: FormProtection) {
   const [dirty, setDirty] = useState(false);
   const current = useRef(callbacks);
   useEffect(() => { current.current = callbacks; }, [callbacks]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     current.current.onDirtyChange(dirty);
     return () => current.current.onDirtyChange(false);
   }, [dirty]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     current.current.onBusyChange(busy);
     return () => current.current.onBusyChange(false);
   }, [busy]);
@@ -175,7 +175,7 @@ export function DatabasesPanel({
   const [createName, setCreateName] = useState("");
   const [detailBusy, setDetailBusy] = useState(false);
   const action = useAction();
-  useEffect(() => { onBusyChange(action.busy || detailBusy); return () => onBusyChange(false); }, [action.busy, detailBusy, onBusyChange]);
+  useLayoutEffect(() => { onBusyChange(action.busy || detailBusy); return () => onBusyChange(false); }, [action.busy, detailBusy, onBusyChange]);
   const client = useQueryClient();
   const databases = useQuery({
     queryKey: ["databases", trashed, offset],
@@ -367,7 +367,7 @@ function DatabaseDetail({
   const client = useQueryClient();
   const action = useAction();
   const [editorBusy, setEditorBusy] = useState(false);
-  useEffect(() => { onBusyChange(action.busy || editorBusy); return () => onBusyChange(false); }, [action.busy, editorBusy, onBusyChange]);
+  useLayoutEffect(() => { onBusyChange(action.busy || editorBusy); return () => onBusyChange(false); }, [action.busy, editorBusy, onBusyChange]);
   const [offset, setOffset] = useState(0);
   const [trashRecords, setTrashRecords] = useState(false);
   const [dialog, setDialog] = useState<
@@ -967,7 +967,7 @@ function RecordEditor({
   onSaved: () => Promise<void>;
 }) {
   const action = useAction();
-  useEffect(() => { onBusyChange(action.busy); return () => onBusyChange(false); }, [action.busy, onBusyChange]);
+  useLayoutEffect(() => { onBusyChange(action.busy); return () => onBusyChange(false); }, [action.busy, onBusyChange]);
   const [expectedSchema] = useState(schema);
   const [fields] = useState(properties);
   const [dirty, setDirty] = useState(false);
@@ -2044,7 +2044,7 @@ function PropertyManager({
   const [pending, setPending] = useState<Property | null>(null);
   const action = useAction();
   const [editorBusy, setEditorBusy] = useState(false);
-  useEffect(() => { onBusyChange(action.busy || editorBusy); return () => onBusyChange(false); }, [action.busy, editorBusy, onBusyChange]);
+  useLayoutEffect(() => { onBusyChange(action.busy || editorBusy); return () => onBusyChange(false); }, [action.busy, editorBusy, onBusyChange]);
   const query = useQuery({
     queryKey: ["property-manager", databaseId, trashed],
     queryFn: ({ signal }) =>
