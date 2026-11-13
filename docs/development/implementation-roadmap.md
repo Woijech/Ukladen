@@ -1,6 +1,6 @@
 # Backend Implementation Roadmap
 
-Updated: 2026-11-09.
+Updated: 2026-11-13.
 Status: implementation roadmap; completed slices are marked below. This document does not authorize starting the
 next phase; request a concrete slice before implementing it. Pages/blocks/databases,
 mandatory table/calendar views, personal scope and AI execution modes are confirmed.
@@ -95,6 +95,10 @@ flows ([stage 5](frontend-redesign-stage-5.md)), focused AI conversation with pr
 HITL ([stage 6 AI](frontend-redesign-stage-6-ai.md)), and settings/utility surfaces
 ([stage 6 utilities](frontend-redesign-stage-6-utilities.md)). They are not deployed;
 planned backend capabilities and manual release checks remain separate.
+The owner-requested [workspace deep-link follow-up](workspace-deep-links.md) is
+implemented locally: selected objects/views and civil calendar dates/layouts survive
+reload/history, with direct owned reads and retained dirty/pending-write guards.
+Task filters, durable scroll and crash/offline draft recovery remain separate scope.
 The P-01–P-08 sections below preserve their original backend-slice scope; their
 verification history is not evidence of rerunning backend checks for the UI work.
 

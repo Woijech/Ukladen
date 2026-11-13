@@ -211,6 +211,7 @@ activation and real-provider answer quality remain unverified. See [AI architect
 | Authenticated IIS capabilities | Status: not implemented; contract unverified. |
 | Weekly calendar, personal-event create/edit/delete, login/registration and group selection UI | Implemented |
 | Flat block pages, materials/search, collections/tags, database saved views, reminders/inbox and profile/avatar UI | Implemented; see [frontend scope and limits](../architecture/frontend.md) |
+| Workspace object/date/layout deep links and browser history | Implemented locally; see [address and recovery contract](../development/workspace-deep-links.md). No crash/offline draft recovery. |
 | Official override editing, saved event views and mixed calendar display UI | Status: not implemented; backend APIs exist. |
 | AI chat/settings/usage UI | Implemented locally under AI-04; default-disabled backend, activation and live-provider quality pending. |
 

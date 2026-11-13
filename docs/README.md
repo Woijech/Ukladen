@@ -1,6 +1,6 @@
 # Ukladen Documentation Index
 
-Updated: 2026-11-09.
+Updated: 2026-11-13.
 
 ## Contract and reading order
 
@@ -49,6 +49,7 @@ Planned contracts do not override the current implemented API silently.
 ## Current implementation guides
 
 - [Local development](development/local-development.md).
+- [Workspace deep links](development/workspace-deep-links.md): selected tasks/pages/databases/views, calendar dates/layouts, history and draft protection.
 - [Environment reference](development/environment.md): all implemented settings, sources and safe setup.
 - [Auth email delivery](development/auth-email.md).
 - [Google sign-in, registration completion and account linking](development/google-auth.md).

@@ -2,6 +2,11 @@
 
 Date: 2026-11-13. Branch: `frontend/ui`. Implementation baseline: `e2cdcbb` plus the existing working-tree changes present when this review started. Status: reviewed with remaining UX gaps; not a declaration that every concept acceptance criterion is complete.
 
+Follow-up (2026-11-13, `workspace-deep-links`): object/date/layout restoration from
+UX01/FR04 is now implemented in a separate [deep-link delivery](workspace-deep-links.md).
+The original findings and verification below describe this review's baseline;
+crash recovery, full filter/scroll restoration and manual release gates remain open.
+
 ## Decision
 
 The redesign substantially improves working composition and everyday interactions: a joined calendar workspace, compact task properties, a document-first note canvas, editable database cells, focused chat and consistent utility screens. A1 branding, warm neutral surfaces, lavender actions and teal academic source distinctions remain recognizable in both themes. No functional removal was found in the exercised inventory below.
