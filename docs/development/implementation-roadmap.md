@@ -87,7 +87,10 @@ locally; see [calendar refinement](frontend-calendar-refinement.md).
 Task stage 3 is implemented locally under the 2026-11-13 request: compact queue,
 inline capture/editing, property pickers, loaded-only grouping/sort and contextual
 detail; see [stage-3 delivery](frontend-redesign-stage-3.md).
-Note, database and AI work-surface redesign stages remain pending a separate request.
+Notes stage 4 is implemented locally under the 2026-11-13 request: focused document
+canvas, inline page creation, title filtering, contextual block tools and safe manual
+save recovery; see [stage-4 delivery](frontend-redesign-stage-4.md).
+Database and AI work-surface redesign stages remain pending a separate request.
 The P-01–P-08 sections below preserve their original backend-slice scope; their
 verification history is not evidence of rerunning backend checks for the UI work.
 

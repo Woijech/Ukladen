@@ -1,0 +1,57 @@
+.notes-page .notes-layout { grid-template-columns: 224px minmax(0, 1fr); }
+.notes-page .page-tree { padding: 16px 10px; }
+.note-page-search { width: 100%; min-width: 0; margin: 8px 0 12px; padding: 8px; font-size: 13px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.note-create-form { display: grid; gap: 8px; margin: 8px 0 16px; padding: 12px 8px; border-block: 1px solid var(--border); }
+.note-create-form input { min-width: 0; width: 100%; padding: 8px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.note-create-form label, .note-create-form p { font-size: 12px; margin: 0; }
+.note-create-form .modal-actions { gap: 8px; flex-wrap: wrap; margin-top: 0; }
+.notes-page .note-topbar { align-items: center; min-height: 64px; padding: 12px 24px; }
+.notes-page .note-sheet { max-width: 840px; padding: 64px 64px 32px; }
+.notes-page .note-title { line-height: 1.25; font-weight: 650; resize: none; overflow: hidden; display: block; text-wrap: pretty; }
+.notes-page .block-content textarea, .notes-page .block-content input:not([type="checkbox"]) { font-size: 18px; line-height: 1.75; }
+.notes-page .note-heading { font-weight: 650; letter-spacing: -.02em; line-height: 1.35; }
+.notes-page .heading-1 { font-size: 32px; }
+.notes-page .heading-2 { font-size: 27px; }
+.notes-page .heading-3 { font-size: 23px; }
+.notes-page .heading-4 { font-size: 21px; }
+.notes-page .heading-5 { font-size: 19px; }
+.notes-page .heading-6 { font-size: 18px; color: var(--muted); }
+.notes-page .block-heading { margin-top: 24px; margin-bottom: 8px; }
+.notes-page .block-content input:hover, .notes-page .block-content textarea:hover { background: transparent; }
+.notes-page .block-row { border-radius: 4px; }
+.notes-page .block-row.drop-before::before, .notes-page .block-row.drop-after::after { content: ""; position: absolute; inset-inline: 0; height: 2px; background: var(--accent); pointer-events: none; }
+.notes-page .block-row.drop-before::before { top: -2px; }
+.notes-page .block-row.drop-after::after { bottom: -2px; }
+.notes-page .note-undo { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; padding: 12px 0; font-size: 13px; color: var(--muted); }
+.block-picker { position: fixed; width: 320px; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow: auto; z-index: 110; }
+.block-picker [role="listbox"] { max-height: min(280px, 45dvh); }
+.block-picker [role="option"] { min-height: 44px; }
+.note-tree-sheet { min-width: 0; }
+.note-tree-sheet .note-tree-list { margin: 4px 0; }
+.note-tree-sheet .panel-toolbar { display: flex; justify-content: space-between; align-items: center; }
+.note-tree-sheet .note-menu-items button { min-height: 44px; }
+@media (max-width: 1100px) {
+  .notes-page .notes-layout { grid-template-columns: minmax(0, 1fr); }
+  .notes-page .page-tree { display: none; }
+  .notes-page .notes-desktop-title { display: none; }
+  .notes-page .notes-mobile-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; }
+  .notes-page .notes-mobile-toolbar h1 { font-size: 20px; margin: 0; }
+  .notes-page .notes-mobile-toolbar button { min-height: 44px; }
+  .notes-page .note-sheet { padding: 40px 64px 24px; }
+  .note-tree-sheet .tree-disclosure, .note-tree-sheet .tree-child-add, .note-tree-sheet .note-menu > summary, .note-tree-sheet .tree-page-link { min-height: 44px; }
+}
+@media (max-width: 600px) {
+  .notes-page .note-sheet { padding: 32px 48px 20px 20px; }
+  .notes-page .note-title { font-size: 30px; }
+  .notes-page .note-topbar { padding: 12px 16px; }
+  .notes-page .block-content textarea, .notes-page .block-content input:not([type="checkbox"]) { font-size: 17px; }
+  .notes-page .block-tools { top: 0; bottom: auto; right: -44px; border: 0; box-shadow: none; padding: 0; background: transparent; gap: 0; }
+  .notes-page .block-tools .block-insert { display: none; }
+  .notes-page .block-context .note-menu-items { left: auto; right: 0; }
+  .notes-page .note-menu-items button { min-height: 44px; }
+  .notes-page .block-empty-add { min-height: 44px; }
+}
+.notes-page .note-menu-items, .note-tree-sheet .note-menu-items { max-height: calc(100dvh - 16px); overflow-y: auto; overscroll-behavior: contain; }
+
+.notes-page .block-check-control { display: grid; place-items: center; flex: 0 0 44px; min-height: 44px; margin: 0; cursor: pointer; }
+.notes-page .checkbox-block { gap: 2px; margin-left: -10px; }

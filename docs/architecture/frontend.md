@@ -218,7 +218,7 @@ Lucide, Motion and rich-editor packages are not required by this implementation.
   complete tree; bodies load on selection. On phones the tree is a compact toggled
   list. A shared searchable slash/plus picker supports text, H1–H6, native bulleted/
   numbered lists, checkboxes and HTTP links. Native drag handles and up/down actions
-  retain UUIDs; block removal is confirmed. Safe text/heading and list-style changes
+  retain UUIDs; block removal and movement have one-level local undo. Safe text/heading and list-style changes
   preserve data. Manual saves and Ctrl/Cmd+S retain page versions, duplicate-submit
   guards, partial-save recovery and explicit conflict reload. Page navigation offers
   save, stay or discard, with browser unload protection. Compact page menus expose
@@ -460,3 +460,26 @@ versioned writes, guarded one-step Undo and dirty-navigation registration.
 Empty relation disclosures hide unused pagers. All task/planning/lifecycle API
 contracts remain unchanged. See [stage-3 delivery](../development/frontend-redesign-stage-3.md)
 for actual verification, keyboard/touch behavior and loaded-data limits.
+
+
+### Notes redesign stage 4 — 2026-11-13
+
+The notes area uses a 224px page library on desktop and an explicitly opened library
+modal at 1100px and below. Title filtering includes matching pages and their ancestors;
+it does not search document bodies or alter nesting. Root/child capture uses an inline
+form with an in-memory title draft. Page navigation keeps the existing dirty guard.
+Document typography, wrapping titles and contextual tools reuse the A1/theme tokens.
+Slash/plus insertion shares a viewport-bounded portal menu over the existing flat
+block schema. Native drag/drop has an insertion indicator; labelled move actions
+remain available to keyboard and touch. A one-level structural undo applies its
+inverse to current blocks, preserving subsequent text edits and UUIDs.
+
+Manual save and Ctrl/Cmd+S remain explicit. The draft controller pins the confirmed
+version independently from query refetches, advances it after each successful write,
+and serializes explicitly requested saves. Typing during a pending write remains
+local and dirty unless the user requests a follow-up save. Only a complete save may
+finish pending page navigation. Explicit reload/adopt resets structural undo.
+Backend/API/schema, CSRF, ownership, private links, attachments and recoverable branch
+trash/restore are unchanged. Drafts are memory-only; automatic save, crash recovery,
+rich text and revision history are not implemented. See the
+[stage-4 report](../development/frontend-redesign-stage-4.md) for verification.

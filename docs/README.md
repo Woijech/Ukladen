@@ -26,6 +26,7 @@ Planned contracts do not override the current implemented API silently.
 - [Brand exports](../assets/branding/README.md): approved Ukladen logo files and reuse in product screens.
 - [Visual system](../DESIGN.md): implemented typography, palette, layout, navigation and motion direction.
 - [Task UX redesign stage 3](development/frontend-redesign-stage-3.md): compact rows, inline edits, loaded-only views, contextual details and verification.
+- [Notes UX redesign stage 4](development/frontend-redesign-stage-4.md): focused document canvas, page finding/capture, contextual blocks and safe manual saving.
 - [Calendar composition refinement](development/frontend-calendar-refinement.md): joined calendar layout, safe range creation and follow-up verification.
 - [Calendar UX redesign stage 2](development/frontend-redesign-stage-2.md): implemented calendar controls, temporal editor and verification.
 - [Frontend design review](development/frontend-design-review.md): visual QA, interaction evidence and Anti-Slop Delivery Gate.

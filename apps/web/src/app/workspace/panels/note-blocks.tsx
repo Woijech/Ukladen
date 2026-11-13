@@ -1,7 +1,8 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
-import { Modal } from "@/shared/ui";
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
+import { positionNoteMenu } from "./note-menu";
 import type { Block } from "./notes";
 
 const blockTypes = [
@@ -41,10 +42,23 @@ function newBlock(key: string, id = crypto.randomUUID(), text = ""): Block {
 function BlockMenu({
   onSelect,
   onClose,
+  anchor,
 }: {
   onSelect: (key: string) => void;
-  onClose: () => void;
+  onClose: (restoreFocus?: boolean) => void;
+  anchor: DOMRect | null;
 }) {
+  const container = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ top: 8, left: 8 });
+  useLayoutEffect(() => {
+    const height = container.current?.getBoundingClientRect().height ?? 360;
+    setPosition({ top: Math.max(8, Math.min(anchor?.bottom ?? 8, window.innerHeight - height - 8)), left: Math.max(8, Math.min(anchor?.left ?? 8, window.innerWidth - 328)) });
+  }, [anchor]);
+  useEffect(() => {
+    function outside(event: PointerEvent) { if (!container.current?.contains(event.target as Node)) onClose(false); }
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [onClose]);
   const [search, setSearch] = useState("");
   const [active, setActive] = useState(0);
   const matches = blockTypes.filter((type) =>
@@ -69,14 +83,16 @@ function BlockMenu({
       if (matches[active]) onSelect(matches[active].key);
     }
   }
-  return (
+  return createPortal(
     <div
+      ref={container}
+      style={position}
       className="block-picker"
       role="dialog"
       aria-label="Добавить блок"
       onKeyDown={keys}
       onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) onClose();
+        if (!event.currentTarget.contains(event.relatedTarget)) onClose(false);
       }}
     >
       <input
@@ -110,7 +126,7 @@ function BlockMenu({
               if (index === active)
                 element?.scrollIntoView({ block: "nearest" });
             }}
-            onMouseDown={(event) => event.preventDefault()}
+            onPointerDown={(event) => event.preventDefault()}
             onClick={() => onSelect(type.key)}
           >
             <span className="block-type-symbol" aria-hidden="true">
@@ -127,7 +143,7 @@ function BlockMenu({
       <small className="block-picker-hint">
         ↑ ↓ выбор · Enter добавить · Esc закрыть
       </small>
-    </div>
+    </div>, document.body
   );
 }
 
@@ -142,10 +158,11 @@ export function NoteBlocks({
   readonly: boolean;
   onChange: (blocks: Block[]) => void;
 }) {
-  const [menu, setMenu] = useState<{ index: number; replace: boolean } | null>(
+  const [menu, setMenu] = useState<{ index: number; replace: boolean; anchor: DOMRect | null } | null>(
     null,
   );
-  const [remove, setRemove] = useState<string | null>(null);
+  const [undo, setUndo] = useState<{ block: Block; index: number; before?: string; after?: string; removed: boolean } | null>(null);
+  const [drop, setDrop] = useState<{ id: string; after: boolean } | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const dragging = useRef<string | null>(null);
   const pendingFocus = useRef<string | null>(null);
@@ -163,11 +180,32 @@ export function NoteBlocks({
   function focus(id: string, selector = ".block-text") {
     pendingFocus.current = `[data-block-id="${id}"] ${selector}`;
   }
+  function remember(index: number, removed: boolean) {
+    setUndo({ block: blocks[index], index, before: blocks[index - 1]?.id, after: blocks[index + 1]?.id, removed });
+  }
+  function undoStructure() {
+    if (!undo || disabled) return;
+    const block = undo.removed ? undo.block : blocks.find(item => item.id === undo.block.id);
+    if (!block || (undo.removed && blocks.length >= 1000)) return;
+    const next = blocks.filter(item => item.id !== block.id);
+    const after = next.findIndex(item => item.id === undo.after);
+    const before = next.findIndex(item => item.id === undo.before);
+    next.splice(after >= 0 ? after : before >= 0 ? before + 1 : Math.min(undo.index, next.length), 0, block);
+    onChange(next); setUndo(null); focus(block.id);
+  }
+  function removeBlock(index: number) {
+    remember(index, true);
+    onChange(blocks.filter((_, position) => position !== index));
+    const next = blocks[index + 1] ?? blocks[index - 1];
+    if (next) focus(next.id);
+    else pendingFocus.current = ".block-empty-line";
+  }
   function update(index: number, block: Block) {
     onChange(blocks.map((item, i) => (i === index ? block : item)));
   }
   function move(from: number, to: number) {
     if (disabled || from === to || to < 0 || to >= blocks.length) return;
+    remember(from, false);
     const next = [...blocks];
     const [block] = next.splice(from, 1);
     next.splice(to, 0, block);
@@ -186,7 +224,10 @@ export function NoteBlocks({
     focus(block.id);
   }
   function openMenu(index: number, replace = false) {
-    if (!disabled) setMenu({ index, replace });
+    if (!disabled) {
+      const active = document.activeElement;
+      setMenu({ index, replace, anchor: active instanceof HTMLElement ? active.getBoundingClientRect() : null });
+    }
   }
   function blockKeys(
     event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -225,12 +266,13 @@ export function NoteBlocks({
       focus(added.id);
     }
   }
-  function closeMenu() {
+  function closeMenu(restoreFocus = true) {
     if (!menu) return;
     const id = menu.replace
       ? blocks[menu.index]?.id
       : blocks[menu.index - 1]?.id;
     setMenu(null);
+    if (!restoreFocus) return;
     if (id) focus(id);
     else
       root.current
@@ -239,7 +281,7 @@ export function NoteBlocks({
   }
   function picker(index: number) {
     return (
-      menu?.index === index && <BlockMenu onSelect={add} onClose={closeMenu} />
+      menu?.index === index && <BlockMenu anchor={menu.anchor} onSelect={add} onClose={closeMenu} />
     );
   }
   return (
@@ -251,11 +293,13 @@ export function NoteBlocks({
           <div
             key={block.id}
             data-block-id={block.id}
-            className={`block-row block-${block.type}`}
+            className={`block-row block-${block.type} ${drop?.id === block.id ? drop.after ? "drop-after" : "drop-before" : ""}`}
             onDragOver={(event) => {
               if (dragging.current && !disabled) {
                 event.preventDefault();
                 event.dataTransfer.dropEffect = "move";
+                const bounds = event.currentTarget.getBoundingClientRect();
+                setDrop({ id: block.id, after: event.clientY > bounds.top + bounds.height / 2 });
               }
             }}
             onDrop={(event) => {
@@ -263,8 +307,9 @@ export function NoteBlocks({
               const from = blocks.findIndex(
                 (item) => item.id === dragging.current,
               );
-              if (from >= 0) move(from, index);
-              dragging.current = null;
+              const target = index + (drop?.id === block.id && drop.after ? 1 : 0);
+              if (from >= 0) move(from, Math.min(blocks.length - 1, target > from ? target - 1 : target));
+              dragging.current = null; setDrop(null);
             }}
           >
             {!readonly && (
@@ -280,6 +325,7 @@ export function NoteBlocks({
                 </button>
                 <details
                   className="note-menu block-context"
+                  onToggle={event => positionNoteMenu(event.currentTarget)}
                   onKeyDown={(event) => {
                     if (event.key === "Escape") {
                       event.currentTarget.open = false;
@@ -300,7 +346,7 @@ export function NoteBlocks({
                       event.dataTransfer.setData("text/plain", block.id);
                     }}
                     onDragEnd={() => {
-                      dragging.current = null;
+                      dragging.current = null; setDrop(null);
                     }}
                   >
                     ⠿
@@ -314,6 +360,7 @@ export function NoteBlocks({
                           ?.removeAttribute("open");
                     }}
                   >
+                    <button type="button" disabled={disabled || blocks.length >= 1000} onClick={() => openMenu(index)}>Добавить блок перед этим</button>
                     <button
                       type="button"
                       disabled={disabled || index === 0}
@@ -394,7 +441,7 @@ export function NoteBlocks({
                       className="danger-text"
                       aria-label={`Удалить блок ${index + 1}`}
                       disabled={disabled}
-                      onClick={() => setRemove(block.id)}
+                      onClick={() => removeBlock(index)}
                     >
                       Удалить блок
                     </button>
@@ -450,6 +497,7 @@ export function NoteBlocks({
                 <div
                   className={`checkbox-block ${block.checked ? "checked" : ""}`}
                 >
+                  <label className="block-check-control">
                   <input
                     type="checkbox"
                     aria-label={`Отметить пункт ${index + 1}`}
@@ -459,6 +507,7 @@ export function NoteBlocks({
                       update(index, { ...block, checked: event.target.checked })
                     }
                   />
+                  </label>
                   <input
                     className="block-text"
                     aria-label={`Пункт ${index + 1}`}
@@ -632,32 +681,11 @@ export function NoteBlocks({
           )}
         </div>
       )}
-      {remove && (
-        <Modal title="Удалить блок" onClose={() => setRemove(null)}>
-          <h2>Удалить блок и его содержимое?</h2>
-          <p>До сохранения исходное содержимое остаётся на сервере.</p>
-          <div className="modal-actions">
-            <button
-              className="secondary-button"
-              onClick={() => setRemove(null)}
-            >
-              Отмена
-            </button>
-            <button
-              className="danger-button"
-              disabled={disabled}
-              onClick={() => {
-                const index = blocks.findIndex((block) => block.id === remove);
-                onChange(blocks.filter((block) => block.id !== remove));
-                setRemove(null);
-                const next = blocks[index + 1] ?? blocks[index - 1];
-                if (next) focus(next.id);
-              }}
-            >
-              Удалить блок
-            </button>
-          </div>
-        </Modal>
+      {undo && !readonly && (
+        <div className="note-undo" role="status">
+          <span>{undo.removed ? "Блок удалён" : "Блок перемещён"}</span>
+          <button type="button" className="text-action" disabled={disabled || (undo.removed && blocks.length >= 1000)} onClick={undoStructure}>Отменить действие с блоком</button>
+        </div>
       )}
     </div>
   );
