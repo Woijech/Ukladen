@@ -1,30 +1,4 @@
-.ai-page {
-  max-width: 1440px;
-  --accent: #246858;
-  --accent-hover: #195345;
-  --accent-soft: #e8f3ed;
-  --accent-ink: #205e50;
-  --on-accent: #ffffff;
-  --ai-sheet: #fbfcfa;
-}
-:root[data-theme="dark"] .ai-page {
-  --accent: #9edbc8;
-  --accent-hover: #bae7d9;
-  --accent-soft: #253e35;
-  --accent-ink: #bce7d8;
-  --on-accent: #153b30;
-  --ai-sheet: #202724;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not([data-theme="dark"]) .ai-page {
-    --accent: #9edbc8;
-    --accent-hover: #bae7d9;
-    --accent-soft: #253e35;
-    --accent-ink: #bce7d8;
-    --on-accent: #153b30;
-    --ai-sheet: #202724;
-  }
-}
+.ai-page { max-width: 1440px; --ai-sheet: var(--surface-alt); }
 .ai-page .page-heading { margin-bottom: 20px; }
 .ai-page .primary-button { border-radius: 9px; }
 .ai-page :is(button, summary) { transition: background 160ms, color 160ms, border-color 160ms, box-shadow 160ms, transform 160ms; }
