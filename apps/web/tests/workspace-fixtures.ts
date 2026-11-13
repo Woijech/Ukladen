@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { testOrigin } from "./test-origin";
 
 export const group = { id: 1, name: "353501", faculty_name: "Faculty", faculty_abbrev: "F", speciality_name: "Computing", course: 4 };
 export const profile = { group, subgroup: 1 };
@@ -32,7 +33,7 @@ export async function mockWorkspace(page: Page) {
     if (method !== "GET") {
       expect(request.headers()["x-csrf-token"]).toBe(csrf);
       expect(request.headers().cookie).toContain(`ukladen_csrf=${csrf}`);
-      expect(request.headers().origin).toBe("http://127.0.0.1:3001");
+      expect(request.headers().origin).toBe(testOrigin);
       state.writes.push({ method, path, body: request.postData() ? request.postDataJSON() : null });
     }
     if (path === "/api/v1/auth/csrf") return route.fulfill({ headers: { "Set-Cookie": `ukladen_csrf=${csrf}; Path=/; HttpOnly; SameSite=Lax` }, json: { csrf_token: csrf } });

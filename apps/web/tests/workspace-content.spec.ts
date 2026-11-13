@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { testOrigin } from "./test-origin";
 import { writeFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { checkWorkspaceVisuals } from "./design-checks";
@@ -197,7 +198,7 @@ async function contentWorkspace(page: Page) {
     if (method !== "GET") {
       expect(request.headers()["x-csrf-token"]).toBe("c".repeat(43));
       expect(request.headers().cookie).toContain("ukladen_csrf=");
-      expect(request.headers().origin).toBe("http://127.0.0.1:3001");
+      expect(request.headers().origin).toBe(testOrigin);
       state.writes.push({ path, method, body });
     }
     const list = (items: unknown[]) =>
@@ -1488,7 +1489,7 @@ test("dragging blocks preserves their IDs and a copied page link opens the owned
     page.getByText("Ссылка скопирована", { exact: true }),
   ).toBeVisible();
   const link = await page.evaluate(() => navigator.clipboard.readText());
-  expect(link).toBe(`http://127.0.0.1:3001/workspace?page=${pageId}`);
+  expect(link).toBe(`${testOrigin}/workspace?page=${pageId}`);
   await page.goto(link);
   await expect(
     page.getByLabel("Название страницы", { exact: true }),

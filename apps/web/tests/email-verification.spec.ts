@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { testOrigin } from "./test-origin";
 
 const token = "v".repeat(43);
 const csrf = "c".repeat(43);
@@ -31,7 +32,7 @@ for (const scenario of [
       expect(request.postDataJSON()).toEqual({ token });
       expect(request.headers()["x-csrf-token"]).toBe(csrf);
       expect(request.headers().cookie).toContain(`ukladen_csrf=${csrf}`);
-      expect(request.headers().origin).toBe("http://127.0.0.1:3001");
+      expect(request.headers().origin).toBe(testOrigin);
       expect(request.headers().referer).toBeUndefined();
       expect(request.url()).not.toContain(token);
       await route.fulfill({ status: scenario.code, body: "", headers: { "X-Request-ID": "a".repeat(32) } });

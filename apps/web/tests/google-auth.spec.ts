@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { testOrigin } from "./test-origin";
 import { mockWorkspace } from "./workspace-fixtures";
 
 const destination = "https://accounts.google.com/o/oauth2/v2/auth?state=private-test-state";
@@ -41,7 +42,7 @@ for (const register of [false, true]) {
     await button.evaluate((element: HTMLButtonElement) => { element.click(); element.click(); });
     await expect(page).toHaveURL(destination);
     expect(starts).toBe(1);
-    const cookie = (await context.cookies("http://127.0.0.1:3001")).find(cookie => cookie.name === "ukladen_oauth");
+    const cookie = (await context.cookies(testOrigin)).find(cookie => cookie.name === "ukladen_oauth");
     expect(cookie).toMatchObject({ httpOnly: true, sameSite: "Lax" });
     expect(await page.evaluate(() => localStorage.length + sessionStorage.length)).toBe(0);
     await page.goBack();
@@ -113,7 +114,7 @@ for (const mobile of [false, true]) {
       expect(request.headers().accept).toBe("application/json");
       expect(request.headers()["x-csrf-token"]).toBe(csrf);
       expect(request.headers().cookie).toContain(`ukladen_csrf=${csrf}`);
-      expect(request.headers().origin).toBe("http://127.0.0.1:3001");
+      expect(request.headers().origin).toBe(testOrigin);
       expect(request.headers().referer).toBeUndefined();
       expect(request.postDataJSON()).toEqual({ current_password: password });
       await route.fulfill({ json: { authorization_url: destination } });
@@ -225,7 +226,7 @@ for (const mobile of [false, true]) {
       expect(request.method()).toBe("POST");
       expect(request.postDataJSON()).toEqual({ email: "student@example.com", password });
       expect(request.headers()["x-csrf-token"]).toBe(csrf);
-      expect(request.headers().origin).toBe("http://127.0.0.1:3001");
+      expect(request.headers().origin).toBe(testOrigin);
       expect(request.headers().referer).toBeUndefined();
       await route.fulfill({ json: {}, headers: { "Set-Cookie": "ukladen_session=password-session; Path=/; HttpOnly; SameSite=Lax" } });
     });
@@ -237,7 +238,7 @@ for (const mobile of [false, true]) {
       expect(request.headers()["x-csrf-token"]).toBe(csrf);
       expect(request.headers().cookie).toContain("ukladen_session=password-session");
       expect(request.headers().cookie).toContain(`ukladen_csrf=${csrf}`);
-      expect(request.headers().origin).toBe("http://127.0.0.1:3001");
+      expect(request.headers().origin).toBe(testOrigin);
       expect(request.headers().referer).toBeUndefined();
       await route.fulfill({ json: { authorization_url: destination } });
     });
