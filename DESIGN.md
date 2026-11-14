@@ -121,6 +121,26 @@ used. Reduced-motion disables these effects. Native keyboard operation, focus an
 
 ## Verification
 
+### Complete control refinement, 2026-11-09
+
+Settings and auxiliary pages use the same field surface as dialogs: clear labels,
+42px controls, a deliberate select chevron, visible focus and native validation.
+Checkbox rows are aligned and separated from submit actions. AI review settings
+group model access, delivery schedule and source scope so each decision has context.
+Time selection uses a shared clock field and an explicit hour/minute dialog; the
+24-hour wall-time string, every minute and the profile timezone remain unchanged.
+The picker previews locally until confirmation. Calendar dates and DST offset
+selection keep their existing native input and domain conversion contracts.
+ENERGY 1 / RHYTHM 2 / MOTION 2 for control feedback, with the AI area's jade
+accent and ENERGY 2 retained. Short dialog/disclosure transitions explain state
+changes; reduced motion disables them. No new icon, logo or dependency is needed.
+
+Integration verification on 2026-11-14: frontend lint, typecheck, production build,
+all 345 Playwright tests and `docker compose config --quiet` passed. Browser
+tests used mocked APIs, including explicit time-picker confirmation, keyboard
+cancellation, nested-dialog focus restoration, midnight planning windows and
+the branded 404 page in both themes. No real AI provider was called.
+
 Use the existing mocked-API Playwright suite to exercise auth, CSRF, identity
 changes, calendar DST, editing, conflicts, restore and AI confirmations. Inspect
 light/dark captures at desktop, intermediate and phone widths. Verify keyboard,

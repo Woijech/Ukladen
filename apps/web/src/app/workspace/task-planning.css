@@ -5,7 +5,10 @@
 .work-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
 .work-fields label { display: grid; gap: .35rem; }
 .work-planning input:not([type=checkbox]), .work-planning select { width: 100%; min-width: 0; padding: .6rem; border: 1px solid var(--border, #ccc); border-radius: 8px; background: var(--surface, transparent); color: inherit; }
-.work-window { display: grid; grid-template-columns: .6fr 1fr 1fr auto; gap: .4rem; align-items: center; }
+.work-window { display: grid; grid-template-columns: .6fr 1fr 1fr auto; gap: .75rem; align-items: end; padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
+.work-window .field-label { margin: 0; }
+.work-window .time-field-control input { padding: 10px 8px; }
+.work-window > .text-action { min-height: 44px; }
 .work-session { padding: .75rem 0; border-bottom: 1px solid var(--border, #ddd); }
 .work-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 .work-plan li { margin-bottom: .65rem; overflow-wrap: anywhere; }

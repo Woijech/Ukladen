@@ -14,8 +14,12 @@ for (const width of [320, 390, 834, 1440]) {
       await page.goto("/");
       const toggle = page.getByRole("button", { name: /Тема:/ });
       while ((await page.locator("html").getAttribute("data-theme")) !== theme) await toggle.click();
-      for (const path of ["/", "/workspace", "/auth/reset-password", "/auth/verify-email", "/auth/error"]) {
-        await page.goto(path);
+      for (const path of ["/", "/workspace", "/auth/reset-password", "/auth/verify-email", "/auth/error", "/missing-page"]) {
+        const response = await page.goto(path);
+        if (path === "/missing-page") {
+          expect(response!.status()).toBe(404);
+          await expect(page.getByRole("link", { name: "Открыть пространство", exact: true })).toHaveAttribute("href", "/workspace");
+        }
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
         await page.screenshot({ path: info.outputPath(`${path.replaceAll("/", "_") || "home"}-${theme}.png`), fullPage: true, animations: "disabled" });
         await checkWorkspaceVisuals(page);

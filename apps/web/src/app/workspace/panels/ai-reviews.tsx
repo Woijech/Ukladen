@@ -7,6 +7,7 @@ import { requestJson, writeJson } from "@/shared/api";
 import { ActionFeedback, Modal, QueryState, useAction } from "@/shared/ui";
 import { aiBase, type Connection, type Model, type Scope, type Source } from "./ai-api";
 import { SourcePicker, SourceViewer } from "./ai-sources";
+import { TimeField } from "@/shared/time-field";
 
 type Configuration = {
   enabled: boolean;
@@ -35,18 +36,22 @@ export function ReviewSettings({ onDirtyChange }: { onDirtyChange: (dirty: boole
     queryFn: ({ signal }) => requestJson<SavedSettings>(`${aiBase}/reviews/settings`, { signal }),
   });
   return (
-    <section className="panel">
+    <section className="panel ai-review-settings">
+      <header className="settings-section-heading">
       <h2>Обзоры и предупреждения AI</h2>
       <p>
         Ежедневный и недельный обзор, сроки, пересечения и нагрузка. Только твои данные,
         без фонового поиска в интернете. Изменения — после подтверждения в чате.
       </p>
+      </header>
+      <div className="settings-section-body">
       <QueryState
         pending={settings.isPending}
         error={settings.error}
         retry={() => void settings.refetch()}
       />
       {settings.data && <ReviewForm initial={settings.data} onDirtyChange={onDirtyChange} />}
+      </div>
     </section>
   );
 }
@@ -93,7 +98,7 @@ function ReviewForm({
       : "не удалось проверить источники";
 
   return (
-    <form onSubmit={(event) => {
+    <form className="ai-review-form" onSubmit={(event) => {
       event.preventDefault();
       void action.run(async () => {
         const result = await writeJson<SavedSettings>(`${aiBase}/reviews/settings`, "PUT", {
@@ -115,7 +120,7 @@ function ReviewForm({
           Обзоры приостановлены: {paused}. Можно изменить настройки или выключить обзоры.
         </p>
       )}
-      <label className="checkbox-label">
+      <label className="checkbox-label setting-toggle setting-toggle-main">
         <input type="checkbox" checked={value.enabled}
           onChange={(event) => toggle("enabled", event.target.checked)} />
         Включить обзоры
@@ -129,6 +134,8 @@ function ReviewForm({
         error={models.error ?? connections.error}
         retry={() => { void models.refetch(); void connections.refetch(); }}
       />
+      <fieldset className="settings-fieldset"><legend>Модель и подключение</legend>
+      <div className="settings-fields">
       <label className="field-label">
         Модель для обзоров
         <select value={value.offering_id ?? ""} required={value.enabled}
@@ -161,20 +168,23 @@ function ReviewForm({
           ))}
         </select>
       </label>
+      </div>
+      </fieldset>
       {value.enabled && !canEnable && (
         <p className="muted">Выбери доступную модель и подключение. Без этого обзоры не запустятся.</p>
       )}
-      <label className="checkbox-label">
+      <fieldset className="settings-fieldset"><legend>Когда присылать обзоры</legend>
+      <div className="review-schedule-row">
+      <label className="checkbox-label setting-toggle">
         <input type="checkbox" checked={value.daily}
           onChange={(event) => toggle("daily", event.target.checked)} />
         Ежедневный обзор
       </label>
-      <label className="field-label">
-        Время ежедневного обзора
-        <input type="time" value={value.daily_time} required
-          onChange={(event) => setValue({ ...value, daily_time: event.target.value })} />
-      </label>
-      <label className="checkbox-label">
+      <TimeField label="Время ежедневного обзора" value={value.daily_time}
+        onChange={daily_time => setValue({ ...value, daily_time })} />
+      </div>
+      <div className="review-schedule-row">
+      <label className="checkbox-label setting-toggle">
         <input type="checkbox" checked={value.weekly}
           onChange={(event) => toggle("weekly", event.target.checked)} />
         Недельный обзор
@@ -187,17 +197,17 @@ function ReviewForm({
             .map((day, index) => <option key={day} value={index}>{day}</option>)}
         </select>
       </label>
-      <label className="field-label">
-        Время недельного обзора
-        <input type="time" value={value.weekly_time} required
-          onChange={(event) => setValue({ ...value, weekly_time: event.target.value })} />
-      </label>
-      <label className="checkbox-label">
+      <TimeField label="Время недельного обзора" value={value.weekly_time}
+        onChange={weekly_time => setValue({ ...value, weekly_time })} />
+      </div>
+      </fieldset>
+      <fieldset className="settings-fieldset"><legend>Что включать</legend>
+      <label className="checkbox-label setting-toggle">
         <input type="checkbox" checked={value.warnings}
           onChange={(event) => toggle("warnings", event.target.checked)} />
         Предупреждать о сроках, пересечениях и перегрузке
       </label>
-      <label className="checkbox-label">
+      <label className="checkbox-label setting-toggle">
         <input type="checkbox" checked={value.materials}
           onChange={(event) => toggle("materials", event.target.checked)} />
         Подбирать мои заметки и материалы
@@ -206,6 +216,8 @@ function ReviewForm({
         Просрочка и сроки в ближайшие 24 часа; пересечения и нагрузка на 7 дней.
         Неизвестные оценки и неполное расписание будут отмечены явно.
       </p>
+      </fieldset>
+      <fieldset className="settings-fieldset"><legend>Источники</legend>
       <button type="button" className="secondary-button" onClick={() => setPicking(true)}>
         Источники обзоров
       </button>
@@ -215,6 +227,8 @@ function ReviewForm({
           : "Мои активные задачи, календарь и относящиеся к ним заметки и материалы."}{" "}
         Ограничение сохраняется для следующих обзоров.
       </p>
+      </fieldset>
+      <div className="settings-save-actions">
       <button className="primary-button" disabled={
         action.busy || !dirty ||
         (value.enabled && (!canEnable || !(value.daily || value.weekly || value.warnings)))
@@ -230,6 +244,7 @@ function ReviewForm({
         }, "Загружены сохранённые настройки")}>
         Отменить изменения обзоров
       </button>
+      </div>
       <ActionFeedback {...action} />
       {picking && (
         <SourcePicker purpose="reviews" value={value.source_scope}

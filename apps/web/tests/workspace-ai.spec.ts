@@ -904,6 +904,46 @@ test("AI labels web evidence and opens only the retrieved public source", async 
 });
 
 
+for (const width of [390, 834, 1440]) {
+  test(`review time picker preserves exact wall time and never saves implicitly at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = await mockAi(page);
+    await page.goto("/workspace/ai?tab=settings");
+    const input = page.getByLabel("Время ежедневного обзора", { exact: true });
+    await input.fill("09:17");
+    const trigger = page.getByRole("button", { name: "Выбрать время: Время ежедневного обзора", exact: true });
+    await trigger.click();
+    const picker = page.getByRole("dialog", { name: "Выбрать время: Время ежедневного обзора", exact: true });
+    await expect(picker.locator("output")).toHaveText("09:17");
+    await picker.getByRole("listbox", { name: "Часы", exact: true }).focus();
+    await page.keyboard.press("ArrowDown");
+    await picker.getByRole("listbox", { name: "Минуты", exact: true }).focus();
+    await page.keyboard.press("End");
+    await expect(picker.locator("output")).toHaveText("10:59");
+    await page.keyboard.press("Escape");
+    await expect(trigger).toBeFocused();
+    await expect(input).toHaveValue("09:17");
+    expect(state.writes).toHaveLength(0);
+    for (const theme of ["light", "dark"]) {
+      const toggle = page.getByRole("button", { name: /Тема:/ }).first();
+      while ((await page.locator("html").getAttribute("data-theme")) !== theme) await toggle.click();
+      await trigger.click();
+      await picker.getByRole("listbox", { name: "Часы", exact: true }).getByRole("option", { name: "23", exact: true }).click();
+      await picker.getByRole("listbox", { name: "Минуты", exact: true }).getByRole("option", { name: "59", exact: true }).click();
+      await page.screenshot({ path: info.outputPath(`time-picker-${theme}.png`), animations: "disabled" });
+      await checkWorkspaceVisuals(page);
+      await picker.getByRole("button", { name: "Выбрать время", exact: true }).click();
+      await expect(input).toHaveValue("23:59");
+      await expect(trigger).toBeFocused();
+      expect(state.writes).toHaveLength(0);
+    }
+    await page.getByRole("button", { name: "Сохранить обзоры", exact: true }).click();
+    await expect(page.getByText("Настройки обзоров сохранены", { exact: true })).toBeVisible();
+    expect(state.reviewSettings.configuration.daily_time).toBe("23:59");
+    expect(state.reviewSettings.timezone).toBe("Europe/Minsk");
+  });
+}
+
 test("reviews require explicit model selection and persist their bounded source scope", async ({ page }) => {
   const state = await mockAi(page);
   await page.goto("/workspace/ai?tab=settings");
@@ -914,7 +954,7 @@ test("reviews require explicit model selection and persist their bounded source 
   await expect(page.getByRole("button", { name: "Сохранить обзоры", exact: true })).toBeDisabled();
   await page.getByLabel("Модель для обзоров").selectOption("flash");
   await page.getByLabel("Подключение для обзоров").selectOption(connectionId);
-  await page.getByLabel("Время ежедневного обзора").fill("10:30");
+  await page.getByLabel("Время ежедневного обзора", { exact: true }).fill("10:30");
   await page.getByRole("button", { name: "Источники обзоров", exact: true }).click();
   const picker = page.getByRole("dialog", { name: "Источники для обзоров" });
   await picker.getByLabel("Все мои источники автоматически").uncheck();
@@ -932,15 +972,15 @@ test("saving instructions cannot discard a separate review draft", async ({ page
   await mockAi(page);
   await page.goto("/workspace/ai?tab=settings");
   await page.getByLabel("Личные инструкции").fill("Новые инструкции");
-  await page.getByLabel("Время ежедневного обзора").fill("11:15");
+  await page.getByLabel("Время ежедневного обзора", { exact: true }).fill("11:15");
   await page.getByRole("button", { name: "Сохранить инструкции", exact: true }).click();
   await page.getByRole("button", { name: "Чаты", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Отменить изменения" })).toBeVisible();
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Отменить изменения обзоров", exact: true }).click();
-  await expect(page.getByLabel("Время ежедневного обзора")).toHaveValue("09:00");
+  await expect(page.getByLabel("Время ежедневного обзора", { exact: true })).toHaveValue("09:00");
   await page.getByRole("button", { name: "Чаты", exact: true }).click();
-  await expect(page.getByLabel("Время ежедневного обзора")).toHaveCount(0);
+  await expect(page.getByLabel("Время ежедневного обзора", { exact: true })).toHaveCount(0);
 });
 
 test("inbox reviews show safe sources and continue in chat without submitting to the model", async ({ page }) => {
@@ -990,12 +1030,12 @@ test("a settings conflict preserves the review draft and allows explicit reload"
     await route.fallback();
   });
   await page.goto("/workspace/ai?tab=settings");
-  await page.getByLabel("Время ежедневного обзора").fill("12:45");
+  await page.getByLabel("Время ежедневного обзора", { exact: true }).fill("12:45");
   await page.getByRole("button", { name: "Сохранить обзоры", exact: true }).click();
   await expect(page.getByRole("alert")).toBeVisible();
-  await expect(page.getByLabel("Время ежедневного обзора")).toHaveValue("12:45");
+  await expect(page.getByLabel("Время ежедневного обзора", { exact: true })).toHaveValue("12:45");
   await page.getByRole("button", { name: "Отменить изменения обзоров", exact: true }).click();
-  await expect(page.getByLabel("Время ежедневного обзора")).toHaveValue("09:00");
+  await expect(page.getByLabel("Время ежедневного обзора", { exact: true })).toHaveValue("09:00");
 });
 
 

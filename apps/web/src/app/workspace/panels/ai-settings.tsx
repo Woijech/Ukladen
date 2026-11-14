@@ -37,11 +37,14 @@ export function AiSettings({
   return (
     <div className="ai-settings">
       <section className="panel">
+        <header className="settings-section-heading">
         <h2>Как тебе отвечать</h2>
         <p className="muted">
           Тон, язык и подробность ответов. Сохраняются отдельно от чатов до
           изменения или очистки.
         </p>
+        </header>
+        <div className="settings-section-body">
         <QueryState
           pending={preferences.isPending}
           error={preferences.error}
@@ -53,17 +56,21 @@ export function AiSettings({
             onDirtyChange={setInstructionsDirty}
           />
         )}
+        </div>
       </section>
       <section className="panel">
-        <div className="panel-toolbar">
+        <header className="settings-section-heading">
           <h2>Мои API-подключения</h2>
+          <p className="muted">Для AI Ukladen свой ключ не нужен. Личное подключение можно добавить отдельно.</p>
+        </header>
+        <div className="settings-section-body">
           <button
             className="secondary-button"
             onClick={() => setConnecting(true)}
           >
             Подключить API
           </button>
-        </div>
+        <details className="settings-help"><summary>Как работают личные подключения</summary>
         <p className="muted">
           Для AI Ukladen свой ключ не нужен. Личное подключение OpenRouter —
           дополнительная возможность. Ключ хранится зашифрованным на сервере и
@@ -75,6 +82,7 @@ export function AiSettings({
           Личное подключение оплачивается по твоему ключу и этот бюджет не расходует.
           Для него действуют баланс и ограничения твоего провайдера.
         </p>
+        </details>
         <QueryState
           pending={connections.isPending}
           error={connections.error}
@@ -103,10 +111,14 @@ export function AiSettings({
           </div>
         ))}
         <ActionFeedback {...action} />
+        </div>
       </section>
       <ReviewSettings onDirtyChange={setReviewsDirty} />
       <section className="panel">
+        <header className="settings-section-heading">
         <h2>Данные и ограничения</h2>
+        </header>
+        <div className="settings-section-body">
         <p>
           Запрос и необходимые фрагменты выбранных источников передаются
           выбранному провайдеру. Правила хранения провайдера отличаются от
@@ -118,9 +130,10 @@ export function AiSettings({
           отдельно 30 дней.
         </p>
         <p className="muted">
-          Настройки рабочего времени и планирование появятся вместе с модулем
-          задач. Личные инструкции не дают AI разрешений изменять данные.
+          Рабочее время и планирование настраиваются в разделе «Задачи».
+          Личные инструкции не дают AI разрешений изменять данные.
         </p>
+        </div>
       </section>
       {connecting && <ConnectionForm onClose={() => setConnecting(false)} />}
       {disconnecting && (

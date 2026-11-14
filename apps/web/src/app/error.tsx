@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { Brand } from "@/shared/brand";
 
 export default function ApplicationError({ error, reset }: {
   error: Error & { digest?: string };
@@ -15,10 +16,16 @@ export default function ApplicationError({ error, reset }: {
   }, [error]);
 
   return (
-    <main>
+    <main className="status-page">
+      <header><Brand /></header>
+      <section>
       <h1>Не удалось открыть страницу</h1>
       <p role="alert">Попробуйте ещё раз.</p>
-      <button type="button" onClick={reset}>Повторить</button>
+      <div className="status-actions">
+        <button className="primary-button" type="button" onClick={reset}>Повторить</button>
+        <a className="secondary-button" href="/workspace">Открыть пространство</a>
+      </div>
+      </section>
     </main>
   );
 }

@@ -117,6 +117,17 @@ SMTP and verification URL settings also deliver Google mailbox challenges.
 
 ## 4. Start and verify
 
+To start the public deployment without AI directly from the repository root, run:
+
+```bash
+docker compose --env-file .env.home -f docker-compose.yml -f docker-compose.home.yml \
+  up --build --detach --wait --wait-timeout 300
+```
+
+To start the prepared deployment with AI enabled, follow the backup and launch
+steps in [Prepared home AI activation](../development/ai-activation.md). The
+command above disables AI and omits its required runtime profiles.
+
 Define this convenience function in Bash, then validate and start:
 
 ```bash

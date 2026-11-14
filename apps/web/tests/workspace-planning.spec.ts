@@ -51,6 +51,33 @@ async function prepare(page: Page) {
   return dialog;
 }
 
+test("time picker inside planning preserves midnight and closes only its own dialog", async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const state = await planning(page);
+  const dialog = page.getByRole("dialog", { name: "Планирование задач", exact: true });
+  await dialog.getByText("Часы работы и перерывы", { exact: true }).click();
+  await dialog.getByRole("button", { name: "Добавить окно", exact: true }).click();
+  const trigger = dialog.getByRole("button", { name: "Выбрать время: Конец окна 1", exact: true });
+  await trigger.click();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await expect(trigger).toBeFocused();
+  await trigger.click();
+  const picker = page.getByRole("dialog", { name: "Выбрать время: Конец окна 1", exact: true });
+  for (const name of ["Часы", "Минуты"]) {
+    await picker.getByRole("listbox", { name, exact: true }).focus();
+    await page.keyboard.press("Home");
+  }
+  await page.screenshot({ path: info.outputPath("planning-time-picker.png"), animations: "disabled" });
+  await picker.getByRole("button", { name: "Выбрать время", exact: true }).click();
+  await expect(dialog.getByLabel("Конец окна 1", { exact: true })).toHaveValue("00:00");
+  await dialog.getByLabel("Начало окна 1", { exact: true }).fill("09:17");
+  expect(state.writes).toHaveLength(0);
+  await dialog.getByRole("button", { name: "Сохранить часы работы", exact: true }).click();
+  await expect(dialog.getByText("Сохранённые настройки: версия 1", { exact: true })).toBeVisible();
+  expect(state.preferences.windows).toEqual([{ weekday: 0, start_minute: 557, end_minute: 1440 }]);
+});
+
 test("weekly preferences, explicit partial confirmation and exact digest", async ({ page }) => {
   const state = await planning(page);
   const dialog = page.getByRole("dialog", { name: "Планирование задач" });

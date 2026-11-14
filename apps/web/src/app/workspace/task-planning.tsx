@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RequestError, requestJson, writeJson } from "@/shared/api";
+import { TimeField } from "@/shared/time-field";
 import { ActionFeedback, Modal, Pager, QueryState, useAction } from "@/shared/ui";
 import { dateTimeLocal, dayStart, shiftDate, localInstants, resolveLocalTime } from "./calendar-time";
 import "./task-planning.css";
@@ -69,8 +70,8 @@ function PreferencesForm({ preferences, onSaved, onBusyChange }: { preferences: 
     <h3>Недельные часы работы</h3><p className="muted">Используется часовой пояс профиля. Можно добавить несколько окон на день.</p>
     {windows.map((window, index) => <div key={index} className="work-window">
       <select aria-label={`День окна ${index + 1}`} value={window.weekday} onChange={event => setWindows(windows.map((item, at) => at === index ? { ...item, weekday: Number(event.target.value) } : item))}>{days.map((day, value) => <option key={value} value={value}>{day}</option>)}</select>
-      <input aria-label={`Начало окна ${index + 1}`} type="time" required value={minuteText(window.start_minute)} onChange={event => setWindows(windows.map((item, at) => at === index ? { ...item, start_minute: minuteValue(event.target.value) } : item))} />
-      <input aria-label={`Конец окна ${index + 1}`} type="time" required value={minuteText(window.end_minute === 1440 ? 0 : window.end_minute)} onChange={event => setWindows(windows.map((item, at) => at === index ? { ...item, end_minute: minuteValue(event.target.value) || 1440 } : item))} />
+      <TimeField label={`Начало окна ${index + 1}`} value={minuteText(window.start_minute)} onChange={value => setWindows(windows.map((item, at) => at === index ? { ...item, start_minute: minuteValue(value) } : item))} />
+      <TimeField label={`Конец окна ${index + 1}`} value={minuteText(window.end_minute === 1440 ? 0 : window.end_minute)} onChange={value => setWindows(windows.map((item, at) => at === index ? { ...item, end_minute: minuteValue(value) || 1440 } : item))} />
       <button type="button" className="text-action" aria-label={`Удалить окно ${index + 1}`} onClick={() => setWindows(windows.filter((_, at) => at !== index))}>Удалить</button>
     </div>)}
     <button type="button" className="secondary-button" disabled={windows.length >= 28} onClick={() => setWindows([...windows, { weekday: 0, start_minute: 540, end_minute: 1020 }])}>Добавить окно</button>
