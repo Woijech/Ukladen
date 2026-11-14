@@ -2,6 +2,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import Engine, update
@@ -168,12 +169,15 @@ def test_source_reads_use_current_owner_versions_filters_and_character_ranges(ai
     assert not reader.read(owner, DatabaseReadQuery(database_id=database.id)).sources
 
 
+@pytest.mark.parametrize("utc_hour", [12, 21, 23])
 def test_calendar_combines_record_dates_and_events_without_claiming_availability(
     ai_database: Engine,
+    utc_hour: int,
 ):
     conversation, _ = seed(ai_database)
     owner, reader = conversation.user_id, source_reader(ai_database)
-    now = datetime.now(UTC) + timedelta(hours=2)
+    now = datetime(2026, 11, 13, utc_hour, tzinfo=UTC)
+    local_date = now.astimezone(ZoneInfo("Europe/Minsk")).date()
     with Session(ai_database) as session, session.begin():
         service = reader.service(session)
         service.calendar.calendar.create_personal_event(
@@ -191,7 +195,7 @@ def test_calendar_combines_record_dates_and_events_without_claiming_availability
             owner,
             database.id,
             prop.schema_version,
-            {str(prop.property.id): {"kind": "date", "start": now.date().isoformat(), "end": None}},
+            {str(prop.property.id): {"kind": "date", "start": local_date.isoformat(), "end": None}},
             title="Read book",
         )
         service.views.create(
@@ -202,7 +206,7 @@ def test_calendar_combines_record_dates_and_events_without_claiming_availability
             layout="calendar",
             date_property_id=prop.property.id,
         )
-    result = reader.read(owner, CalendarRead(date_from=now.date(), date_to=now.date()))
+    result = reader.read(owner, CalendarRead(date_from=local_date, date_to=local_date))
     assert result.status == "ok", result
     assert {source.source for source in result.sources} == {"personal", "record_date"}
     assert "calendar_display_is_not_availability" in result.warnings
@@ -211,7 +215,7 @@ def test_calendar_combines_record_dates_and_events_without_claiming_availability
     assert (
         reader.read(
             owner,
-            CalendarRead(date_from=now.date(), date_to=now.date(), database_view_ids=(uuid4(),)),
+            CalendarRead(date_from=local_date, date_to=local_date, database_view_ids=(uuid4(),)),
         ).status
         == "not_found"
     )

@@ -188,3 +188,12 @@ Verification on 2026-11-13: Ruff lint/format checks, Pyright, the full backend
 pytest suite (`2123 passed`) and `docker compose config --quiet` passed. Integration
 checks used disposable PostgreSQL, Redis and SeaweedFS services, not application
 data or real AI providers.
+
+Verification on 2026-11-14: the AI calendar source test now uses fixed UTC
+instants at 12:00, 21:00 and 23:00 and derives both record dates and calendar
+query dates in `Europe/Minsk`. This removes wall-clock-dependent failures when
+the UTC and Minsk dates differ. All nine tests in `test_ai_sources.py` passed
+against disposable PostgreSQL. Ruff lint/format checks, Pyright for the changed
+test file and `docker compose config --quiet` passed. Full Pyright was blocked
+by the local environment's missing `deepeval` package; the full test suite was
+not rerun. No real AI provider was called.
