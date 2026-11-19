@@ -15,6 +15,7 @@ from app.modules.auth.presentation.dependencies import (
     get_current_session,
     require_csrf,
 )
+from app.modules.materials.application.excerpts import MaterialExcerptService
 from app.modules.materials.application.service import MaterialService
 from app.modules.materials.domain.materials import (
     MAX_FILE_BYTES,
@@ -25,12 +26,14 @@ from app.modules.materials.domain.materials import (
     MaterialTooLarge,
     StorageQuotaExceeded,
 )
+from app.modules.materials.infrastructure.excerpts import SqlAlchemyExtractedTextReader
 from app.modules.materials.infrastructure.repository import SqlAlchemyMaterialRepository
 from app.modules.materials.presentation.schemas import (
     LinkCreate,
     MaterialListResponse,
     MaterialPatch,
     MaterialResponse,
+    MaterialTextResponse,
     StorageUsageResponse,
     UploadCreate,
     VersionRequest,
@@ -168,6 +171,23 @@ def stream_body(body: BinaryIO) -> Iterator[bytes]:
             yield chunk
     finally:
         body.close()
+
+
+@router.get("/{material_id}/text", response_model=MaterialTextResponse | None)
+def read_text(
+    material_id: UUID,
+    current: CurrentSession,
+    database: Database,
+    offset: Annotated[int, Query(ge=0, le=2097152)] = 0,
+    limit: Annotated[int, Query(ge=1, le=2000)] = 2000,
+) -> MaterialTextResponse | None:
+    with database.begin():
+        result = MaterialExcerptService(
+            SqlAlchemyMaterialRepository(database),
+            SqlAlchemyUserAuthentication(database),
+            SqlAlchemyExtractedTextReader(database),
+        ).read(current.user_id, material_id, offset, limit)
+        return MaterialTextResponse.model_validate(result) if result is not None else None
 
 
 @router.get("/{material_id}/content")

@@ -56,6 +56,16 @@ class MaterialListResponse(BaseModel):
     offset: int
 
 
+class MaterialTextResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    material_id: UUID
+    title: str
+    version: int
+    text: str
+    offset: int
+    total_characters: int
+
+
 class StorageUsageResponse(BaseModel):
     used_bytes: int
     material_count: int

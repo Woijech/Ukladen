@@ -223,3 +223,28 @@ physical storage, backups and real workload measurements remain deployment plann
 extracted text and reuses it for optional hybrid retrieval/full-source processing.
 Original files, security limits and ordinary search contracts remain unchanged.
 The historical verification above is not evidence of rerunning checks for AI-06.
+
+## In-app reading (2026-11-19)
+
+The materials library and page attachments offer a read-only reader while retaining
+original downloads. PDF originals are loaded through the authenticated content route
+into the browser PDF viewer; browsers without embedded PDF support can download them.
+DOCX, PPTX, TXT and Markdown display the existing extracted plain text, without original
+Office formatting or Markdown rendering. Text size is adjustable; long text is paged
+in 2,000-character fragments. Processing files refresh automatically; extraction
+failures and empty text retain the download option. OCR and editing are not included.
+
+`GET /api/v1/materials/{id}/text?offset=0&limit=2000` returns a bounded excerpt
+`{material_id, title, version, text, offset, total_characters}`, or JSON `null` when
+extracted text is unavailable. Offset counts Unicode characters (0–2,097,152), limit
+is 1–2,000. The route reuses the material-owned excerpt service, requires an active
+session, rejects missing/foreign/trashed materials with 404 and disables caching.
+
+Verification for this follow-up: production frontend build, TypeScript, ESLint,
+Ruff and focused Pyright checks passed. Seventeen focused backend tests passed
+(including the new HTTP boundary test with mocked persistence), all 62 existing
+workspace-content browser tests passed, and three new reader browser tests passed
+on their final run. The new tests cover desktop/mobile layout, safe text display,
+font size, fragment navigation, focus restoration, processing, empty text, retry
+and authenticated PDF blob loading. Native PostgreSQL/S3 integration and actual
+PDF rendering across browser engines were not checked in this follow-up.

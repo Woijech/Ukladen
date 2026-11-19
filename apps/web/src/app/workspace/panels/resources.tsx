@@ -2,6 +2,7 @@
 
 import { positionNoteMenu } from "./note-menu";
 import { ReviewNotificationButton } from "./ai-reviews";
+import { MaterialReader } from "./material-reader";
 
 import { useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -57,6 +58,7 @@ export function MaterialsPanel() {
   const [dropError, setDropError] = useState("");
   const [trash, setTrash] = useState<Material | null>(null);
   const [editing, setEditing] = useState<Material | null>(null);
+  const [reading, setReading] = useState<Material | null>(null);
   const client = useQueryClient();
   const action = useAction();
   const list = useQuery({
@@ -270,13 +272,16 @@ export function MaterialsPanel() {
                       </a>
                     ) : (
                       item.status !== "uploading" && (
-                        <a
-                          className="secondary-button"
-                          href={`/api/v1/materials/${item.id}/content`}
-                          download
-                        >
-                          Скачать
-                        </a>
+                        <>
+                          <button className="secondary-button" type="button" onClick={() => setReading(item)}>Читать</button>
+                          <a
+                            className="secondary-button"
+                            href={`/api/v1/materials/${item.id}/content`}
+                            download
+                          >
+                            Скачать
+                          </a>
+                        </>
                       )
                     )}
                     {item.status === "failed" && (
@@ -333,6 +338,7 @@ export function MaterialsPanel() {
           onSaved={refresh}
         />
       )}
+      {reading && <MaterialReader key={reading.id} material={reading} onClose={() => setReading(null)} />}
       {trash && (
         <Modal title="Удаление материала" onClose={() => setTrash(null)}>
           <h2>Убрать материал в корзину?</h2>

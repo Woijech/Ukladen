@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestJson, writeJson } from "@/shared/api";
 import { ActionFeedback, Pager, QueryState, useAction } from "@/shared/ui";
 import type { Material } from "./resources";
+import { MaterialReader } from "./material-reader";
 
 export function PageAttachments({
   pageId,
@@ -14,6 +15,7 @@ export function PageAttachments({
   readonly: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [reading, setReading] = useState<Material | null>(null);
   const [offset, setOffset] = useState(0);
   const [optionOffset, setOptionOffset] = useState(0);
   const client = useQueryClient();
@@ -46,6 +48,7 @@ export function PageAttachments({
       >
         {open ? "Скрыть материалы ↑" : "Связанные материалы ↓"}
       </button>
+      {reading && <MaterialReader key={reading.id} material={reading} onClose={() => setReading(null)} />}
       {open && (
         <>
           <QueryState
@@ -71,14 +74,18 @@ export function PageAttachments({
                   </a>
                 ) : (
                   material.status !== "uploading" && (
-                    <a
-                      className="text-action"
-                      href={`/api/v1/materials/${material.id}/content`}
-                      download
-                    >
+                    <>
                       {" "}
-                      Скачать
-                    </a>
+                      <button className="text-action" type="button" onClick={() => setReading(material)}>Читать</button>
+                      <a
+                        className="text-action"
+                        href={`/api/v1/materials/${material.id}/content`}
+                        download
+                      >
+                        {" "}
+                        Скачать
+                      </a>
+                    </>
                   )
                 )}
               </div>
