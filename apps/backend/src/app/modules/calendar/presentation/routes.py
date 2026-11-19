@@ -22,11 +22,13 @@ from app.modules.calendar.domain.events import (
     CalendarEventNotFound,
     InvalidCalendarInput,
 )
+from app.modules.calendar.infrastructure.calendars import SqlAlchemyPersonalCalendars
 from app.modules.calendar.infrastructure.repository import SqlAlchemyCalendarRepository
 from app.modules.calendar.presentation.availability_schemas import (
     AvailabilityRequest,
     AvailabilityResponse,
 )
+from app.modules.calendar.presentation.calendars import router as calendars_router
 from app.modules.calendar.presentation.legacy_routes import (
     Events as LegacyEvents,
 )
@@ -73,6 +75,7 @@ def get_calendar_service(
             SqlAlchemyScheduleStore(request.app.state.session_factory, read_session=database)
         ),
         stale_after_seconds=request.app.state.settings.schedule_sync_interval_seconds,
+        calendars=SqlAlchemyPersonalCalendars(database),
     )
 
 
@@ -272,5 +275,6 @@ def install_calendar(application: FastAPI) -> None:
 
     for error_type in (InvalidCalendarInput, CalendarEventNotFound, CalendarConflict):
         application.add_exception_handler(error_type, calendar_error)
+    application.include_router(calendars_router)
     application.include_router(router)
     install_legacy_calendar(application)

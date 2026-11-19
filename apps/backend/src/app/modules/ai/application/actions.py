@@ -42,6 +42,9 @@ from app.modules.tasks.application.plans import PlanService
 from app.modules.tasks.application.service import TaskService
 from app.modules.tasks.domain.tasks import TASK_FIELDS, task_values
 
+# Calendar assignment is managed by calendar UI; keep confirmed AI action payloads stable.
+EVENT_FIELDS = PERSONAL_FIELDS - {"calendar_id"}
+
 
 class ActionInput(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
@@ -85,7 +88,7 @@ class EventValues(ActionInput):
 
     @model_validator(mode="after")
     def valid_event(self) -> Self:
-        personal_values({name: getattr(self, name) for name in PERSONAL_FIELDS})
+        personal_values({name: getattr(self, name) for name in EVENT_FIELDS})
         return self
 
 
@@ -512,13 +515,15 @@ class ActionService:
                     event = unit.calendar.get_personal_event(user_id, action.event_id)
                     if event.version != action.expected_version:
                         raise AiConflict("Event changed; request a new preview.")
-                    values = {name: getattr(event, name) for name in PERSONAL_FIELDS}
+                    values = {name: getattr(event, name) for name in EVENT_FIELDS}
                     before = json_object(values)
                     values |= action.changes.model_dump(exclude_unset=True)
                     target = event.id
                 else:
-                    values = {name: getattr(action, name) for name in PERSONAL_FIELDS}
-                after = json_object(personal_values(values))
+                    values = {name: getattr(action, name) for name in EVENT_FIELDS}
+                normalized = dict(personal_values(values))
+                normalized.pop("calendar_id", None)
+                after = json_object(normalized)
                 if before is not None and before["starts_at"] != after["starts_at"]:
                     warnings = ("existing_reminders_will_be_cancelled",)
             elif isinstance(action, (TaskCreateAction, TaskUpdateAction)):
@@ -694,7 +699,7 @@ class ActionService:
                     )
             elif isinstance(action, EventCreate):
                 result = unit.calendar.create_personal_event(
-                    user_id, {name: getattr(action, name) for name in PERSONAL_FIELDS}
+                    user_id, {name: getattr(action, name) for name in EVENT_FIELDS}
                 )
             elif isinstance(action, EventUpdate):
                 result = unit.calendar.update_personal_event(

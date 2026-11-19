@@ -47,6 +47,7 @@ class CalendarRequest(BaseModel):
 
 
 class PersonalEventCreate(CalendarRequest):
+    calendar_id: UUID | None = None
     title: str = Field(min_length=1, max_length=200, strict=True)
     description: str | None = Field(default=None, max_length=10000, strict=True)
     starts_at: AwareDatetime
@@ -61,6 +62,7 @@ class PersonalEventCreate(CalendarRequest):
 
 
 class PersonalEventPatch(CalendarRequest):
+    calendar_id: UUID | None = None
     expected_version: int = Field(ge=1, le=2**31 - 2, strict=True)
     title: str | None = Field(default=None, min_length=1, max_length=200, strict=True)
     description: str | None = Field(default=None, max_length=10000, strict=True)
@@ -97,6 +99,7 @@ class OverridePut(CalendarRequest):
 
 
 class PersonalEventResponse(BaseModel):
+    calendar_id: UUID | None = None
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
@@ -112,6 +115,7 @@ class PersonalEventResponse(BaseModel):
 
 
 class ResolvedEventResponse(BaseModel):
+    calendar_id: UUID | None = None
     model_config = ConfigDict(from_attributes=True)
 
     id: str

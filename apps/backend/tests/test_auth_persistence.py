@@ -74,6 +74,8 @@ def test_migration_round_trip(database_connection: Connection) -> None:
         "university_groups",
         "academic_profiles",
         "personal_calendar_events",
+        "personal_calendars",
+        "calendar_visibility",
         "schedule_sources",
         "official_schedule_events",
         "schedule_overrides",

@@ -40,11 +40,20 @@ class CalendarConflict(Exception):
     pass
 
 
-PERSONAL_FIELDS = {"title", "description", "starts_at", "ends_at", "location", "blocks_time"}
+PERSONAL_FIELDS = {
+    "title",
+    "description",
+    "starts_at",
+    "ends_at",
+    "location",
+    "blocks_time",
+    "calendar_id",
+}
 OVERRIDE_FIELDS = {"title", "description", "starts_at", "ends_at", "location", "hidden", "skipped"}
 
 
 class PersonalValues(TypedDict):
+    calendar_id: UUID | None
     title: str
     description: str | None
     starts_at: datetime
@@ -114,9 +123,13 @@ def personal_values(values: Mapping[str, object]) -> PersonalValues:
     blocks_time = values.get("blocks_time", True)
     if type(blocks_time) is not bool:
         raise InvalidCalendarInput()
+    calendar_id = values.get("calendar_id")
+    if calendar_id is not None and not isinstance(calendar_id, UUID):
+        raise InvalidCalendarInput()
     title = text_value(values.get("title"), 200, required=True)
     assert title is not None
     return {
+        "calendar_id": calendar_id,
         "title": title,
         "description": text_value(values.get("description"), 10000, trim=False),
         "starts_at": starts_at,
@@ -162,6 +175,8 @@ class PersonalEvent:
     created_at: datetime
     updated_at: datetime
 
+    calendar_id: UUID | None = None
+
 
 @dataclass(frozen=True, kw_only=True)
 class ScheduleOverride:
@@ -195,6 +210,7 @@ class ResolvedEvent:
     skipped: bool = False
     has_override: bool = False
     version: int = 0
+    calendar_id: UUID | None = None
     group_id: int | None = None
     subgroup: int | None = None
     subject: str | None = None

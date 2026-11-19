@@ -5,6 +5,7 @@ from typing import Literal
 from uuid import UUID, uuid4
 
 from app.modules.academics.application.profile import AcademicService
+from app.modules.calendar.application.calendars import PersonalCalendarRepository
 from app.modules.calendar.application.legacy_service import MAX_PERIOD as MAX_PERIOD
 from app.modules.calendar.application.legacy_service import (
     PersonalEventService as PersonalEventService,
@@ -67,8 +68,10 @@ class CalendarService:
         schedule: ScheduleQueryService,
         *,
         stale_after_seconds: int = 3600,
+        calendars: PersonalCalendarRepository | None = None,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
+        self.calendars = calendars
         self.repository = repository
         self.profiles = profiles
         self.academics = academics
@@ -147,6 +150,7 @@ class CalendarService:
             events.append(
                 ResolvedEvent(
                     id=f"personal:{item.id}",
+                    calendar_id=item.calendar_id,
                     source="personal",
                     source_event_id=item.id,
                     kind="personal",
@@ -171,6 +175,7 @@ class CalendarService:
 
     def create_personal_event(self, user_id: UUID, values: Mapping[str, object]) -> PersonalEvent:
         self._profile(user_id, write=True)
+        self.require_calendar(user_id, values.get("calendar_id"))
         now = self.now()
         event = PersonalEvent(
             id=uuid4(),
@@ -182,6 +187,14 @@ class CalendarService:
         )
         self.repository.create_personal(event)
         return event
+
+    def require_calendar(self, user_id: UUID, identifier: object) -> None:
+        if identifier is not None and (
+            not isinstance(identifier, UUID)
+            or self.calendars is None
+            or self.calendars.get(user_id, identifier) is None
+        ):
+            raise CalendarEventNotFound()
 
     def get_personal_event(self, user_id: UUID, event_id: UUID) -> PersonalEvent:
         self._profile(user_id)
@@ -201,6 +214,8 @@ class CalendarService:
             raise InvalidCalendarInput()
         if event.version != expected_version:
             raise CalendarConflict()
+        if "calendar_id" in changes:
+            self.require_calendar(user_id, changes["calendar_id"])
         values = {name: getattr(event, name) for name in PERSONAL_FIELDS} | dict(changes)
         updated = replace(
             event, **personal_values(values), version=event.version + 1, updated_at=self.now()

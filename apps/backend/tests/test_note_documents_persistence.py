@@ -8,7 +8,6 @@ from test_auth_persistence import database_connection as database_connection
 from test_auth_persistence import migration_config
 
 from alembic import command
-from app.modules.calendar.infrastructure.orm import PersonalCalendarEventModel
 from app.modules.notes.infrastructure.orm import PageModel
 from app.modules.notes.infrastructure.repository import SqlAlchemyPageRepository
 from app.modules.relations.infrastructure.orm import CalendarPageLinkModel
@@ -54,8 +53,11 @@ def test_existing_pages_and_links_survive_document_migration(
                 trash_batch_id=root,
             )
         )
-        database.add(
-            PersonalCalendarEventModel(
+        old_events = Table(
+            "personal_calendar_events", MetaData(), autoload_with=database_connection
+        )
+        database.execute(
+            old_events.insert().values(
                 id=event_id,
                 user_id=owner,
                 title="Training",
