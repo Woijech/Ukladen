@@ -63,7 +63,11 @@ const WorkspaceViews = dynamic(
   },
 );
 
+import { usePersonalCalendars, PersonalCalendarSources } from "./personal-calendars";
+
 export type CalendarEvent = {
+  calendar_id?: string | null;
+  calendar_color?: string;
   id: string;
   source: "official" | "personal";
   source_event_id: string;
@@ -1087,8 +1091,9 @@ function CalendarWorkspace({
   const [pendingDelete, setPendingDelete] = useState<CalendarEvent | null>(
     null,
   );
-  const [showPersonal, setShowPersonal] = useState(true);
-  const [showOfficial, setShowOfficial] = useState(true);
+  const personalCalendars = usePersonalCalendars();
+  const [eventCalendarId, setEventCalendarId] = useState("");
+  const eventCalendarSnapshot = useRef("");
   const [detailEvent, setDetailEvent] = useState<CalendarEvent | null>(null);
   const [resizeBusy, setResizeBusy] = useState(false);
   const [resizeError, setResizeError] = useState("");
@@ -1131,9 +1136,7 @@ function CalendarWorkspace({
     calendarQuery.error instanceof Error ? calendarQuery.error : null;
   const needsAuth = apiError?.message.includes("Войдите") ?? false;
   const allEvents = calendarQuery.data?.events ?? [];
-  const events = allEvents.filter((event) =>
-    event.source === "personal" ? showPersonal : showOfficial,
-  );
+  const events = allEvents.filter(personalCalendars.visible).map(event => ({ ...event, calendar_color: personalCalendars.calendars.find(c => c.id === event.calendar_id)?.color }));
   const timeZone = calendarQuery.data?.timezone ?? userTimeZone;
   const prettyDate = (
     date: Date | string,
@@ -1235,6 +1238,8 @@ function CalendarWorkspace({
 
   const eventFormSnapshot = useRef("");
   function openCreate(date = selected, start?: string, end?: string) {
+    setEventCalendarId("");
+    eventCalendarSnapshot.current = "";
     eventFormSnapshot.current = JSON.stringify(["", "", "", start ? dateTimeLocal(new Date(start), timeZone) : `${date}T10:00`, end ? dateTimeLocal(new Date(end), timeZone) : `${date}T11:00`, start ?? "", end ?? ""]);
     setEditingEvent(null);
     setSelected(date);
@@ -1378,6 +1383,8 @@ function CalendarWorkspace({
     }
   }
   function editEvent(item: CalendarEvent) {
+    setEventCalendarId(item.calendar_id ?? "");
+    eventCalendarSnapshot.current = item.calendar_id ?? "";
     if (item.source !== "personal") return;
     eventFormSnapshot.current = JSON.stringify([item.title, item.location ?? "", item.description ?? "", dateTimeLocal(new Date(item.starts_at), timeZone), dateTimeLocal(new Date(item.ends_at), timeZone), new Date(item.starts_at).toISOString(), new Date(item.ends_at).toISOString()]);
     setEditingEvent(item);
@@ -1394,7 +1401,7 @@ function CalendarWorkspace({
 
   function closeEventForm() {
     if (saving) return;
-    const changed = eventFormSnapshot.current !== JSON.stringify([title, location, description, startValue, endValue, startInstant, endInstant]);
+    const changed = eventCalendarSnapshot.current !== eventCalendarId || eventFormSnapshot.current !== JSON.stringify([title, location, description, startValue, endValue, startInstant, endInstant]);
     if (!changed || window.confirm("Закрыть событие без сохранения изменений?")) setShowEventForm(false);
   }
 
@@ -1429,6 +1436,7 @@ function CalendarWorkspace({
             },
             body: JSON.stringify({
               expected_version: editingEvent.version,
+              ...((eventCalendarId || editingEvent.calendar_id) ? { calendar_id: eventCalendarId || null } : {}),
               title,
               location: location || null,
               description: description || null,
@@ -1445,6 +1453,7 @@ function CalendarWorkspace({
             "X-CSRF-Token": token,
           },
           body: JSON.stringify({
+            ...(eventCalendarId ? { calendar_id: eventCalendarId } : {}),
             title,
             location: location || null,
             description: description || null,
@@ -1529,14 +1538,19 @@ function CalendarWorkspace({
     <main
       className={`workspace-shell ${section === "calendar" ? "calendar-shell" : ""} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
       onKeyDown={(event) => {
-        if (event.key !== "Escape") return;
-        if (calendarContextOpen) { event.preventDefault(); closeCalendarContext(); return; }
-        if (moveTarget) { event.preventDefault(); setMoveTarget(null); setMoveDraft(null); return; }
+        if (event.key !== "Escape" || event.defaultPrevented || event.nativeEvent.isComposing || (event.target as HTMLElement).closest("dialog")) return;
+        const menu = (event.target as HTMLElement).closest<HTMLDetailsElement>("details[open]");
+        if (menu) { event.preventDefault(); event.stopPropagation(); menu.open = false; menu.querySelector("summary")?.focus(); return; }
         const trigger = accountMenuOpen ? ".account-button" : topAccountMenuOpen ? ".top-avatar" : null;
-        if (!trigger) return;
-        setAccountMenuOpen(false);
-        setTopAccountMenuOpen(false);
-        event.currentTarget.querySelector<HTMLButtonElement>(trigger)?.focus();
+        if (trigger) {
+          event.preventDefault(); event.stopPropagation();
+          setAccountMenuOpen(false); setTopAccountMenuOpen(false);
+          event.currentTarget.querySelector<HTMLButtonElement>(trigger)?.focus();
+          return;
+        }
+        if (moveTarget) { event.preventDefault(); setMoveTarget(null); setMoveDraft(null); return; }
+        if (detailEvent) { event.preventDefault(); setDetailEvent(null); requestAnimationFrame(() => eventTrigger.current?.focus({ preventScroll: true })); return; }
+        if (calendarContextOpen) { event.preventDefault(); closeCalendarContext(); return; }
       }}
     >
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={navigate} onSearch={query => navigate("search", query)} />}
@@ -1724,7 +1738,7 @@ function CalendarWorkspace({
               <h1 className="sr-only">Календарь</h1>
               {moveTarget && <div className="calendar-placement" role="region" aria-label="Перенос события">
                 <strong>{moveTarget.title}</strong><p>Выбери новое начало на сетке. Длительность сохранится.</p>
-                {moveDraft && <p role="status">{prettyDate(new Date(moveDraft.starts_at), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZoneName: "shortOffset" })}</p>}
+                {moveDraft && <p role="status">{prettyDate(new Date(moveDraft.starts_at), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</p>}
                 <button type="button" className="secondary-button" disabled={resizeBusy} onClick={() => { setMoveTarget(null); setMoveDraft(null); }}>Отменить перенос</button>
                 <button type="button" className="primary-button" disabled={!moveDraft || resizeBusy} onClick={async () => { if (moveDraft && await saveEventTime(moveTarget, moveDraft)) { setMoveTarget(null); setMoveDraft(null); } }}>Применить перенос</button>
               </div>}
@@ -1752,34 +1766,7 @@ function CalendarWorkspace({
                 <aside id="calendar-context" className={`calendar-context ${calendarContextOpen ? "is-open" : ""}`} aria-label="Навигация календаря">
                   <div className="calendar-context-heading"><strong>Календарь</strong><button type="button" className="text-action context-close" aria-label="Закрыть панель календарей" onClick={closeCalendarContext}>×</button></div>
                   <div className="sidebar-calendar"><CalendarMonth key={selected.slice(0, 7)} selected={selected} timeZone={timeZone} onSelect={day => { setSelected(day); if (calendarContextOpen) closeCalendarContext(); }} /></div>
-                <details className="calendar-source-disclosure" open><summary>Мои календари</summary><div
-                  className="calendar-legend"
-                  aria-label="Отображаемые источники"
-                >
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={showPersonal}
-                      onChange={(event) =>
-                        setShowPersonal(event.target.checked)
-                      }
-                    />
-                    <span className="legend-dot personal-dot" />
-                    Личные события
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={showOfficial}
-                      onChange={(event) =>
-                        setShowOfficial(event.target.checked)
-                      }
-                    />
-                    <span className="legend-dot official-dot" />
-                    Расписание IIS
-                  </label>
-                  <small>Фильтры меняют только отображение</small>
-                </div></details>
+                  <PersonalCalendarSources state={personalCalendars} />
                   <button type="button" className="calendar-connect" onClick={() => setShowGroupPicker(true)}><Icon name="cap" /><span>{meQuery.data ? `Группа ${meQuery.data.group.name}` : "Подключить расписание"}</span></button>
                   <p className="calendar-context-note">Расписание IIS доступно только для чтения. Личные события можно переносить.</p>
                 </aside>
@@ -1798,12 +1785,12 @@ function CalendarWorkspace({
                       {prettyDate(selected, { month: "long", year: "numeric" })}
                     </strong></button>
                     <span>
-                      {calendarView === "day" ? `Часовой пояс: ${timeZone}` : <>{prettyDate(selected, {
+                      {calendarView === "day" ? prettyDate(selected, { day: "numeric", month: "long" }) : <>{prettyDate(selected, {
                         weekday: "long",
                         day: "numeric",
                         month: "long",
                       })}{" "}
-                      · {timeZone}</>}
+                      </>}
                     </span>
                   </div>
                   <div className="calendar-controls">
@@ -1868,7 +1855,7 @@ function CalendarWorkspace({
                     className={`week-grid ${calendarView === "day" ? "single-day-grid" : ""}`}
                   >
                     <div className="time-column">
-                      <div className="day-heading spacer-heading"><span title={timeZone}>{clockChangeWeek ? "От 00:00" : prettyDate(boundaries[0], { timeZoneName: "shortOffset" }).split(" ").at(-1)}</span></div>
+                      <div className="day-heading spacer-heading"><span>Время</span></div>
                       {Array.from({ length: gridHours }, (_, index) => (
                         <div className="time-label" key={index}>
                           {clockChangeWeek
@@ -2221,7 +2208,9 @@ function CalendarWorkspace({
             <span className="greeting">Личное событие</span>
             <h2>{editingEvent ? "Изменить событие" : "Новое событие"}</h2>
 
-            <p className="calendar-timezone">Часовой пояс: {timeZone}</p>
+            <label htmlFor="event-calendar">Календарь</label>
+            <select id="event-calendar" value={eventCalendarId} disabled={personalCalendars.list.isPending || !!personalCalendars.list.error} onChange={event => setEventCalendarId(event.target.value)}><option value="">Личные события</option>{eventCalendarId && !personalCalendars.calendars.some(calendar => calendar.id === eventCalendarId) && <option value={eventCalendarId}>Сохранённый календарь</option>}{personalCalendars.calendars.map(calendar => <option key={calendar.id} value={calendar.id}>{calendar.name}</option>)}</select>
+            {personalCalendars.list.error && <p role="alert">Не удалось загрузить календари. <button type="button" className="text-action" onClick={() => void personalCalendars.list.refetch()}>Повторить загрузку</button></p>}
             <label htmlFor="event-title">Название</label>
             <input
               id="event-title"

@@ -224,6 +224,9 @@ export function CalendarCard({
     <div
       className={`event-card ${height >= 76 ? "event-roomy" : ""} ${event.source === "official" ? "official-event" : "personal-event"} ${event.skipped ? "skipped-event" : ""} ${preview ? "resizing-event" : ""} ${movePreview ? "moving-event" : ""}`}
       style={{
+        borderLeftColor: event.calendar_color,
+        borderLeftWidth: event.calendar_color ? 4 : undefined,
+        borderLeftStyle: event.calendar_color ? "solid" : undefined,
         top: `${((clippedStart - dayStart) / 3_600_000) * hourHeight}px`,
         height: `${height}px`,
         left: `calc(${(lane * 100) / count}% + 3px)`,

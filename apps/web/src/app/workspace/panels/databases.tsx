@@ -793,7 +793,7 @@ function DatabaseDetail({
                             </td>
                           ))}
                           <td>
-                            <details className="note-menu data-row-menu" onToggle={event => positionNoteMenu(event.currentTarget)} onKeyDown={event => { if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); } }}>
+                            <details className="note-menu data-row-menu" onToggle={event => positionNoteMenu(event.currentTarget)} onKeyDown={event => { if (event.key === "Escape" && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); } }}>
                               <summary aria-label={`Действия записи ${item.page.title}`}>···</summary>
                               <div className="note-menu-items">
                                 {!item.record.trashed_at && <button disabled={action.busy || !!editing || !definitions.length} onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); editRecord(item); }}>Изменить</button>}

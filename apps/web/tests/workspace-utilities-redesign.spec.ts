@@ -19,14 +19,14 @@ test("profile drafts survive errors and guard navigation until saved", async ({ 
   });
   await page.goto("/workspace?section=settings");
   await page.getByLabel("Имя", { exact: true }).fill("Новое имя");
-  await expect(page.getByText("Часовой пояс: Минск (Europe/Minsk)." )).toBeVisible();
+  await expect(page.getByText("Часовой пояс: Минск (Europe/Minsk)." )).toHaveCount(0);
   await navigateSection(page, "Календарь");
   await expect(page.getByRole("dialog", { name: "Несохранённые изменения", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByLabel("Имя", { exact: true })).toHaveValue("Новое имя");
   await page.getByRole("button", { name: "Сохранить профиль", exact: true }).click();
   await expect(page.locator(".profile-form").getByRole("alert")).toBeVisible();
-  await expect(page.getByText("Часовой пояс: Минск (Europe/Minsk)." )).toBeVisible();
+  await expect(page.getByText("Часовой пояс: Минск (Europe/Minsk)." )).toHaveCount(0);
   await page.getByRole("button", { name: "Сохранить профиль", exact: true }).click();
   await expect(page.locator(".profile-form").getByRole("status")).toContainText("Сохранено");
   expect(writes).toEqual([{ display_name: "Новое имя" }, { display_name: "Новое имя" }]);

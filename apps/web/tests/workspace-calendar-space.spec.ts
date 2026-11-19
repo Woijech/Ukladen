@@ -70,7 +70,7 @@ test("hidden IIS intervals still stop accidental empty-grid creation", async ({ 
   const box = await grid(page);
   await page.mouse.click(box.x + box.width / 2, box.y + 10.25 * 54 + 1);
   await expect(page.getByLabel("Окончание", { exact: true })).toHaveValue("2026-10-16T10:30");
-  expect(state.writes).toEqual([]);
+  expect(state.writes.filter(write => write.path !== "/api/v1/calendar/visibility")).toEqual([]);
 });
 
 test("keyboard creation skips occupied time and clips duration at the next boundary", async ({ page }) => {

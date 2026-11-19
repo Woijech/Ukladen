@@ -33,6 +33,13 @@ export function EventDetail({
     <article
       className="event-detail feature-page"
       aria-label="Страница события"
+      onKeyDown={input => {
+        if (input.key !== "Escape" || input.defaultPrevented || input.nativeEvent.isComposing || (input.target as HTMLElement).closest("dialog")) return;
+        input.preventDefault(); input.stopPropagation();
+        const menu = (input.target as HTMLElement).closest<HTMLDetailsElement>("details[open]");
+        if (menu) { menu.open = false; menu.querySelector("summary")?.focus(); return; }
+        onBack();
+      }}
     >
       <header className="event-detail-toolbar">
         <button ref={back} className="text-action" onClick={onBack}>
@@ -68,7 +75,6 @@ export function EventDetail({
                 year: "numeric",
                 hour: "2-digit",
                 minute: "2-digit",
-                timeZoneName: "shortOffset",
               })}
             </dd>
           </div>
@@ -80,7 +86,6 @@ export function EventDetail({
                 month: "long",
                 hour: "2-digit",
                 minute: "2-digit",
-                timeZoneName: "shortOffset",
               })}
             </dd>
           </div>

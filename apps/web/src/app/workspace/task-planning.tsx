@@ -40,7 +40,7 @@ export function workTime(value: string, timezone: string) {
 export function PlanDetails({ plan, titles = {} }: { plan: WorkPlan; titles?: Record<string, string> }) {
   const title = (id: string) => plan.task_titles?.[id] ?? titles[id] ?? `Задача ${id}`;
   return <section className="work-plan" aria-label="Просмотр плана">
-    <p>Часовой пояс: {plan.timezone}. Подтвердить до {workTime(plan.expires_at, plan.timezone)}.</p>
+    <p>Подтвердить до {workTime(plan.expires_at, plan.timezone)}.</p>
     {!plan.verified && <p role="status" className="form-error">Условный план. Применение недоступно.</p>}
     {plan.warnings.map((warning, index) => <p key={index} className="muted">{planningWarning(warning)}</p>)}
     <h4>Рабочие сессии</h4>
@@ -144,7 +144,7 @@ function PlanningDialog({ timezone, taskId, onClose, onBusyChange }: { timezone:
   async function refresh() { await Promise.all([client.invalidateQueries({ queryKey: ["work-sessions"] }), client.invalidateQueries({ queryKey: ["calendar-task-sessions"] }), client.invalidateQueries({ queryKey: ["workspace-calendar"] })]); }
   function changed(change: () => void) { change(); setPlan(null); setPartial(false); }
   return <Modal title="Планирование задач" wide onClose={() => { if (!busy) onClose(); }}><div className="work-planning">
-    <h2>Планирование задач</h2><p>Часовой пояс: {timezone}. Укажите остаток работы в самой задаче. Подзадачи планируются без повторного учёта родителя.</p>
+    <h2>Планирование задач</h2><p>Укажите остаток работы в самой задаче. Подзадачи планируются без повторного учёта родителя.</p>
     <QueryState pending={preferences.isPending} error={preferences.error} retry={() => void preferences.refetch()} />
     {preferences.data && <details><summary>Часы работы и перерывы</summary>{preferences.data.version > 0 && <p role="status">Сохранённые настройки: версия {preferences.data.version}</p>}<PreferencesForm key={preferences.data.version} preferences={preferences.data} onBusyChange={setPreferencesBusy} onSaved={async () => { changed(() => {}); await preferences.refetch(); }} /></details>}
     <section><h3>Задачи для плана</h3><QueryState pending={tasks.isPending} error={tasks.error} retry={() => void tasks.refetch()} />

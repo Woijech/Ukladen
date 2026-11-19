@@ -293,7 +293,7 @@ export function MaterialsPanel() {
                         Повторить
                       </button>
                     )}
-                    <details className="note-menu resource-actions" onToggle={event => positionNoteMenu(event.currentTarget)} onKeyDown={event => { if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); } }}>
+                    <details className="note-menu resource-actions" onToggle={event => positionNoteMenu(event.currentTarget)} onKeyDown={event => { if (event.key === "Escape" && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); } }}>
                       <summary aria-label={`Действия материала ${item.title}`}>···</summary>
                       <div className="note-menu-items" onClick={event => { if ((event.target as HTMLElement).closest("button")) event.currentTarget.closest("details")?.removeAttribute("open"); }}>
                     <button

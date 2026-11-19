@@ -52,7 +52,7 @@ export function TimeField({ label, value, onChange, disabled = false }: {
     {open && <Modal title={`Выбрать время: ${label}`} onClose={() => setOpen(false)}>
       <div className="time-picker">
         <h2>{label}</h2>
-        <p className="muted">24-часовой формат. Часовой пояс остаётся прежним.</p>
+        <p className="muted">24-часовой формат.</p>
         <output className="time-preview" aria-live="polite">{draft.map(twoDigits).join(":")}</output>
         <div className="time-columns">
           <TimeColumn label="Часы" count={24} value={draft[0]} onChange={hour => setDraft([hour, draft[1]])} />

@@ -106,7 +106,7 @@ export function EventTimeStrip({ value, timeZone, originalStart, originalEnd, on
           <option value="" disabled>Выбери смещение</option>{options.map(instant => <option key={instant} value={instant}>{prettyDate(new Date(instant), timeZone, { hour: "2-digit", minute: "2-digit", timeZoneName: "shortOffset" })}</option>)}
         </select></label>}
         <div className="temporal-duration"><span>{durationLabel}</span><div role="group" aria-label="Длительность события">{[30, 60, 90].map(minutes => <button type="button" key={minutes} onClick={() => duration(minutes)}>{minutes} мин</button>)}</div></div>
-        <p className="temporal-zone">{prettyDate(day, timeZone, { day: "numeric", month: "long", year: "numeric" })} · {timeZone}{options.length === 1 ? ` · ${prettyDate(new Date(options[0]), timeZone, { timeZoneName: "shortOffset" }).split(", ").at(-1)}` : ""}</p>
+
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="temporal-actions"><button type="button" className="secondary-button" onClick={() => setOpen(false)}>Отмена</button><button type="button" className="primary-button" onClick={apply}>Применить</button></div>
       </div>

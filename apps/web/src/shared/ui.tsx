@@ -39,6 +39,14 @@ export function Modal({
       aria-label={title}
       onKeyDown={(event) => {
         if (event.key === "Escape" && !event.defaultPrevented && !event.nativeEvent.isComposing) {
+          const menu = (event.target as HTMLElement).closest<HTMLDetailsElement>("details[open]");
+          if (menu && event.currentTarget.contains(menu)) {
+            event.preventDefault();
+            event.stopPropagation();
+            menu.open = false;
+            menu.querySelector("summary")?.focus();
+            return;
+          }
           event.preventDefault();
           event.stopPropagation();
           onClose();

@@ -156,7 +156,7 @@ export function CalendarSelection({
     if (range) pendingRange.current = [range[0], range[1]];
   }
   function keyboard(event: KeyboardEvent<HTMLButtonElement>) {
-    if (event.key === "Escape") {
+    if (event.key === "Escape" && !event.nativeEvent.isComposing) {
       event.preventDefault();
       cancel();
       return;

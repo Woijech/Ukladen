@@ -904,7 +904,8 @@ test("calendar source filters only change display, and day view keeps original e
   await page.getByLabel("Личные события", { exact: true }).uncheck();
   await expect(page.locator(".empty-note")).toContainText("скрыты фильтрами");
   expect(state.writes).toHaveLength(0);
-  expect(workspace.writes).toHaveLength(0);
+  expect(workspace.writes.filter(write => write.path !== "/api/v1/calendar/visibility")).toHaveLength(0);
+  expect(workspace.writes.filter(write => write.path === "/api/v1/calendar/visibility").every(write => write.method === "PUT")).toBe(true);
   await page.getByLabel("Личные события", { exact: true }).check();
   await page.getByRole("button", { name: "День", exact: true }).click();
   await expect(page.locator(".day-column")).toHaveCount(1);
@@ -1122,7 +1123,7 @@ test("profile edits preserve Minsk calendar time and event instants", async ({
   });
   await section(page, "Настройки");
   await page.getByLabel("Имя", { exact: true }).fill("Александра");
-  await expect(page.getByText("Часовой пояс: Минск (Europe/Minsk).")).toBeVisible();
+  await expect(page.getByText("Часовой пояс: Минск (Europe/Minsk).")).toHaveCount(0);
   await page.getByRole("button", { name: "Сохранить профиль" }).click();
   await expect(
     page.getByRole("button", { name: "Профиль в боковой панели" }),
@@ -1130,9 +1131,7 @@ test("profile edits preserve Minsk calendar time and event instants", async ({
   await section(page, "Календарь");
   await page.locator(".event-card.personal-event").click();
   await page.getByRole("button", { name: "Изменить событие", exact: true }).click();
-  await expect(page.locator(".calendar-timezone")).toContainText(
-    "Europe/Minsk",
-  );
+  await expect(page.locator(".calendar-timezone")).toHaveCount(0);
   await expect(page.getByLabel("Начало", { exact: true })).toHaveValue(
     "2026-10-16T17:00",
   );

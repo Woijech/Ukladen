@@ -208,7 +208,6 @@ function SettingsPanel({ onChooseGroup, onDirtyChange }: { onChooseGroup: () => 
       <div className="page-heading">
         <div>
           <h1>Настройки</h1>
-          <p className="heading-subtitle">Профиль, внешний вид и расписание.</p>
         </div>
       </div>
       <QueryState
@@ -216,9 +215,6 @@ function SettingsPanel({ onChooseGroup, onDirtyChange }: { onChooseGroup: () => 
         error={profile.error}
         retry={() => void profile.refetch()}
       />
-      <nav className="settings-sections" aria-label="Разделы настроек">
-        <a href="#profile-settings">Профиль</a><a href="#appearance-settings">Оформление</a><a href="#schedule-settings">Расписание</a><a href="#assistant-settings">AI</a>
-      </nav>
       {profile.data && (
         <section id="profile-settings" aria-label="Профиль">
           <AvatarSettings profile={profile.data} />
@@ -228,10 +224,7 @@ function SettingsPanel({ onChooseGroup, onDirtyChange }: { onChooseGroup: () => 
       <section id="appearance-settings" className="panel setting-section">
         <div>
           <h2>Внешний вид</h2>
-          <p>
-            Светлая, тёмная или системная тема. Сохраняется только настройка
-            оформления.
-          </p>
+
         </div>
         <ThemeOptions />
       </section>
@@ -305,7 +298,6 @@ function ProfileForm({ profile, onDirtyChange }: { profile: Profile; onDirtyChan
         maxLength={100}
         placeholder="Как к тебе обращаться?"
       />
-      <p className="muted">Часовой пояс: Минск (Europe/Minsk).</p>
       <ActionFeedback error={dirty ? action.error : ""} notice="" />
       <p className="profile-save-state muted" role="status">{action.busy ? "Сохраняем…" : dirty ? action.error ? "Ошибка сохранения" : "Есть изменения" : "Сохранено"}</p>
       <button className="primary-button" disabled={action.busy || !dirty}>

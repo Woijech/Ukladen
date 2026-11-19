@@ -9,8 +9,6 @@
 .dashboard .quick-access { padding: 0; }
 .dashboard .quick-access > button { border-radius: 0; min-height: 64px; }
 .settings-page { max-width: 1080px; }
-.settings-sections { display: flex; flex-wrap: wrap; gap: 8px 24px; padding: 0 0 16px; border-bottom: 1px solid var(--border); }
-.settings-sections a { min-height: 44px; display: inline-flex; align-items: center; text-decoration: none; font-size: 14px; }
 .settings-page section[id] { scroll-margin-top: 72px; }
 .profile-fields { min-width: 0; padding: 0; margin: 0; border: 0; display: grid; grid-template-columns: minmax(180px, .8fr) minmax(0, 2fr); gap: 12px 24px; }
 .profile-fields > :is(h2, p, button) { grid-column: 1 / -1; margin: 0; }

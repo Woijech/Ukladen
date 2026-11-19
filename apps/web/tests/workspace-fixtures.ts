@@ -36,6 +36,8 @@ export async function mockWorkspace(page: Page) {
       expect(request.headers().origin).toBe(testOrigin);
       state.writes.push({ method, path, body: request.postData() ? request.postDataJSON() : null });
     }
+    if (path === "/api/v1/calendar/calendars") return route.fulfill({ json: { items: [] } });
+    if (path === "/api/v1/calendar/visibility") return route.fulfill({ json: method === "PUT" ? { ...request.postDataJSON(), version: request.postDataJSON().version + 1 } : { version: 0, default_visible: true, hidden_calendar_ids: [], hidden_lesson_types: [] } });
     if (path === "/api/v1/auth/csrf") return route.fulfill({ headers: { "Set-Cookie": `ukladen_csrf=${csrf}; Path=/; HttpOnly; SameSite=Lax` }, json: { csrf_token: csrf } });
     if (path === "/api/v1/auth/logout") { state.authenticated = false; return route.fulfill({ status: 204 }); }
     if (path === "/api/v1/auth/login" || path === "/api/v1/auth/register") {

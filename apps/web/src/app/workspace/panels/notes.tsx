@@ -653,7 +653,7 @@ function NoteEditor({
               className="note-menu"
               onToggle={event => positionNoteMenu(event.currentTarget)}
               onKeyDown={(event) => {
-                if (event.key === "Escape") {
+                if (event.key === "Escape" && !event.nativeEvent.isComposing) {
                   event.currentTarget.open = false;
                   event.currentTarget.querySelector("summary")?.focus();
                 }
