@@ -40,7 +40,7 @@ test("shell supports skip navigation and Escape returns focus from menus", async
     await expect(page.locator(menu)).toHaveCount(0);
     await expect(page.locator(trigger)).toBeFocused();
   }
-  await page.locator(".calendar-help summary").focus();
+  await page.getByRole("button", { name: "Справка по управлению календарём" }).focus();
   await page.keyboard.press("Enter");
   await expect(page.locator("#calendar-create-help")).toBeVisible();
 });

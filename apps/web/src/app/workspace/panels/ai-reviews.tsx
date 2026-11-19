@@ -1,5 +1,6 @@
 "use client";
 
+import { HelpTooltip } from "@/shared/help-tooltip";
 import { useEffect, useState } from "react";
 import { pushWorkspaceLocation } from "../use-section-location";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -125,10 +126,10 @@ function ReviewForm({
           onChange={(event) => toggle("enabled", event.target.checked)} />
         Включить обзоры
       </label>
-      <p className="muted">
+      <div className="help-inline">Доставка обзоров<HelpTooltip label="Как работают обзоры AI">
         Результаты появятся в уведомлениях.
         Одинаковые предупреждения повторно не присылаются без изменения ситуации.
-      </p>
+      </HelpTooltip></div>
       <QueryState
         pending={models.isPending || connections.isPending}
         error={models.error ?? connections.error}
@@ -212,21 +213,21 @@ function ReviewForm({
           onChange={(event) => toggle("materials", event.target.checked)} />
         Подбирать мои заметки и материалы
       </label>
-      <p className="muted">
+      <div className="help-inline">Состав обзора<HelpTooltip label="Что учитывается в обзорах">
         Просрочка и сроки в ближайшие 24 часа; пересечения и нагрузка на 7 дней.
         Неизвестные оценки и неполное расписание будут отмечены явно.
-      </p>
+      </HelpTooltip></div>
       </fieldset>
       <fieldset className="settings-fieldset"><legend>Источники</legend>
       <button type="button" className="secondary-button" onClick={() => setPicking(true)}>
         Источники обзоров
       </button>
-      <p className="muted">
+      <div className="help-inline">Область источников<HelpTooltip label="Как выбираются источники обзоров">
         {value.source_scope
           ? "Только выбранные задачи, страницы, материалы и календарь."
           : "Мои активные задачи, календарь и относящиеся к ним заметки и материалы."}{" "}
         Ограничение сохраняется для следующих обзоров.
-      </p>
+      </HelpTooltip></div>
       </fieldset>
       <div className="settings-save-actions">
       <button className="primary-button" disabled={

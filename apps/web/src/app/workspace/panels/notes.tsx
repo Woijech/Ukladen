@@ -1,5 +1,6 @@
 "use client";
 
+import { HelpTooltip } from "@/shared/help-tooltip";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageAttachments } from "./attachments";
@@ -784,9 +785,9 @@ function NoteEditor({
             Связанные события
             {links.data?.items.length ? ` · ${links.data.items.length}` : ""}
           </summary>
-          <p className="muted">
+          <div className="help-inline">Связи страницы<HelpTooltip label="Как работают связи страницы">
             Связь не меняет содержимое страницы или события.
-          </p>
+          </HelpTooltip></div>
           <QueryState
             pending={links.isPending}
             error={links.error}

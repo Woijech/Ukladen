@@ -1,5 +1,6 @@
 "use client";
 
+import { HelpTooltip } from "@/shared/help-tooltip";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
@@ -1768,7 +1769,7 @@ function CalendarWorkspace({
                   <div className="sidebar-calendar"><CalendarMonth key={selected.slice(0, 7)} selected={selected} timeZone={timeZone} onSelect={day => { setSelected(day); if (calendarContextOpen) closeCalendarContext(); }} /></div>
                   <PersonalCalendarSources state={personalCalendars} />
                   <button type="button" className="calendar-connect" onClick={() => setShowGroupPicker(true)}><Icon name="cap" /><span>{meQuery.data ? `Группа ${meQuery.data.group.name}` : "Подключить расписание"}</span></button>
-                  <p className="calendar-context-note">Расписание IIS доступно только для чтения. Личные события можно переносить.</p>
+                  <div className="help-inline">Источники событий<HelpTooltip label="О личных событиях и расписании IIS">Расписание IIS доступно только для чтения. Личные события можно переносить.</HelpTooltip></div>
                 </aside>
               <section
                 className="calendar-card"
@@ -2136,8 +2137,7 @@ function CalendarWorkspace({
                 </section>
               </div>
               </div>
-              <details className="calendar-help">
-                <summary>Управление календарём</summary>
+              <div className="help-inline calendar-help">Управление календарём<HelpTooltip label="Справка по управлению календарём">
                 <p id="calendar-create-help" className="calendar-interaction-hint">
                   Нажми на свободное время или протяни интервал, чтобы создать событие. Выделение останавливается у соседнего события; намеренное пересечение можно задать в редакторе.
                   С клавиатуры: ↑ ↓ выбрать время, Shift + ↑ ↓ изменить длительность, Enter создать.
@@ -2147,7 +2147,7 @@ function CalendarWorkspace({
                   Потяни за край личного события, чтобы изменить время.
                   С клавиатуры: ↑ ↓ изменить на 15 минут, Enter сохранить, Esc отменить.
                 </p>
-              </details>
+              </HelpTooltip></div>
             </>
           ) : (
             <WorkspaceViews

@@ -1,5 +1,6 @@
 "use client";
 
+import { HelpTooltip } from "@/shared/help-tooltip";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestJson, writeJson } from "@/shared/api";
@@ -194,10 +195,10 @@ export function EventExtras({
             </button>
           </div>
           <h2>Напоминание</h2>
-          <p className="muted">
+          <div className="help-inline">Доставка напоминания<HelpTooltip label="Как работают напоминания о событии">
             Появится во входящих Ukladen. Это одноразовое напоминание об этом
             событии.
-          </p>
+          </HelpTooltip></div>
           <div className="reminder-create">
             <label htmlFor={`reminder-offset-${event.source_event_id}`}>
               За сколько минут
@@ -305,9 +306,9 @@ function RelatedEvents({
       </button>
       {open && (
         <>
-          <p className="muted">
+          <div className="help-inline">Связи событий<HelpTooltip label="Как определяются связанные события">
             События, к которым прикреплена эта же заметка.
-          </p>
+          </HelpTooltip></div>
           <QueryState
             pending={query.isPending}
             error={query.error}

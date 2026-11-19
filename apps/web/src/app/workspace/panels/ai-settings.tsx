@@ -1,5 +1,6 @@
 "use client";
 
+import { HelpTooltip } from "@/shared/help-tooltip";
 import { useLayoutEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestJson, writeJson } from "@/shared/api";
@@ -38,11 +39,7 @@ export function AiSettings({
     <div className="ai-settings">
       <section className="panel">
         <header className="settings-section-heading">
-        <h2>Как тебе отвечать</h2>
-        <p className="muted">
-          Тон, язык и подробность ответов. Сохраняются отдельно от чатов до
-          изменения или очистки.
-        </p>
+        <div className="help-heading"><h2>Как тебе отвечать</h2><HelpTooltip label="Как настроить стиль ответов">Тон, язык и подробность ответов. Сохраняются отдельно от чатов до изменения или очистки.</HelpTooltip></div>
         </header>
         <div className="settings-section-body">
         <QueryState
@@ -60,8 +57,7 @@ export function AiSettings({
       </section>
       <section className="panel">
         <header className="settings-section-heading">
-          <h2>Мои API-подключения</h2>
-          <p className="muted">Для подключения по умолчанию свой ключ не нужен. Личное подключение можно добавить отдельно.</p>
+          <div className="help-heading"><h2>Мои API-подключения</h2><HelpTooltip label="О подключениях AI">Для подключения по умолчанию свой ключ не нужен. Личное подключение можно добавить отдельно.</HelpTooltip></div>
         </header>
         <div className="settings-section-body">
           <button
@@ -70,7 +66,7 @@ export function AiSettings({
           >
             Подключить API
           </button>
-        <details className="settings-help"><summary>Как работают личные подключения</summary>
+        <div className="help-inline">Личный API<HelpTooltip label="Как работают личные подключения">
         <p className="muted">
           Для подключения по умолчанию свой ключ не нужен. Личное подключение OpenRouter —
           дополнительная возможность. Ключ хранится зашифрованным на сервере и
@@ -82,7 +78,7 @@ export function AiSettings({
           Личное подключение оплачивается по твоему ключу и этот бюджет не расходует.
           Для него действуют баланс и ограничения твоего провайдера.
         </p>
-        </details>
+        </HelpTooltip></div>
         <QueryState
           pending={connections.isPending}
           error={connections.error}
@@ -129,10 +125,10 @@ export function AiSettings({
           Просмотр и ответы AI этот срок не продлевают. Статистика хранится
           отдельно 30 дней.
         </p>
-        <p className="muted">
+        <div className="help-inline">Планирование и разрешения<HelpTooltip label="О планировании и разрешениях AI">
           Рабочее время и планирование настраиваются в разделе «Задачи».
           Личные инструкции не дают AI разрешений изменять данные.
-        </p>
+        </HelpTooltip></div>
         </div>
       </section>
       {connecting && <ConnectionForm onClose={() => setConnecting(false)} />}
@@ -209,9 +205,9 @@ function InstructionsForm({
           placeholder="Например: отвечай по-русски, кратко, с примерами."
         />
       </label>
-      <p className="muted">
+      <div className="help-inline">Память и объём инструкций<HelpTooltip label="Об объёме и памяти помощника">
         До 8 КиБ текста. Обычные сообщения не становятся постоянной памятью.
-      </p>
+      </HelpTooltip></div>
       <div className="panel-toolbar" style={{ flexWrap: "wrap" }}>
         <button className="primary-button" disabled={action.busy || !dirty}>
           Сохранить инструкции
@@ -274,10 +270,10 @@ function ConnectionForm({ onClose }: { onClose: () => void }) {
             required
           />
         </label>
-        <p className="muted">
+        <div className="help-inline">Сохранение подключения<HelpTooltip label="О сохранении API-ключа">
           Сохранение не выполняет запрос к провайдеру. Ключ очищается из формы
           при отправке.
-        </p>
+        </HelpTooltip></div>
         <button className="primary-button" disabled={action.busy}>
           Сохранить подключение
         </button>

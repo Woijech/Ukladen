@@ -630,8 +630,15 @@ main:not(.workspace-shell):not(.workspace-auth):not(.group-page):not(.landing)
 .ai-run-analysis, .ai-run-analysis .panel { min-width: 0; overflow-wrap: anywhere; }
 .ai-run-analysis summary { cursor: pointer; }
 .ai-run-analysis details[open] > summary { margin-bottom: 12px; }
-.help-tooltip { display: inline-flex; vertical-align: middle; margin-left: 5px; }
+.help-tooltip { display: inline-flex; vertical-align: middle; margin-left: 5px; flex-shrink: 0; }
 .help-tooltip-trigger { width: 26px; height: 26px; padding: 0; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--muted); font-size: 12px; cursor: pointer; }
 .help-tooltip-trigger:hover { background: var(--hover); color: var(--text); }
-.help-tooltip-content { position: fixed; margin: 0; padding: 14px 16px; max-width: calc(100vw - 24px); max-height: 150px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg); font-size: 13px; line-height: 1.6; }
+.help-tooltip-content { position: fixed; margin: 0; padding: 14px 16px; max-width: calc(100vw - 24px); width: min(280px, calc(100vw - 24px)); max-height: min(320px, calc(100dvh - 24px)); overflow: auto; overscroll-behavior: contain; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg); font-size: 13px; line-height: 1.6; }
 @media (prefers-reduced-motion: no-preference) { .help-tooltip-content:popover-open { animation: control-dialog-arrive 120ms ease-out; } }
+.help-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.help-heading > :is(h1, h2, h3, h4) { margin-block: 0; min-width: 0; overflow-wrap: anywhere; }
+.help-inline { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 8px 0; color: var(--muted); font-size: 13px; }
+.help-tooltip-content > p { margin: 0; }
+.help-tooltip-content > p + p { margin-top: 12px; }
+.ai-option-with-help { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.ai-option-with-help > label { flex: 1; min-width: 0; }

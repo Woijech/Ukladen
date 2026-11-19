@@ -1,5 +1,6 @@
 "use client";
 
+import { HelpTooltip } from "@/shared/help-tooltip";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { requestJson, writeJson } from "@/shared/api";
@@ -62,13 +63,13 @@ export function AiDiagnostics({ onCreate, onOpenChat }: { onCreate: (scenario: s
         <label className="field-label">Сценарий<select className="ui-input" value={scenario} onChange={(event) => setScenario(event.target.value)}>{diagnosticCases.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
         <p>{selected.prompt}</p><p className="muted">Проверить: {selected.expected}</p>
         <button className="primary-button" onClick={() => onCreate(scenario)}>Создать тестовый чат</button>
-        <details><summary>Как пользоваться</summary><ol>
+        <div className="help-inline">Диагностические проверки<HelpTooltip label="Как пользоваться диагностикой"><ol>
           <li>Начни с демонстрации: она не проверяет реальную модель.</li>
           <li>Для живого теста явно выбери модель и подключение. Каждый запрос расходует выбранный ключ; автоматического пакетного запуска нет.</li>
           <li>Для документов подготовь отдельную тестовую страницу или файл и выбери его в чате. Настоящая модель получает выбранные собственные данные через обычные инструменты.</li>
           <li>Вернись сюда, открой запрос, сравни шаги с ожидаемым результатом и поставь оценку.</li>
           <li>Для сравнения моделей повтори тот же сценарий с теми же данными в новом чате. Экспорт содержит личные данные: проверь его перед отправкой.</li>
-        </ol><p>Общие метрики и токены находятся во вкладке «Использование». Оценка администратора — ручная, не автоматическая проверка истинности.</p></details>
+        </ol><p>Общие метрики и токены находятся во вкладке «Использование». Оценка администратора — ручная, не автоматическая проверка истинности.</p></HelpTooltip></div>
       </div>
       <QueryState pending={usage.isPending} error={usage.error} retry={() => void usage.refetch()} />
       {usage.data && <UsageChart key={days} daily={usage.data.daily} from={usage.data.date_from} to={usage.data.date_to} />}

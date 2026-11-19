@@ -14,7 +14,7 @@ test("tasks can be created, edited, filtered and nested without an academic grou
   await page.getByLabel("Название").fill("Prepare report");
   await page.getByLabel("Описание").fill("Read the assignment");
   await page.getByRole("dialog").getByLabel("Приоритет", { exact: true }).selectOption("high");
-  await page.getByLabel("Срок").fill("2026-10-30T18:00");
+  await page.getByLabel(/^Срок/).fill("2026-10-30T18:00");
   await page.getByLabel("Оценка, минуты").fill("90");
   await page.getByRole("button", { name: "Создать задачу" }).click();
   await expect(page.getByRole("region", { name: "Детали задачи" })).toContainText("Prepare report");

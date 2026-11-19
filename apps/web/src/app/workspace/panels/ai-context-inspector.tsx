@@ -1,5 +1,6 @@
 "use client";
 
+import { HelpTooltip } from "@/shared/help-tooltip";
 import { useState } from "react";
 import type { Source } from "./ai-api";
 import { SourceViewer } from "./ai-sources";
@@ -21,7 +22,7 @@ export function ContextComposition({ input, previous }: { input: ContextInput; p
   const previousTotal = previous ? Object.values(previous.parts).reduce((sum, size) => sum + size.bytes, 0) : null;
   const repeated = previous && input.fingerprints ? parts.filter(([name, size]) => size.bytes > 2 && input.fingerprints?.[name] === previous.fingerprints?.[name]) : [];
   return <section className="context-composition" aria-label="Из чего состоит запрос">
-    <h4>Из чего состоит запрос</h4><p className="muted">Измеренные байты, не токены. Провайдер сообщает токены для всего вызова; точное распределение по частям неизвестно. Сериализация и токенизация дают разные единицы измерения.</p>
+    <div className="help-heading"><h4>Из чего состоит запрос</h4><HelpTooltip label="Почему состав запроса измерен в байтах">Провайдер сообщает токены для всего вызова; точное распределение по частям неизвестно. Сериализация и токенизация дают разные единицы измерения.</HelpTooltip></div><p className="muted">Измеренные байты, не токены.</p>
     <div className="context-bar" role="img" aria-label={parts.map(([name, size]) => `${contextLabels[name] ?? name}: ${size.bytes} байт`).join(", ")}>{parts.map(([name, size], index) => <span key={name} className={`context-color-${index % 6}`} style={{ width: `${total ? size.bytes / total * 100 : 0}%` }} />)}</div>
     <ul className="context-legend">{parts.map(([name, size], index) => <li key={name}><span className={`context-key context-color-${index % 6}`} />{contextLabels[name] ?? name}<strong>{size.bytes.toLocaleString("ru")} Б · {total ? Math.round(size.bytes / total * 100) : 0}%</strong></li>)}</ul>
     <div className="context-findings"><h5>Измеренные факты</h5><ul>
@@ -43,8 +44,7 @@ export function ContextInspector({ events, attempt }: { events: DiagnosticEvent[
   const analysis = eventValue(events.findLast(event => event.kind === "source_analysis" && eventValue(event)?.attempt === attempt));
   const sources = Array.isArray(rag?.sources) ? rag.sources as Source[] : [];
   return <section className="context-inspector" aria-label={`Инспектор контекста шага ${attempt}`}>
-    <h4>Инспектор контекста</h4>
-    <p className="muted">Состав после middleware, непосредственно перед сериализацией провайдером. Персональные инструкции и дополнительный контекст включены в системное сообщение; отдельной developer-роли в этом pipeline нет.</p>
+    <div className="help-heading"><h4>Инспектор контекста</h4><HelpTooltip label="Что показывает инспектор контекста">Состав после middleware, непосредственно перед сериализацией провайдером. Персональные инструкции и дополнительный контекст включены в системное сообщение; отдельной developer-роли в этом pipeline нет.</HelpTooltip></div>
     {!parts.length && <p>Отдельные части для этого запуска не записаны. Историческое содержимое не восстанавливается.</p>}
     {parts.map((event, index) => { const part = eventValue(event)!; const size = part.size as ContextSize; return <details key={index}><summary>{contextLabels[String(part.name)] ?? String(part.name)} · {size?.bytes?.toLocaleString("ru")} Б</summary><pre className="ai-diagnostic-json">{typeof part.content === "string" ? part.content : JSON.stringify(part.content, null, 2)}</pre></details>; })}
     {instructions && <details><summary>Персональные инструкции, включённые в system</summary><pre className="ai-diagnostic-json">{String(instructions.personal_instructions || "Не заданы")}</pre></details>}

@@ -1,4 +1,5 @@
 import { ContextComposition, ContextInspector, type ContextInput } from "./ai-context-inspector";
+import { HelpTooltip } from "@/shared/help-tooltip";
 import type { Run } from "./ai-api";
 
 export type DiagnosticEvent = {
@@ -47,14 +48,14 @@ function tariffCost(run: Run, input: number | null, output: number | null) {
 
 export function AiRunAnalysis({ run, events = [] }: { run: Run; events?: DiagnosticEvent[] }) {
   return <section className="stack ai-run-analysis" aria-label="Расход по шагам">
-    <h3>Расход по шагам</h3>
+<div className="help-heading"><h3>Расход по шагам</h3><HelpTooltip label="Как читать учёт токенов и стоимости">    <p className="muted">Токены рассуждения входят в учёт провайдера и не прибавляются к выходным повторно. Оценка по базовому тарифу не учитывает скидку кеша и дополнительные сборы, не является счётом. Неизвестные значения не означают ноль.</p>
+    <p className="muted">Токены сообщает провайдер для каждого обращения к модели, включая повторные попытки. Системные инструкции, схемы и история передаются снова. Входные токены разных шагов суммируются; кешированные токены уже входят во входные и повторно не прибавляются.</p>
+</HelpTooltip></div>
     <div className="ai-diagnostic-totals">
       <div className="panel"><strong>Входные токены</strong><p>{knownSum(run.attempts.map(a => a.input_tokens))}</p></div>
       <div className="panel"><strong>Выходные токены</strong><p>{knownSum(run.attempts.map(a => a.output_tokens))}</p></div>
       <div className="panel"><strong>Вызовы</strong><p>Модель: {run.attempts.length} · инструменты: {run.tools.length}</p></div>
     </div>
-    <p className="muted">Токены рассуждения входят в учёт провайдера и не прибавляются к выходным повторно. Оценка по базовому тарифу не учитывает скидку кеша и дополнительные сборы, не является счётом. Неизвестные значения не означают ноль.</p>
-    <p className="muted">Токены сообщает провайдер для каждого обращения к модели, включая повторные попытки. Системные инструкции, схемы и история передаются снова. Входные токены разных шагов суммируются; кешированные токены уже входят во входные и повторно не прибавляются.</p>
     {run.attempts.map((attempt) => {
       const input = latest(events, "model_input", attempt.number) as Input | undefined;
       const previous = latest(events, "model_input", attempt.number - 1) as Input | undefined;
@@ -106,8 +107,7 @@ export function AiRunAnalysis({ run, events = [] }: { run: Run; events?: Diagnos
       </details>;
     })}
     {(run.unpriced_web_searches ?? 0) > 0 && <p role="status">Полная стоимость неизвестна: {run.unpriced_web_searches} вызовов веб-поиска без тарифа. Сборы внешних сервисов не включены в оценку.</p>}
-    <h4>Выполнение инструментов</h4>
-    <p className="muted">Локальный инструмент сам не расходует токены чат-модели. Его результат может увеличить вход следующего шага. Web-поиск и другие внешние сервисы могут иметь отдельную стоимость.</p>
+    <div className="help-heading"><h4>Выполнение инструментов</h4><HelpTooltip label="О расходах на инструменты">Локальный инструмент сам не расходует токены чат-модели. Его результат может увеличить вход следующего шага. Web-поиск и другие внешние сервисы могут иметь отдельную стоимость.</HelpTooltip></div>
     {run.tools.length ? run.tools.map(tool => {
       const request = value(events.find(e => e.kind === "tool_request" && value(e)?.number === tool.number));
       const response = value(events.find(e => e.kind === "tool_response" && value(e)?.number === tool.number));

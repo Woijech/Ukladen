@@ -1,5 +1,6 @@
 "use client";
 
+import { HelpTooltip } from "@/shared/help-tooltip";
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { requestJson, writeJson } from "@/shared/api";
@@ -88,10 +89,9 @@ export function OrganizationPanel({
     <div ref={root} className={`feature-page organization-page ${selected ? "organization-selected" : ""}`}>
       <div className="page-heading">
         <div>
-          <h1>Коллекции и теги</h1>
-          <p className="heading-subtitle">
+          <div className="help-heading"><h1>Коллекции и теги</h1><HelpTooltip label="О коллекциях и тегах">
             Объединяй страницы и события без копирования.
-          </p>
+          </HelpTooltip></div>
         </div>
         <button className="primary-button" onClick={() => setEditing("new")}>
           + {kind === "collections" ? "Коллекция" : "Тег"}
@@ -410,12 +410,12 @@ export function OrganizationPanel({
                     ))}
             </select>
             {targetType === "page" && pages.data && (pageOffset > 0 || pages.data.items.length === 50) && <Pager offset={pageOffset} count={pages.data.items.length} onChange={setPageOffset} />}
-            <p className="muted">
+            <div className="help-inline">Связи коллекции<HelpTooltip label="Как работает добавление в коллекцию">
               {targetType === "page"
                 ? "Активные страницы, по 50 на странице."
                 : "События выбранной недели календаря."}{" "}
               Добавление сохраняет только явную связь.
-            </p>
+            </HelpTooltip></div>
             <ActionFeedback {...action} />
             <div className="modal-actions">
               <button className="primary-button" disabled={action.busy}>

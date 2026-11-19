@@ -1,5 +1,6 @@
 "use client";
 
+import { HelpTooltip } from "@/shared/help-tooltip";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
@@ -230,11 +231,7 @@ function SettingsPanel({ onChooseGroup, onDirtyChange }: { onChooseGroup: () => 
       </section>
       <section id="schedule-settings" className="panel setting-section">
         <div>
-          <h2>Учебное расписание</h2>
-          <p>
-            Группа БГУИР необязательна. Личные события и страницы работают без
-            неё.
-          </p>
+          <div className="help-heading"><h2>Учебное расписание</h2><HelpTooltip label="Как работает учебное расписание">Группа БГУИР необязательна. Личные события и страницы работают без неё.</HelpTooltip></div>
         </div>
         <button className="secondary-button" onClick={onChooseGroup}>
           Настроить группу
@@ -242,11 +239,7 @@ function SettingsPanel({ onChooseGroup, onDirtyChange }: { onChooseGroup: () => 
       </section>
       <section id="assistant-settings" className="panel setting-section">
         <div>
-          <h2>Помощник Ukladen</h2>
-          <p>
-            Модели, подключения и инструкции для чатов.
-            Доступность моделей зависит от настройки сервера.
-          </p>
+          <div className="help-heading"><h2>Помощник Ukladen</h2><HelpTooltip label="О настройках помощника">Модели, подключения и инструкции для чатов. Доступность моделей зависит от настройки сервера.</HelpTooltip></div>
         </div>
         <a className="secondary-button" href="/workspace/ai?tab=settings">Настроить AI</a>
       </section>

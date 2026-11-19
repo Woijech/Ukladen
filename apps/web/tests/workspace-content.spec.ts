@@ -972,7 +972,7 @@ test("saved view editing keeps versions and sends typed filters, sorting and col
   await page
     .getByRole("button", { name: "Настроить вид", exact: true })
     .click();
-  await page.getByRole("button", { name: "Фильтр", exact: false }).click();
+  await page.getByRole("button", { name: "+ Фильтр", exact: true }).click();
   await page.getByLabel("Условие фильтра 1").selectOption("contains");
   await page.getByLabel("Значение фильтра 1", { exact: true }).fill("Семестр");
   await page.getByRole("button", { name: "Сортировка", exact: false }).click();
@@ -1241,7 +1241,7 @@ test("mobile content panels and database view controls remain reachable", async 
   await section(page, "Базы данных");
   await page.getByRole("button", { name: /Учебные проекты/ }).click();
   await page.getByRole("button", { name: "+ Вид", exact: true }).click();
-  await page.getByRole("button", { name: "Фильтр", exact: false }).click();
+  await page.getByRole("button", { name: "+ Фильтр", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Новый вид" });
   const box = await dialog.boundingBox();
   expect(box!.width).toBeLessThan(390);

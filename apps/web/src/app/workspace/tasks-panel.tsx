@@ -1,5 +1,6 @@
 "use client";
 
+import { HelpTooltip } from "@/shared/help-tooltip";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { dateTimeLocal, localInstants, resolveLocalTime } from "./calendar-time";
@@ -111,8 +112,7 @@ function TaskForm({ task, parentId, initialTitle = "", timeZone, onClose, onSave
   return <Modal initialFocus="#task-title" title={snapshot ? "Изменить задачу" : parentId ? "Новая подзадача" : "Новая задача"} onClose={close}>
     <form className="task-dialog" aria-labelledby="task-form-title" onSubmit={submit}>
       <span className="greeting">Личные задачи</span>
-      <h2 id="task-form-title">{snapshot ? "Изменить задачу" : parentId ? "Новая подзадача" : "Новая задача"}</h2>
-      <p className="task-hint">Срок не занимает время в календаре. Для подзадач действуют правила завершения родителя.</p>
+      <div className="help-heading"><h2 id="task-form-title">{snapshot ? "Изменить задачу" : parentId ? "Новая подзадача" : "Новая задача"}</h2><HelpTooltip label="Как работают сроки и подзадачи">Срок не занимает время в календаре. Для подзадач действуют правила завершения родителя.</HelpTooltip></div>
       <label htmlFor="task-title">Название</label>
       <input id="task-title" required maxLength={200} value={title} onChange={event => setTitle(event.target.value)} placeholder="Например, подготовить отчёт" />
       <label htmlFor="task-description">Описание <span className="optional">необязательно</span></label>
@@ -125,7 +125,7 @@ function TaskForm({ task, parentId, initialTitle = "", timeZone, onClose, onSave
         <div><label htmlFor="task-deadline">Срок <span className="optional">необязательно</span></label><input id="task-deadline" type="datetime-local" value={deadline} onChange={event => { setDeadline(event.target.value); setDeadlineChoice(""); }}/>{deadline && deadlineOptions.length === 0 && <small className="task-field-error">Такого местного времени нет.</small>}{deadlineOptions.length > 1 && <select aria-label="Смещение срока" required value={deadlineChoice} onChange={event => setDeadlineChoice(event.target.value)}><option value="" disabled>Выберите смещение</option>{deadlineOptions.map(value => <option key={value} value={value}>{new Intl.DateTimeFormat("ru-RU", { timeZone, hour: "2-digit", minute: "2-digit", timeZoneName: "shortOffset" }).format(new Date(value))}</option>)}</select>}</div>
         <div><label htmlFor="task-estimate">Оценка, минуты <span className="optional">необязательно</span></label><input id="task-estimate" type="number" min={1} max={525600} step={1} value={estimate} onChange={event => setEstimate(event.target.value)} placeholder="90" /></div>
       </div>
-      <label htmlFor="task-remaining">Осталось работы, минуты</label><input id="task-remaining" type="number" min={0} max={525600} step={1} value={remaining} onChange={event => setRemaining(event.target.value)} placeholder="Уточните для планирования" /><p className="task-hint">Не меняется автоматически после сессий. Для родителя с подзадачами планируется работа подзадач.</p>
+      <label htmlFor="task-remaining">Осталось работы, минуты</label><input id="task-remaining" type="number" min={0} max={525600} step={1} value={remaining} onChange={event => setRemaining(event.target.value)} placeholder="Уточните для планирования" /><div className="help-inline">Учёт остатка работы<HelpTooltip label="Как учитывается остаток работы">Не меняется автоматически после сессий. Для родителя с подзадачами планируется работа подзадач.</HelpTooltip></div>
       {error && <div className="task-error" role="alert">{error}{conflict && <button type="button" disabled={busy} onClick={() => void reload()}>Загрузить актуальную версию</button>}</div>}
       <div className="task-dialog-actions"><button className="task-secondary" type="button" disabled={busy} onClick={close}>Отмена</button><button className="primary-button" disabled={busy}>{busy ? "Сохраняем…" : snapshot ? "Сохранить" : "Создать задачу"}</button></div>
     </form>
@@ -148,7 +148,7 @@ function ParentPicker({ task, onClose, onMoved, onSessionEnd, onBusyChange }: { 
 
   return <Modal title="Выбрать родителя" onClose={() => { if (!busy) onClose(); }}>
     <section className="task-dialog task-picker" aria-labelledby="task-picker-title">
-      <h2 id="task-picker-title">Выбрать родителя</h2><p className="task-hint">Задачу нельзя вложить в себя или в собственную подзадачу.</p>
+      <div className="help-heading"><h2 id="task-picker-title">Выбрать родителя</h2><HelpTooltip label="О вложенности задач">Задачу нельзя вложить в себя или в собственную подзадачу.</HelpTooltip></div>
       <button type="button" className="task-picker-item" disabled={busy || task.parent_id === null} onClick={() => void move(null)}>Без родителя · отдельная задача</button>
       {query.isPending && <p role="status">Загружаем задачи…</p>}
       {query.isError && <div className="task-error" role="alert">Не удалось загрузить задачи. <button onClick={() => void query.refetch()}>Повторить</button></div>}

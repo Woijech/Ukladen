@@ -1,5 +1,6 @@
 "use client";
 
+import { HelpTooltip } from "@/shared/help-tooltip";
 import { positionNoteMenu } from "./note-menu";
 import { ReviewNotificationButton } from "./ai-reviews";
 import { MaterialReader } from "./material-reader";
@@ -109,10 +110,9 @@ export function MaterialsPanel() {
     <div className="feature-page materials-page">
       <div className="page-heading">
         <div>
-          <h1>Материалы</h1>
-          <p className="heading-subtitle">
+          <div className="help-heading"><h1>Материалы</h1><HelpTooltip label="О материалах">
             Файлы и ссылки, к которым хочется вернуться.
-          </p>
+          </HelpTooltip></div>
         </div>
         <div className="heading-actions">
           <button
@@ -494,11 +494,7 @@ function MaterialCreate({
       <form onSubmit={(event) => void submit(event)}>
         <span className="greeting">Библиотека</span>
         <h2>{kind === "file" ? "Загрузить материал" : "Сохранить ссылку"}</h2>
-        <p className="muted">
-          {kind === "file"
-            ? "PDF, DOCX, PPTX, TXT или MD · до 25 МБ. Текст будет подготовлен для поиска."
-            : "Страница по ссылке не скачивается. В поиске будет доступно её название."}
-        </p>
+        <div className="help-inline">{kind === "file" ? "PDF, DOCX, PPTX, TXT или MD · до 25 МБ" : "Ссылка"}<HelpTooltip label="Как материал используется в поиске">{kind === "file" ? "Текст будет подготовлен для поиска." : "Страница по ссылке не скачивается. В поиске будет доступно её название."}</HelpTooltip></div>
         {kind === "file" && (
           <label
             className="upload-zone"
@@ -620,10 +616,9 @@ export function SearchPanel({
     <div className="feature-page search-page">
       <div className="page-heading">
         <div>
-          <h1>Поиск</h1>
-          <p className="heading-subtitle">
+          <div className="help-heading"><h1>Поиск</h1><HelpTooltip label="Как работает поиск">
             По страницам и тексту твоих материалов.
-          </p>
+          </HelpTooltip></div>
         </div>
       </div>
       <form
@@ -807,8 +802,7 @@ export function NotificationsPanel({ timeZone }: { timeZone: string }) {
     <div className="feature-page notifications-page">
       <div className="page-heading">
         <div>
-          <h1>Уведомления</h1>
-          <p className="heading-subtitle">Напоминания и обзоры по твоим данным.</p>
+          <div className="help-heading"><h1>Уведомления</h1><HelpTooltip label="Об уведомлениях">Напоминания и обзоры по твоим данным.</HelpTooltip></div>
         </div>
       </div>
       <div className="notification-layout">

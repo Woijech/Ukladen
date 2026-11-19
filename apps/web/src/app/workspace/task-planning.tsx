@@ -1,5 +1,6 @@
 "use client";
 
+import { HelpTooltip } from "@/shared/help-tooltip";
 import { useEffect, useLayoutEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RequestError, requestJson, writeJson } from "@/shared/api";
@@ -50,8 +51,8 @@ export function PlanDetails({ plan, titles = {} }: { plan: WorkPlan; titles?: Re
       return <li key={id}>{old ? <>{title(old.task_id)} · {workTime(old.starts_at, plan.timezone)} — {workTime(old.ends_at, plan.timezone)}</> : id}</li>;
     })}</ul></>}
     {!!plan.protected_sessions?.length && <details><summary>Защищённые сессии ({plan.protected_sessions.length})</summary><ul>{plan.protected_sessions.map(item => <li key={item.id}>{title(item.task_id)} · {workTime(item.starts_at, plan.timezone)} — {workTime(item.ends_at, plan.timezone)}{item.pinned ? " · закреплена" : " · сохраняется"}</li>)}</ul></details>}
-    {!!plan.unplaced.length && <><h4>Осталось разместить</h4><ul>{plan.unplaced.map((item, index) => <li key={index}>{title(item.task_id)}: {item.minutes == null ? "объём неизвестен" : `${item.minutes} мин`} · {reasons[item.reason] ?? "Требуется уточнение"}</li>)}</ul><p className="muted">Это результат текущего алгоритма, а не доказательство невозможности другого плана.</p></>}
-    <p className="muted">Прошедшая сессия не означает выполнение задачи. Остаток работы меняется только явно.</p>
+    {!!plan.unplaced.length && <><h4>Осталось разместить</h4><ul>{plan.unplaced.map((item, index) => <li key={index}>{title(item.task_id)}: {item.minutes == null ? "объём неизвестен" : `${item.minutes} мин`} · {reasons[item.reason] ?? "Требуется уточнение"}</li>)}</ul><div className="help-inline">О результате планирования<HelpTooltip label="Об ограничениях плана">Это результат текущего алгоритма, а не доказательство невозможности другого плана.</HelpTooltip></div></>}
+    <div className="help-inline">Учёт выполнения<HelpTooltip label="Как учитываются рабочие сессии">Прошедшая сессия не означает выполнение задачи. Остаток работы меняется только явно.</HelpTooltip></div>
   </section>;
 }
 
@@ -67,7 +68,7 @@ function PreferencesForm({ preferences, onSaved, onBusyChange }: { preferences: 
     await writeJson(planningBase + "/preferences", "PUT", { expected_version: preferences.version, windows, session_minutes: session, break_minutes: pause });
     await onSaved();
   }); }}>
-    <h3>Недельные часы работы</h3><p className="muted">Используется часовой пояс профиля. Можно добавить несколько окон на день.</p>
+    <div className="help-heading"><h3>Недельные часы работы</h3><HelpTooltip label="О рабочих окнах">Можно добавить несколько окон на день.</HelpTooltip></div>
     {windows.map((window, index) => <div key={index} className="work-window">
       <select aria-label={`День окна ${index + 1}`} value={window.weekday} onChange={event => setWindows(windows.map((item, at) => at === index ? { ...item, weekday: Number(event.target.value) } : item))}>{days.map((day, value) => <option key={value} value={value}>{day}</option>)}</select>
       <TimeField label={`Начало окна ${index + 1}`} value={minuteText(window.start_minute)} onChange={value => setWindows(windows.map((item, at) => at === index ? { ...item, start_minute: minuteValue(value) } : item))} />
@@ -189,6 +190,6 @@ export function CalendarTaskSessions({ from, to, timezone, onBusyChange }: { fro
     {showSessions && query.data?.sessions.map(item => <div key={item.source_event_id}><p><strong>{item.title}</strong> · {workTime(item.starts_at, timezone)} — {workTime(item.ends_at, timezone)}{item.pinned ? " · закреплена" : ""}</p><PlanningButton timezone={timezone} taskId={item.task_id} label="Открыть сессию задачи" onBusyChange={onBusyChange} /></div>)}
     {showDeadlines && query.data?.deadlines.map(item => <div key={item.task_id}><p><strong>Срок: {item.title}</strong> · {workTime(item.deadline_at, timezone)} · не занимает время</p><PlanningButton timezone={timezone} taskId={item.task_id} label="Планировать задачу" onBusyChange={onBusyChange} /></div>)}
     {enabled && query.data && !query.data.sessions.length && !query.data.deadlines.length && <p className="muted">В выбранных источниках задач нет записей на эту неделю.</p>}
-    <p className="muted">Эти фильтры меняют только отображение. Рабочие сессии продолжают учитываться как занятость.</p>
+    <div className="help-inline">Видимость в календаре<HelpTooltip label="Как работают фильтры задач">Эти фильтры меняют только отображение. Рабочие сессии продолжают учитываться как занятость.</HelpTooltip></div>
   </section>;
 }

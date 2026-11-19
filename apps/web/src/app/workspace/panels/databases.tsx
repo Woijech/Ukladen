@@ -1,5 +1,6 @@
 "use client";
 
+import { HelpTooltip } from "@/shared/help-tooltip";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RequestError, requestJson, writeJson } from "@/shared/api";
@@ -205,10 +206,9 @@ export function DatabasesPanel({
     <div className="feature-page databases-page">
       <div className="page-heading">
         <div>
-          <h1>Базы данных</h1>
-          <p className="heading-subtitle">
+          <div className="help-heading"><h1>Базы данных</h1><HelpTooltip label="О базах данных">
             Страницы с полями, таблицами и календарными видами.
-          </p>
+          </HelpTooltip></div>
         </div>
         <button className="primary-button" onClick={() => setCreating(true)}>
           + Новая база
@@ -522,10 +522,9 @@ function DatabaseDetail({
       <div className="page-heading">
         <div>
           <span className="greeting">Личная база</span>
-          <h1>{database.data?.name ?? "База данных"}</h1>
-          <p className="heading-subtitle">
+          <div className="help-heading"><h1>{database.data?.name ?? "База данных"}</h1><HelpTooltip label="Как устроена база данных">
             Общее содержимое страниц. Отдельные поля записей.
-          </p>
+          </HelpTooltip></div>
         </div>
         {active && (
           <div className="heading-actions">
@@ -1128,7 +1127,7 @@ function RecordEditor({
             )}
           </>
         )}
-        {!inline && <p className="muted">Поля принадлежат этой записи. Даты не резервируют время в календаре.</p>}
+        {!inline && <div className="help-inline">Поля записи<HelpTooltip label="О полях записи и датах">Поля принадлежат этой записи. Даты не резервируют время в календаре.</HelpTooltip></div>}
         {fields.map((property) => {
           const value = record?.record.values[property.id];
           return (
@@ -1270,10 +1269,10 @@ function DateFields({
         />
       </div>
       {kind === "datetime" && (
-        <small className="muted">
+        <div className="help-inline">Формат времени<HelpTooltip label="О формате времени в поле">
           Укажите ISO-время с Z или явным смещением. Часовой пояс браузера не
           подставляется.
-        </small>
+        </HelpTooltip></div>
       )}
     </>
   );
@@ -1397,10 +1396,10 @@ function PropertyCreate({
             </button>
           </>
         )}
-        <p className="muted">
+        <div className="help-inline">Изменение поля<HelpTooltip label="О правилах изменения поля">
           Переименование сохраняет значения. Изменение типа или удаление
           используемого варианта может быть отклонено, чтобы защитить данные.
-        </p>
+        </HelpTooltip></div>
         <ActionFeedback {...action} />
         <div className="modal-actions">
           <button className="primary-button" disabled={action.busy}>
@@ -1623,10 +1622,10 @@ function ViewCreate({
           </div>
         )}
         <h3>Фильтры</h3>
-        <p className="muted">
+        <div className="help-inline">Условия фильтрации<HelpTooltip label="Как работают фильтры базы">
           Запись должна соответствовать всем условиям. Даты и занятость объектов
           не изменяются.
-        </p>
+        </HelpTooltip></div>
         {filters.map((filter, index) => {
           const property = properties.find(
             (item) => item.id === filter.property_id,

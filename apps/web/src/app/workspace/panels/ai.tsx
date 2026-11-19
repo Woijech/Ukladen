@@ -1,5 +1,6 @@
 "use client";
 
+import { HelpTooltip } from "@/shared/help-tooltip";
 import {
   useCallback,
   useEffect,
@@ -121,10 +122,9 @@ export function AiPanel({
     <div className="feature-page ai-page">
       <div className="page-heading">
         <div>
-          <h1>Твой AI</h1>
-          <p className="heading-subtitle">
+          <div className="help-heading"><h1>Твой AI</h1><HelpTooltip label="Что умеет помощник">
             Место, где можно спросить, разобраться и составить план.
-          </p>
+          </HelpTooltip></div>
         </div>
       </div>
       <div className="ai-tabs" aria-label="Разделы AI">
@@ -301,7 +301,7 @@ function ChatArea({
                   <NavIcon path={question.icon} /><span><strong>{question.title}</strong><small>{question.description}</small></span>
                 </button>)}
               </div>
-              <p className="ai-welcome-hint">Выбери тему, чтобы подготовить вопрос. Отправишь его, когда будешь готов.</p>
+              <div className="help-inline">Темы вопросов<HelpTooltip label="Как пользоваться темами вопросов">Выбери тему, чтобы подготовить вопрос. Отправишь его, когда будешь готов.</HelpTooltip></div>
             </div>
           )}
         </div>
@@ -901,14 +901,8 @@ function Chat({
                 <span className="ai-disclosure-chevron" aria-hidden="true">⌄</span>
               </summary>
               <div className="ai-composer-options">
-                <label className="checkbox-label">
-                  <input type="checkbox" aria-label="Только мои источники" checked={sourceOnly} disabled={running || hasPending} onChange={(event) => setSourceOnly(event.target.checked)} />
-                  <span><strong>Только мои источники</strong><small>Искать в твоём пространстве, без веб-поиска.</small></span>
-                </label>
-                <label className="checkbox-label">
-                  <input type="checkbox" aria-label="Разобрать документы целиком" checked={fullSources} disabled={running || hasPending} onChange={(event) => setFullSources(event.target.checked)} />
-                  <span><strong>Разобрать документы целиком</strong><small>Для выбранных страниц и файлов. Сначала выбери их в источниках.</small></span>
-                </label>
+                <div className="ai-option-with-help"><label className="checkbox-label"><input type="checkbox" aria-label="Только мои источники" checked={sourceOnly} disabled={running || hasPending} onChange={(event) => setSourceOnly(event.target.checked)} /><span><strong>Только мои источники</strong></span></label><HelpTooltip label="О режиме только моих источников">Искать в твоём пространстве, без веб-поиска.</HelpTooltip></div>
+                <div className="ai-option-with-help"><label className="checkbox-label"><input type="checkbox" aria-label="Разобрать документы целиком" checked={fullSources} disabled={running || hasPending} onChange={(event) => setFullSources(event.target.checked)} /><span><strong>Разобрать документы целиком</strong></span></label><HelpTooltip label="О полном разборе документов">Для выбранных страниц и файлов. Сначала выбери их в источниках.</HelpTooltip></div>
               </div>
             </details>
             {fullSources && <p className="ai-background-note muted">Обработка продолжится в фоне. Можно закрыть чат и вернуться к результату позже.</p>}
