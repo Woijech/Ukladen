@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { requestJson } from "@/shared/api";
 import { Modal, QueryState } from "@/shared/ui";
 import { aiBase, runLabels, type AiAccessStatus, type Run } from "./ai-api";
+import { HelpTooltip } from "@/shared/help-tooltip";
+import { UsageChart } from "./ai-usage-chart";
 import { AiRunAnalysis } from "./ai-run-analysis";
 
 type Metrics = {
@@ -50,259 +52,31 @@ const costs = (value: Metrics) =>
 
 export function AiUsage() {
   const [days, setDays] = useState(7);
-  const [range, setRange] = useState<{ from: string; to: string } | null>(null);
-  const [offset, setOffset] = useState(0);
-  const [runId, setRunId] = useState<string | null>(null);
-  const access = useQuery({
-    queryKey: ["ai-access"],
-    queryFn: ({ signal }) =>
-      requestJson<AiAccessStatus>(`${aiBase}/access`, { signal }),
-  });
-  const query = useQuery({
-    queryKey: ["ai-usage", days, range, offset],
-    staleTime: 0,
-    queryFn: ({ signal }) =>
-      requestJson<Report>(
-        `${aiBase}/usage?days=${days}&limit=20&offset=${offset}${range ? `&date_from=${range.from}&date_to=${range.to}` : ""}`,
-        { signal },
-      ),
-  });
+  const access = useQuery({ queryKey: ["ai-access"], queryFn: ({ signal }) => requestJson<AiAccessStatus>(`${aiBase}/access`, { signal }) });
+  const query = useQuery({ queryKey: ["ai-usage", days], staleTime: 0, placeholderData: keepPreviousData,
+    queryFn: ({ signal }) => requestJson<Report>(`${aiBase}/usage?days=${days}&limit=20&offset=0`, { signal }) });
   const report = query.data;
-  return (
-    <div className="ai-usage">
-      <p className="muted">Оценка стоимости учитывает токены модели. Плата за веб-поиск сюда не входит.</p>
-      <QueryState
-        pending={access.isPending}
-        error={access.error}
-        retry={() => void access.refetch()}
-      />
-      {access.data && (
-        <section className="panel" aria-label="Доступ к AI">
-          <h2>
-            {access.data.plan === "free"
-              ? "Бесплатный доступ"
-              : `Тариф: ${access.data.plan}`}
-          </h2>
-          <p>
-            Запросов в месяц:{" "}
-            {access.data.monthly_request_limit ?? "без ограничений"}. Токенов в месяц:{" "}
-            {access.data.monthly_token_limit ?? "без ограничений"}.
-          </p>
-          <p className="muted">
-            Технические ограничения запросов и провайдера сохраняются.
-          </p>
-        </section>
-      )}
-      <div className="panel-toolbar">
-        <div className="segmented" aria-label="Период статистики">
-          {[7, 30].map((value) => (
-            <button
-              key={value}
-              aria-pressed={!range && days === value}
-              onClick={() => {
-                setDays(value);
-                setRange(null);
-                setOffset(0);
-              }}
-            >
-              {value} дней
-            </button>
-          ))}
-        </div>
-        <button className="text-action" onClick={() => void query.refetch()}>
-          Обновить
-        </button>
+  const totalTokens = report?.summary.input_tokens != null && report.summary.output_tokens != null ? report.summary.input_tokens + report.summary.output_tokens : null;
+  const priced = report && report.summary.attempts > 0 && report.summary.unpriced_attempts === 0 && !report.summary.unpriced_web_searches && Object.keys(report.summary.estimated_costs).length > 0;
+  return <div className="ai-usage" aria-busy={query.isFetching}>
+    <div className="panel-toolbar"><div className="segmented" aria-label="Период статистики">{[7, 30].map(value => <button type="button" key={value} aria-pressed={days === value} onClick={() => setDays(value)}>{value} дней</button>)}</div>
+      <button type="button" className="text-action" disabled={query.isFetching} onClick={() => void query.refetch()}>Обновить</button></div>
+    <QueryState pending={query.isPending} error={query.error} retry={() => void query.refetch()} />
+    <QueryState pending={false} error={access.error} retry={() => void access.refetch()} />
+    {report && <>
+      <div className="usage-summary" aria-label="Показатели использования">
+        <div><span>Запросы</span><strong>{tokens(report.summary.runs)}</strong></div>
+        <div><span>Токены<HelpTooltip label="Что такое токены">Части текста, которыми модель измеряет объём запроса и ответа. Повторные вызовы тоже учитываются.</HelpTooltip></span><strong>{tokens(totalTokens)}</strong></div>
+        <div><span>Входные<HelpTooltip label="Что такое входные токены">Сообщения, инструкции, история и данные инструментов, отправленные модели.</HelpTooltip></span><strong>{tokens(report.summary.input_tokens)}</strong></div>
+        <div><span>Выходные<HelpTooltip label="Что такое выходные токены">Токены ответа модели. Токены рассуждения, если они входят в usage провайдера, повторно не прибавляются.</HelpTooltip></span><strong>{tokens(report.summary.output_tokens)}</strong></div>
+        {priced && <div><span>Примерная стоимость<HelpTooltip label="Как рассчитана стоимость">Оценка по сохранённым тарифам, без возможных скидок провайдера. Это не счёт и не баланс аккаунта.</HelpTooltip></span><strong>{costs(report.summary)}</strong></div>}
       </div>
-      <form
-        className="ai-range"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const data = new FormData(event.currentTarget);
-          setRange({
-            from: String(data.get("from")),
-            to: String(data.get("to")),
-          });
-          setOffset(0);
-        }}
-      >
-        <label className="field-label">
-          С даты
-          <input name="from" type="date" required />
-        </label>
-        <label className="field-label">
-          По дату
-          <input name="to" type="date" required />
-        </label>
-        <button className="secondary-button">Показать период</button>
-      </form>
-      <p className="muted">
-        До 31 календарного дня. Статистика доступна в пределах 30-дневного
-        хранения.
-      </p>
-      <QueryState
-        pending={query.isPending}
-        error={query.error}
-        retry={() => void query.refetch()}
-      />
-      {report && (
-        <>
-          {report.retention_partial && (
-            <p role="status" className="muted">
-              Часть выбранного периода уже за пределами хранения. Отсутствие
-              записей за это время не означает отсутствие запросов.
-            </p>
-          )}
-          <p className="muted">
-            {report.date_from} — {report.date_to} · {report.timezone}
-          </p>
-          <div className="ai-metrics">
-            <div className="panel">
-              <span>Запросы</span>
-              <strong>{report.summary.runs}</strong>
-            </div>
-            <div className="panel">
-              <span>Попытки провайдера</span>
-              <strong>{report.summary.attempts}</strong>
-            </div>
-            <div className="panel">
-              <span>Входные / выходные токены</span>
-              <strong>
-                {tokens(report.summary.input_tokens)} /{" "}
-                {tokens(report.summary.output_tokens)}
-              </strong>
-            </div>
-            <div className="panel">
-              <span>Оценка стоимости</span>
-              <strong>{costs(report.summary)}</strong>
-            </div>
-          </div>
-          <p className="muted">
-            Оценка по сохранённым тарифам, не счёт провайдера. Повторные,
-            неудачные и отменённые попытки учитываются. Неоценённых попыток:{" "}
-            {report.summary.unpriced_attempts}. Поисковых вызовов без оценки платы:{" "}
-            {report.summary.unpriced_web_searches ?? 0}. Баланс и внешние запросы
-            аккаунта провайдера здесь не отражены.
-          </p>
-          {(report.summary.unknown_input_attempts > 0 ||
-            report.summary.unknown_output_attempts > 0) && (
-            <p className="muted">
-              Известная часть: {report.summary.known_input_tokens} входных и{" "}
-              {report.summary.known_output_tokens} выходных токенов. Полные
-              значения неизвестны.
-            </p>
-          )}
-          <MetricsTable title="По дням" rows={report.daily} />
-          <MetricsTable
-            title="По моделям и подключениям"
-            rows={report.models}
-          />
-          <section className="panel">
-            <h2>Последние запросы</h2>
-            {report.recent_runs.length === 0 && (
-              <p>Запросов за этот период нет.</p>
-            )}
-            {report.recent_runs.map((run) => (
-              <button
-                className="ai-run-row"
-                key={run.id}
-                onClick={() => setRunId(run.id)}
-              >
-                <span>
-                  {new Intl.DateTimeFormat("ru", {
-                    timeZone: report.timezone,
-                    dateStyle: "short",
-                    timeStyle: "short",
-                  }).format(new Date(run.created_at))}
-                </span>
-                <span>
-                  {run.provider === "fake" ? "Демонстрация" : run.model}
-                </span>
-                <span>{runLabels[run.status]}</span>
-              </button>
-            ))}
-            <div className="panel-toolbar">
-              <button
-                className="secondary-button"
-                disabled={offset === 0}
-                onClick={() => setOffset(Math.max(0, offset - 20))}
-              >
-                Назад
-              </button>
-              <button
-                className="secondary-button"
-                disabled={!report.has_more}
-                onClick={() => setOffset(offset + 20)}
-              >
-                Далее
-              </button>
-            </div>
-          </section>
-          <section className="panel">
-            <h2>Тестовая модель</h2>
-            <p>
-              {report.fake.runs} запросов, {report.fake.attempts} попыток.
-              Учитываются отдельно от реальных моделей.
-            </p>
-            <p className="muted">
-              Поиск по смыслу доступен при включённом семантическом индексе.
-              Готовность конкретного материала показана в просмотре источника.
-            </p>
-          </section>
-        </>
-      )}
-      {runId && <RunDetails runId={runId} onClose={() => setRunId(null)} />}
-    </div>
-  );
-}
-
-function MetricsTable({ title, rows }: { title: string; rows: UsageGroup[] }) {
-  return (
-    <section className="panel">
-      <h2>{title}</h2>
-      <div
-        className="ai-table-scroll"
-        tabIndex={0}
-        role="region"
-        aria-label={title}
-      >
-        <table className="ai-table">
-          <caption className="visually-hidden">{title}</caption>
-          <thead>
-            <tr>
-              <th scope="col">Период / модель</th>
-              <th scope="col">Запросы</th>
-              <th scope="col">Попытки</th>
-              <th scope="col">Входные токены</th>
-              <th scope="col">Выходные токены</th>
-              <th scope="col">Оценка</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={`${row.label}:${row.fake}`}>
-                <th scope="row">
-                  {row.label
-                    .replace(" · operator", " · приложение")
-                    .replace(" · personal", " · личный API")}
-                  {row.fake && " (тест)"}
-                </th>
-                <td>{row.runs}</td>
-                <td>{row.attempts}</td>
-                <td>{tokens(row.input_tokens)}</td>
-                <td>{tokens(row.output_tokens)}</td>
-                <td>
-                  {costs(row)}
-                  {row.unpriced_attempts > 0 && (
-                    <small> + неизвестная часть</small>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
+      {(report.retention_partial || report.summary.unknown_input_attempts > 0 || report.summary.unknown_output_attempts > 0 || report.summary.unpriced_attempts > 0 || (report.summary.unpriced_web_searches ?? 0) > 0) && <p className="usage-notice" role="status">{report.retention_partial ? "Часть периода вне срока хранения. " : ""}{report.summary.unknown_input_attempts || report.summary.unknown_output_attempts ? `Учёт токенов неполный: известно ${tokens(report.summary.known_input_tokens)} входных и ${tokens(report.summary.known_output_tokens)} выходных. ` : ""}{report.summary.unpriced_attempts || report.summary.unpriced_web_searches ? "Часть расходов неизвестна; полная стоимость недоступна." : ""}</p>}
+      <UsageChart key={days} daily={report.daily} from={report.date_from} to={report.date_to} />
+      {access.data && <p className="muted">{access.data.plan === "free" ? "Бесплатный доступ" : `Тариф: ${access.data.plan}`} · Запросов в месяц: {access.data.monthly_request_limit ?? "без ограничений"} · Токенов в месяц: {access.data.monthly_token_limit ?? "без ограничений"}</p>}
+      {report.fake.runs > 0 && <p className="muted">Тестовые запросы: {report.fake.runs}. Учитываются отдельно.</p>}
+    </>}
+  </div>;
 }
 
 export function RunDetails({

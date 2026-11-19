@@ -2,6 +2,7 @@ import json
 import logging
 import math
 from collections.abc import Callable, Mapping, Sequence
+from time import perf_counter
 from typing import Any
 from uuid import UUID
 
@@ -37,6 +38,7 @@ from app.modules.ai.application.agent import (
     ReviewAction,
     ToolOutcome,
 )
+from app.modules.ai.application.diagnostics import record
 from app.modules.ai.application.lifecycle import ExecutionJournal
 from app.modules.ai.application.streaming import emit, stream_sink
 from app.modules.ai.infrastructure.accounting import AccountingMiddleware, capture_model_input
@@ -152,12 +154,21 @@ class OfflineAgentRunner:
         return {"configurable": configurable, "recursion_limit": 32}
 
     def run(self, request: AgentInput) -> AgentResult:
+        record("run_started", {"message": request.message, "source_only": request.source_only})
         if self.sources is not None:
             self.sources.scope = request.source_scope
             self.sources.begin(request.source_only, request.message)
         with tracing_context(enabled=False):
             config = self._config(request.conversation_id)
+            history_started = perf_counter()
             state = self.graph.get_state(config)
+            record(
+                "history_loaded",
+                {
+                    "duration_ms": (perf_counter() - history_started) * 1000,
+                    "message_count": len(state.values.get("messages", [])),
+                },
+            )
             if state.next:
                 interrupts = [item for task in state.tasks for item in task.interrupts]
                 if (

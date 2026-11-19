@@ -914,6 +914,7 @@ Room
 
 OfficialScheduleEvent
 ScheduleOverride
+PersonalCalendar / CalendarVisibility (implemented, calendar-owned)
 PersonalCalendarEvent
 
 Task

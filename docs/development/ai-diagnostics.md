@@ -246,3 +246,12 @@ characters respectively, excluding live profile/preferences/evidence. These are 
 serialization measurements, **not** a measured provider token or billing reduction.
 Real-model tool-choice acceptance and cache hit rates require separately approved
 bounded live checks under AGENTS.md. No live calls accompanied this implementation.
+
+## Context inspector and ordinary usage follow-up (2026-11-19)
+
+The ordinary usage screen now uses compact indicators and a keyboard/touch daily
+chart. Operator-only details add byte composition, captured context parts, repeated
+component fingerprints, real construction timings, tool-message links and local
+inspection hints. Exact token values still come only from provider usage. Existing
+grants, owner scope, opt-in, seven-day capture retention and bounds are unchanged.
+See [contracts, pipeline measurements and verification](workspace-calendars-diagnostics.md).

@@ -126,7 +126,7 @@ function ReviewForm({
         Включить обзоры
       </label>
       <p className="muted">
-        Время в часовом поясе профиля: {saved.timezone}. Результаты появятся в уведомлениях.
+        Результаты появятся в уведомлениях.
         Одинаковые предупреждения повторно не присылаются без изменения ситуации.
       </p>
       <QueryState
@@ -158,7 +158,7 @@ function ReviewForm({
         <select value={value.connection_id ?? ""}
           onChange={(event) => setValue({ ...value, connection_id: event.target.value || null })}>
           <option value="" disabled={!model?.operator_available}>
-            AI Ukladen{model && !model.operator_available ? " · недоступно" : ""}
+            По умолчанию{model && !model.operator_available ? " · недоступно" : ""}
           </option>
           {value.connection_id && !personal.some((item) => item.id === value.connection_id) && (
             <option value={value.connection_id}>Сохранённое подключение отключено</option>

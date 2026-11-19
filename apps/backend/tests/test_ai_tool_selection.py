@@ -97,6 +97,16 @@ def test_calendar_lookup_omits_other_schemas_and_disables_tools_after_read(statu
     ]
     assert all(data["tool_mode"] == "calendar_lookup" for data in metrics)
     requests = [data["value"] for kind, data in events if kind == "model_request"]
+    assert requests[0]["stage"] == "final_application_request_before_provider_serialization"
+    assert requests[0]["tool_schemas"][0]["function"]["name"] == "get_calendar_events"
+    assert metrics[0]["fingerprints"]["system"] == metrics[1]["fingerprints"]["system"]
+    contents = [data["value"] for kind, data in events if kind == "context_part"]
+    assert any(
+        item["name"] == "system" and "Answer briefly" in item["content"] for item in contents
+    )
+    assert any(
+        kind == "source_context" and data["value"]["duration_ms"] >= 0 for kind, data in events
+    )
     assert "Answer briefly" in requests[0]["system"]
     assert "Current profile date" in requests[0]["system"]
     assert "Web search available: False" in requests[0]["system"]

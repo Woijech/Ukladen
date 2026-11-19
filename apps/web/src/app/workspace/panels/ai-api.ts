@@ -37,6 +37,7 @@ export type Message = {
   sources: Source[];
 };
 export type Run = {
+  connection_id?: string | null;
   estimated_cost: string | null;
   unpriced_attempts: number;
   unpriced_web_searches?: number;

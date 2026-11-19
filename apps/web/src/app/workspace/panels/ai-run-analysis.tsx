@@ -1,3 +1,4 @@
+import { ContextComposition, ContextInspector, type ContextInput } from "./ai-context-inspector";
 import type { Run } from "./ai-api";
 
 export type DiagnosticEvent = {
@@ -6,12 +7,7 @@ export type DiagnosticEvent = {
   payload: Record<string, unknown>;
 };
 type Size = { characters: number; bytes: number };
-type Input = {
-  tool_mode: string;
-  message_count: number;
-  parts: Record<string, Size>;
-  tools: (Size & { name: string })[];
-};
+type Input = ContextInput;
 type ProviderUsage = {
   cached_tokens?: number | null;
   cache_write_tokens?: number | null;
@@ -61,16 +57,21 @@ export function AiRunAnalysis({ run, events = [] }: { run: Run; events?: Diagnos
     <p className="muted">Токены сообщает провайдер для каждого обращения к модели, включая повторные попытки. Системные инструкции, схемы и история передаются снова. Входные токены разных шагов суммируются; кешированные токены уже входят во входные и повторно не прибавляются.</p>
     {run.attempts.map((attempt) => {
       const input = latest(events, "model_input", attempt.number) as Input | undefined;
+      const previous = latest(events, "model_input", attempt.number - 1) as Input | undefined;
       const usage = latest(events, "provider_usage", attempt.number) as ProviderUsage | undefined;
       const wire = latest(events, "provider_request", attempt.number);
+      const external = latest(events, "external_request", attempt.number);
+      const sent = events.findLast(event => event.kind === "provider_request" && value(event)?.attempt === attempt.number);
+      const received = events.findLast(event => event.kind === "provider_usage" && value(event)?.attempt === attempt.number);
       const response = latest(events, "model_response", attempt.number);
       const messages = response?.messages as { tool_calls?: { name: string; args: unknown }[] }[] | undefined;
       const calls = messages?.flatMap(m => m.tool_calls ?? []) ?? [];
       const denied = events.filter(e => e.kind === "tool_policy" && value(e)?.attempt === attempt.number).map(e => value(e)?.tool);
       const totalBytes = Object.values(input?.parts ?? {}).reduce((sum, p) => sum + p.bytes, 0);
-      return <details className="panel" key={attempt.number} open>
-        <summary><strong>Модель — шаг {attempt.number}</strong> · {elapsed(attempt.started_at, attempt.finished_at)}</summary>
+      return <details className="panel" key={attempt.number} open={run.attempts.length === 1}>
+        <summary><strong>{external ? "Внешний сервис" : "Модель"} — шаг {attempt.number}</strong> · {elapsed(attempt.started_at, attempt.finished_at)}</summary>
         <div className="stack">
+          <p>{external ? "Веб-поиск · модель отдельно не записана" : `${run.provider} · ${run.model}`} · {run.provider === "fake" ? "Демонстрация" : run.connection_id === undefined ? "Подключение не записано" : run.connection_id ? "Личное API" : "По умолчанию"}</p>
           <p>Статус: {({ succeeded: "завершён", started: "выполняется", failed: "ошибка", interrupted: "прерван" } as Record<string, string>)[attempt.status] ?? attempt.status}{attempt.error_code ? ` · ${attempt.error_code}` : ""}.</p>
           <dl className="ai-diagnostic-facts">
             <div><dt>Входные токены</dt><dd>{number(attempt.input_tokens)}</dd></div>
@@ -78,11 +79,14 @@ export function AiRunAnalysis({ run, events = [] }: { run: Run; events?: Diagnos
             <div><dt>Из входных прочитано из кеша</dt><dd>{number(usage?.cached_tokens)}</dd></div>
             <div><dt>Записано в кеш</dt><dd>{number(usage?.cache_write_tokens)}</dd></div>
             <div><dt>Токены рассуждения, сообщает провайдер</dt><dd>{number(usage?.reasoning_tokens)}</dd></div>
-            <div><dt>Оценка по базовому тарифу</dt><dd>{tariffCost(run, attempt.input_tokens, attempt.output_tokens)}</dd></div>
+            <div><dt>Оценка по базовому тарифу</dt><dd>{external ? "неизвестно: тариф внешнего сервиса не записан" : tariffCost(run, attempt.input_tokens, attempt.output_tokens)}</dd></div>
           </dl>
           {usage?.finish_reasons?.some(Boolean) && <p>Завершение провайдера: {usage.finish_reasons.filter(Boolean).join(", ")}.</p>}
+          {sent && received && <p>Ответ провайдера: {elapsed(sent.at, received.at)}. Общий шаг включает подготовку контекста.</p>}
           {wire && <p>HTTP-запрос: {number(wire.request_bytes as number)} байт · лимит ответа: {number(wire.max_output_tokens as number)} токенов · {wire.streaming ? "потоковый ответ" : "обычный ответ"}.</p>}
           {input ? <>
+            <ContextComposition input={input} previous={previous} />
+            <ContextInspector events={events} attempt={attempt.number} />
             <h4>Что передано модели</h4>
             <p>Режим: {input.tool_mode === "calendar_lookup" ? "просмотр расписания — только календарь" : "общий запрос"}. Сообщений: {input.message_count}. Доступных инструментов: {input.tools.length}.</p>
             <p className="muted">Ниже измеренные символы и байты сериализованных частей, а не токены. Провайдер не сообщает точное распределение токенов между этими частями. Размеры не включают весь HTTP-конверт и могут отличаться от его размера.</p>
@@ -101,15 +105,19 @@ export function AiRunAnalysis({ run, events = [] }: { run: Run; events?: Diagnos
         </div>
       </details>;
     })}
+    {(run.unpriced_web_searches ?? 0) > 0 && <p role="status">Полная стоимость неизвестна: {run.unpriced_web_searches} вызовов веб-поиска без тарифа. Сборы внешних сервисов не включены в оценку.</p>}
     <h4>Выполнение инструментов</h4>
     <p className="muted">Локальный инструмент сам не расходует токены чат-модели. Его результат может увеличить вход следующего шага. Web-поиск и другие внешние сервисы могут иметь отдельную стоимость.</p>
     {run.tools.length ? run.tools.map(tool => {
       const request = value(events.find(e => e.kind === "tool_request" && value(e)?.number === tool.number));
       const response = value(events.find(e => e.kind === "tool_response" && value(e)?.number === tool.number));
       const size = response?.size as Size | undefined;
+      const callId = request?.call_id;
+      const included = events.filter(event => event.kind === "context_part" && value(event)?.name === "tool_results" && typeof callId === "string" && Array.isArray(value(event)?.content) && (value(event)?.content as { tool_call_id?: string }[]).some(message => message.tool_call_id === callId)).map(event => value(event)?.attempt);
       return <details className="panel" key={tool.number}>
         <summary>Инструмент {tool.number}: <code>{tool.tool_name}</code> · {elapsed(tool.started_at, tool.finished_at)}</summary>
         <p>Статус: {({ succeeded: "завершён", started: "выполняется", failed: "ошибка", interrupted: "прерван" } as Record<string, string>)[tool.status] ?? tool.status}{tool.error_code ? ` · ${tool.error_code}` : ""}.</p>
+        <p>Передача модели: {included.length ? `вызовы ${[...new Set(included)].join(", ")}` : "включение в контекст не записано"}.</p>
         {size && <p>Размер результата: {number(size.characters)} символов / {number(size.bytes)} байт. Это размер результата инструмента, не точное число токенов в следующем запросе.</p>}
         {request ? <><h5>Аргументы</h5><pre className="ai-diagnostic-json">{JSON.stringify(request.arguments, null, 2)}</pre></> : <p>Аргументы не записаны.</p>}
         {response ? <><h5>Результат</h5><pre className="ai-diagnostic-json">{JSON.stringify(response.content, null, 2)}</pre></> : <p>Результат не записан.</p>}

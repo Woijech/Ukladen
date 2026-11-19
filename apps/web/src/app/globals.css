@@ -630,3 +630,8 @@ main:not(.workspace-shell):not(.workspace-auth):not(.group-page):not(.landing)
 .ai-run-analysis, .ai-run-analysis .panel { min-width: 0; overflow-wrap: anywhere; }
 .ai-run-analysis summary { cursor: pointer; }
 .ai-run-analysis details[open] > summary { margin-bottom: 12px; }
+.help-tooltip { display: inline-flex; vertical-align: middle; margin-left: 5px; }
+.help-tooltip-trigger { width: 26px; height: 26px; padding: 0; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--muted); font-size: 12px; cursor: pointer; }
+.help-tooltip-trigger:hover { background: var(--hover); color: var(--text); }
+.help-tooltip-content { position: fixed; margin: 0; padding: 14px 16px; max-width: calc(100vw - 24px); max-height: 150px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg); font-size: 13px; line-height: 1.6; }
+@media (prefers-reduced-motion: no-preference) { .help-tooltip-content:popover-open { animation: control-dialog-arrive 120ms ease-out; } }

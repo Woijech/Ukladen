@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from threading import Lock
+from time import perf_counter
 from typing import Any
 from uuid import UUID
 
@@ -180,6 +181,10 @@ class SourceTools(AgentMiddleware):
                 status="unavailable", warnings=("web_search_failed",)
             )
             attempt = self.journal.start_attempt() if self.journal else None
+            record(
+                "external_request",
+                {"attempt": attempt.number if attempt else None, "service": "web_search"},
+            )
             try:
                 result = self.web.search(request)
             except Exception:
@@ -290,6 +295,7 @@ class SourceTools(AgentMiddleware):
     ) -> ModelResponse:
         if self.journal:
             self.journal.check()
+        context_started = perf_counter()
         # Rebuild bounded source context from current services, including within the same turn.
         pending: dict[str, Any] = {}
         calls: dict[int, Any] = {}
@@ -435,6 +441,35 @@ class SourceTools(AgentMiddleware):
                 == "get_calendar_events"
                 and not self.calendar_done
             ]
+        record(
+            "source_context",
+            {
+                "attempt": attempt_number.get(),
+                "duration_ms": (perf_counter() - context_started) * 1000,
+                "sources": [source.model_dump(mode="json") for source in self.sources],
+                "refreshed_results": len(current),
+                "tool_count": len(tools),
+                "analysis_bytes": len(analysis.model_dump_json().encode()),
+                "results": [
+                    {
+                        "message_index": index,
+                        "tool": calls[index]["name"],
+                        "bytes": len(result.model_dump_json().encode()),
+                        "source_count": len(result.sources),
+                        "returned_items": len(result.data)
+                        if isinstance(result.data, list)
+                        else None,
+                    }
+                    for index, result in current.items()
+                ],
+                "placement": "analysis_in_system_results_in_tool_messages",
+            },
+        )
+        if analysis.data is not None:
+            record(
+                "source_analysis",
+                {"attempt": attempt_number.get(), "content": analysis.model_dump(mode="json")},
+            )
         response = handler(request.override(messages=messages, system_message=system, tools=tools))
         if self.calendar_only and any(
             call["name"] == "propose_actions"

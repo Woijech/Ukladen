@@ -567,7 +567,7 @@ test("application model is selected by default and future models cannot be selec
   await page.goto("/workspace/ai");
   await page.getByRole("button", {name: "Новый чат", exact: false}).click();
   await expect(page.getByLabel("Модель", {exact: true})).toHaveValue("flash");
-  await expect(page.getByLabel("Подключение", {exact: true})).toHaveValue("");
+  await expect(page.getByLabel("Подключение", {exact: true})).toHaveCount(0);
   for (const name of ["Claude Haiku", "Claude Sonnet", "GPT-5.5"])
     await expect(page.getByRole("option", {name: `${name} · пока недоступно`, exact: true})).toHaveJSProperty("disabled", true);
   await page.getByRole("button", {name: "Создать чат", exact: true}).click();
@@ -667,31 +667,14 @@ test("usage preserves unknowns and responsive source controls work with a keyboa
   await mockAi(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/workspace/ai/usage");
-  await expect(page.getByRole("region", {name: "Доступ к AI"})).toContainText("Бесплатный доступ");
-  await expect(page.getByRole("region", {name: "Доступ к AI"})).toContainText("без ограничений");
-  await expect(page.getByText("Europe/Minsk", { exact: false })).toBeVisible();
-  await expect(page.getByRole("table", { name: "По дням" })).toContainText(
-    "Неизвестно",
-  );
+  await expect(page.locator(".ai-usage")).toContainText("Бесплатный доступ");
+  await expect(page.locator(".ai-usage")).toContainText("без ограничений");
+  await expect(page.getByText("Europe/Minsk", { exact: false })).toHaveCount(0);
+  await expect(page.locator(".usage-summary")).toContainText("Неизвестно");
   await page.getByRole("button", { name: "30 дней", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "30 дней", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
-  await page.getByLabel("С даты", { exact: true }).fill("2026-01-01");
-  await page.getByLabel("По дату", { exact: true }).fill("2026-01-02");
-  await page
-    .getByRole("button", { name: "Показать период", exact: true })
-    .click();
-  await expect(
-    page.getByText("Часть выбранного периода уже за пределами хранения.", {
-      exact: false,
-    }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "30 дней", exact: true })).toHaveAttribute("aria-pressed", "true");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expect(page.getByRole("group", { name: "График запросов" })).toBeVisible();
   await page.goto(`/workspace/ai?chat=${chatId}`);
   await page
     .getByRole("button", { name: "Источники: автоматически", exact: true })
@@ -1158,16 +1141,28 @@ for (const width of [1440, 390]) {
       { kind: "tool_response", at: end, payload: { value: { number: 1, size: { characters: 50, bytes: 60 }, content: { status: "not_found" } } } },
       { kind: "tool_policy", at: end, payload: { value: { attempt: 2, tool: "propose_actions", decision: "denied", reason: "calendar_lookup_only" } } },
     ];
+    state.diagnosticTrace.events.push(
+      { kind: "context_part", at, payload: { value: { attempt: 1, name: "system", size: { bytes: 140, characters: 100 }, content: "Safe captured instructions <script>window.injected=true</script>" } } },
+      { kind: "context_part", at, payload: { value: { attempt: 1, name: "tool_schemas", size: { bytes: 200, characters: 200 }, content: [{ name: "get_calendar_events", parameters: { type: "object" } }] } } },
+    );
     await page.goto("/workspace/ai?tab=diagnostics");
     await page.getByRole("button", { name: "Открыть запрос", exact: true }).click();
     const analysis = page.getByRole("region", { name: "Расход по шагам", exact: true });
     await expect(analysis).toContainText("100 + неизвестно (1 шаг.)");
+    await analysis.locator("summary").filter({ hasText: "Модель — шаг 1" }).click();
     await expect(analysis).toContainText("просмотр расписания — только календарь");
     await expect(analysis.getByRole("table")).toContainText("Описания и схемы инструментов");
     await expect(analysis).toContainText("Разбивка контекста для этого шага не записана");
+    await analysis.locator("summary").filter({ hasText: "Модель — шаг 2" }).click();
     await expect(analysis.getByRole("alert")).toContainText("propose_actions");
     const first = analysis.locator("details").filter({ has: page.locator("summary", { hasText: "Модель — шаг 1" }) }).first();
     await expect(first.locator("dl")).toContainText("80");
+    await expect(first.getByRole("region", { name: "Из чего состоит запрос" })).toContainText("Измеренные байты, не токены");
+    const inspector = first.getByRole("region", { name: "Инспектор контекста шага 1" });
+    await inspector.locator("summary").filter({ hasText: "Системные инструкции" }).click();
+    await expect(inspector).toContainText("Safe captured instructions <script>");
+    expect(await page.evaluate(() => (window as Window & { injected?: boolean }).injected)).toBeUndefined();
+
     await expect(first.locator("dl")).toContainText("неизвестно");
     await first.locator("summary").first().scrollIntoViewIfNeeded();
     await page.screenshot({ path: test.info().outputPath("diagnostic-model-step.png"), fullPage: true });
@@ -1193,3 +1188,28 @@ for (const width of [1440, 390]) {
     await page.screenshot({ path: test.info().outputPath("diagnostics-detail.png"), fullPage: true });
   });
 }
+
+test("simple usage offers a keyboard chart and bounded help without technical tables", async ({ page }) => {
+  await mockAi(page);
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto("/workspace/ai/usage");
+  await expect(page.locator(".usage-summary")).toContainText("Неизвестно");
+  await expect(page.locator(".ai-usage table")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Диагностика", exact: true })).toHaveCount(0);
+  const chart = page.getByRole("group", { name: "График запросов" });
+  await expect(chart.getByRole("button")).toHaveCount(7);
+  await chart.getByRole("button").last().focus();
+  await expect(page.locator(".usage-chart-detail")).toContainText("вход: неизвестно");
+  const help = page.getByRole("button", { name: "Что такое входные токены", exact: true });
+  await help.click();
+  await expect(page.locator(".help-tooltip-content:popover-open")).toContainText("Сообщения, инструкции");
+  const box = await page.locator(".help-tooltip-content:popover-open").boundingBox();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".help-tooltip-content:popover-open")).toHaveCount(0);
+  await expect(help).toBeFocused();
+  await page.getByRole("button", { name: "30 дней", exact: true }).click();
+  await expect(page.getByRole("button", { name: "30 дней", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await checkWorkspaceVisuals(page);
+});

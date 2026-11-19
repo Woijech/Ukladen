@@ -464,7 +464,7 @@ function NewChat({
         </label>
         {model?.available && (
           <>
-            <label className="field-label">
+            {!(model.operator_available && (!model.personal_allowed || !personalConnections.length)) && <>            <label className="field-label">
               Подключение
               <select
                 aria-label="Подключение"
@@ -472,7 +472,7 @@ function NewChat({
                 onChange={(event) => setConnection(event.target.value)}
               >
                 <option value="" disabled={!model.operator_available}>
-                  AI Ukladen
+                  По умолчанию
                   {!model.operator_available ? " · подключение не настроено" : ""}
                 </option>
                 {model.personal_allowed &&
@@ -482,7 +482,7 @@ function NewChat({
                     </option>
                   ))}
               </select>
-            </label>
+            </label></>}
             <p className="muted">
               {connection
                 ? "Личное API-подключение."

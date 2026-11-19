@@ -133,7 +133,7 @@ export function ActionProposals({ chatId, runId, running, onOpenPage, onOpenEven
     {proposals?.map((proposal) => <article className="ai-action-card" key={proposal.id}>
       <h3>Предложение изменений</h3>
       <p role="status">{statuses[proposal.status]}</p>
-      <p className="muted">Часовой пояс: {proposal.timezone}. Подтвердить до {timestamp(proposal.expires_at, proposal.timezone)}.</p>
+      <p className="muted">Подтвердить до {timestamp(proposal.expires_at, proposal.timezone)}.</p>
       {proposal.effects.map((effect, index) => <section key={index} aria-label={`${index + 1}. ${operations[effect.operation]}`}>
         <h4>{index + 1}. {operations[effect.operation]}</h4>
         <div className="ai-action-comparison">

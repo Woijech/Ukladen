@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { requestJson, writeJson } from "@/shared/api";
 import { ActionFeedback, Modal, Pager, QueryState, useAction } from "@/shared/ui";
 import { aiBase, runLabels, type Run } from "./ai-api";
+import { UsageChart, type DailyUsage } from "./ai-usage-chart";
+import { eventValue } from "./ai-context-inspector";
 import { AiRunAnalysis, type DiagnosticEvent } from "./ai-run-analysis";
 
 export const diagnosticCases = [
@@ -26,6 +28,7 @@ type Trace = {
 type Detail = { run: Run & { conversation_id: string | null; created_at: string; finished_at: string | null }; trace: Trace };
 const verdicts: Record<string, string> = { unreviewed: "Не оценено", passed: "Пройдено", failed: "Ошибка" };
 const eventLabels: Record<string, string> = {
+  run_started: "Сообщение пользователя", history_loaded: "Сбор истории", source_context: "Источники и выбор инструментов", instructions: "Формирование инструкций", context_part: "Часть конечного контекста",
   model_input: "Состав входного контекста", model_usage: "Учёт токенов шага",
   provider_request: "Параметры отправки провайдеру", provider_usage: "Токены и кеш провайдера",
   tool_policy: "Инструмент заблокирован правилами запроса",
@@ -46,6 +49,7 @@ export function AiDiagnostics({ onCreate, onOpenChat }: { onCreate: (scenario: s
     queryFn: ({ signal }) => requestJson<{ items: Summary[]; has_more: boolean }>(`${aiBase}/diagnostics/runs?days=${days}&limit=20&offset=${offset}${status ? `&status=${status}` : ""}`, { signal }),
     refetchInterval: access.data?.allowed ? 5000 : false,
   });
+  const usage = useQuery({ queryKey: ["operator-usage", days], enabled: access.data?.allowed === true, queryFn: ({ signal }) => requestJson<{ daily: DailyUsage[]; date_from: string; date_to: string }>(`${aiBase}/usage?days=${days}&limit=20&offset=0`, { signal }) });
   const selected = diagnosticCases.find((item) => item.id === scenario)!;
   return <section className="stack ai-diagnostics">
     <h2>Диагностика AI</h2>
@@ -66,15 +70,17 @@ export function AiDiagnostics({ onCreate, onOpenChat }: { onCreate: (scenario: s
           <li>Для сравнения моделей повтори тот же сценарий с теми же данными в новом чате. Экспорт содержит личные данные: проверь его перед отправкой.</li>
         </ol><p>Общие метрики и токены находятся во вкладке «Использование». Оценка администратора — ручная, не автоматическая проверка истинности.</p></details>
       </div>
+      <QueryState pending={usage.isPending} error={usage.error} retry={() => void usage.refetch()} />
+      {usage.data && <UsageChart key={days} daily={usage.data.daily} from={usage.data.date_from} to={usage.data.date_to} />}
       <div className="ai-diagnostic-toolbar">
         <label>Статус<select className="ui-input" value={status} onChange={(event) => { setStatus(event.target.value); setOffset(0); }}><option value="">Все</option>{Object.entries(runLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></label>
         <label>Период<select className="ui-input" value={days} onChange={(event) => { setDays(Number(event.target.value)); setOffset(0); }}><option value={7}>7 дней</option><option value={30}>30 дней</option></select></label>
         <button className="secondary-button" onClick={() => void list.refetch()}>Обновить</button>
       </div>
       <QueryState pending={list.isPending} error={list.error} retry={() => void list.refetch()} />
-      <p className="muted">Только твои запросы. Старые и обычные чаты имеют журнал попыток, но подробный захват задним числом не восстанавливается. Даты показаны в часовом поясе браузера.</p>
+      <p className="muted">Только твои запросы. Старые и обычные чаты имеют журнал попыток, но подробный захват задним числом не восстанавливается.</p>
       <div className="ai-table-scroll" tabIndex={0} role="region" aria-label="Журнал AI-запросов"><table className="ai-table"><caption>Журнал AI-запросов</caption><thead><tr><th>Время / модель</th><th>Статус</th><th>Время ответа</th><th>Подключение</th><th>Оценка</th><th>Разбор</th></tr></thead><tbody>{list.data?.items.map((run) => <tr key={run.id}>
-        <td>{new Date(run.created_at).toLocaleString("ru")}<br />{run.model}</td><td>{runLabels[run.status]}</td><td>{duration(run.created_at, run.finished_at)}</td><td>{{ demo: "Демонстрация", personal: "Личный API", operator: "Ключ приложения" }[run.credential_source]}</td><td>{verdicts[run.verdict]}</td><td><button className="secondary-button" onClick={() => setRunId(run.id)}>Открыть запрос</button>{run.captured && <small> Подробный захват</small>}</td>
+        <td>{new Date(run.created_at).toLocaleString("ru", { timeZone: "Europe/Minsk" })}<br />{run.model}</td><td>{runLabels[run.status]}</td><td>{duration(run.created_at, run.finished_at)}</td><td>{{ demo: "Демонстрация", personal: "Личный API", operator: "Ключ приложения" }[run.credential_source]}</td><td>{verdicts[run.verdict]}</td><td><button className="secondary-button" onClick={() => setRunId(run.id)}>Открыть запрос</button>{run.captured && <small> Подробный захват</small>}</td>
       </tr>)}</tbody></table></div>
       {list.data?.items.length === 0 && <p>Запросов за выбранный период нет.</p>}
       <Pager offset={offset} size={20} count={list.data?.items.length ?? 0} hasMore={list.data?.has_more ?? false} onChange={setOffset} />
@@ -96,23 +102,26 @@ function DiagnosticDetails({ runId, onClose, onOpenChat }: { runId: string; onCl
     const url = URL.createObjectURL(new Blob([JSON.stringify({ exported_at: new Date().toISOString(), ...data }, null, 2)], { type: "application/json" }));
     const link = document.createElement("a"); link.href = url; link.download = `ai-diagnostic-${runId}.json`; link.click(); URL.revokeObjectURL(url);
   };
-  return <Modal title="Разбор AI-запроса" onClose={onClose} wide>
+  return <Modal title="Разбор AI-запроса" onClose={() => { if (!action.busy && ((verdict === null || verdict === data?.trace.verdict) && (note === null || note === data?.trace.note) || window.confirm("Закрыть разбор без сохранения оценки?"))) onClose(); }} wide>
     <h2>Разбор AI-запроса</h2><QueryState pending={query.isPending} error={query.error} retry={() => void query.refetch()} />
     {data && <div className="ai-diagnostic-detail">
       <p><code>{data.run.id}</code><br />{data.run.provider} · {data.run.model} · {runLabels[data.run.status]}</p>
-      <p>Время: {duration(data.run.created_at, data.run.finished_at)}. Стоимость: {data.run.estimated_cost != null ? `${data.run.estimated_cost} ${data.run.price?.currency ?? ""}` : "неизвестна"}. Неоценённых попыток: {data.run.unpriced_attempts}.</p>
+      <p>Время: {duration(data.run.created_at, data.run.finished_at)}. Оценка по базовому тарифу: {data.run.estimated_cost != null ? `${data.run.estimated_cost} ${data.run.price?.currency ?? ""}` : "неизвестна"}. Неоценённых попыток: {data.run.unpriced_attempts}.</p>
       <div className="ai-diagnostic-toolbar">{data.run.conversation_id && <button className="secondary-button" onClick={() => onOpenChat(data.run.conversation_id!)}>Открыть чат и источники</button>}<button className="secondary-button" onClick={exportReport}>Скачать JSON-отчёт</button><button className="secondary-button" onClick={() => void query.refetch()}>Обновить</button></div>
       <h3>Временная шкала</h3>
       <ol>{[
+        { at: data.run.created_at, text: "Запрос принят" },
+        ...data.trace.events.filter(item => ["run_started", "history_loaded", "instructions", "source_context", "model_input", "model_request", "model_response"].includes(item.kind)).map(item => ({ at: item.at, text: `${eventLabels[item.kind] ?? item.kind}${typeof eventValue(item)?.duration_ms === "number" ? ` · ${Number(eventValue(item)?.duration_ms).toFixed(2)} мс` : " · длительность отдельно не записана"}` })),
+        ...(data.run.finished_at ? [{ at: data.run.finished_at, text: `Итог: ${runLabels[data.run.status]}` }] : []),
         ...data.run.attempts.map((item) => ({ at: item.started_at, text: `Модель #${item.number}: ${item.status}; ${item.error_code ?? "без ошибки"}; ${duration(item.started_at, item.finished_at)}; токены ${item.input_tokens ?? "?"} / ${item.output_tokens ?? "?"}` })),
         ...data.run.tools.map((item) => ({ at: item.started_at, text: `${item.tool_name} #${item.number}: ${item.status}; ${item.error_code ?? "без ошибки"}; ${duration(item.started_at, item.finished_at)}` })),
-      ].sort((a, b) => a.at.localeCompare(b.at)).map((item, i) => <li key={i}>{new Date(item.at).toLocaleTimeString("ru")} — {item.text}</li>)}</ol>
+      ].sort((a, b) => a.at.localeCompare(b.at)).map((item, i) => <li key={i}>{new Date(item.at).toLocaleTimeString("ru", { timeZone: "Europe/Minsk" })} — {item.text}</li>)}</ol>
       {!data.run.attempts.length && <p>Вызовов модели не зарегистрировано.</p>}
       <AiRunAnalysis run={data.run} events={data.trace.events} />
       <h3>Содержимое тестового выполнения</h3>
       {!data.trace.captured && <p>Подробного захвата нет: чат обычный, захват удалён или истёк срок хранения. Ответ и цитаты смотри в чате.</p>}
       {data.trace.truncated && <p role="alert">Достигнут лимит захвата. Часть данных отсутствует.</p>}
-      {data.trace.events.map((item, index) => <details key={index}><summary>{new Date(item.at).toLocaleTimeString("ru")} · {eventLabels[item.kind] ?? item.kind}</summary><pre className="ai-diagnostic-json">{JSON.stringify(item.payload, null, 2)}</pre></details>)}
+      {data.trace.events.map((item, index) => <details key={index}><summary>{new Date(item.at).toLocaleTimeString("ru", { timeZone: "Europe/Minsk" })} · {eventLabels[item.kind] ?? item.kind}</summary><pre className="ai-diagnostic-json">{JSON.stringify(item.payload, null, 2)}</pre></details>)}
       <form onSubmit={(event) => { event.preventDefault(); void action.run(async () => { await writeJson(`${aiBase}/diagnostics/runs/${runId}/review`, "PUT", { verdict: verdict ?? data.trace.verdict, note: note ?? data.trace.note }); await query.refetch(); }, "Оценка сохранена"); }}>
         <label className="field-label">Результат проверки<select className="ui-input" value={verdict ?? data.trace.verdict} onChange={(event) => setVerdict(event.target.value)}>{Object.entries(verdicts).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></label>
         <label className="field-label">Ожидание, фактический результат и причина оценки<textarea maxLength={2000} value={note ?? data.trace.note} onChange={(event) => setNote(event.target.value)} /></label>

@@ -31,7 +31,8 @@ def bounded_payload(value: object) -> dict:
                 return "[reasoning omitted]"
             return {
                 str(key): part
-                if str(key) == "reasoning_tokens" and type(part) is int and 0 <= part <= 2**63 - 1
+                if str(key) == "reasoning_tokens"
+                and (part is None or (type(part) is int and 0 <= part <= 2**63 - 1))
                 else "[redacted]"
                 if re.search(
                     r"key|secret|password|authorization|cookie|reasoning|token$", str(key), re.I
@@ -47,6 +48,18 @@ def bounded_payload(value: object) -> dict:
                     return clean(json.loads(item), depth + 1)
                 except ValueError, RecursionError:
                     pass
+            item = re.sub(
+                r"(?im)\b(?:authorization|cookie|set-cookie)\s*:\s*[^\r\n]+",
+                "[redacted header]",
+                item,
+            )
+            item = re.sub(
+                r"(?i)\b(?:api[_ -]?key|access[_ -]?token|session[_ -]?token|password|secret)"
+                r"""\s*[:=]\s*["']?[^\s"',;}]+""",
+                "[redacted credential]",
+                item,
+            )
+            item = re.sub(r"(https?://)[^\s/@:]+:[^\s/@]+@", r"\1[redacted]@", item)
             return re.sub(r"(?i)\b(?:sk-[\w-]{8,}|bearer\s+[\w.\-/+=]{8,})", "[redacted]", item)
         return item if item is None or isinstance(item, (int, float, bool)) else str(item)
 

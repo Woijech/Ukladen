@@ -248,3 +248,13 @@ do not generate tests for empty scaffolding.
 References: [requirements](../product/workspace.md),
 [implementation roadmap](../development/implementation-roadmap.md),
 [current calendar contract](../development/calendar.md).
+
+## Personal event calendar ownership (2026-11-19)
+
+The calendar module now owns named/color-coded personal calendars and one optional
+calendar assignment per personal event. Built-in membership is represented by null.
+Workspace collections/tags and saved calendar views remain independent, nonexclusive
+organization/display mechanisms. Visibility preferences do not affect canonical
+resolved reads, availability or planning. Calendar deletion reassigns members and
+increments their versions; it never deletes them. See the
+[contracts and audit](../development/workspace-calendars-diagnostics.md).

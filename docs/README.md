@@ -58,6 +58,7 @@ Planned contracts do not override the current implemented API silently.
 - [Public university reads](development/university-api.md).
 - [Official schedule](development/schedule.md).
 - [Personal calendar](development/calendar.md).
+- [Personal calendars and AI inspection](development/workspace-calendars-diagnostics.md): calendar membership/visibility, keyboard layers, ordinary usage charts and owned context diagnostics.
 - [Calendar availability](development/calendar-availability.md): local read-only busy/free/conflict queries and explicit coverage uncertainty.
 - [Tasks delivery contract](development/tasks.md): typed tasks, hierarchy, dependencies, provenance and page links.
 - [Task sessions and planning](development/task-planning.md): weekly preferences, explicit work remainder, deterministic previews and atomic confirmed application.

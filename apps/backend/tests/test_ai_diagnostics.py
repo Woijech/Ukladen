@@ -39,11 +39,15 @@ def test_redacts_structured_and_embedded_credentials_and_reasoning_and_bounds_pa
             "blocks": [{"type": "reasoning", "text": "hidden thoughts"}],
             "header": "Bearer privatebearertoken",
             "text": "sk-or-v1-privatesecret",
+            "inline": "api_key=privatevalue password=privatepass Cookie: session=privatecookie",
+            "uri": "https://user:privateurl@example.com/path",
         }
     )
     raw = json.dumps(payload)
     assert all(value not in raw for value in ("private", "secret", "hidden thoughts"))
     assert payload["value"]["body"]["answer"] == "ok"
+    assert bounded_payload({"reasoning_tokens": None})["value"]["reasoning_tokens"] is None
+    assert bounded_payload({"reasoning_tokens": 0})["value"]["reasoning_tokens"] == 0
     assert bounded_payload("x" * 100000)["truncated"]
     assert len(json.dumps(bounded_payload("я" * 100000)).encode()) < 65536
 
@@ -107,7 +111,13 @@ def test_stream_capture_replay_review_delete_and_conversation_cascade(ai_client,
     assert detail["run"]["status"] == "completed"
     trace = detail["trace"]
     kinds = [event["kind"] for event in trace["events"]]
-    assert kinds == [
+    assert {"run_started", "history_loaded", "context_part"} <= set(kinds)
+    assert [
+        kind
+        for kind in kinds
+        if kind
+        not in {"run_started", "history_loaded", "context_part", "instructions", "source_context"}
+    ] == [
         "model_input",
         "model_request",
         "model_usage",

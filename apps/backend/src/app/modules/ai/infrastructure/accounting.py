@@ -1,3 +1,4 @@
+import hashlib
 import json
 from collections.abc import Callable
 from typing import Any
@@ -62,12 +63,29 @@ def capture_model_input(
                     {"name": schema["function"]["name"], **content_size(schema)}
                     for schema in schemas
                 ],
+                "fingerprints": {
+                    name: hashlib.sha256(
+                        json.dumps(value, ensure_ascii=False, sort_keys=True, default=str).encode()
+                    ).hexdigest()
+                    for name, value in parts.items()
+                },
                 "message_count": len(messages),
                 "tool_mode": "calendar_lookup"
                 if "Tool mode: calendar_lookup." in str(parts["system"])
                 else "general",
             },
         )
+        for name, value in parts.items():
+            if value:
+                record(
+                    "context_part",
+                    {
+                        "attempt": attempt_number.get(),
+                        "name": name,
+                        "size": content_size(value),
+                        "content": value,
+                    },
+                )
         record(
             "model_request",
             {
@@ -75,6 +93,8 @@ def capture_model_input(
                 "messages": messages,
                 "system": parts["system"],
                 "tools": [schema["function"]["name"] for schema in schemas],
+                "tool_schemas": schemas,
+                "stage": "final_application_request_before_provider_serialization",
             },
         )
     return handler(request)
@@ -193,6 +213,7 @@ class AccountingMiddleware(AgentMiddleware):
             {
                 "number": tool.number,
                 "name": tool.tool_name,
+                "call_id": call_id,
                 "content": response.content
                 if isinstance(response, ToolMessage)
                 else "Application command; inspect proposals in chat.",
