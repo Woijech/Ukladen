@@ -6,6 +6,10 @@ from app.modules.notes.domain.pages import Page, PageMetadata
 from app.modules.notes.domain.revisions import PageRevision, PageRevisionSummary
 
 
+class EmbeddedViewReader(Protocol):
+    def owned(self, user_id: UUID, references: tuple[tuple[UUID, UUID], ...]) -> bool: ...
+
+
 class PageRepository(Protocol):
     """Owner-scoped persistence in the caller's transaction."""
 

@@ -3,9 +3,12 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from app.modules.notes.application.ports import PageRepository
+from app.modules.notes.application.ports import EmbeddedViewReader, PageRepository
 from app.modules.notes.domain.blocks import (
+    DatabaseViewBlock,
+    PageDocument,
     is_markdown_document,
+    iter_blocks,
     markdown_document,
     parse_document,
     replace_markdown,
@@ -31,8 +34,27 @@ class NoteService:
         users: UserAuthentication,
         *,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
+        embedded_views: EmbeddedViewReader | None = None,
     ) -> None:
         self.repository, self.users, self.now = repository, users, now
+        self.embedded_views = embedded_views
+
+    def validate_document_references(
+        self, user_id: UUID, document: PageDocument, previous: PageDocument | None = None
+    ) -> None:
+        def references(body: PageDocument) -> set[tuple[UUID, UUID]]:
+            return {
+                (block.database_id, block.view_id)
+                for block in iter_blocks(body.blocks)
+                if isinstance(block, DatabaseViewBlock)
+            }
+
+        new = references(document) - (references(previous) if previous else set())
+        if new and (
+            self.embedded_views is None
+            or not self.embedded_views.owned(user_id, tuple(sorted(new)))
+        ):
+            raise PageNotFound()
 
     def require_user(self, user_id: UUID, *, write: bool = False) -> None:
         # shortcut: serialize owner writes; use finer locks if per-user throughput requires it.
@@ -112,6 +134,7 @@ class NoteService:
             if document is not None
             else markdown_document(content, block_id=identifier)
         )
+        self.validate_document_references(user_id, body)
         self._parent(user_id, parent_id)
         now = self.now()
         page = Page(
@@ -190,9 +213,9 @@ class NoteService:
         self.require_user(user_id, write=True)
         page = self.get(user_id, page_id, active=True)
         require_version(page.version, expected_version)
-        updated = replace(
-            page, document=parse_document(document), version=page.version + 1, updated_at=self.now()
-        )
+        body = parse_document(document)
+        self.validate_document_references(user_id, body, page.document)
+        updated = replace(page, document=body, version=page.version + 1, updated_at=self.now())
         self.repository.save(updated, expected_version)
         return updated
 

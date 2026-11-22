@@ -234,8 +234,11 @@ Lucide, Motion and rich-editor packages are not required by this implementation.
   save, stay or discard, with browser unload protection. Compact page menus expose
   parent moves, private links and branch trash/restore. Existing event backlinks and
   material references remain below the body. See [notes UI and future capability
-  inventory](../development/notes.md#page-workspace-ui-2026-10-28). Rich formatting,
-  nested blocks, revision history and collaboration remain outside the schema/UI.
+  inventory](../development/notes.md#page-workspace-ui-2026-10-28). Markdown formatting,
+  bounded recursive toggle sections, owned saved-view embeds and retained revision
+  previews/restores are implemented locally. Embeds are read-only, paginated and
+  preserve normal navigation guards; revision previews show static references.
+  The mobile page-library action shares the editor toolbar. Collaboration remains deferred.
 - Materials provide bookmarks, metadata, trash/restore, processing retry, downloads,
   retained quotas and the existing reservation/raw-upload contract. An interrupted
   upload rechecks metadata before retrying the same reservation. No remote fetching

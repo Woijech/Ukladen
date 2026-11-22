@@ -131,7 +131,7 @@ function useFormProtection(busy: boolean, callbacks: FormProtection) {
   return () => setDirty(true);
 }
 
-function displayValue(
+export function displayValue(
   value: Value | undefined,
   property: Property,
   timeZone: string,

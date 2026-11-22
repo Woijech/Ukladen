@@ -342,3 +342,34 @@ def test_rollup_evidence_revalidates_derived_values_without_a_record_version_cha
     assert refreshed.fingerprint != reference.fingerprint
     with pytest.raises(AiConflict), transactions(owner) as unit:
         unit.validate_sources((reference,))
+
+
+def test_selected_nested_block_is_read_by_its_stable_identity(ai_database: Engine):
+    conversation, _ = seed(ai_database)
+    owner, reader = conversation.user_id, source_reader(ai_database)
+    parent, child = uuid4(), uuid4()
+    with Session(ai_database) as session, session.begin():
+        page = reader.service(session).notes.create(
+            owner,
+            "Nested",
+            document={
+                "schema_version": 1,
+                "blocks": [
+                    {
+                        "id": str(parent),
+                        "type": "toggle",
+                        "text": "Details",
+                        "children": [
+                            {
+                                "id": str(child),
+                                "type": "text",
+                                "text": "Only the selected descendant",
+                            },
+                        ],
+                    },
+                ],
+            },
+        )
+    result = reader.read(owner, PageRead(page_id=page.id, block_id=child))
+    assert result.status == "ok" and "Only the selected descendant" in str(result.data)
+    assert "Details" not in str(result.data) and result.warnings == ("selected_block_only",)

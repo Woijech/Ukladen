@@ -18,7 +18,7 @@ implemented, verified behavior; planned work is not a shipped feature.
 - [x] Autosave versioned page changes without overwriting concurrent edits.
 - [x] Persist and restore owned page revisions.
 - [x] Add inline formatting and Markdown quote/code/table/nested-list starters.
-- [ ] Add native recursive rich blocks beyond Markdown.
+- [x] Add native recursive rich blocks beyond Markdown.
 - [ ] Provide workspace export/import with explicit validation and confirmation.
 - [x] Provide complete backup/restore tooling for PostgreSQL and object storage.
 
@@ -26,14 +26,14 @@ implemented, verified behavior; planned work is not a shipped feature.
 
 - [x] Add database relations, rollups and bounded formulas.
 - [x] Add grouping and additional database views.
-- [ ] Embed saved database views in pages.
+- [x] Embed saved database views in pages.
 - [x] Give AI explicit context for the open page/event and selected text.
 - [x] Add safe point edits and saving AI output to a page.
 - [x] Clarify extraction/indexing/full-document states in the UI.
 
 ## Design and validation
 
-- [ ] Consolidate mobile note toolbars and remove duplicated assistant labels.
+- [x] Consolidate mobile note toolbars and remove duplicated assistant labels.
 - [x] Give failure states concrete recovery actions.
 - [ ] Exercise browser/API/worker/retrieval together with synthetic owned data.
 - [ ] Update capabilities documentation and run applicable checks.

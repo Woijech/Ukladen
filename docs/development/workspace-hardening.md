@@ -52,7 +52,12 @@ history or new partial-answer data.
 
 Markdown text blocks now offer bold/italic/code controls and a formatted preview.
 Quote, code, table and nested-list starters use the existing Markdown representation;
-they are not new native recursive block types. History renders Markdown safely.
+these starters retain Markdown storage. Native recursive toggle sections and
+owned database-view reference blocks were added on 2026-11-23, within the existing
+versioned envelope; see [notes contracts](notes.md) and
+[ADR 0011](../adr/0011-add-nested-blocks-and-owned-view-embeds.md).
+History renders Markdown safely and shows static database references, not a record
+snapshot. AI approval previews include descendant content and formatted Markdown.
 Raw HTML and remote images are not executed/loaded by this renderer.
 
 ## AI in the workspace
@@ -96,3 +101,19 @@ retried explicitly; an unavailable status is not presented as ready.
 No paid provider requests were made for these checks. These checks do not establish
 provider reliability or prove every end-to-end production worker configuration.
 Remaining expansion is tracked in [the implementation checklist](product-hardening-plan.md).
+
+## Nested blocks and embedded views — 2026-11-23
+
+The native slice adds bounded recursive toggle sections and owner-validated saved
+view references. Deleting a view preserves records and leaves a readable unavailable
+reference; existing broken references do not block unrelated page edits. AI point
+edits resolve descendant UUIDs, preserve siblings and retain exact owner approval.
+Tool descriptions are selected per task: the calendar-only description measured
+585 UTF-8 bytes versus the previous shared 1908 bytes (not token counts).
+
+Verification: 104 pure backend tests and 48 PostgreSQL/Redis-backed document,
+AI-source and action tests passed. Backend Ruff/Pyright, frontend lint/typecheck,
+and 62 existing content browser tests passed. A separate CLI browser scenario
+verified nested autosave, collapse/reopen, owned table embedding and mobile library
+navigation at 390px without horizontal overflow. No running-stack migration,
+provider quota request or deployment was performed.

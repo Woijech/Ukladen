@@ -183,3 +183,34 @@ def test_markdown_projection_escapes_plain_text_and_link_labels() -> None:
         "\\<script\\>\\*text\\*\\[label\\]\n\n[\\[label\\]](<https://example.com/a%3Epath>)"
     )
     assert document_markdown(replace(parsed, blocks=())) == ""
+
+
+def test_nested_blocks_round_trip_and_use_global_identity_and_size_limits() -> None:
+    from app.modules.notes.presentation.documents import DocumentSchema
+
+    child = block(text="Nested **text**", text_format="markdown")
+    group = block("toggle", text="Details", children=[child])
+    value = document(group, block("database_view", database_id=str(uuid4()), view_id=str(uuid4())))
+    parsed = parse_document(value)
+    assert "Nested **text**" in document_markdown(parsed)
+    encoded = DocumentSchema.model_validate(document_value(parsed)).model_dump()
+    assert str(encoded["blocks"][0]["children"][0]["id"]) == child["id"]
+    assert encoded["blocks"][0]["children"][0]["text"] == child["text"]
+    with pytest.raises(InvalidDocumentInput):
+        parse_document(document(group, child))
+    with pytest.raises(InvalidDocumentInput):
+        parse_document(document(group, *[block() for _ in range(999)]))
+    nested = child
+    for _ in range(9):
+        nested = block("toggle", children=[nested])
+    with pytest.raises(InvalidDocumentInput):
+        parse_document(document(nested))
+    with pytest.raises(InvalidDocumentInput):
+        parse_document(
+            document(
+                *[
+                    block("database_view", database_id=str(uuid4()), view_id=str(uuid4()))
+                    for _ in range(21)
+                ]
+            )
+        )

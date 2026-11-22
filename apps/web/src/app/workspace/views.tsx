@@ -58,6 +58,8 @@ export function WorkspaceViews(props: ViewProps) {
   if (section === "notes")
     return (
       <NotesPanel
+        timeZone={timeZone}
+        onOpenDatabaseView={(databaseId, viewId) => props.onNavigateLocation({ section: "databases", databaseId, viewId })}
         selectedId={props.location.pageId ?? null}
         onSelectPage={id => props.onLocationChange({ section: "notes", pageId: id ?? undefined })}
         onBusyChange={props.onBusyChange}

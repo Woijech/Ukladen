@@ -580,3 +580,41 @@ def test_point_edit_requires_owner_confirmation_and_records_history(ai_client: T
     assert saved["document"]["blocks"][0]["text"] == "After and untouched tail"
     assert saved["document"]["blocks"][1] == page["document"]["blocks"][1]
     assert [item["version"] for item in ai_client.get(endpoint + "/revisions").json()] == [2, 1]
+
+
+def test_confirmed_point_edit_preserves_nested_siblings(ai_client: TestClient) -> None:
+    headers = csrf_headers(ai_client)
+    parent, child, sibling = (str(uuid4()) for _ in range(3))
+    document = {
+        "schema_version": 1,
+        "blocks": [
+            {
+                "id": parent,
+                "type": "toggle",
+                "text": "Details",
+                "children": [
+                    {"id": child, "type": "text", "text": "Before and unchanged tail"},
+                    {"id": sibling, "type": "checkbox", "text": "Keep", "checked": True},
+                ],
+            }
+        ],
+    }
+    page = ai_client.post(
+        "/api/v1/notes/pages", headers=headers, json={"title": "Nested", "document": document}
+    ).json()
+    _, proposal = propose(
+        ai_client,
+        [
+            {
+                "operation": "page_update",
+                "page_id": page["id"],
+                "expected_version": 1,
+                "block_edits": [{"block_id": child, "before": "Before", "after": "After"}],
+            }
+        ],
+    )
+    assert decide(ai_client, proposal).json()["status"] == "applied"
+    saved = ai_client.get(f"/api/v1/notes/pages/{page['id']}").json()["document"]["blocks"][0]
+    assert saved["id"] == parent and saved["children"][0]["id"] == child
+    assert saved["children"][0]["text"] == "After and unchanged tail"
+    assert saved["children"][1] == document["blocks"][0]["children"][1]

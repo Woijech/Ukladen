@@ -18,6 +18,7 @@ from app.modules.auth.presentation.dependencies import (
 from app.modules.notes.application.service import NoteService
 from app.modules.notes.domain.blocks import InvalidDocumentInput
 from app.modules.notes.domain.pages import InvalidPageInput, PageConflict, PageNotFound
+from app.modules.notes.infrastructure.embedded_views import SqlAlchemyEmbeddedViews
 from app.modules.notes.infrastructure.repository import SqlAlchemyPageRepository
 from app.modules.notes.presentation.documents import DocumentPut, DocumentResponse, DocumentSchema
 from app.modules.notes.presentation.schemas import (
@@ -39,7 +40,11 @@ router = APIRouter(
 
 
 def get_notes(database: Database) -> NoteService:
-    return NoteService(SqlAlchemyPageRepository(database), SqlAlchemyUserAuthentication(database))
+    return NoteService(
+        SqlAlchemyPageRepository(database),
+        SqlAlchemyUserAuthentication(database),
+        embedded_views=SqlAlchemyEmbeddedViews(database),
+    )
 
 
 Notes = Annotated[NoteService, Depends(get_notes)]

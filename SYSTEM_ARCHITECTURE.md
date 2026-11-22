@@ -634,12 +634,15 @@ Subject templates/catalogues are later slices, not a prerequisite for workspace 
 
 ## 5.9 notes
 
-Status: implemented, backend only: standalone pages, optional hierarchy, versioned
-JSONB documents with text/headings/flat lists/checkboxes/links, optimistic versions
+Status: implemented locally: standalone pages, optional hierarchy, versioned
+JSONB documents with text/headings/flat lists/checkboxes/links, recursive toggle
+sections and owned database-view references, optimistic versions
 and recoverable branch trash/restore. Existing Markdown is preserved; its API
 projection is derived from blocks. See the [notes API](docs/development/notes.md)
 and [ADR 0006](docs/adr/0006-use-versioned-page-block-documents.md).
-Editor UI is not implemented; search indexes are derived and owned by search.
+The editor includes debounced autosave, retained revisions and read-only view embeds.
+See [ADR 0011](docs/adr/0011-add-nested-blocks-and-owned-view-embeds.md).
+Search indexes are derived and owned by search.
 
 Page links are optional. Collections/property schemas/views belong to the
 workspace boundary, including implemented typed properties and table/calendar database
@@ -930,7 +933,7 @@ TaskCalendarBlock
 Reminder
 
 Page (implemented, notes-owned)
-PageDocument / Block (implemented flat typed content, notes-owned)
+PageDocument / Block (implemented bounded recursive typed content, notes-owned)
 Collection / Tag / TypedMembership (implemented, workspace-owned)
 Database / PropertyDefinition / DatabaseRecord / SavedView (implemented, workspace-owned)
 Material

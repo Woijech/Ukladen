@@ -21,7 +21,7 @@ from app.modules.calendar.application.composition import CalendarCompositionServ
 from app.modules.calendar.application.record_dates import RecordDateProjection
 from app.modules.materials.application.excerpts import MaterialExcerptService
 from app.modules.notes.application.service import NoteService
-from app.modules.notes.domain.blocks import PageDocument, document_markdown
+from app.modules.notes.domain.blocks import PageDocument, document_markdown, iter_blocks
 from app.modules.notes.domain.pages import PageNotFound
 from app.modules.search.application.evidence import EvidenceResult, SourceReference
 from app.modules.search.application.service import SearchService
@@ -137,7 +137,9 @@ class WorkspaceSourceService:
             page = self.notes.get(user_id, query.page_id, active=True)
             document = page.document
             if query.block_id is not None:
-                blocks = tuple(block for block in document.blocks if block.id == query.block_id)
+                blocks = tuple(
+                    block for block in iter_blocks(document.blocks) if block.id == query.block_id
+                )
                 if not blocks:
                     raise PageNotFound()
                 document = PageDocument(blocks)
@@ -157,7 +159,9 @@ class WorkspaceSourceService:
                     {
                         "text": text[query.offset : end],
                         "total_characters": len(text),
-                        "block_ids": [str(block.id) for block in document.blocks][:100],
+                        "block_ids": [str(block.id) for block in iter_blocks(document.blocks)][
+                            :100
+                        ],
                         **structured_preview,
                     }
                 ),

@@ -81,7 +81,13 @@ class SqlAlchemySourceReader:
 
     def service(self, database: Session) -> WorkspaceSourceService:
         users = SqlAlchemyUserAuthentication(database)
-        notes = NoteService(SqlAlchemyPageRepository(database), users)
+        from app.modules.notes.infrastructure.embedded_views import SqlAlchemyEmbeddedViews
+
+        notes = NoteService(
+            SqlAlchemyPageRepository(database),
+            users,
+            embedded_views=SqlAlchemyEmbeddedViews(database),
+        )
         views = DatabaseViewService(
             SqlAlchemyDatabaseViews(database),
             DatabaseContentService(

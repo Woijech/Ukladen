@@ -32,7 +32,15 @@ from app.modules.ai.domain.state import AiConflict, AiNotFound, Run
 from app.modules.calendar.application.service import CalendarService
 from app.modules.calendar.domain.events import PERSONAL_FIELDS, personal_values
 from app.modules.notes.application.service import NoteService
-from app.modules.notes.domain.blocks import ListBlock, PageDocument, document_value, parse_document
+from app.modules.notes.domain.blocks import (
+    Block,
+    ListBlock,
+    PageDocument,
+    ToggleBlock,
+    document_value,
+    iter_blocks,
+    parse_document,
+)
 from app.modules.notes.domain.pages import page_title
 from app.modules.reminders.application.service import ReminderService
 from app.modules.reminders.domain.reminders import trigger_time
@@ -84,17 +92,26 @@ class PageUpdate(ActionInput):
     def document_for(self, document: PageDocument) -> PageDocument:
         if self.document is not None:
             return parse_document(self.document)
+        if not self.block_edits:
+            return document
         edits = {edit.block_id: edit for edit in self.block_edits}
-        blocks = []
-        for block in document.blocks:
-            edit = edits.pop(block.id, None)
-            if edit is not None:
-                if isinstance(block, ListBlock) or block.text.count(edit.before) != 1:
-                    raise AiConflict(
-                        "Point edit must match one exact text occurrence in its block."
-                    )
-                block = replace(block, text=block.text.replace(edit.before, edit.after, 1))
-            blocks.append(block)
+
+        def edit_blocks(values: tuple[Block, ...]) -> tuple[Block, ...]:
+            blocks: list[Block] = []
+            for block in values:
+                edit = edits.pop(block.id, None)
+                if edit is not None:
+                    if isinstance(block, ListBlock) or block.text.count(edit.before) != 1:
+                        raise AiConflict(
+                            "Point edit must match one exact text occurrence in its block."
+                        )
+                    block = replace(block, text=block.text.replace(edit.before, edit.after, 1))
+                if isinstance(block, ToggleBlock):
+                    block = replace(block, children=edit_blocks(block.children))
+                blocks.append(block)
+            return tuple(blocks)
+
+        blocks = edit_blocks(document.blocks)
         if edits:
             raise AiConflict("An edited block no longer exists; request a new preview.")
         return parse_document(document_value(PageDocument(tuple(blocks))))
@@ -501,6 +518,7 @@ class ActionService:
         for action in batch.actions:
             before, target, warnings = None, None, ()
             if isinstance(action, PageCreate):
+                unit.notes.validate_document_references(user_id, parse_document(action.document))
                 after = json_object(
                     {
                         "title": page_title(action.title),
@@ -521,8 +539,9 @@ class ActionService:
                     {"title": page.title, "document": document_value(page.document)}
                 )
                 body = action.document_for(page.document)
-                existing = {block.id: block.type for block in page.document.blocks}
-                updated = {block.id: block.type for block in body.blocks}
+                unit.notes.validate_document_references(user_id, body, page.document)
+                existing = {block.id: block.type for block in iter_blocks(page.document.blocks)}
+                updated = {block.id: block.type for block in iter_blocks(body.blocks)}
                 if any(updated.get(identifier) != kind for identifier, kind in existing.items()):
                     raise ValueError("Keep existing block IDs and types when editing a page.")
                 after = json_object(

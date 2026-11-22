@@ -73,3 +73,12 @@
 .note-formatting button { min-height: 28px; padding: 2px 7px; border: 0; border-radius: 4px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
 .note-formatting button:hover, .note-formatting button[aria-pressed="true"] { background: var(--accent-soft); color: var(--text); }
 @media (hover: none) { .note-formatting { opacity: 1; } }
+.note-library-button { display: none; }
+.notes-page .block-content > .ai-markdown { font-size: 18px; line-height: 1.75; }
+@media (max-width: 1100px) {
+  .notes-page:has(.note-editor) .notes-mobile-toolbar { display: none; }
+  .notes-page .note-library-button { display: inline-flex; white-space: nowrap; align-self: center; }
+  .notes-page .note-topbar { flex-wrap: wrap; gap: 8px 12px; }
+  .notes-page .note-breadcrumbs { flex: 1; min-width: 0; }
+  .notes-page .note-top-actions { margin-left: auto; }
+}

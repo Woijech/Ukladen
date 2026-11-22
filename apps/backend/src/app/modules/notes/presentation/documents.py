@@ -43,10 +43,31 @@ class LinkBlockSchema(BlockSchema):
     url: str = Field(min_length=1, max_length=2048, strict=True)
 
 
+class ToggleBlockSchema(BlockSchema):
+    type: Literal["toggle"]
+    text: Text
+    children: list[BlockValue] = Field(default_factory=list, max_length=1000)
+
+
+class DatabaseViewBlockSchema(BlockSchema):
+    type: Literal["database_view"]
+    database_id: UUID
+    view_id: UUID
+    text: Text = ""
+
+
 BlockValue = Annotated[
-    TextBlockSchema | HeadingBlockSchema | ListBlockSchema | CheckboxBlockSchema | LinkBlockSchema,
+    TextBlockSchema
+    | HeadingBlockSchema
+    | ListBlockSchema
+    | CheckboxBlockSchema
+    | LinkBlockSchema
+    | ToggleBlockSchema
+    | DatabaseViewBlockSchema,
     Field(discriminator="type"),
 ]
+
+ToggleBlockSchema.model_rebuild()
 
 
 class DocumentSchema(BaseModel):

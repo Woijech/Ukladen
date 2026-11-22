@@ -20,7 +20,7 @@ export function groupRecords(items: RecordItem[], property?: Property) {
 export function DatabaseRecordCards({ items, properties, group, board, locked, renderValue, onOpenPage, onEdit }: {
   items: RecordItem[]; properties: Property[]; group?: Property; board: boolean; locked: boolean;
   renderValue: (value: Value, property: Property, item: RecordItem) => ReactNode;
-  onOpenPage: (id: string) => void; onEdit: (item: RecordItem) => void;
+  onOpenPage: (id: string) => void; onEdit?: (item: RecordItem) => void;
 }) {
   const [showEmpty, setShowEmpty] = useState(false);
   const groups = groupRecords(items, group).filter(item => (board && showEmpty) || item.items.length);
@@ -32,7 +32,7 @@ export function DatabaseRecordCards({ items, properties, group, board, locked, r
       <div className="database-record-group-items">{column.items.map(item => <article key={item.record.id}>
         <button type="button" className="table-page-link" onClick={() => onOpenPage(item.page.id)}>{item.page.title}</button>
         <dl>{properties.filter(property => property.id !== group?.id).map(property => <div key={property.id}><dt>{property.name}</dt><dd>{renderValue(item.record.values[property.id], property, item)}</dd></div>)}</dl>
-        <button type="button" className="text-action" disabled={locked || !!item.record.trashed_at || !properties.some(property => !["formula", "rollup"].includes(property.kind))} onClick={() => onEdit(item)}>Изменить поля</button>
+        {onEdit && <button type="button" className="text-action" disabled={locked || !!item.record.trashed_at || !properties.some(property => !["formula", "rollup"].includes(property.kind))} onClick={() => onEdit(item)}>Изменить поля</button>}
       </article>)}</div>
       {board && !column.items.length && <p className="muted">Нет записей на этой странице</p>}
     </section>)}

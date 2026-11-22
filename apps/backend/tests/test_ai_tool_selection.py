@@ -309,3 +309,13 @@ def test_action_schema_exposes_only_selected_operations_without_dangling_referen
         "event_create",
         "reminder_create",
     }
+
+
+def test_action_descriptions_only_advertise_the_selected_task_capabilities() -> None:
+    from app.modules.ai.infrastructure.action_tools import selected_action_schema
+
+    calendar = selected_action_schema({"event_create"})["function"]["description"]
+    page = selected_action_schema({"page_update"})["function"]["description"]
+    assert "event_create" in calendar and "page_update" not in calendar
+    assert "block_edits" not in calendar and "task extraction" not in calendar.lower()
+    assert "block_edits" in page and "event_action" not in page

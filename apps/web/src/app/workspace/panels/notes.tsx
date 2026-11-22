@@ -45,7 +45,9 @@ export type Block =
       items: string[];
       style: "bulleted" | "numbered";
     }
-  | { id: string; type: "link"; text: string; url: string };
+  | { id: string; type: "link"; text: string; url: string }
+  | { id: string; type: "toggle"; text: string; children: Block[] }
+  | { id: string; type: "database_view"; text: string; database_id: string; view_id: string };
 export type Note = PageSummary & { document: { schema_version: 1; blocks: Block[] } };
 type PageList = { items: PageSummary[]; limit: number; offset: number };
 
@@ -66,11 +68,15 @@ async function pageSummaries(trashed: boolean, signal: AbortSignal) {
 
 export function NotesPanel({
   selectedId,
+  timeZone = "UTC",
+  onOpenDatabaseView,
   onSelectPage,
   onBusyChange,
   onDirtyChange,
 }: {
   selectedId: string | null;
+  timeZone?: string;
+  onOpenDatabaseView?: (databaseId: string, viewId: string) => void;
   onSelectPage: (id: string | null) => void;
   onBusyChange: (busy: boolean) => void;
   onDirtyChange: (dirty: boolean) => void;
@@ -423,6 +429,9 @@ export function NotesPanel({
                 <NoteEditor
                   key={note.data.id}
                   note={note.data}
+                  timeZone={timeZone}
+                  onOpenDatabaseView={onOpenDatabaseView}
+                  onOpenLibrary={() => setTreeOpen(true)}
                   pages={active.data ?? []}
                   onSelect={(id) => choose({ id })}
                   onDirtyChange={changeDirty}
@@ -468,6 +477,9 @@ export function NotesPanel({
 
 function NoteEditor({
   note,
+  timeZone,
+  onOpenDatabaseView,
+  onOpenLibrary,
   pages,
   onSelect,
   onDirtyChange,
@@ -481,6 +493,9 @@ function NoteEditor({
   onDiscard,
 }: {
   note: Note;
+  timeZone: string;
+  onOpenDatabaseView?: (databaseId: string, viewId: string) => void;
+  onOpenLibrary: () => void;
   pages: PageSummary[];
   onSelect: (id: string) => void;
   onDirtyChange: (dirty: boolean) => void;
@@ -601,6 +616,7 @@ function NoteEditor({
         }}
       >
         <header className="note-topbar">
+          <button type="button" className="text-action note-library-button" aria-label="Страницы" aria-haspopup="dialog" onClick={onOpenLibrary}>← Страницы</button>
           <nav className="note-breadcrumbs" aria-label="Положение страницы">
             <span>Страницы</span>
             {ancestors.map((page) => (
@@ -751,6 +767,9 @@ function NoteEditor({
             }}
           />
           <NoteBlocks
+            timeZone={timeZone}
+            onOpenPage={onSelect}
+            onOpenView={onOpenDatabaseView}
             pageTarget={!dirty ? { kind: "page", id: note.id, title } : undefined}
             key={draft.epoch}
             blocks={blocks}

@@ -10,6 +10,7 @@ import { SourceViewer } from "./ai-sources";
 import { TaskProposalEditor, type TaskDraft, type ProposalAction } from "./ai-task-editor";
 import { PlanDetails, type WorkPlan } from "../task-planning";
 import type { Block } from "./notes";
+import { AiMarkdown } from "./ai-markdown";
 
 type Values = Partial<WorkPlan> & {
   task?: TaskDraft;
@@ -57,6 +58,17 @@ const statuses: Record<Proposal["status"], string> = {
 function timestamp(value: string, timezone: string) {
   return new Intl.DateTimeFormat("ru", { timeZone: timezone, dateStyle: "long", timeStyle: "short" }).format(new Date(value));
 }
+function PreviewBlocks({ blocks }: { blocks: Block[] }) {
+  return blocks.map(block => <div key={block.id} className="ai-action-block">
+    {block.type === "toggle" ? <div><strong>▸ {block.text || "Раздел"}</strong><blockquote><PreviewBlocks blocks={block.children} /></blockquote></div>
+      : block.type === "database_view" ? <p>{block.text || "Вид базы"} · база {block.database_id}, вид {block.view_id}. Ссылка на текущие записи.</p>
+      : block.type === "list" ? (block.style === "numbered" ? <ol>{block.items.map((item, index) => <li key={index}>{item}</li>)}</ol> : <ul>{block.items.map((item, index) => <li key={index}>{item}</li>)}</ul>)
+      : block.type === "heading" ? <strong>{block.text}</strong>
+      : block.type === "checkbox" ? <span>{block.checked ? "☑" : "☐"} {block.text}</span>
+      : block.type === "link" ? <span>{block.text} · {block.url}</span>
+      : block.text_format === "markdown" ? <AiMarkdown text={block.text} /> : block.text}
+  </div>);
+}
 function Preview({ values, timezone, operation }: { values: Values; timezone: string; operation: string }) {
   if (operation === "task_plan_apply" && values.sessions) return <PlanDetails plan={values as WorkPlan} />;
   return <div className="ai-action-values">
@@ -82,9 +94,7 @@ function Preview({ values, timezone, operation }: { values: Values; timezone: st
     {values.due_at && <p><strong>Уведомление: {timestamp(values.due_at, timezone)}</strong></p>}
     {values.parent_id === null && <p>Расположение: корень страниц</p>}
     {values.event_action != null && <p>Для события из действия №{values.event_action + 1}</p>}
-    {values.document && <div aria-label="Содержимое страницы">{values.document.blocks.length === 0 ? <p>Пустая страница</p> : values.document.blocks.map((block) => <div key={block.id} className="ai-action-block">
-      {block.type === "list" ? (block.style === "numbered" ? <ol>{block.items.map((item, index) => <li key={index}>{item}</li>)}</ol> : <ul>{block.items.map((item, index) => <li key={index}>{item}</li>)}</ul>) : block.type === "heading" ? <strong>{block.text}</strong> : block.type === "checkbox" ? <span>{block.checked ? "☑" : "☐"} {block.text}</span> : block.type === "link" ? <span>{block.text} · {block.url}</span> : block.text}
-    </div>)}</div>}
+    {values.document && <div aria-label="Содержимое страницы">{values.document.blocks.length === 0 ? <p>Пустая страница</p> : <PreviewBlocks blocks={values.document.blocks} />}</div>}
   </div>;
 }
 

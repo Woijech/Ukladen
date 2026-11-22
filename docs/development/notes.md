@@ -1,6 +1,6 @@
 # Notes Backend
 
-Updated: 2026-10-28.
+Updated: 2026-11-23.
 Status: implemented: independent nested pages, versioned block documents
 and recoverable trash. The page tree and block editor UI are described in the
 [frontend guide](../architecture/frontend.md). Retained revisions and debounced autosave are implemented locally as of 2026-11-22; see [workspace hardening](workspace-hardening.md). Sharing, permanent deletion and portable workspace export remain unimplemented. Page-backed user databases reference these pages through
@@ -61,14 +61,27 @@ and an empty array clears the body. There are no separate block endpoints.
 | `list` | 1–1000 single-line string `items`; `style`: `bulleted` (default) or `numbered` |
 | `checkbox` | Single-line `text`; strict boolean `checked` (default false) |
 | `link` | Single-line `text`; absolute HTTP/HTTPS `url` up to 2048 characters |
+| `toggle` | Single-line `text`; recursive `children` array of block objects |
+| `database_view` | Owned `database_id`, `view_id` UUIDs; optional single-line `text` caption |
 
 Unknown fields/types, duplicate IDs, coercible booleans/numbers, unsafe URLs,
 credentials in URLs and control/whitespace characters in URLs are rejected.
 Text blocks may contain newlines. Documents allow at most 1000 blocks, 100000
 aggregate text/list-item/URL characters and 1 MiB of normalized UTF-8 JSON, including
 field names and JSON spacing. The database checks the envelope, block count and
-size; domain validation checks every payload. Lists and blocks are flat; nested
-blocks, inline rich formatting and material references are not implemented.
+size; domain validation checks every payload. The 1000-block and unique-ID limits
+include all descendants. Nested blocks allow depth 8 (root depth 0); a document
+allows at most 20 database-view references. Lists retain flat string items.
+Inline rich-text marks and material blocks remain unimplemented.
+
+New view references must belong to the current owner and an active database.
+Existing unavailable references may remain during edits; deleting a view does not
+freeze the page or delete records. History stores references, not record snapshots.
+The read-only embed uses the ordinary authenticated database API and offers table,
+list, board and compact calendar rendering, with 20-record pagination.
+Migration `0048_nested_page_blocks` records this additive schema-v1 extension;
+rollback refuses nested/view blocks in live documents or retained revisions.
+See [ADR 0011](../adr/0011-add-nested-blocks-and-owned-view-embeds.md).
 
 Example document replacement:
 
@@ -212,14 +225,14 @@ unresolved choices in [Q-06/Q-08](../product/open-questions.md).
 
 | Capability | Status in Ukladen | Work needed next |
 | --- | --- | --- |
-| Page tree, independent pages, breadcrumbs, typed flat blocks, recoverable trash | Implemented | Current UI and existing notes API |
-| Rich text, colors, nested/advanced blocks, quotes/code/toggles/columns | Requires a separate product decision | Q-08: versioned block/inline schema, validation, migration, rendering and editor behavior |
+| Page tree, independent pages, breadcrumbs, typed nested blocks, recoverable trash | Implemented locally | Recursive toggle sections, stable descendant IDs and owner-validated database-view embeds |
+| Rich text, colors, advanced blocks and columns | Partially implemented | Markdown formatting/quote/code/table starters exist; native inline marks, colors and columns remain future work |
 | Inline images and embeds | Requires a separate product decision | Block references to owned materials, media access and remote embedding policy; attachments already exist separately |
 | Links/backlinks | Partially implemented | Calendar backlinks, material references and ordinary HTTP link blocks exist; typed page-page links/backlinks need relations API and persistence within the current architecture |
 | Revision history | Implemented locally | Latest 50 snapshots per page; owner-scoped preview and explicit restore create a new version |
 | User databases and table/calendar views | Implemented | Existing independent database area with typed properties, saved queries and page-backed records |
-| Additional database list/board views | Absent; fits current architecture | Extend saved layout contracts and UI over existing records; no record copies |
-| Formulas and rollups | Requires a separate product decision | Owner-deferred; expression/dependency rules, query cost and relation contracts |
+| Additional database list/board views | Implemented locally | Saved grouping over the same records; see database contracts |
+| Formulas and rollups | Implemented locally | Bounded arithmetic, one-way owned relations and numeric rollups; see ADR 0010 |
 | Templates | Absent; fits current architecture | Explicit copy semantics, fresh block IDs and template storage/API; no implicit academic grouping |
 | Import/export | Absent; fits current architecture | Explicit formats, compatibility/size rules and loss reporting; derived Markdown is not an export subsystem |
 | Comments | Requires a separate product decision | Personal annotation versus shared discussion, anchors, authorship and lifecycle |
