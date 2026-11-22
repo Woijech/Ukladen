@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
+import { CalendarReviewContext, calendarProposalItems } from "../ai-calendar-preview";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RequestError, requestJson, writeJson } from "@/shared/api";
 import { ActionFeedback, Pager, QueryState, useAction } from "@/shared/ui";
@@ -87,11 +88,15 @@ function Preview({ values, timezone, operation }: { values: Values; timezone: st
   </div>;
 }
 
-export function ActionProposals({ chatId, runId, running, onOpenPage, onOpenEvent }: {
+export function ActionProposals({ chatId, runId, running, onOpenPage, onOpenEvent, calendarMode = false, autoReview = true, onlyProposalId, initialOffset = 0, onProposalChange, onDecision, onBusy }: {
   chatId: string; runId?: string; running: boolean;
+  calendarMode?: boolean; autoReview?: boolean; onlyProposalId?: string; initialOffset?: number;
+  onProposalChange?: (proposal: Proposal) => void; onDecision?: (proposal: Proposal) => void;
+  onBusy?: (busy: boolean) => void;
   onOpenPage: (id: string) => void; onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
 }) {
-  const [offset, setOffset] = useState(0);
+  const [offset, setOffset] = useState(initialOffset);
+  const calendarReview = useContext(CalendarReviewContext);
   const [editing, setEditing] = useState<Proposal | null>(null);
   const [source, setSource] = useState<Source | null>(null);
   const [partialAccepted, setPartialAccepted] = useState<Record<string, boolean>>({});
@@ -104,7 +109,17 @@ export function ActionProposals({ chatId, runId, running, onOpenPage, onOpenEven
   });
   const client = useQueryClient();
   const action = useAction();
-  const proposals = query.data;
+  useEffect(() => { onBusy?.(action.busy); return () => onBusy?.(false); }, [action.busy, onBusy]);
+  const proposals = onlyProposalId ? query.data?.filter(item => item.id === onlyProposalId) : query.data;
+  useEffect(() => {
+    const proposal = query.data?.find(item => item.id === onlyProposalId);
+    if (proposal) onProposalChange?.(proposal);
+  }, [query.data, onlyProposalId, onProposalChange]);
+  useEffect(() => {
+    if (calendarMode || !autoReview || running) return;
+    const proposal = query.data?.find(item => item.status === "pending" && calendarProposalItems(item).length);
+    if (proposal) calendarReview?.open({ chatId, proposal, offset }, true);
+  }, [query.data, calendarMode, autoReview, running, calendarReview, chatId, offset]);
   useEffect(() => {
     const pending = proposals?.filter((item) => item.status === "pending");
     if (!pending?.length) return;
@@ -115,8 +130,9 @@ export function ActionProposals({ chatId, runId, running, onOpenPage, onOpenEven
   }, [proposals, query]);
   async function decide(proposal: Proposal, decision: "approve" | "reject") {
     await action.run(async () => {
+      let result: Proposal;
       try {
-        await writeJson(`${aiBase}/proposals/${proposal.id}/decision`, "POST", { digest: proposal.digest, decision });
+        result = await writeJson<Proposal>(`${aiBase}/proposals/${proposal.id}/decision`, "POST", { digest: proposal.digest, decision });
       } catch (error) {
         if (error instanceof RequestError && error.status === 409)
           throw new Error("Предложение устарело. Ничего не применено: попроси AI подготовить новый предпросмотр.");
@@ -126,6 +142,8 @@ export function ActionProposals({ chatId, runId, running, onOpenPage, onOpenEven
         client.invalidateQueries({ queryKey: ["ai-proposals", chatId] }),
         ...["pages", "page", "workspace-calendar", "reminders", "event-reminders", "home-pages", "ai-usage", "tasks-list", "task-detail", "task-children", "work-sessions", "calendar-task-sessions"].map((key) => client.invalidateQueries({ queryKey: [key] })),
       ]);
+      onProposalChange?.(result);
+      if (result.status === "applied" || result.status === "rejected") onDecision?.(result);
     });
   }
   return <section className="ai-proposals" aria-label="Предложения действий">
@@ -153,10 +171,10 @@ export function ActionProposals({ chatId, runId, running, onOpenPage, onOpenEven
             await client.invalidateQueries({ queryKey: ["ai-proposals", chatId] });
           }, "Частичный план подготовлен. Проверьте и подтвердите новый просмотр.")}>Подготовить частичный план к подтверждению</button> : <label className="checkbox-label"><input type="checkbox" checked={partialAccepted[proposal.id] ?? false} onChange={event => setPartialAccepted({ ...partialAccepted, [proposal.id]: event.target.checked })} />Подтверждаю частичный план и показанный остаток</label>}
         </>}
-        <div className="ai-action-buttons">
+        {!calendarMode && calendarReview && calendarProposalItems(proposal).length > 0 ? <button className="primary-button" disabled={running} onClick={() => calendarReview.open({ chatId, proposal, offset })}>Посмотреть на календаре</button> : <div className="ai-action-buttons">
           <button className="primary-button" disabled={action.busy || running || proposal.effects.some(effect => effect.operation === "task_plan_apply" && (!effect.after.verified || (!!effect.after.unplaced?.length && (!partialAccepted[proposal.id] || !proposal.batch?.actions.some(item => item.operation === "task_plan_apply" && item.accept_partial === true)))))} onClick={() => void decide(proposal, "approve")}>Применить всё</button>
           <button className="secondary-button" disabled={action.busy || running} onClick={() => void decide(proposal, "reject")}>Отклонить</button>
-        </div>
+        </div>}
       </>}
       {proposal.outcomes.map((outcome, index) => {
         const effect = proposal.effects[index];
@@ -168,7 +186,7 @@ export function ActionProposals({ chatId, runId, running, onOpenPage, onOpenEven
         </button>;
       })}
     </article>)}
-    {!!proposals?.length && <Pager offset={offset} count={proposals.length} size={10} onChange={setOffset} />}
+    {!onlyProposalId && !!proposals?.length && <Pager offset={offset} count={proposals.length} size={10} onChange={setOffset} />}
     {editing?.batch && <TaskProposalEditor proposal={{ ...editing, batch: editing.batch }} chatId={chatId} onClose={() => setEditing(null)} />}
     {source && <SourceViewer source={source} onClose={() => setSource(null)} />}
     <ActionFeedback {...action} />

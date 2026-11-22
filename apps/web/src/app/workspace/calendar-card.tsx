@@ -25,6 +25,7 @@ export function CalendarCard({
   hourHeight,
   timeZone,
   disabled,
+  highlighted = false,
   onOpen,
   onResize,
   onMove,
@@ -37,6 +38,7 @@ export function CalendarCard({
   hourHeight: number;
   timeZone: string;
   disabled: boolean;
+  highlighted?: boolean;
   onOpen: () => void;
   onResize: (event: CalendarEvent, edge: Edge, value: string) => Promise<void>;
   onMove: (event: CalendarEvent, start: string, end: string) => Promise<void>;
@@ -222,7 +224,7 @@ export function CalendarCard({
   return (
     <>
     <div
-      className={`event-card ${height >= 76 ? "event-roomy" : ""} ${event.source === "official" ? "official-event" : "personal-event"} ${event.skipped ? "skipped-event" : ""} ${preview ? "resizing-event" : ""} ${movePreview ? "moving-event" : ""}`}
+      className={`event-card ${highlighted ? "calendar-ai-applied" : ""} ${height >= 76 ? "event-roomy" : ""} ${event.source === "official" ? "official-event" : "personal-event"} ${event.skipped ? "skipped-event" : ""} ${preview ? "resizing-event" : ""} ${movePreview ? "moving-event" : ""}`}
       style={{
         borderLeftColor: event.calendar_color,
         borderLeftWidth: event.calendar_color ? 4 : undefined,

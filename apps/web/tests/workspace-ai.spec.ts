@@ -768,6 +768,8 @@ test("AI shows exact batch preview and applies only its confirmed digest", async
   const state = await mockAi(page);
   state.proposals = [actionProposal()];
   await page.goto(`/workspace/ai?chat=${chatId}`);
+  await expect(page.getByRole("heading", { name: "Проверь изменения на календаре" })).toBeVisible();
+  await expect(page.locator('.calendar-ai-ghost[data-phase="after"]')).toHaveCount(2);
   const proposals = page.getByRole("region", { name: "Предложения действий" });
   await expect(proposals.getByText("Исходный текст", { exact: true })).toBeVisible();
   await expect(proposals.getByText("<script>window.injected=true</script>", { exact: true })).toBeVisible();
@@ -776,7 +778,8 @@ test("AI shows exact batch preview and applies only its confirmed digest", async
   expect(state.proposalCommits).toBe(0);
   expect(await page.evaluate(() => "injected" in window)).toBe(false);
   await proposals.getByRole("button", { name: "Применить всё", exact: true }).click();
-  await expect(proposals.getByText("Все изменения применены", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/workspace/ai\\?chat=${chatId}$`));
+  await expect(page.getByText("Все изменения применены", { exact: true })).toBeVisible();
   expect(state.proposalCommits).toBe(1);
   await page.reload();
   await expect(page.getByText("Все изменения применены", { exact: true })).toBeVisible();
@@ -790,6 +793,7 @@ test("AI proposals reject and expire without applying", async ({ page }) => {
   state.proposals = [actionProposal()];
   await page.goto(`/workspace/ai?chat=${chatId}`);
   await page.getByRole("button", { name: "Отклонить", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/workspace/ai\\?chat=${chatId}$`));
   await expect(page.getByText("Отклонено", { exact: true })).toBeVisible();
   expect(state.proposalCommits).toBe(0);
   state.proposals[0].status = "expired";
@@ -859,7 +863,7 @@ test("AI plan preview requires explicit partial acceptance and blocks unverified
   await page.getByLabel("Подтверждаю частичный план и показанный остаток").check();
   await expect(apply).toBeEnabled();
   state.proposals[0].effects[0].after.verified = false;
-  await page.reload();
+  await page.goto(`/workspace/ai?chat=${chatId}`);
   await page.getByLabel("Подтверждаю частичный план и показанный остаток").check();
   await expect(page.getByText("Условный план. Применение недоступно.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Применить всё", exact: true })).toBeDisabled();

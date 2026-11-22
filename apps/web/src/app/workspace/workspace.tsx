@@ -49,6 +49,12 @@ import type { WorkspaceLocation } from "./workspace-location";
 import { CommandPalette } from "./command-palette";
 import { CalendarTaskSessions } from "./task-planning";
 import { FloatingAssistant } from "./floating-assistant";
+import { CalendarReviewContext, calendarProposalItems, type CalendarReviewRequest } from "./ai-calendar-preview";
+import type { Proposal } from "./panels/ai-actions";
+import { pushWorkspaceLocation } from "./use-section-location";
+import "./calendar-ai-review.css";
+
+const CalendarAiReview = dynamic(() => import("./calendar-ai-review").then(module => module.CalendarAiReview));
 
 const WorkspaceViews = dynamic(
   () => import("./views").then((module) => module.WorkspaceViews),
@@ -162,16 +168,16 @@ function daySegments(events: CalendarEvent[], dayStart: Date, dayEnd: Date) {
     }));
 }
 
-function eventColumns(events: CalendarEvent[]) {
+function eventColumns(events: Pick<CalendarEvent, "id" | "starts_at" | "ends_at">[]) {
   const sorted = [...events].sort((a, b) =>
     a.starts_at.localeCompare(b.starts_at),
   );
   const columns = new Map<string, { lane: number; count: number }>();
-  let cluster: CalendarEvent[] = [];
+  let cluster: typeof events = [];
   let clusterEnd = 0;
   const placeCluster = () => {
     const laneEnds: number[] = [];
-    const placements: Array<{ event: CalendarEvent; lane: number }> = [];
+    const placements: Array<{ event: (typeof events)[number]; lane: number }> = [];
     for (const event of cluster) {
       const start = new Date(event.starts_at).getTime();
       const end = new Date(event.ends_at).getTime();
@@ -1002,6 +1008,12 @@ function CalendarWorkspace({
   const [dirty, setDirty] = useState(false);
   const [panelBusy, setPanelBusy] = useState(false);
   const [planningBusy, setPlanningBusy] = useState(false);
+  const [calendarReview, setCalendarReview] = useState<(CalendarReviewRequest & { returnUrl: string; phase?: "applied" | "rejected" }) | null>(null);
+  const reviewedProposals = useRef(new Set<string>());
+  const [appliedEventIds, setAppliedEventIds] = useState<string[]>([]);
+  const reviewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (reviewTimer.current) clearTimeout(reviewTimer.current); if (highlightTimer.current) clearTimeout(highlightTimer.current); }, []);
   const [showEventForm, setShowEventForm] = useState(false);
   const [moveTarget, setMoveTarget] = useState<CalendarEvent | null>(null);
   const [moveDraft, setMoveDraft] = useState<{ starts_at: string; ends_at: string } | null>(null);
@@ -1141,6 +1153,16 @@ function CalendarWorkspace({
   const allEvents = calendarQuery.data?.events ?? [];
   const events = allEvents.filter(personalCalendars.visible).map(event => ({ ...event, calendar_color: personalCalendars.calendars.find(c => c.id === event.calendar_id)?.color }));
   const timeZone = calendarQuery.data?.timezone ?? userTimeZone;
+  const reviewItems = calendarReview?.proposal.status === "pending" && !calendarReview.phase ? calendarProposalItems(calendarReview.proposal) : [];
+  useEffect(() => {
+    if (!calendarReview?.proposal.id || section !== "calendar") return;
+    const frame = requestAnimationFrame(() => {
+      const scroller = calendarScroll.current;
+      const ghost = scroller?.querySelector<HTMLElement>('.calendar-ai-ghost[data-phase="after"]');
+      if (scroller && ghost) scroller.scrollTo({ top: scroller.scrollTop + ghost.getBoundingClientRect().top - scroller.getBoundingClientRect().top - scroller.clientHeight / 2 + ghost.clientHeight / 2, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [calendarReview?.proposal.id, selected, section, calendarReview?.proposal.status]);
   const prettyDate = (
     date: Date | string,
     options: Intl.DateTimeFormatOptions = {},
@@ -1512,6 +1534,46 @@ function CalendarWorkspace({
     }
   }
 
+  function openCalendarReview(request: CalendarReviewRequest, automatic = false) {
+    const key = `${request.proposal.id}:${request.proposal.digest}`;
+    if ((automatic && reviewedProposals.current.has(key)) || (calendarReview && section === "calendar")) return;
+    const items = calendarProposalItems(request.proposal);
+    const first = items.find(item => item.phase === "after") ?? items[0];
+    if (!first) return;
+    if (navigationProtection.current.dirty || navigationProtection.current.busy) {
+      if (!automatic) setToast("Сначала сохрани черновик или дождись завершения операции.");
+      return;
+    }
+    const returnUrl = window.location.pathname + window.location.search;
+    if (!navigateTo({ section: "calendar", date: dateKey(new Date(first.starts_at), timeZone), calendarView: "day" })) return;
+    reviewedProposals.current.add(key);
+    setCalendarReview({ ...request, returnUrl });
+    setMoveTarget(null); setMoveDraft(null);
+  }
+  const updateReviewProposal = useCallback((proposal: Proposal) => {
+    setCalendarReview(current => current?.proposal.id === proposal.id && current.proposal !== proposal ? { ...current, proposal } : current);
+  }, []);
+  function returnToReviewChat() {
+    if (!calendarReview || panelBusy || calendarReview.phase) return;
+    const url = calendarReview.returnUrl;
+    setCalendarReview(null);
+    pushWorkspaceLocation(url);
+  }
+  function finishCalendarReview(proposal: Proposal) {
+    if (!calendarReview || (proposal.status !== "applied" && proposal.status !== "rejected")) return;
+    const url = calendarReview.returnUrl;
+    const currentUrl = window.location.pathname + window.location.search;
+    setCalendarReview(current => current ? { ...current, proposal, phase: proposal.status as "applied" | "rejected" } : current);
+    if (proposal.status === "applied") {
+      setAppliedEventIds(proposal.outcomes.filter(item => item.operation.startsWith("event_")).map(item => item.target_id));
+      highlightTimer.current = setTimeout(() => setAppliedEventIds([]), 1200);
+    }
+    reviewTimer.current = setTimeout(() => {
+      setCalendarReview(null);
+      if (window.location.pathname + window.location.search === currentUrl) pushWorkspaceLocation(url);
+    }, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700);
+  }
+
   async function logout() {
     try {
       setAccountMenuOpen(false);
@@ -1542,7 +1604,7 @@ function CalendarWorkspace({
     );
 
   return (
-    <main
+    <CalendarReviewContext.Provider value={{ open: openCalendarReview }}><main
       className={`workspace-shell ${section === "calendar" ? "calendar-shell" : ""} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
       onKeyDown={(event) => {
         if (event.key !== "Escape" || event.defaultPrevented || event.nativeEvent.isComposing || (event.target as HTMLElement).closest("dialog")) return;
@@ -1743,6 +1805,7 @@ function CalendarWorkspace({
           {section === "calendar" ? (
             <>
               <h1 className="sr-only">Календарь</h1>
+              {calendarReview && <CalendarAiReview review={calendarReview} phase={calendarReview.phase} busy={panelBusy} onBusy={setPanelBusy} timezone={timeZone} onBack={returnToReviewChat} onDate={setSelected} onProposal={updateReviewProposal} onDecision={finishCalendarReview} onOpenPage={openPage} onOpenEvent={openLinkedEvent} />}
               {moveTarget && <div className="calendar-placement" role="region" aria-label="Перенос события">
                 <strong>{moveTarget.title}</strong><p>Выбери новое начало на сетке. Длительность сохранится.</p>
                 {moveDraft && <p role="status">{prettyDate(new Date(moveDraft.starts_at), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</p>}
@@ -1933,7 +1996,7 @@ function CalendarWorkspace({
                               dayEnd={boundaries[dayIndex + 1].getTime()}
                               hourHeight={hourHeight}
                               timeZone={timeZone}
-                              disabled={resizeBusy}
+                              disabled={resizeBusy || !!calendarReview}
                               occupied={moveTarget ? [] : allEvents}
                               onCreate={(start, end) => {
                                 if (moveTarget) { setMoveDraft({ starts_at: start, ends_at: new Date(Date.parse(start) + Date.parse(moveTarget.ends_at) - Date.parse(moveTarget.starts_at)).toISOString() }); }
@@ -1941,6 +2004,17 @@ function CalendarWorkspace({
                               }}
                             />
                             {moveTarget && moveDraft && Date.parse(moveDraft.starts_at) >= boundaries[dayIndex].getTime() && Date.parse(moveDraft.starts_at) < boundaries[dayIndex + 1].getTime() && <div className="calendar-move-preview" style={{ top: `${(Date.parse(moveDraft.starts_at) - boundaries[dayIndex].getTime()) / 3_600_000 * hourHeight}px`, height: `${Math.max(28, (Date.parse(moveDraft.ends_at) - Date.parse(moveDraft.starts_at)) / 3_600_000 * hourHeight)}px` }}>{moveTarget.title}</div>}
+                            {reviewItems.filter(item => Date.parse(item.starts_at) < boundaries[dayIndex + 1].getTime() && Date.parse(item.ends_at) > boundaries[dayIndex].getTime()).map(item => {
+                              const start = Math.max(Date.parse(item.starts_at), boundaries[dayIndex].getTime());
+                              const end = Math.min(Date.parse(item.ends_at), boundaries[dayIndex + 1].getTime());
+                              const hasBefore = reviewItems.some(old => old.phase === "before" && Date.parse(old.starts_at) < boundaries[dayIndex + 1].getTime() && Date.parse(old.ends_at) > boundaries[dayIndex].getTime());
+                              const column = eventColumns(reviewItems.filter(other => other.phase === item.phase)).get(item.id)!;
+                              const width = (hasBefore ? 50 : 100) / column.count;
+                              const left = (hasBefore && item.phase === "after" ? 50 : 0) + column.lane * width;
+                              return <div key={item.id} className={`calendar-ai-ghost is-${item.phase}`} data-phase={item.phase} style={{ top: (start - boundaries[dayIndex].getTime()) / 3_600_000 * hourHeight, height: Math.max(32, (end - start) / 3_600_000 * hourHeight), left: `calc(${left}% + 7px)`, width: `calc(${width}% - 14px)` }} role="note" aria-label={`${item.label}: ${item.title}`}>
+                                <small>{item.label}</small><strong>{item.title}</strong><span>{prettyDate(new Date(item.starts_at), { hour: "2-digit", minute: "2-digit" })}–{prettyDate(new Date(item.ends_at), { hour: "2-digit", minute: "2-digit" })}</span>
+                              </div>;
+                            })}
                             {dayEvents.map((segment) => {
                               const item = segment.originalEvent;
                               const column = columns.get(item.id) ?? {
@@ -1957,7 +2031,8 @@ function CalendarWorkspace({
                                   count={column.count}
                                   hourHeight={hourHeight}
                                   timeZone={timeZone}
-                                  disabled={resizeBusy || !!moveTarget}
+                                  disabled={resizeBusy || !!moveTarget || !!calendarReview}
+                                  highlighted={appliedEventIds.includes(item.source_event_id)}
                                   onOpen={() => {
                                     setSelected(day);
                                     openEvent(item);
@@ -1981,7 +2056,7 @@ function CalendarWorkspace({
                 )}
                 {!calendarQuery.isPending &&
                   !calendarQuery.isError &&
-                  events.length === 0 && (
+                  events.length === 0 && reviewItems.length === 0 && (
                     <div className="empty-note">
                       <span className="empty-icon">
                         <Icon name="calendar" />
@@ -2435,7 +2510,7 @@ function CalendarWorkspace({
           </div>
         </Modal>
       )}
-      <FloatingAssistant visible={section !== "ai"} onOpenPage={openPage} onOpenEvent={openLinkedEvent} />
-    </main>
+      <FloatingAssistant visible={section !== "ai"} suspended={!!calendarReview && section === "calendar"} onOpenPage={openPage} onOpenEvent={openLinkedEvent} />
+    </main></CalendarReviewContext.Provider>
   );
 }

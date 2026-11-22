@@ -1,0 +1,30 @@
+.calendar-ai-review { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 20px; }
+.calendar-ai-review-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.calendar-ai-review h2 { font-size: 17px; margin: 0 0 6px; }
+.calendar-ai-review-heading p { margin: 0; color: var(--muted); font-size: 13px; }
+.calendar-ai-timezone { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+.calendar-ai-review-details { flex: 1; min-height: 0; max-height: 30dvh; overflow-y: auto; margin-top: 12px; }
+.calendar-ai-review .ai-action-card { border: 0; padding: 8px 0; margin: 0; background: transparent; }
+.calendar-ai-review .ai-action-comparison { display: flex; gap: 16px; flex-wrap: wrap; }
+.calendar-ai-review .ai-action-comparison > div { flex: 1 1 180px; }
+.calendar-ai-review .ai-action-buttons { display: flex; flex-wrap: wrap; gap: 8px; position: sticky; bottom: 0; background: var(--surface); padding: 10px 0; }
+.calendar-ai-review .ai-action-values p { margin: 4px 0; }
+.calendar-ai-dates { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.calendar-ai-dates button { min-height: 44px; }
+.calendar-ai-ghost { position: absolute; z-index: 12; left: 7px; right: 7px; padding: 5px 7px; border: 2px dashed var(--accent); border-radius: 6px; background: var(--accent-soft); color: var(--accent-ink); pointer-events: none; overflow: hidden; font-size: 12px; animation: calendar-ai-arrive 240ms ease-out; }
+.calendar-ai-ghost strong, .calendar-ai-ghost span { display: block; }
+.calendar-ai-ghost small { font-size: 10px; font-weight: 650; }
+.calendar-ai-ghost.is-before { left: 3px; right: 52%; z-index: 11; border-color: var(--muted); color: var(--muted); background: var(--surface-alt); text-decoration: line-through; }
+.calendar-ai-applied { animation: calendar-ai-commit 700ms ease-out; }
+.content-calendar:has(.calendar-ai-review) { display: flex; flex-direction: column; height: calc(100dvh - 52px); }
+.calendar-ai-review { display: flex; flex-direction: column; flex: none; max-height: 46dvh; }
+.content-calendar:has(.calendar-ai-review) .calendar-layout { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+.content-calendar:has(.calendar-ai-review) .calendar-card { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.content-calendar:has(.calendar-ai-review) .calendar-toolbar { flex: none; }
+.content-calendar:has(.calendar-ai-review) .calendar-scroll { flex: 1; height: auto; min-height: 200px; }
+.content-calendar:has(.calendar-ai-review) .calendar-context { min-height: 0; height: 100%; overflow-y: auto; grid-row: 1; }
+.content-calendar:has(.calendar-ai-review) .below-grid, .content-calendar:has(.calendar-ai-review) .calendar-help, .content-calendar:has(.calendar-ai-review) .work-calendar { display: none; }
+@keyframes calendar-ai-arrive { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes calendar-ai-commit { 40% { outline: 3px solid var(--accent); outline-offset: 2px; } }
+@media (max-width: 760px) { .calendar-ai-review { padding: 12px; } .calendar-ai-review-details { max-height: 26dvh; } .content-calendar:has(.calendar-ai-review) { height: calc(100dvh - 116px); } .content-calendar:has(.calendar-ai-review) .calendar-scroll { min-height: 160px; } }
+@media (prefers-reduced-motion: reduce) { .calendar-ai-ghost, .calendar-ai-applied { animation: none; } }

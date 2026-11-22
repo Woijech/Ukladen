@@ -11,8 +11,9 @@ const ChatArea = dynamic(() => import("./panels/ai").then(module => module.ChatA
   loading: () => <p className="floating-ai-loading" role="status">Загружаю помощника…</p>,
 });
 
-export function FloatingAssistant({ visible, onOpenPage, onOpenEvent }: {
+export function FloatingAssistant({ visible, suspended = false, onOpenPage, onOpenEvent }: {
   visible: boolean;
+  suspended?: boolean;
   onOpenPage: (id: string) => void;
   onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
 }) {
@@ -28,8 +29,8 @@ export function FloatingAssistant({ visible, onOpenPage, onOpenEvent }: {
     requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true }));
   }
   useEffect(() => {
-    if (open && visible) closeButton.current?.focus({ preventScroll: true });
-  }, [open, visible]);
+    if (open && visible && !suspended) closeButton.current?.focus({ preventScroll: true });
+  }, [open, visible, suspended]);
   useEffect(() => {
     function protectDraft(event: BeforeUnloadEvent) {
       if (dirty) event.preventDefault();
@@ -38,7 +39,7 @@ export function FloatingAssistant({ visible, onOpenPage, onOpenEvent }: {
     return () => window.removeEventListener("beforeunload", protectDraft);
   }, [dirty]);
 
-  return <div className="floating-ai" hidden={!visible}>
+  return <div className="floating-ai" hidden={!visible || suspended}>
     {opened && <section id="floating-ai-panel" className="floating-ai-panel" role="dialog" aria-modal="false" aria-labelledby="floating-ai-title" hidden={!open} onKeyDown={event => {
       if (event.key === "Escape" && !event.defaultPrevented && !document.querySelector("dialog[open]")) {
         event.stopPropagation();
@@ -53,7 +54,7 @@ export function FloatingAssistant({ visible, onOpenPage, onOpenEvent }: {
         </button>
       </header>
       <div className="floating-ai-content ai-page">
-        <ChatArea composerId="floating-ai-message" selected={selected} onChoose={id => {
+        <ChatArea composerId="floating-ai-message" calendarReviewEnabled={open && visible && !suspended} selected={selected} onChoose={id => {
           if (dirty) setPending({ id });
           else setSelected(id);
         }} onDirtyChange={setDirty} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />

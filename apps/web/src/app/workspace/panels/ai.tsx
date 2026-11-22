@@ -191,6 +191,7 @@ export function ChatArea({
   onChoose,
   onDirtyChange,
   composerId = "ai-message",
+  calendarReviewEnabled = true,
 }: {
   onOpenPage: (id: string) => void;
   onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
@@ -198,6 +199,7 @@ export function ChatArea({
   onChoose: (id: string | null) => void;
   onDirtyChange: (dirty: boolean) => void;
   composerId?: string;
+  calendarReviewEnabled?: boolean;
 }) {
   const [offset, setOffset] = useState(0);
   const [creating, setCreating] = useState(false);
@@ -289,7 +291,7 @@ export function ChatArea({
           {historyOpen && <Modal title="История чатов" onClose={() => setHistoryOpen(false)}><div className="ai-history-sheet">{historyPanel}</div></Modal>}
           <aside className="ai-history" aria-label="История чатов">{!historyOpen && historyPanel}</aside>
           {selected ? (
-            <Chat key={selected} id={selected} initialPrompt={starter} composerId={composerId} onDirtyChange={onDirtyChange} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
+            <Chat key={selected} id={selected} initialPrompt={starter} composerId={composerId} calendarReviewEnabled={calendarReviewEnabled} onDirtyChange={onDirtyChange} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
           ) : (
             <div className="ai-welcome">
               <Image src={symbol} alt="" width={72} height={72} />
@@ -531,6 +533,7 @@ function Chat({
   initialPrompt,
   onDirtyChange,
   composerId = "ai-message",
+  calendarReviewEnabled = true,
 }: {
   onOpenPage: (id: string) => void;
   onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
@@ -538,6 +541,7 @@ function Chat({
   initialPrompt: string;
   onDirtyChange: (dirty: boolean) => void;
   composerId?: string;
+  calendarReviewEnabled?: boolean;
 }) {
   const client = useQueryClient();
   const caseParams = useSearchParams();
@@ -815,7 +819,7 @@ function Chat({
                 <div className="ai-message-text"><AiMarkdown text={draft.text} /></div>
               </article>
             )}
-            <ActionProposals chatId={id} runId={run?.id} running={!!running} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
+            <ActionProposals chatId={id} runId={run?.id} running={!!running} autoReview={calendarReviewEnabled} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
             <div ref={bottom} />
           </div>
           {copyNotice && <p className="ai-copy-notice muted" role="status">{copyNotice}</p>}

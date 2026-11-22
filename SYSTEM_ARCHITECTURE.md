@@ -72,7 +72,10 @@ preserves the existing API, session and calendar contracts. Removing one IIS occ
 from the user's calendar uses a confirmed hidden/skipped personal override in the UI.
 General official override editing,
 saved event views and mixed date projection remain API-only. The AI-04
-chat/settings/usage UI is implemented locally; AI remains default-disabled and
+chat/settings/usage UI is implemented locally. Calendar-related action proposals
+open a derived preview on the calendar; exact-digest approval or rejection returns
+to the originating full or floating chat. Preview rendering never writes user data.
+AI remains default-disabled and
 unactivated. See the [frontend guide](docs/architecture/frontend.md).
 
 Detailed behavior: [product overview](docs/product/overview.md) and

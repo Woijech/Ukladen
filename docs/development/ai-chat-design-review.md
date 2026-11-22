@@ -243,3 +243,46 @@ Delivery gate for these changes:
   semantic headings/lists/tables provide hierarchy inside answers.
 - Craftsmanship PASS: shared rendering covers full and floating chats; tested
   confirmation, cancellation, version conflict and unchanged unrelated occurrences.
+
+## Calendar action review (2026-11-22)
+
+Design Read: retain A1 and the established ENERGY 1 / RHYTHM 1 / MOTION 1 direction.
+The calendar grid is the decision surface. Dashed themed blocks mean proposed data,
+while separate previous/proposed lanes explain movement. The complete batch stays
+in a bounded detail scroller with visible confirmation controls. The calendar itself
+scrolls to the proposal without scrolling the page. Existing task/filter panels are
+temporarily omitted to leave room for the review. No new branding assets were added.
+
+Entry uses one 240ms transition; applied cards have one 700ms outline transition.
+Approval or rejection restores the originating full chat or the still-mounted floating
+chat. Reduced motion disables these animations and the return delay. Escape returns
+without deciding; a visible button allows reopening a pending proposal manually.
+
+Executed synthetic browser checks covered preview without writes, mixed batch details,
+before/after movement, explicit date links, cancellation/Escape, rejection, exact-once
+approval, conflict, expired receipts, navigation protection during saving, reduced
+motion and restoration of the floating chat and original calendar URL. Bounds and
+visible decision controls passed at 320/390/834/1440px in both themes. Captured phone
+and desktop screens were visually inspected. Measured ghost text contrast was 6.72:1
+in light mode and 7.98:1 in dark mode. These are scoped checks, not a full accessibility
+certification. No provider API or quota was used; this change is not deployed.
+
+Delivery gate, scoped to this change:
+
+- Hard gate PASS: both themes fit the tested widths; native named controls, keyboard,
+  loading/error states, bounded animation and reduced motion are supported. Synthetic
+  proposal content is test evidence, not shipped product data or marketing claims.
+- Purpose gate PASS: dashed borders distinguish projected data; the real time grid
+  locates the proposed change. Accent and motion explain preview and commit states.
+  Existing brand/type/radius tokens remain; no decorative gradients, glow or blur.
+- Liveliness PASS: the existing 1/1/1 direction remains; the proposal on the time grid
+  is the focal point, with structured space for details and explicit decisions.
+- Craftsmanship PASS: the existing batch approval component and digest contract are
+  reused, including partial plans and conflicts; source chat state is preserved.
+
+Review state is deliberately transient. Reloading the calendar does not restore the
+review panel; the pending proposal remains available from its conversation.
+
+Final verification: production build, ESLint, TypeScript and `git diff --check`
+passed. All 81 AI, calendar and deep-link Chromium scenarios passed on the final
+build, in addition to the targeted browser CLI assertions above.

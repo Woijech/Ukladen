@@ -310,3 +310,24 @@ A new override sends version zero and null inherited fields. Concurrent updates 
 with the normal 409 response; the dialog stays open and no success is reported.
 Personal events continue to use their normal DELETE endpoint. General override
 editing and restoring historical overrides remain available through the existing API.
+
+## AI action review on the calendar (2026-11-22)
+
+Pending proposals with timed effects open the calendar in day view. Dashed blocks
+project event creation/movement, task deadlines, reminder times and planned work
+sessions. Previous values and proposed values occupy separate lanes; overlapping
+proposals use the calendar's existing interval lane calculation. Day links allow
+reviewing effects on multiple dates. Calendar and proposal timezones are explicit.
+
+The review panel reuses the complete action batch, warnings, source links and partial
+plan acceptance controls. It submits the existing digest-bound decision endpoint;
+the backend retains authorization, expiry, version checks and atomic execution.
+No preview endpoint, database schema or LLM prompt was added. Conflicts stay visible
+without a success transition. Navigation is protected while a decision is saving.
+
+After an applied or rejected receipt, a bounded 700ms transition returns to the exact
+origin URL. Reduced motion skips the delay. The floating chat is temporarily hidden,
+stays mounted and reappears with its selected conversation. Returning without deciding
+does not reject or apply anything; the chat offers an explicit calendar-review button.
+Automatic review runs once per proposal ID/digest in the current workspace session.
+Review state is transient: after a browser reload, reopen the proposal from its chat.
