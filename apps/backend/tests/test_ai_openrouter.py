@@ -76,7 +76,7 @@ def test_official_adapter_uses_exact_model_key_at_dispatch_and_nullable_usage(us
     assert answer.additional_kwargs == {}
     assert len(requests) == 1 and requests[0].headers["Authorization"] == f"Bearer {KEY}"
     body = json.loads(requests[0].content)
-    assert body["model"] == PROFILE.model and body["max_tokens"] == 2048
+    assert body["model"] == PROFILE.model and body["max_tokens"] == PROFILE.max_output_tokens
     assert body["provider"]["allow_fallbacks"] is False
     assert body["provider"]["require_parameters"] is True
     assert "models" not in body and not body.get("plugins")
@@ -194,8 +194,9 @@ def test_credential_revocation_and_input_bounds_prevent_network_dispatch():
     with client:
         with pytest.raises(ConnectionUnavailable):
             model.invoke("Synthetic request")
-        with pytest.raises(ConnectionUnavailable):
+        with pytest.raises(ProviderFailure) as error:
             model.invoke("я" * 4000)
+        assert error.value.reason == "context_limit"
     assert sent == []
 
 

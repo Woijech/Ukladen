@@ -210,7 +210,10 @@ def test_oversized_tool_result_is_not_forwarded_and_answer_is_bounded() -> None:
     with patch.object(fake_double, "func", return_value="private-" + "x" * 16384):
         result = runner(tool_message(), AIMessage(content="Unavailable")).run(request())
     assert result.tools[0].status == "error" and "private-" not in result.model_dump_json()
-    assert runner(AIMessage(content="я" * 8193)).run(request()).status == "limited"
+    assert runner(AIMessage(content="я" * 8193)).run(request()).status == "completed"
+    result = runner(AIMessage(content="я" * 32769)).run(request())
+    assert result.answer is not None
+    assert result.failure_reason == "output_limit" and len(result.answer.encode()) == 65536
 
 
 def test_review_batch_is_bounded_before_any_tool_executes() -> None:
@@ -280,7 +283,7 @@ def test_reviews_cannot_edit_arguments_or_omit_decisions(changes: dict) -> None:
 
 
 def test_invalid_registration_and_limits_are_rejected_before_execution() -> None:
-    for kwargs in ({"model_limit": 0}, {"tool_limit": 9}, {"model_limit": 5}, {"tool_limit": True}):
+    for kwargs in ({"model_limit": 0}, {"tool_limit": 9}, {"model_limit": 9}, {"tool_limit": True}):
         with pytest.raises(ValueError):
             runner(AIMessage(content="Done"), **kwargs)
     with pytest.raises(ValueError):
@@ -296,3 +299,40 @@ def test_invalid_registration_and_limits_are_rejected_before_execution() -> None
             InMemorySaver(),
             review_tools=frozenset({"missing"}),
         )
+
+
+def test_partial_failure_checkpoint_allows_a_new_turn_without_replaying_tools() -> None:
+    from app.modules.ai.application.agent import ProviderFailure
+
+    agent = runner(AIMessage(content="Completed next turn"))
+    incoming = request()
+    with patch.object(
+        FakeChatModel,
+        "_generate",
+        side_effect=ProviderFailure(
+            "invalid_response", reason="output_limit", partial_answer="Preserved text"
+        ),
+    ):
+        result = agent.run(incoming)
+    assert result.failure_reason == "output_limit" and result.answer == "Preserved text"
+    config = agent._config(incoming.conversation_id)
+    assert not agent.graph.get_state(config).next
+    result = agent.run(AgentInput(conversation_id=incoming.conversation_id, message="Continue"))
+    assert result.status == "completed" and result.answer == "Completed next turn"
+
+
+def test_recent_history_keeps_complete_tool_pairs_and_the_current_turn() -> None:
+    from langchain_core.messages import HumanMessage, ToolMessage
+
+    from app.modules.ai.infrastructure.context import recent_turns
+
+    old = [HumanMessage(content="Old" * 1000), AIMessage(content="Reply")]
+    pair = [
+        HumanMessage(content="Find"),
+        tool_message(),
+        ToolMessage(content="14", tool_call_id="call-1"),
+    ]
+    current = HumanMessage(content="Continue")
+    messages = recent_turns([*old, *pair, current], history_bytes=2000)
+    assert messages == [*pair, current]
+    assert recent_turns([*old, current], history_bytes=1) == [current]

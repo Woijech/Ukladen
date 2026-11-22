@@ -33,10 +33,12 @@ export function useNoteDraft(
   const flight = useRef<Promise<boolean> | null>(null);
   const savingDraft = useRef<Draft | null>(null);
   const flushAgain = useRef(false);
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosavePaused = useRef(false);
   useEffect(() => { callbacks.current = { onDirtyChange, onSaved }; }, [onDirtyChange, onSaved]);
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; callbacks.current.onDirtyChange(false); };
+    return () => { mounted.current = false; if (autosaveTimer.current) clearTimeout(autosaveTimer.current); callbacks.current.onDirtyChange(false); };
   }, []);
 
   function mark(value: boolean) {
@@ -49,6 +51,10 @@ export function useNoteDraft(
     current.current = next;
     setDraft(next);
     mark(!same(next, fromNote(confirmed.current)) || Boolean(flight.current));
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    if (!note.trashed_at && next.title.trim() && !autosavePaused.current) {
+      autosaveTimer.current = setTimeout(() => { void save(false); }, 1500);
+    }
   }
   function adopt(fresh: Note) {
     confirmed.current = fresh;
@@ -56,6 +62,8 @@ export function useNoteDraft(
     setDraft(current.current);
     setVersion(fresh.version);
     setError("");
+    autosavePaused.current = false;
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     mark(false);
     setEpoch(value => value + 1);
   }
@@ -95,6 +103,7 @@ export function useNoteDraft(
       } while (mounted.current && flushAgain.current && dirtyFlag.current);
       return !dirtyFlag.current;
     } catch (cause) {
+      autosavePaused.current = true;
       if (mounted.current) {
         setError(cause instanceof Error ? cause.message : "Не удалось сохранить страницу.");
         mark(true);
@@ -107,7 +116,9 @@ export function useNoteDraft(
       if (mounted.current) setSaving(false);
     }
   }
-  function save() {
+  function save(manual = true) {
+    if (manual) autosavePaused.current = false;
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     if (note.trashed_at) return Promise.resolve(false);
     if (flight.current) {
       if (savingDraft.current && !same(current.current, savingDraft.current)) flushAgain.current = true;

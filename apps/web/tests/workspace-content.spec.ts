@@ -534,7 +534,7 @@ test("a conflicting note save retains the draft and explicit reload adopts the l
   await expect(page.getByLabel("Текст блока 1")).toHaveValue(
     "Изменение на сервере",
   );
-  await expect(page.locator(".note-meta")).toContainText("v8");
+  await expect(page.locator(".note-meta")).toContainText("Сохранено");
 });
 
 test("note trash is confirmed and restoring refreshes the write version", async ({
@@ -559,10 +559,10 @@ test("note trash is confirmed and restoring refreshes the write version", async 
     page.getByRole("button", { name: "Восстановить страницу" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Восстановить страницу" }).click();
-  await expect(page.locator(".note-meta")).toContainText("v5");
+  await expect(page.locator(".note-meta")).toContainText("Сохранено");
   await page.getByLabel("Текст блока 1").fill("После восстановления");
   await page.getByRole("button", { name: "Сохранить страницу" }).click();
-  await expect(page.locator(".note-meta")).toContainText("v6");
+  await expect(page.locator(".note-meta")).toContainText("Сохранено");
 });
 
 test("material upload reserves once, sends exact raw bytes and content type, then refreshes the library", async ({
@@ -1438,7 +1438,6 @@ test("metadata success followed by document failure retains the draft and retrie
     .getByRole("button", { name: "Сохранить страницу", exact: true })
     .click();
   await expect(page.locator(".note-meta")).toContainText("Ошибка сохранения");
-  await expect(page.locator(".note-meta")).toContainText("v4");
   await expect(page.getByLabel("Текст блока 1")).toHaveValue("Важный черновик");
   await page.keyboard.press("Control+s");
   await expect(

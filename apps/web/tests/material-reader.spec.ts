@@ -11,6 +11,7 @@ for (const width of [1440, 390]) {
   test(`document reader supports text, pagination, font size and keyboard at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 900 });
     const workspace = await mockWorkspace(page);
+    await page.route("**/api/v1/ai/sources/material/*/index", route => route.fulfill({ json: { status: "ready", version: 3 } }));
     await page.route("**/api/v1/materials**", async route => {
       const url = new URL(route.request().url());
       if (url.pathname.endsWith("/storage")) return route.fulfill({ json: { used_bytes: 3000, limit_bytes: 1073741824 } });
@@ -27,6 +28,7 @@ for (const width of [1440, 390]) {
     await page.getByRole("button", { name: "Читать", exact: true }).click();
     const reader = page.getByRole("dialog", { name: `Чтение: ${material.title}` });
     await expect(reader.getByRole("article")).toContainText("Философия начинается");
+    await expect(reader.getByText("Поиск по смыслу готов", { exact: true })).toBeVisible();
     await expect(reader.getByRole("article")).toContainText("<script>");
     await expect(reader.locator("script")).toHaveCount(0);
     await reader.getByRole("button", { name: "Увеличить текст" }).click();
@@ -51,6 +53,7 @@ for (const width of [1440, 390]) {
 
 test("reader handles processing, empty text, retry and PDF originals", async ({ page }) => {
   await mockWorkspace(page);
+  await page.route("**/api/v1/ai/sources/material/*/index", route => route.fulfill({ json: { status: "ready", version: 3 } }));
   let status = "processing";
   let filename = "lecture.docx";
   let textError = false;

@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterator, Sequence
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from time import monotonic
-from typing import Any
+from typing import Any, TypedDict
 
 import httpx
 from langchain_core.language_models import BaseChatModel
@@ -30,6 +30,11 @@ STREAM_BYTES = 2 * 1024 * 1024
 logger = logging.getLogger(__name__)
 
 
+class ProviderUsage(TypedDict):
+    input_tokens: int | None
+    output_tokens: int | None
+
+
 def log_provider_failure(error: Exception, *, reason: str | None = None) -> None:
     response = getattr(error, "raw_response", None)
     status = response.status_code if isinstance(response, httpx.Response) else None
@@ -50,7 +55,7 @@ def token_count(value: Any) -> int | None:
     return int(value)
 
 
-def usage_values(data: dict[str, Any]) -> dict[str, int | None]:
+def usage_values(data: dict[str, Any]) -> ProviderUsage:
     usage = data.get("usage") or {}
     return {
         "input_tokens": token_count(usage.get("prompt_tokens")),
@@ -82,7 +87,7 @@ def diagnostic_usage(data: dict[str, Any]) -> None:
     )
 
 
-def validate_tool_calls(calls: list[dict[str, Any]], usage: dict[str, int | None]) -> None:
+def validate_tool_calls(calls: list[dict[str, Any]], usage: ProviderUsage) -> None:
     identifiers: set[str] = set()
     for call in calls:
         identifier = call.get("id")
@@ -167,11 +172,10 @@ class OpenRouterTransport(httpx.BaseTransport):
             or body.get("max_completion_tokens") is not None
         ):
             raise ConnectionUnavailable("Model output budget was not preserved.")
-        if (
-            body.get("model") != self.profile.model
-            or len(request.content) > self.profile.max_input_bytes
-        ):
+        if body.get("model") != self.profile.model:
             raise ConnectionUnavailable("Model request exceeds the configured input budget.")
+        if len(request.content) > self.profile.max_input_bytes:
+            raise ProviderFailure("invalid_response", reason="context_limit")
         if body.get("tools") and not self.profile.tools:
             raise ConnectionUnavailable("Tool calling is unavailable for this model.")
         if body.get("response_format") and (
@@ -242,6 +246,14 @@ class SupportedOpenRouter(ChatOpenRouter):
         if len(choices) != 1 or data.get("model") != self.model_name:
             raise ProviderFailure("invalid_response", **usage)
         choice = choices[0]
+        if choice.get("finish_reason") == "length":
+            content = choice.get("message", {}).get("content")
+            raise ProviderFailure(
+                "invalid_response",
+                reason="output_limit",
+                partial_answer=content if isinstance(content, str) else None,
+                **usage,
+            )
         if choice.get("finish_reason") not in ("stop", "tool_calls") or choice.get(
             "message", {}
         ).get("refusal"):
@@ -267,6 +279,7 @@ class SupportedOpenRouter(ChatOpenRouter):
             raise ProviderFailure("timeout") from None
         except ResponseValidationError as error:
             log_provider_failure(error)
+            reported: ProviderUsage
             try:
                 reported = usage_values(json.loads(error.body or "{}"))
             except ValueError, TypeError, AttributeError:
@@ -282,7 +295,7 @@ class SupportedOpenRouter(ChatOpenRouter):
         message_dicts, params = self._create_message_dicts(messages, stop)
         params = params | kwargs | {"stream": True, "stream_options": {"include_usage": True}}
         _strip_internal_kwargs(params)
-        usage: dict[str, int | None] = {"input_tokens": None, "output_tokens": None}
+        usage: ProviderUsage = {"input_tokens": None, "output_tokens": None}
         finished = False
         finished_reason: str | None = None
         failure_reason: str | None = None
@@ -356,7 +369,13 @@ class SupportedOpenRouter(ChatOpenRouter):
                 raise ProviderFailure("invalid_response", **usage)
             if failure_reason is not None:
                 phase = failure_reason
-                raise ProviderFailure("invalid_response", **usage)
+                raise ProviderFailure(
+                    "invalid_response",
+                    reason="output_limit"
+                    if failure_reason == "stream_output_limit"
+                    else "invalid_response",
+                    **usage,
+                )
             phase = "stream_tool_arguments"
             validate_tool_calls(
                 [

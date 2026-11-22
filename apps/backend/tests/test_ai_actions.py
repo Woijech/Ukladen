@@ -497,3 +497,86 @@ def test_missing_event_in_generated_proposal_returns_explanation_without_writes(
     assert "Ничего не изменено" in messages[-1]["content"]
     assert ai_client.get(f"{BASE}/conversations/{conversation['id']}/proposals").json() == []
     assert count(concurrent_engine, PersonalCalendarEventModel) == 0
+
+
+def test_point_edits_preserve_untouched_content_and_reject_ambiguous_matches() -> None:
+    from app.modules.ai.application.actions import PageUpdate
+    from app.modules.ai.domain.state import AiConflict
+    from app.modules.notes.domain.blocks import TextBlock, document_value, parse_document
+
+    first, second = str(uuid4()), str(uuid4())
+    original = parse_document(
+        {
+            "schema_version": 1,
+            "blocks": [
+                {
+                    "id": first,
+                    "type": "text",
+                    "text": "Keep this. Improve this. Keep that.",
+                    "text_format": "markdown",
+                },
+                {"id": second, "type": "checkbox", "text": "Untouched", "checked": True},
+            ],
+        }
+    )
+    payload = {
+        "operation": "page_update",
+        "page_id": str(uuid4()),
+        "expected_version": 1,
+        "block_edits": [{"block_id": first, "before": "Improve this.", "after": "Improved."}],
+    }
+    edit = PageUpdate.model_validate(payload)
+    result = edit.document_for(original)
+    assert result.blocks[1] == original.blocks[1]
+    assert isinstance(result.blocks[0], TextBlock)
+    assert isinstance(original.blocks[0], TextBlock)
+    assert result.blocks[0].text == "Keep this. Improved. Keep that."
+    assert original.blocks[0].text == "Keep this. Improve this. Keep that."
+    for before in ("Keep", "Missing"):
+        invalid = PageUpdate.model_validate(
+            payload | {"block_edits": [{"block_id": first, "before": before, "after": "X"}]}
+        )
+        with pytest.raises(AiConflict):
+            invalid.document_for(original)
+    with pytest.raises(ValidationError):
+        PageUpdate.model_validate(payload | {"document": document_value(original)})
+
+
+def test_point_edit_requires_owner_confirmation_and_records_history(ai_client: TestClient) -> None:
+    headers = csrf_headers(ai_client)
+    first, second = str(uuid4()), str(uuid4())
+    page = ai_client.post(
+        "/api/v1/notes/pages",
+        headers=headers,
+        json={
+            "title": "Point edit",
+            "document": {
+                "schema_version": 1,
+                "blocks": [
+                    {"id": first, "type": "text", "text": "Before and untouched tail"},
+                    {"id": second, "type": "checkbox", "text": "Preserve me", "checked": True},
+                ],
+            },
+        },
+    ).json()
+    _, proposal = propose(
+        ai_client,
+        [
+            {
+                "operation": "page_update",
+                "page_id": page["id"],
+                "expected_version": 1,
+                "block_edits": [{"block_id": first, "before": "Before", "after": "After"}],
+            }
+        ],
+    )
+    endpoint = f"/api/v1/notes/pages/{page['id']}"
+    assert (
+        ai_client.get(endpoint).json()["document"]["blocks"][0]["text"]
+        == "Before and untouched tail"
+    )
+    assert decide(ai_client, proposal).json()["status"] == "applied"
+    saved = ai_client.get(endpoint).json()
+    assert saved["document"]["blocks"][0]["text"] == "After and untouched tail"
+    assert saved["document"]["blocks"][1] == page["document"]["blocks"][1]
+    assert [item["version"] for item in ai_client.get(endpoint + "/revisions").json()] == [2, 1]

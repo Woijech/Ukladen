@@ -35,8 +35,10 @@ export type Message = {
   role: string;
   content: string;
   sources: Source[];
+  incomplete?: boolean;
 };
 export type Run = {
+  failure_reason?: string | null;
   connection_id?: string | null;
   estimated_cost: string | null;
   unpriced_attempts: number;
@@ -123,6 +125,15 @@ export const runLabels: Record<Run["status"], string> = {
   failed: "Не удалось завершить ответ",
   cancelled: "Остановлено",
   interrupted: "Выполнение приостановлено",
+};
+
+export const failureLabels: Record<string, string> = {
+  output_limit: "Ответ достиг ограничения длины. Сохранённый текст можно продолжить.",
+  context_limit: "Вопрос и контекст слишком велики. Выбери меньше источников или начни новый чат.",
+  step_limit: "Запрос потребовал больше шагов. Раздели его на части или продолжи с последнего результата.",
+  timeout: "Время ожидания истекло. Доступная часть ответа сохранена.",
+  invalid_response: "Модель вернула неполный или некорректный результат. Можно повторить запрос.",
+  unavailable: "Не удалось завершить запрос к модели. Можно повторить его.",
 };
 
 export async function streamMessage(

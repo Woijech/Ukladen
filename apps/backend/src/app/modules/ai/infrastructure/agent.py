@@ -35,12 +35,14 @@ from app.modules.ai.application.agent import (
     AgentReview,
     InvalidAgentReview,
     PendingReview,
+    ProviderFailure,
     ReviewAction,
     ToolOutcome,
 )
 from app.modules.ai.application.diagnostics import record
 from app.modules.ai.application.lifecycle import ExecutionJournal
 from app.modules.ai.application.streaming import emit, stream_sink
+from app.modules.ai.domain.state import ANSWER_BYTES, FailureReason
 from app.modules.ai.infrastructure.accounting import AccountingMiddleware, capture_model_input
 from app.modules.ai.infrastructure.bounds import BoundedCalls
 from app.modules.ai.infrastructure.grounding import SourceTools
@@ -85,7 +87,7 @@ class OfflineAgentRunner:
         checkpointer: BaseCheckpointSaver,
         *,
         review_tools: frozenset[str] = frozenset(),
-        model_limit: int = 4,
+        model_limit: int = 8,
         tool_limit: int = 8,
         journal: ExecutionJournal | None = None,
         run_id: UUID | None = None,
@@ -98,7 +100,7 @@ class OfflineAgentRunner:
         if (
             type(model_limit) is not int
             or type(tool_limit) is not int
-            or not 1 <= model_limit <= 4
+            or not 1 <= model_limit <= 8
             or not 1 <= tool_limit <= 8
             or not math.isfinite(run_timeout)
             or not 0 < run_timeout <= 60
@@ -247,6 +249,8 @@ class OfflineAgentRunner:
 
     def _invoke(self, value: InputAgentState | Command[Any], config: RunnableConfig) -> AgentResult:
         self.bounds.begin(self.run_timeout)
+        partial = ""
+        partial_id = None
         try:
             if stream_sink.get() is None:
                 result = self.graph.invoke(value, config)
@@ -272,9 +276,15 @@ class OfflineAgentRunner:
                                 if isinstance(block, dict) and block.get("type") == "text"
                             )
                         )
+                        if message.id != partial_id:
+                            partial, partial_id = "", message.id
+                        partial += text
                         streamed_bytes += len(text.encode("utf-8"))
-                        if streamed_bytes > RESULT_BYTES * 4:
-                            return AgentResult(status="limited")
+                        if (
+                            len(partial.encode("utf-8")) > ANSWER_BYTES
+                            or streamed_bytes > ANSWER_BYTES * 2
+                        ):
+                            return self._failed(config, "output_limit", partial)
                         if text:
                             emit("delta", id=message.id or "answer", text=text)
             response = self._result(result)
@@ -284,12 +294,73 @@ class OfflineAgentRunner:
                 else response
             )
         except CALL_LIMIT_ERRORS:
-            return AgentResult(status="limited")
+            return self._failed(config, "step_limit", partial)
         except TimeoutError:
-            return AgentResult(status="failed", error_code="timeout")
+            return self._failed(config, "timeout", partial)
+        except ProviderFailure as error:
+            return self._failed(config, error.reason, partial or error.partial_answer or "")
         except Exception as error:
             log_failure(logger, "ai.offline_execution_failed", error)
-            return AgentResult(status="failed")
+            return self._failed(config, "unavailable", partial)
+
+    def _failed(self, config: RunnableConfig, reason: FailureReason, partial: str) -> AgentResult:
+        answer = partial.encode("utf-8")[:ANSWER_BYTES].decode("utf-8", errors="ignore") or None
+        try:
+            state = self.graph.get_state(config)
+            if not any(task.interrupts for task in state.tasks):
+                messages = state.values.get("messages", [])
+                answered = {
+                    message.tool_call_id for message in messages if isinstance(message, ToolMessage)
+                }
+                pending = [
+                    call
+                    for message in messages
+                    if isinstance(message, AIMessage)
+                    for call in message.tool_calls
+                    if call["id"] not in answered
+                ]
+                self.graph.update_state(
+                    config,
+                    {
+                        "messages": [
+                            *[
+                                ToolMessage(
+                                    content=(
+                                        "Execution stopped. Read current data "
+                                        "before proposing changes."
+                                    ),
+                                    tool_call_id=call["id"],
+                                    name=call["name"],
+                                    status="error",
+                                )
+                                for call in pending
+                            ],
+                            AIMessage(
+                                content=answer
+                                or (
+                                    "Previous request did not finish. "
+                                    "No new write authorization was granted."
+                                )
+                            ),
+                        ]
+                    },
+                    as_node="model",
+                )
+                # Finalize routing with a text-only terminal message; no tool is resumed.
+                self.graph.invoke(None, config)
+        except Exception as error:
+            log_failure(logger, "ai.failure_checkpoint_unavailable", error)
+        return AgentResult(
+            status="limited" if reason in ("step_limit", "output_limit") else "failed",
+            answer=answer,
+            failure_reason=reason,
+            error_code="timeout"
+            if reason == "timeout"
+            else "invalid_response"
+            if reason in ("output_limit", "context_limit", "invalid_response")
+            else "unavailable",
+            sources=self.sources.sources if self.sources else (),
+        )
 
     @staticmethod
     def _result(result: Mapping[str, Any]) -> AgentResult:
@@ -325,6 +396,12 @@ class OfflineAgentRunner:
             if isinstance(message, ToolMessage)
         )
         answer = messages[-1].text if isinstance(messages[-1], AIMessage) else None
-        if answer is not None and len(answer.encode("utf-8")) > RESULT_BYTES:
-            return AgentResult(status="limited", tools=tools)
+        if answer is not None and len(answer.encode("utf-8")) > ANSWER_BYTES:
+            return AgentResult(
+                status="failed",
+                answer=answer.encode("utf-8")[:ANSWER_BYTES].decode("utf-8", errors="ignore"),
+                failure_reason="output_limit",
+                error_code="invalid_response",
+                tools=tools,
+            )
         return AgentResult(status="completed", answer=answer, tools=tools)

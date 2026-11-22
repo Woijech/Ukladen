@@ -2,12 +2,13 @@ from dataclasses import asdict
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session, defer
 
 from app.modules.notes.domain.blocks import document_value, parse_document
 from app.modules.notes.domain.pages import Page, PageConflict, PageMetadata
-from app.modules.notes.infrastructure.orm import PageModel
+from app.modules.notes.domain.revisions import PageRevision, PageRevisionSummary
+from app.modules.notes.infrastructure.orm import PageModel, PageRevisionModel
 
 
 def page_metadata(row: PageModel) -> PageMetadata:
@@ -87,6 +88,7 @@ class SqlAlchemyPageRepository:
     def create(self, page: Page) -> None:
         self.session.add(PageModel(**page_values(page)))
         self.session.flush()
+        self._remember(page)
 
     def save(self, page: Page, expected_version: int) -> None:
         values = page_values(page)
@@ -104,6 +106,70 @@ class SqlAlchemyPageRepository:
         )
         if row_id is None:
             raise PageConflict()
+        self._remember(page)
+
+    def _remember(self, page: Page) -> None:
+        self.session.add(
+            PageRevisionModel(
+                page_id=page.id,
+                user_id=page.user_id,
+                version=page.version,
+                title=page.title,
+                document=document_value(page.document),
+                saved_at=page.updated_at,
+            )
+        )
+        self.session.flush()
+        recent = (
+            select(PageRevisionModel.version)
+            .where(PageRevisionModel.user_id == page.user_id, PageRevisionModel.page_id == page.id)
+            .order_by(PageRevisionModel.version.desc())
+            .limit(50)
+        )
+        self.session.execute(
+            delete(PageRevisionModel).where(
+                PageRevisionModel.user_id == page.user_id,
+                PageRevisionModel.page_id == page.id,
+                PageRevisionModel.version.not_in(recent),
+            )
+        )
+
+    @staticmethod
+    def _revision(row: PageRevisionModel) -> PageRevision:
+        return PageRevision(
+            page_id=row.page_id,
+            version=row.version,
+            title=row.title,
+            document=parse_document(row.document),
+            saved_at=row.saved_at,
+        )
+
+    def revisions(
+        self, user_id: UUID, page_id: UUID, limit: int, offset: int
+    ) -> list[PageRevisionSummary]:
+        return [
+            PageRevisionSummary(
+                page_id=row.page_id, version=row.version, title=row.title, saved_at=row.saved_at
+            )
+            for row in self.session.scalars(
+                select(PageRevisionModel)
+                .options(defer(PageRevisionModel.document))
+                .where(PageRevisionModel.user_id == user_id, PageRevisionModel.page_id == page_id)
+                .order_by(PageRevisionModel.version.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+        ]
+
+    def revision(self, user_id: UUID, page_id: UUID, version: int) -> PageRevision | None:
+        row = self.session.scalar(
+            select(PageRevisionModel).where(
+                PageRevisionModel.user_id == user_id,
+                PageRevisionModel.page_id == page_id,
+                PageRevisionModel.version == version,
+            )
+        )
+        return self._revision(row) if row else None
 
     def trash_branch(self, user_id: UUID, page_id: UUID, now: datetime) -> None:
         branch = (

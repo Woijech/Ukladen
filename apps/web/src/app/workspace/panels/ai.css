@@ -632,6 +632,12 @@
 .context-inspector summary { cursor: pointer; }
 .context-findings { margin: 20px 0; padding: 0 0 0 16px; border-left: 2px solid var(--accent); }
 .ai-usage { min-width: 0; }
+.ai-incomplete-label { color: var(--muted); font-size: 12px; margin: 6px 0 12px; }
+.ai-recovery { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 24px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-alt); }
+.ai-recovery strong { font-size: 14px; }
+.ai-recovery p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+.ai-recovery button { flex-shrink: 0; min-height: 44px; }
+@media (max-width: 760px) { .ai-recovery { flex-wrap: wrap; margin-inline: 12px; } }
 .usage-summary > div { min-width: 0; }
 .usage-summary strong { overflow-wrap: anywhere; }
 .usage-chart .panel-toolbar { flex-wrap: wrap; padding-left: 0; padding-right: 0; }

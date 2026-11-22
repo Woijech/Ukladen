@@ -3,8 +3,7 @@
 Updated: 2026-10-28.
 Status: implemented: independent nested pages, versioned block documents
 and recoverable trash. The page tree and block editor UI are described in the
-[frontend guide](../architecture/frontend.md). Sharing, permanent deletion, revision history and
-export are not implemented. Page-backed user databases reference these pages through
+[frontend guide](../architecture/frontend.md). Retained revisions and debounced autosave are implemented locally as of 2026-11-22; see [workspace hardening](workspace-hardening.md). Sharing, permanent deletion and portable workspace export remain unimplemented. Page-backed user databases reference these pages through
 notes application services; see [database contracts](databases.md).
 
 ## Content and ownership
@@ -162,7 +161,7 @@ a block requires confirmation. Safe conversion is limited to single-line plain t
 and headings, heading levels, and list styles; structured values and Markdown are
 not silently flattened.
 
-Saves remain manual, including Ctrl/Cmd+S, with compact pending/dirty/error/saved
+Saves run after 1.5 seconds without typing; explicit save and Ctrl/Cmd+S remain available, with compact pending/dirty/error/saved
 feedback and duplicate-submit protection. Page navigation offers save-and-go,
 continue editing and explicit draft discard; browser unload protection remains.
 Metadata and document writes still use successive page versions. If metadata saves
@@ -200,7 +199,7 @@ Metadata success advances the baseline before the document write, so a failed bo
 save retries at the correct version without repeating unchanged metadata. Background
 query updates cannot silently replace a draft's version. Reload is an explicit discard
 confirmation. Drafts are memory-only and protected by the existing navigation/unload
-guards; autosave, offline/crash recovery and revision history remain unimplemented.
+guards. Debounced autosave and 50 retained page snapshots are now implemented; offline/crash recovery remains unimplemented.
 
 See [stage-4 delivery and verification](frontend-redesign-stage-4.md). The dated checks
 below describe the older slice and have not been repurposed as current evidence.
@@ -217,7 +216,7 @@ unresolved choices in [Q-06/Q-08](../product/open-questions.md).
 | Rich text, colors, nested/advanced blocks, quotes/code/toggles/columns | Requires a separate product decision | Q-08: versioned block/inline schema, validation, migration, rendering and editor behavior |
 | Inline images and embeds | Requires a separate product decision | Block references to owned materials, media access and remote embedding policy; attachments already exist separately |
 | Links/backlinks | Partially implemented | Calendar backlinks, material references and ordinary HTTP link blocks exist; typed page-page links/backlinks need relations API and persistence within the current architecture |
-| Revision history | Partially implemented | Optimistic version checks exist, retained revisions do not; Q-06 must define retention and restore semantics before storage/API work |
+| Revision history | Implemented locally | Latest 50 snapshots per page; owner-scoped preview and explicit restore create a new version |
 | User databases and table/calendar views | Implemented | Existing independent database area with typed properties, saved queries and page-backed records |
 | Additional database list/board views | Absent; fits current architecture | Extend saved layout contracts and UI over existing records; no record copies |
 | Formulas and rollups | Requires a separate product decision | Owner-deferred; expression/dependency rules, query cost and relation contracts |

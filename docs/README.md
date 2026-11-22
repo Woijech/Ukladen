@@ -18,6 +18,9 @@ Planned contracts do not override the current implemented API silently.
 
 ## Architecture and decisions
 
+- [Workspace hardening](development/workspace-hardening.md): recoverable AI answers, autosave/history, explicit page context and safe point edits.
+- [Local workspace backups](development/workspace-backups.md): checksummed database/object snapshots and an isolated restore drill.
+
 - [Architecture overview](architecture/overview.md): actual module/runtime baseline.
 - [Backend](architecture/backend.md): current backend contracts and verification.
 - [Workspace](architecture/workspace.md): implemented pages, organization, user databases and table/calendar views.

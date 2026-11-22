@@ -16,6 +16,7 @@ from app.modules.ai.domain.state import (
     Conversation,
     ErrorCode,
     ExecutionStatus,
+    FailureReason,
     InvalidAiState,
     Message,
     MessageRole,
@@ -65,12 +66,14 @@ def message_entity(row: MessageModel) -> Message:
         content=row.content,
         created_at=row.created_at,
         sources=tuple(SourceReference.model_validate(item) for item in row.sources),
+        incomplete=row.incomplete,
     )
 
 
 def run_entity(row: RunModel) -> Run:
     return Run(
         price=PriceSnapshot.model_validate(row.price) if row.price else None,
+        failure_reason=cast(FailureReason | None, row.failure_reason),
         id=row.id,
         user_id=row.user_id,
         conversation_id=row.conversation_id,
@@ -438,6 +441,7 @@ class SqlAlchemyAiRepository:
                     updated_at=run.updated_at,
                     finished_at=run.finished_at,
                     version=run.version,
+                    failure_reason=run.failure_reason,
                 )
                 .returning(RunModel.id)
             )

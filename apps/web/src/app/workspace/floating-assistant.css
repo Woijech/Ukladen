@@ -49,3 +49,9 @@
 .floating-ai-content .ai-suggestions button { flex-direction: row; align-items: center; gap: 12px; }
 .floating-ai-content .ai-suggestions strong { margin-bottom: 3px; }
 .floating-ai-trigger > img, .floating-ai-header > img { border-radius: 50%; object-fit: cover; }
+.workspace-shell:has(.task-quick-add) .floating-ai-trigger { bottom: 100px; }
+.workspace-shell:has(.task-quick-add) .floating-ai-panel { bottom: 172px; height: min(700px, calc(100dvh - 196px)); }
+@media (max-width: 900px) {
+  .workspace-shell:has(.task-quick-add) .floating-ai-trigger { bottom: calc(164px + env(safe-area-inset-bottom)); }
+  .workspace-shell:has(.task-quick-add) .floating-ai-panel { bottom: calc(164px + env(safe-area-inset-bottom)); height: calc(100dvh - 188px - env(safe-area-inset-bottom)); }
+}

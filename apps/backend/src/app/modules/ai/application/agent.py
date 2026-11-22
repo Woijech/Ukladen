@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 
 from app.modules.ai.application.source_queries import SourceScope
-from app.modules.ai.domain.state import ErrorCode
+from app.modules.ai.domain.state import ANSWER_BYTES, ErrorCode, FailureReason
 from app.modules.search.domain.evidence import SourceReference
 
 
@@ -21,10 +21,18 @@ class ProviderFailure(Exception):
         *,
         input_tokens: int | None = None,
         output_tokens: int | None = None,
+        reason: FailureReason | None = None,
+        partial_answer: str | None = None,
     ) -> None:
         super().__init__("Model request could not be completed.")
         self.error_code: ErrorCode = error_code
         self.input_tokens, self.output_tokens = input_tokens, output_tokens
+        self.reason: FailureReason = reason or error_code
+        self.partial_answer = (
+            partial_answer.encode("utf-8")[:ANSWER_BYTES].decode("utf-8", errors="ignore")
+            if partial_answer
+            else None
+        )
 
 
 class AgentInput(BaseModel):
@@ -86,6 +94,7 @@ class AgentResult(BaseModel):
     review: PendingReview | None = None
     tools: tuple[ToolOutcome, ...] = ()
     error_code: ErrorCode | None = None
+    failure_reason: FailureReason | None = None
     sources: tuple[SourceReference, ...] = Field(default=(), max_length=64)
 
 

@@ -75,6 +75,7 @@ class MessageResponse(BaseModel):
     content: str
     created_at: datetime
     sources: tuple[SourceReference, ...] = ()
+    incomplete: bool = False
 
 
 class MessageList(BaseModel):
@@ -123,12 +124,14 @@ class RunResponse(BaseModel):
     estimated_cost: Decimal | None = None
     unpriced_attempts: int = 0
     unpriced_web_searches: int = 0
+    failure_reason: str | None = None
 
     @classmethod
     def from_snapshot(cls, snapshot: RunSnapshot) -> RunResponse:
         run = snapshot.run
         return cls(
             price=run.price,
+            failure_reason=run.failure_reason,
             estimated_cost=snapshot.estimated_cost,
             unpriced_attempts=snapshot.unpriced_attempts,
             unpriced_web_searches=snapshot.unpriced_web_searches,

@@ -132,6 +132,7 @@ class MessageModel(Base):
     sequence: Mapped[int] = mapped_column(BigInteger)
     role: Mapped[str] = mapped_column(String(9))
     content: Mapped[str] = mapped_column(Text)
+    incomplete: Mapped[bool] = mapped_column(default=False, server_default="false")
     sources: Mapped[list[dict]] = mapped_column(JSONB, default=list, server_default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
@@ -145,7 +146,12 @@ class MessageModel(Base):
         UniqueConstraint("conversation_id", "sequence", name="uq_ai_messages_sequence"),
         CheckConstraint("sequence > 0", name="ck_ai_messages_sequence"),
         CheckConstraint("role IN ('user', 'assistant', 'tool')", name="ck_ai_messages_role"),
-        CheckConstraint("octet_length(content) BETWEEN 1 AND 16384", name="ck_ai_messages_content"),
+        CheckConstraint(
+            "octet_length(content) BETWEEN 1 AND "
+            "CASE WHEN role = 'assistant' THEN 65536 ELSE 16384 END",
+            name="ck_ai_messages_content",
+        ),
+        CheckConstraint("NOT incomplete OR role = 'assistant'", name="ck_ai_messages_incomplete"),
         CheckConstraint(
             "jsonb_typeof(sources) = 'array' AND jsonb_array_length(sources) <= 64 "
             "AND octet_length(sources::text) <= 65536 "
@@ -172,6 +178,7 @@ class RunModel(Base):
     provider: Mapped[str] = mapped_column(String(128))
     model: Mapped[str] = mapped_column(String(128))
     status: Mapped[str] = mapped_column(String(11))
+    failure_reason: Mapped[str | None] = mapped_column(String(32))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -197,6 +204,12 @@ class RunModel(Base):
         UniqueConstraint("id", "user_id", name="uq_ai_runs_owner"),
         UniqueConstraint("user_id", "submission_id", name="uq_ai_runs_submission"),
         CheckConstraint("version > 0", name="ck_ai_runs_version"),
+        CheckConstraint(
+            "failure_reason IS NULL OR (status IN ('failed','cancelled') AND failure_reason IN "
+            "('output_limit','context_limit','step_limit','timeout','invalid_response',"
+            "'unavailable','cancelled','interrupted'))",
+            name="ck_ai_runs_failure_reason",
+        ),
         CheckConstraint("request_digest ~ '^[0-9a-f]{64}$'", name="ck_ai_runs_digest"),
         CheckConstraint(
             "price IS NULL OR (jsonb_typeof(price) = 'object' "

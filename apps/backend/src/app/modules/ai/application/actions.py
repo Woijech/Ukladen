@@ -4,7 +4,7 @@ import hashlib
 import json
 from collections.abc import Callable
 from contextlib import AbstractContextManager
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal, Protocol, Self
 from uuid import UUID, uuid4
@@ -32,7 +32,7 @@ from app.modules.ai.domain.state import AiConflict, AiNotFound, Run
 from app.modules.calendar.application.service import CalendarService
 from app.modules.calendar.domain.events import PERSONAL_FIELDS, personal_values
 from app.modules.notes.application.service import NoteService
-from app.modules.notes.domain.blocks import document_value, parse_document
+from app.modules.notes.domain.blocks import ListBlock, PageDocument, document_value, parse_document
 from app.modules.notes.domain.pages import page_title
 from app.modules.reminders.application.service import ReminderService
 from app.modules.reminders.domain.reminders import trigger_time
@@ -57,18 +57,47 @@ class PageCreate(ActionInput):
     document: dict[str, JsonValue]
 
 
+class BlockTextEdit(ActionInput):
+    block_id: UUID
+    before: str = Field(min_length=1, max_length=100000, strict=True)
+    after: str = Field(max_length=100000, strict=True)
+
+
 class PageUpdate(ActionInput):
     operation: Literal["page_update"]
     page_id: UUID
     expected_version: int = Field(ge=1, strict=True)
     title: str | None = Field(default=None, min_length=1, max_length=200, strict=True)
     document: dict[str, JsonValue] | None = None
+    block_edits: tuple[BlockTextEdit, ...] = Field(default=(), max_length=32)
 
     @model_validator(mode="after")
     def has_changes(self) -> Self:
-        if self.title is None and self.document is None:
-            raise ValueError("Provide a title or document change.")
+        if self.title is None and self.document is None and not self.block_edits:
+            raise ValueError("Provide a title, document or block edit.")
+        if self.document is not None and self.block_edits:
+            raise ValueError("Choose a full document or point edits, not both.")
+        if len({edit.block_id for edit in self.block_edits}) != len(self.block_edits):
+            raise ValueError("Edit each block only once per proposal.")
         return self
+
+    def document_for(self, document: PageDocument) -> PageDocument:
+        if self.document is not None:
+            return parse_document(self.document)
+        edits = {edit.block_id: edit for edit in self.block_edits}
+        blocks = []
+        for block in document.blocks:
+            edit = edits.pop(block.id, None)
+            if edit is not None:
+                if isinstance(block, ListBlock) or block.text.count(edit.before) != 1:
+                    raise AiConflict(
+                        "Point edit must match one exact text occurrence in its block."
+                    )
+                block = replace(block, text=block.text.replace(edit.before, edit.after, 1))
+            blocks.append(block)
+        if edits:
+            raise AiConflict("An edited block no longer exists; request a new preview.")
+        return parse_document(document_value(PageDocument(tuple(blocks))))
 
 
 class EventValues(ActionInput):
@@ -491,11 +520,7 @@ class ActionService:
                 before = json_object(
                     {"title": page.title, "document": document_value(page.document)}
                 )
-                body = (
-                    parse_document(action.document)
-                    if action.document is not None
-                    else page.document
-                )
+                body = action.document_for(page.document)
                 existing = {block.id: block.type for block in page.document.blocks}
                 updated = {block.id: block.type for block in body.blocks}
                 if any(updated.get(identifier) != kind for identifier, kind in existing.items()):
@@ -689,9 +714,12 @@ class ActionService:
             elif isinstance(action, PageUpdate):
                 page = unit.notes.get(user_id, action.page_id, active=True)
                 result = page
-                if action.document is not None:
+                if action.document is not None or action.block_edits:
                     result = unit.notes.replace_document(
-                        user_id, page.id, action.document, page.version
+                        user_id,
+                        page.id,
+                        document_value(action.document_for(page.document)),
+                        page.version,
                     )
                 if action.title is not None:
                     result = unit.notes.update(

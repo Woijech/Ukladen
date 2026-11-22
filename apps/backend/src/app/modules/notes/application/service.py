@@ -19,6 +19,7 @@ from app.modules.notes.domain.pages import (
     page_title,
     require_version,
 )
+from app.modules.notes.domain.revisions import PageRevision, PageRevisionSummary
 from app.modules.users.application.ports import UserAuthentication
 from app.modules.users.domain.profile import ProfileUnavailable
 
@@ -191,6 +192,40 @@ class NoteService:
         require_version(page.version, expected_version)
         updated = replace(
             page, document=parse_document(document), version=page.version + 1, updated_at=self.now()
+        )
+        self.repository.save(updated, expected_version)
+        return updated
+
+    def revisions(
+        self, user_id: UUID, page_id: UUID, limit: int, offset: int
+    ) -> list[PageRevisionSummary]:
+        self.get(user_id, page_id)
+        if not 1 <= limit <= 50 or not 0 <= offset <= 2**31 - 1:
+            raise InvalidPageInput()
+        return self.repository.revisions(user_id, page_id, limit, offset)
+
+    def revision(self, user_id: UUID, page_id: UUID, version: int) -> PageRevision:
+        self.get(user_id, page_id)
+        value = self.repository.revision(user_id, page_id, version)
+        if value is None:
+            raise PageNotFound()
+        return value
+
+    def restore_revision(
+        self, user_id: UUID, page_id: UUID, version: int, expected_version: int
+    ) -> Page:
+        self.require_user(user_id, write=True)
+        page = self.get(user_id, page_id, active=True)
+        require_version(page.version, expected_version)
+        revision = self.repository.revision(user_id, page_id, version)
+        if revision is None:
+            raise PageNotFound()
+        updated = replace(
+            page,
+            title=revision.title,
+            document=revision.document,
+            version=page.version + 1,
+            updated_at=self.now(),
         )
         self.repository.save(updated, expected_version)
         return updated

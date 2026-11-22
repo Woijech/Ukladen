@@ -1,9 +1,11 @@
 import logging
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, FastAPI, Query, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict
 
 from app.core.logging import log_failure
 from app.modules.academics.presentation.routes import no_store
@@ -41,6 +43,61 @@ def get_notes(database: Database) -> NoteService:
 
 
 Notes = Annotated[NoteService, Depends(get_notes)]
+
+
+class RevisionSummaryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    page_id: UUID
+    version: int
+    title: str
+    saved_at: datetime
+
+
+class RevisionResponse(RevisionSummaryResponse):
+    document: DocumentSchema
+
+
+@router.get("/{page_id}/revisions", response_model=list[RevisionSummaryResponse])
+def list_revisions(
+    page_id: UUID,
+    current: CurrentSession,
+    database: Database,
+    notes: Notes,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    offset: Annotated[int, Query(ge=0, le=2**31 - 1)] = 0,
+) -> list[RevisionSummaryResponse]:
+    with database.begin():
+        return [
+            RevisionSummaryResponse.model_validate(item)
+            for item in notes.revisions(current.user_id, page_id, limit, offset)
+        ]
+
+
+@router.get("/{page_id}/revisions/{version}", response_model=RevisionResponse)
+def read_revision(
+    page_id: UUID, version: int, current: CurrentSession, database: Database, notes: Notes
+) -> RevisionResponse:
+    with database.begin():
+        return RevisionResponse.model_validate(notes.revision(current.user_id, page_id, version))
+
+
+@router.post(
+    "/{page_id}/revisions/{version}/restore",
+    response_model=PageResponse,
+    dependencies=[Depends(require_csrf)],
+)
+def restore_revision(
+    page_id: UUID,
+    version: int,
+    payload: VersionRequest,
+    current: CurrentSession,
+    database: Database,
+    notes: Notes,
+) -> PageResponse:
+    with database.begin():
+        return PageResponse.model_validate(
+            notes.restore_revision(current.user_id, page_id, version, payload.expected_version)
+        )
 
 
 @router.get("", response_model=PageListResponse)

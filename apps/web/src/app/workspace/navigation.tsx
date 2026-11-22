@@ -63,8 +63,6 @@ export type SectionKey = (typeof sections)[number]["id"];
 export const primarySections = ["calendar", "notes", "tasks", "ai"] as const;
 
 export function NavIcon({ path }: { path: string }) {
-  if (path === sections.find(section => section.id === "ai")!.icon)
-    return <span className="ai-nav-mark" aria-hidden="true">AI</span>;
   return (
     <svg
       width="18"

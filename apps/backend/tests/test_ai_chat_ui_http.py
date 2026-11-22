@@ -278,3 +278,58 @@ def test_complete_source_http_admission_progress_replay_and_result(ai_client: Te
     history = ai_client.get(path).json()["items"]
     assert [item["role"] for item in history] == ["user", "assistant"]
     assert history[-1]["sources"][0]["id"] == page_id
+
+
+def test_partial_answers_survive_reload_and_a_new_request(ai_client: TestClient) -> None:
+    from contextlib import contextmanager
+
+    from app.modules.ai.application.agent import AgentResult
+
+    application = cast(FastAPI, ai_client.app)
+    calls = []
+
+    class PartialRunner:
+        def run(self, request):
+            calls.append(request)
+            if len(calls) == 1:
+                return AgentResult(
+                    status="failed",
+                    answer="Preserved partial answer",
+                    failure_reason="output_limit",
+                    error_code="invalid_response",
+                )
+            return AgentResult(status="completed", answer="Continued answer")
+
+        def resume(self, conversation_id, review):
+            raise AssertionError("No review may be resumed by answer recovery")
+
+    @contextmanager
+    def runners(run, journal):
+        yield PartialRunner()
+
+    service = AiService(SqlAlchemyAiTransactions(application.state.session_factory), runners)
+    application.dependency_overrides[get_ai] = lambda: service
+    conversation = create(ai_client)
+    path = f"/api/v1/ai/conversations/{conversation['id']}"
+    first = ai_client.post(
+        path + "/messages",
+        headers=csrf_headers(ai_client),
+        json={"message": "Explain", "submission_id": str(uuid4())},
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["status"] == "failed" and first.json()["failure_reason"] == "output_limit"
+    stored = ai_client.get(path + "/messages").json()["items"][-1]
+    assert stored["incomplete"] is True and stored["content"] == "Preserved partial answer"
+    continued = ai_client.post(
+        path + "/messages",
+        headers=csrf_headers(ai_client),
+        json={"message": "Continue", "submission_id": str(uuid4())},
+    )
+    assert continued.status_code == 200 and continued.json()["status"] == "completed"
+    assert len(calls) == 2
+    assert [row["content"] for row in ai_client.get(path + "/messages").json()["items"]] == [
+        "Explain",
+        "Preserved partial answer",
+        "Continue",
+        "Continued answer",
+    ]

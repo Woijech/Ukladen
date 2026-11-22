@@ -40,7 +40,7 @@ class ModelOffering(BaseModel):
     requests_per_minute: int = Field(default=10, ge=1, le=1000)
     # shortcut: bound serialized bytes until a verified per-model tokenizer is available.
     max_input_bytes: int = Field(default=6000, ge=256, le=65536)
-    max_output_tokens: int = Field(default=2048, ge=1, le=2048)
+    max_output_tokens: int = Field(default=4096, ge=1, le=8192)
     price: PriceSnapshot | None = None
     is_default: bool = False
 

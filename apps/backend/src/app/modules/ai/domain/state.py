@@ -11,6 +11,27 @@ RunStatus = Literal["queued", "running", "completed", "failed", "cancelled", "in
 ExecutionStatus = Literal["started", "succeeded", "failed", "interrupted", "rejected"]
 MessageRole = Literal["user", "assistant", "tool"]
 ErrorCode = Literal["unavailable", "invalid_response", "timeout", "cancelled", "interrupted"]
+FailureReason = Literal[
+    "output_limit",
+    "context_limit",
+    "step_limit",
+    "timeout",
+    "invalid_response",
+    "unavailable",
+    "cancelled",
+    "interrupted",
+]
+FAILURE_REASONS = (
+    "output_limit",
+    "context_limit",
+    "step_limit",
+    "timeout",
+    "invalid_response",
+    "unavailable",
+    "cancelled",
+    "interrupted",
+)
+ANSWER_BYTES = 65536
 ACTIVE_RUN_STATUSES = ("queued", "running", "interrupted")
 TERMINAL_RUN_STATUSES = ("completed", "failed", "cancelled")
 
@@ -78,6 +99,7 @@ class Message:
     content: str = field(repr=False)
     created_at: datetime
     sources: tuple[SourceReference, ...] = ()
+    incomplete: bool = False
 
     def __post_init__(self) -> None:
         require_time(self.created_at)
@@ -85,8 +107,11 @@ class Message:
             size = len(self.content.encode("utf-8"))
         except UnicodeEncodeError:
             raise InvalidAiState("Invalid message encoding.") from None
-        if self.role not in ("user", "assistant", "tool") or not 1 <= size <= 16384:
+        maximum = ANSWER_BYTES if self.role == "assistant" else 16384
+        if self.role not in ("user", "assistant", "tool") or not 1 <= size <= maximum:
             raise InvalidAiState("Invalid stored message.")
+        if type(self.incomplete) is not bool or (self.incomplete and self.role != "assistant"):
+            raise InvalidAiState("Only assistant answers can be incomplete.")
         if self.sequence < 1:
             raise InvalidAiState("Invalid message sequence.")
         if len(self.sources) > 64 or (self.sources and self.role != "assistant"):
@@ -111,12 +136,17 @@ class Run:
     offering_version: int | None = None
     connection_id: UUID | None = None
     price: PriceSnapshot | None = None
+    failure_reason: FailureReason | None = None
 
     def __post_init__(self) -> None:
         require_time(self.created_at, self.updated_at, self.finished_at)
         require_selection(self.offering_id, self.offering_version, self.connection_id)
         require_label(self.provider)
         require_label(self.model)
+        if self.failure_reason is not None and (
+            self.failure_reason not in FAILURE_REASONS or self.status not in ("failed", "cancelled")
+        ):
+            raise InvalidAiState("Invalid terminal failure reason.")
         if not re.fullmatch(r"[0-9a-f]{64}", self.request_digest):
             raise InvalidAiState("Invalid submission digest.")
         if self.version < 1 or self.status not in (*ACTIVE_RUN_STATUSES, *TERMINAL_RUN_STATUSES):

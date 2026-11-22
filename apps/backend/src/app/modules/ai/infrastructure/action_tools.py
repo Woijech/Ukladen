@@ -17,7 +17,9 @@ label estimates, list uncertainties, and preserve source-stated facts. Unknown r
 must be clarified or explicitly proposed for owner review. Never infer progress from sessions.
 Tasks remain independent of page checkboxes and records. No automatic synchronization.
 Read existing targets first and provide exact current versions. Page documents use schema_version=1
-and typed blocks with UUID IDs; preserve existing IDs/types and untouched blocks. Events need
+and typed blocks with UUID IDs; preserve existing IDs/types and untouched blocks. Prefer page_update
+block_edits [{block_id,before,after}] for point edits: before must match exactly once in that block;
+do not combine block_edits with document. Read the target first. Events need
 explicit offset-aware start/end and blocks_time on creates. event_update uses sparse changes;
 omitted fields are preserved. Resolve dates in profile timezone; ask about
 missing duration/time/ambiguous targets rather than guessing. For a reminder on an event in this

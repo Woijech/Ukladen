@@ -6,12 +6,14 @@ import { useEffect, useRef, useState } from "react";
 import symbol from "@/shared/assets/ukladen-avatar.png";
 import { Modal } from "@/shared/ui";
 import "./floating-assistant.css";
+import type { AssistantRequest } from "./assistant-context";
 
 const ChatArea = dynamic(() => import("./panels/ai").then(module => module.ChatArea), {
   loading: () => <p className="floating-ai-loading" role="status">Загружаю помощника…</p>,
 });
 
-export function FloatingAssistant({ visible, suspended = false, onOpenPage, onOpenEvent }: {
+export function FloatingAssistant({ visible, suspended = false, request, onOpenPage, onOpenEvent }: {
+  request?: AssistantRequest | null;
   visible: boolean;
   suspended?: boolean;
   onOpenPage: (id: string) => void;
@@ -22,8 +24,17 @@ export function FloatingAssistant({ visible, suspended = false, onOpenPage, onOp
   const [selected, setSelected] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [pending, setPending] = useState<{ id: string | null } | null>(null);
+  const [chatRequest, setChatRequest] = useState<AssistantRequest | null>(null);
+  const [incoming, setIncoming] = useState<AssistantRequest | null>(null);
+  const [handledRequest, setHandledRequest] = useState<string | null>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+  if (request && request.id !== handledRequest) {
+    setHandledRequest(request.id);
+    setOpened(true); setOpen(true);
+    if (dirty) setIncoming(request);
+    else setChatRequest(request);
+  }
   function close() {
     setOpen(false);
     requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true }));
@@ -54,11 +65,12 @@ export function FloatingAssistant({ visible, suspended = false, onOpenPage, onOp
         </button>
       </header>
       <div className="floating-ai-content ai-page">
-        <ChatArea composerId="floating-ai-message" calendarReviewEnabled={open && visible && !suspended} selected={selected} onChoose={id => {
+        <ChatArea request={chatRequest} onRequestHandled={() => setChatRequest(null)} composerId="floating-ai-message" calendarReviewEnabled={open && visible && !suspended} selected={selected} onChoose={id => {
           if (dirty) setPending({ id });
           else setSelected(id);
         }} onDirtyChange={setDirty} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
       </div>
+      {incoming && <Modal title="Заменить черновик вопроса" onClose={() => setIncoming(null)}><h2>Подготовить вопрос об этой странице?</h2><p>Текущий неотправленный вопрос будет заменён.</p><button type="button" className="primary-button" onClick={() => { setChatRequest(incoming); setIncoming(null); }}>Подготовить вопрос</button><button type="button" className="secondary-button" onClick={() => setIncoming(null)}>Оставить черновик</button></Modal>}
     </section>}
     <button ref={trigger} type="button" className="floating-ai-trigger" aria-label={open ? "Свернуть AI-помощника" : "Открыть AI-помощника"} aria-expanded={open} aria-controls={opened ? "floating-ai-panel" : undefined} onClick={() => {
       if (open) close();

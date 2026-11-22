@@ -347,7 +347,7 @@ for (const width of [320, 390, 834, 1440]) {
         await page.getByRole("button", { name, exact: true }).click();
         if (name === "Чаты") {
           const chat = page.locator(".ai-history-row > button:first-child").first();
-          if (!await chat.isVisible()) await page.getByText("История чатов", { exact: true }).click();
+          if (width <= 900) await page.getByRole("button", { name: "История чатов", exact: true }).click();
           await chat.click();
         }
         await expect(page.locator(selector)).toBeVisible();

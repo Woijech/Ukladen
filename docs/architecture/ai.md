@@ -43,6 +43,9 @@ The local 2026-11-09 follow-up narrows recognized standalone schedule questions 
 calendar reads and records final-context sizes plus provider usage/cache details per
 foreground step in opted-in captures. Counts and bytes remain distinct; see the guide.
 
+Foreground answer recovery and exact block text edits were added locally on 2026-11-22;
+see [workspace hardening](../development/workspace-hardening.md) for limits and migrations.
+
 ## 1. Product responsibilities
 
 Support workspace/calendar questions, content search, summaries grounded in selected

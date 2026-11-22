@@ -3,6 +3,7 @@
 import { HelpTooltip } from "@/shared/help-tooltip";
 import {
   useCallback,
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -15,6 +16,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import symbol from "@/shared/assets/ukladen-avatar.png";
+import { WorkspaceAssistantContext, type AssistantRequest } from "../assistant-context";
 import { requestJson, writeJson } from "@/shared/api";
 import {
   ActionFeedback,
@@ -26,6 +28,8 @@ import {
 import {
   activeRun,
   aiBase,
+  emptyScope,
+  failureLabels,
   runLabels,
   streamMessage,
   type Connection,
@@ -39,6 +43,7 @@ import {
 import { AiDiagnostics, diagnosticCases } from "./ai-diagnostics";
 import { AiSettings } from "./ai-settings";
 import { AiMarkdown } from "./ai-markdown";
+import { SaveAnswer } from "./ai-save-answer";
 import { SourcePicker, SourceViewer } from "./ai-sources";
 import { AiUsage, RunDetails } from "./ai-usage";
 import { ActionProposals } from "./ai-actions";
@@ -192,6 +197,8 @@ export function ChatArea({
   onDirtyChange,
   composerId = "ai-message",
   calendarReviewEnabled = true,
+  request,
+  onRequestHandled,
 }: {
   onOpenPage: (id: string) => void;
   onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
@@ -200,11 +207,19 @@ export function ChatArea({
   onDirtyChange: (dirty: boolean) => void;
   composerId?: string;
   calendarReviewEnabled?: boolean;
+  request?: AssistantRequest | null;
+  onRequestHandled?: () => void;
 }) {
   const [offset, setOffset] = useState(0);
   const [creating, setCreating] = useState(false);
   const [starter, setStarter] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [handled, setHandled] = useState<string | null>(null);
+  if (request && handled !== request.id) {
+    setHandled(request.id);
+    setStarter(request.prompt);
+    if (!selected) setCreating(true);
+  }
   const [deleting, setDeleting] = useState<Conversation | null>(null);
   const action = useAction();
   const client = useQueryClient();
@@ -291,7 +306,7 @@ export function ChatArea({
           {historyOpen && <Modal title="История чатов" onClose={() => setHistoryOpen(false)}><div className="ai-history-sheet">{historyPanel}</div></Modal>}
           <aside className="ai-history" aria-label="История чатов">{!historyOpen && historyPanel}</aside>
           {selected ? (
-            <Chat key={selected} id={selected} initialPrompt={starter} composerId={composerId} calendarReviewEnabled={calendarReviewEnabled} onDirtyChange={onDirtyChange} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
+            <Chat key={selected} request={request} onRequestHandled={onRequestHandled} id={selected} initialPrompt={starter} composerId={composerId} calendarReviewEnabled={calendarReviewEnabled} onDirtyChange={onDirtyChange} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
           ) : (
             <div className="ai-welcome">
               <Image src={symbol} alt="" width={72} height={72} />
@@ -534,6 +549,8 @@ function Chat({
   onDirtyChange,
   composerId = "ai-message",
   calendarReviewEnabled = true,
+  request: contextRequest,
+  onRequestHandled,
 }: {
   onOpenPage: (id: string) => void;
   onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
@@ -542,11 +559,23 @@ function Chat({
   onDirtyChange: (dirty: boolean) => void;
   composerId?: string;
   calendarReviewEnabled?: boolean;
+  request?: AssistantRequest | null;
+  onRequestHandled?: () => void;
 }) {
   const client = useQueryClient();
   const caseParams = useSearchParams();
   const [text, setText] = useState(() => diagnosticCases.find((item) => item.id === caseParams.get("case"))?.prompt ?? initialPrompt);
   const [scope, setScope] = useState<Scope | null>(null);
+  const assistant = useContext(WorkspaceAssistantContext);
+  const [handledContext, setHandledContext] = useState<string | null>(null);
+  if (contextRequest && handledContext !== contextRequest.id) {
+    setHandledContext(contextRequest.id);
+    setScope({ ...emptyScope(), page_ids: contextRequest.target.kind === "page" ? [contextRequest.target.id] : [], calendar: contextRequest.target.kind === "event" });
+    setText(contextRequest.prompt);
+  }
+  useEffect(() => {
+    if (contextRequest?.id === handledContext) onRequestHandled?.();
+  }, [contextRequest, handledContext, onRequestHandled]);
   const [fullSources, setFullSources] = useState(false);
   const [sourceOnly, setSourceOnly] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -631,22 +660,23 @@ function Chat({
 
   async function recover() {
     const current = await state.refetch({ throwOnError: true });
-    await history.refetch({ throwOnError: true });
+    const saved = await history.refetch({ throwOnError: true });
     if (current.data?.run?.submission_id === pending.current?.submission_id) {
       pending.current = null;
       setHasPending(false);
       setText("");
     }
-    setDraft({ id: "", text: "" });
+    const stored = saved.data?.pages.flatMap(page => page.items) ?? [];
+    setDraft(old => current.data?.run?.status === "failed" && !stored.some(message => message.incomplete && old.text.startsWith(message.content)) ? old : { id: "", text: "" });
   }
-  async function send(retry = false) {
-    if (busy.current || (!retry && (!text.trim() || running))) return;
+  async function send(retry = false, message = text, readFullSources = fullSources) {
+    if (busy.current || (!retry && (!message.trim() || running))) return;
     const payload = retry
       ? pending.current
       : {
           submission_id: crypto.randomUUID(),
-          message: text,
-          ...(fullSources ? { full_sources: true } : {}),
+          message,
+          ...(readFullSources ? { full_sources: true } : {}),
           ...(sourceOnly ? { source_only: true } : {}),
           ...(scope === null ? {} : { source_scope: scope }),
         };
@@ -780,6 +810,7 @@ function Chat({
                   <strong>{message.role === "user" ? "Ты" : "Ukladen AI"}</strong>
                   <button type="button" className="text-action ai-copy-message" aria-label={`Копировать ${message.role === "user" ? "сообщение" : "ответ"} ${message.sequence}`} onClick={() => void copyMessage(message)}>Копировать</button>
                 </div>
+                {message.incomplete && <p className="ai-incomplete-label">Ответ не завершён · текст сохранён</p>}
                 <div className="ai-message-text">
                   <AiMarkdown
                     text={message.content}
@@ -802,6 +833,7 @@ function Chat({
                     ))}
                   </div>
                 )}
+                {message.role === "assistant" && <SaveAnswer message={message} onOpenPage={onOpenPage} />}
               </article>
             ))}
             {history.hasNextPage && (
@@ -815,7 +847,7 @@ function Chat({
             )}
             {draft.text && (
               <article className="ai-message from-ai">
-                <strong>Ukladen AI · ответ формируется</strong>
+                <strong>Ukladen AI · {running ? "ответ формируется" : "ответ не завершён"}</strong>
                 <div className="ai-message-text"><AiMarkdown text={draft.text} /></div>
               </article>
             )}
@@ -839,6 +871,11 @@ function Chat({
               </button>
             </div>
           )}
+          {run?.status === "failed" && !running && <div className="ai-recovery" role="status">
+            <div><strong>Продолжим с этого места</strong><p>{failureLabels[run.failure_reason ?? "unavailable"] ?? failureLabels.unavailable}</p></div>
+            <button type="button" className="secondary-button" disabled={!!text.trim() || hasPending} onClick={() => { setFullSources(false); void send(false,
+              messages.at(-1)?.incomplete || draft.text ? "Продолжи предыдущий незавершённый ответ с места остановки. Не повторяй уже написанное и не выполняй изменения данных." : [...messages].reverse().find(message => message.role === "user")?.content ?? "Повтори предыдущий запрос.", false); }}>{messages.at(-1)?.incomplete || draft.text ? "Продолжить ответ" : "Повторить запрос"}</button>
+          </div>}
           {documentProgress.data?.error && <p role="alert" className="form-error">{
             documentProgress.data.error === "source_changed_or_unavailable"
               ? "Источник изменился или стал недоступен во время разбора. Отправь запрос заново для проверки актуальных данных."
@@ -872,6 +909,11 @@ function Chat({
               rows={3}
             />
             <div className="ai-composer-toolbar">
+              {assistant.target && <button type="button" className="text-action ai-current-context" disabled={running || hasPending} onClick={() => {
+                const target = assistant.target!;
+                setScope({ ...emptyScope(), page_ids: target.kind === "page" ? [target.id] : [], calendar: target.kind === "event" });
+                if (target.kind === "event") setText(current => `${current}${current ? "\n\n" : ""}Контекст: событие «${target.title}», ID ${target.id}.`);
+              }}>Контекст: {assistant.target.title}</button>}
               <button
                 className="secondary-button ai-source-button"
                 type="button"

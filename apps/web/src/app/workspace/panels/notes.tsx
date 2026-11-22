@@ -1,13 +1,15 @@
 "use client";
 
 import { HelpTooltip } from "@/shared/help-tooltip";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { WorkspaceAssistantContext } from "../assistant-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageAttachments } from "./attachments";
 import { positionNoteMenu } from "./note-menu";
 import { workspaceHref } from "../workspace-location";
 import { isUnavailableObject, UnavailableObject } from "../unavailable-object";
 import { NoteBlocks } from "./note-blocks";
+import { NoteHistory } from "./note-history";
 import { useNoteDraft } from "./use-note-draft";
 import "./notes.css";
 import { requestJson, writeJson } from "@/shared/api";
@@ -492,6 +494,8 @@ function NoteEditor({
   onDiscard: () => void;
 }) {
   const draft = useNoteDraft(note, onDirtyChange, onSaved);
+  const assistant = useContext(WorkspaceAssistantContext);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const { title, parent, blocks, version, dirty, saving } = draft;
   const setTitle = (value: string) => draft.update({ title: value });
   const setParent = (value: string) => draft.update({ parent: value });
@@ -625,7 +629,6 @@ function NoteEditor({
                     : dirty
                       ? "Есть изменения"
                       : "Сохранено"}{" "}
-              <small>v{version}</small>
             </span>
             {!readonly && (
               <button
@@ -670,6 +673,8 @@ function NoteEditor({
                       ?.removeAttribute("open");
                 }}
               >
+                <button type="button" disabled={operationsLocked || dirty} onClick={() => setHistoryOpen(true)}>История страницы</button>
+                <button type="button" disabled={operationsLocked || dirty} onClick={() => assistant.ask({ kind: "page", id: note.id, title }, "Помоги разобраться в этой странице. Выдели главное и предложи следующий шаг.")}>Обсудить с AI</button>
                 <button
                   type="button"
                   onClick={async () => {
@@ -746,6 +751,7 @@ function NoteEditor({
             }}
           />
           <NoteBlocks
+            pageTarget={!dirty ? { kind: "page", id: note.id, title } : undefined}
             key={draft.epoch}
             blocks={blocks}
             disabled={locked}
@@ -826,6 +832,7 @@ function NoteEditor({
           </section>
         )}
         <PageAttachments pageId={note.id} readonly={readonly} />
+        {historyOpen && <NoteHistory note={{ ...note, version }} onClose={() => setHistoryOpen(false)} onRestored={fresh => { draft.adopt(fresh); void onSaved(fresh, true); }} />}
       </div>
       {(moveOpen || requested === "move") && (
         <Modal title="Переместить страницу" onClose={closeDialogs}>

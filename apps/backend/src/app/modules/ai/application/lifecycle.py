@@ -404,14 +404,35 @@ class AiService:
                 return
             conversation = self.conversation(repository, run.user_id, request.conversation_id)
             if self.now() >= current.created_at + RUN_TIMEOUT:
-                result = AgentResult(status="failed", error_code="timeout")
+                result = result.model_copy(
+                    update={
+                        "status": "failed",
+                        "error_code": "timeout",
+                        "failure_reason": "timeout",
+                    }
+                )
             if result.status not in {"completed", "interrupted"}:
+                if result.answer:
+                    repository.append_message(
+                        Message(
+                            id=uuid4(),
+                            user_id=run.user_id,
+                            conversation_id=conversation.id,
+                            sequence=conversation.next_sequence,
+                            role="assistant",
+                            content=result.answer,
+                            created_at=self.now(),
+                            sources=result.sources,
+                            incomplete=True,
+                        )
+                    )
                 stop_run(
                     repository,
                     current,
                     self.now(),
                     status="failed",
                     error=result.error_code or "unavailable",
+                    reason=result.failure_reason,
                 )
                 return
             status = "interrupted" if result.status == "interrupted" else "failed"
@@ -474,7 +495,7 @@ class RunJournal:
         with self.service.transactions(self.run.user_id, write=True) as repository:
             run = self.current(repository)
             number = len(repository.attempts(run.user_id, run.id)) + 1
-            if number > 4 and not self.background:
+            if number > 8 and not self.background:
                 raise AiConflict("Provider attempt budget exhausted.")
             if run.offering_id is not None:
                 self.service.connection_access().check(

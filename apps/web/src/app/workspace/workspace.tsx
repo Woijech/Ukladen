@@ -49,6 +49,7 @@ import type { WorkspaceLocation } from "./workspace-location";
 import { CommandPalette } from "./command-palette";
 import { CalendarTaskSessions } from "./task-planning";
 import { FloatingAssistant } from "./floating-assistant";
+import { WorkspaceAssistantContext, type AssistantRequest } from "./assistant-context";
 import { CalendarReviewContext, calendarProposalItems, type CalendarReviewRequest } from "./ai-calendar-preview";
 import type { Proposal } from "./panels/ai-actions";
 import { pushWorkspaceLocation } from "./use-section-location";
@@ -1008,6 +1009,7 @@ function CalendarWorkspace({
   const [dirty, setDirty] = useState(false);
   const [panelBusy, setPanelBusy] = useState(false);
   const [planningBusy, setPlanningBusy] = useState(false);
+  const [assistantRequest, setAssistantRequest] = useState<AssistantRequest | null>(null);
   const [calendarReview, setCalendarReview] = useState<(CalendarReviewRequest & { returnUrl: string; phase?: "applied" | "rejected" }) | null>(null);
   const reviewedProposals = useRef(new Set<string>());
   const [appliedEventIds, setAppliedEventIds] = useState<string[]>([]);
@@ -1604,7 +1606,10 @@ function CalendarWorkspace({
     );
 
   return (
-    <CalendarReviewContext.Provider value={{ open: openCalendarReview }}><main
+    <WorkspaceAssistantContext.Provider value={{
+      target: section === "notes" && workspaceLocation.pageId ? { kind: "page", id: workspaceLocation.pageId, title: "Текущая страница" } : section === "calendar" && detailEvent ? { kind: "event", id: detailEvent.source_event_id, title: detailEvent.title } : null,
+      ask: (target, prompt) => setAssistantRequest({ id: crypto.randomUUID(), target, prompt }),
+    }}><CalendarReviewContext.Provider value={{ open: openCalendarReview }}><main
       className={`workspace-shell ${section === "calendar" ? "calendar-shell" : ""} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
       onKeyDown={(event) => {
         if (event.key !== "Escape" || event.defaultPrevented || event.nativeEvent.isComposing || (event.target as HTMLElement).closest("dialog")) return;
@@ -2510,7 +2515,7 @@ function CalendarWorkspace({
           </div>
         </Modal>
       )}
-      <FloatingAssistant visible={section !== "ai"} suspended={!!calendarReview && section === "calendar"} onOpenPage={openPage} onOpenEvent={openLinkedEvent} />
-    </main></CalendarReviewContext.Provider>
+      <FloatingAssistant request={assistantRequest} visible={section !== "ai"} suspended={!!calendarReview && section === "calendar"} onOpenPage={openPage} onOpenEvent={openLinkedEvent} />
+    </main></CalendarReviewContext.Provider></WorkspaceAssistantContext.Provider>
   );
 }

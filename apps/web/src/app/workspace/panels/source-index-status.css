@@ -1,0 +1,4 @@
+.source-index-status { padding: 8px 0; font-size: 12px; }
+.source-index-status p { margin: 4px 0; }
+.source-index-status summary { color: var(--muted); cursor: pointer; }
+.source-index-status details p { max-width: 70ch; line-height: 1.6; color: var(--muted); }

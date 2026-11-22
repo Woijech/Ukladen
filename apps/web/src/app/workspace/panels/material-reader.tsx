@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { request, requestJson } from "@/shared/api";
 import { Modal, QueryState } from "@/shared/ui";
+import { SourceIndexStatus } from "./source-index-status";
 import type { Material } from "./resources";
 import "./material-reader.css";
 
@@ -71,6 +72,7 @@ export function MaterialReader({ material, onClose }: { material: Material; onCl
         <a className="secondary-button" href={`/api/v1/materials/${material.id}/content`} download>Скачать оригинал</a>
       </div>
     </div>
+    {readable && <SourceIndexStatus source="material" id={material.id} />}
     <div ref={body} className="material-reader-body" tabIndex={0} aria-label="Содержимое документа">
       <QueryState pending={false} error={metadata.error} retry={() => void metadata.refetch()} />
       {!metadata.error && (current.trashed_at ? <p role="status">Материал в корзине. Восстанови его, чтобы читать.</p> : pdf ? <PdfReader id={material.id} title={current.title} /> : <>

@@ -329,6 +329,18 @@ class SourceTools(AgentMiddleware):
     def wrap_model_call(
         self, request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]
     ) -> ModelResponse:
+        from app.modules.ai.infrastructure.context import recent_turns
+
+        bounded = recent_turns(request.messages)
+        if len(bounded) != len(request.messages):
+            record(
+                "history_bounded",
+                {
+                    "kept_messages": len(bounded),
+                    "omitted_messages": len(request.messages) - len(bounded),
+                },
+            )
+            request = request.override(messages=bounded)
         if self.journal:
             self.journal.check()
         context_started = perf_counter()

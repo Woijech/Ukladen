@@ -1,0 +1,98 @@
+# Personal workspace hardening
+
+Implemented locally on 2026-11-22. Deployment requires migrations 0044 and 0045;
+working containers and production data have not been migrated by this change.
+Sharing and simultaneous editing are explicitly outside the requested scope.
+
+## Recoverable AI answers
+
+Assistant messages can retain up to 64 KiB and carry `incomplete=true`. Failed runs
+record a bounded terminal reason, distinguishing output/context/step limits from
+timeouts and provider errors. Visible partial output is saved for failed foreground
+chat runs, reloaded through history and labelled in the transcript. The owner may
+explicitly continue it with a fresh submission; recovery does not replay writes or
+silently restart complete-source analysis. Stopping a run remains a cancellation;
+this change does not guarantee persistence of text from a force-killed process.
+
+The provider output default is 4096 tokens, configurable up to 8192. Explicit
+catalog limits still win. Existing deployed images retain their previous default
+until rebuilt. Storage bounds, provider token limits and tool argument limits are
+different constraints; tool arguments and user messages retain their previous
+16 KiB boundary. Model calls are bounded at eight per foreground run, with the
+existing eight-tool and 60-second limits. The request middleware keeps complete
+recent turns within a 20 KiB history budget, including paired tool messages. It
+never splits a tool exchange or summarizes/deletes stored chat history. The current
+turn is preserved; an oversized current request gets a context-limit reason.
+
+A failed provider call closes unpaired checkpoint tool calls with safe errors and
+finalizes the failed turn, so subsequent questions can run. Pending HITL interrupts
+are preserved. Exact-digest owner approval remains mandatory for modifications.
+
+## Writing and history
+
+The editor autosaves 1.5 seconds after typing stops, retains optimistic versions,
+serializes overlapping saves and preserves new typing during a request. Errors
+pause automatic retries until an explicit save/reload. Navigation guards and manual
+save remain. A browser crash before the debounce or an offline request can still
+lose unsaved text; no local private-content cache or offline editor was introduced.
+
+Each successful page creation/change retains an owner-scoped immutable snapshot.
+The latest 50 snapshots per page are retained. Migration 0045 seeds existing current
+pages; it cannot recreate earlier history. Frequent autosaves can use those 50 slots
+quickly. Revision lists contain metadata only; a selected body is fetched separately.
+
+- `GET /api/v1/notes/pages/{id}/revisions?limit=50&offset=0`
+- `GET /api/v1/notes/pages/{id}/revisions/{version}`
+- `POST /api/v1/notes/pages/{id}/revisions/{version}/restore` with `expected_version`
+
+Restore requires the active owner, CSRF and current version. It restores title/body,
+keeps the current hierarchy and creates a new revision. It never rewinds the version
+number or erases the version being replaced. Downgrade refuses to destroy retained
+history or new partial-answer data.
+
+Markdown text blocks now offer bold/italic/code controls and a formatted preview.
+Quote, code, table and nested-list starters use the existing Markdown representation;
+they are not new native recursive block types. History renders Markdown safely.
+Raw HTML and remote images are not executed/loaded by this renderer.
+
+## AI in the workspace
+
+“Discuss with AI” on a saved page and selected-text discussion prepare the floating
+chat with explicit page scope. Existing AI drafts require an explicit replacement.
+No provider request is made until Send. The composer can also select the current
+page/calendar context. Calendar scope authorizes the existing calendar tools; it
+does not narrow the backend to one event by itself.
+
+Assistant answers, including partial ones, can be explicitly saved as a new owned
+page, with a reviewed title and the original Markdown content. The page library is
+invalidated after creation.
+
+`page_update` accepts either a full document or up to 32 `block_edits`, each containing
+`block_id`, `before`, `after`. Each block is edited at most once; the exact `before`
+fragment must occur exactly once. Missing/ambiguous text or stale versions reject
+the proposal. Unchanged text and blocks are preserved. The same preview, digest,
+owner approval, ordinary note services and revision history apply to point edits.
+List-item point edits are not included; full validated document updates remain available.
+
+The material reader and AI source viewer distinguish extraction from semantic
+index readiness. Readiness is metadata, not a paid model call. The explanatory UI
+separates retrieving fragments from reading complete sources. Index failures can be
+retried explicitly; an unavailable status is not presented as ready.
+
+## Verification
+
+- Native PostgreSQL/Redis: 51 note/revision/chat HTTP tests passed.
+- Native PostgreSQL/Redis: 61 action, agent and tool-selection tests passed.
+- Existing frontend note/AI/calendar suites: 110 browser tests passed.
+- Material reader suite: three browser tests passed at desktop/mobile widths.
+- CLI browser scenarios: autosave, Markdown, history restore, saving a partial answer
+  explicit continuation and selected-page source scope checked against synthetic owned fixtures.
+- Python Ruff and Pyright, frontend ESLint/typecheck and production build passed.
+- Production npm audit after upgrading Next/eslint-config-next to 16.4.6: zero
+  production vulnerabilities at verification time.
+- Full database/object restore drill passed on two disposable Docker projects;
+  see [backup guide](workspace-backups.md).
+
+No paid provider requests were made for these checks. These checks do not establish
+provider reliability or prove every end-to-end production worker configuration.
+Remaining expansion is tracked in [the implementation checklist](product-hardening-plan.md).

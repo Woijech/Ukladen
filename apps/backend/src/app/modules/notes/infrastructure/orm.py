@@ -74,3 +74,23 @@ class PageModel(Base):
             postgresql_using="gin",
         ),
     )
+
+
+class PageRevisionModel(Base):
+    __tablename__ = "note_page_revisions"
+    page_id: Mapped[UUID] = mapped_column(primary_key=True)
+    version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[UUID]
+    title: Mapped[str] = mapped_column(String(200))
+    document: Mapped[dict] = mapped_column(JSONB)
+    saved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["page_id", "user_id"],
+            ["note_pages.id", "note_pages.user_id"],
+            ondelete="CASCADE",
+            name="fk_page_revision_owner",
+        ),
+        CheckConstraint("version > 0", name="ck_page_revision_version"),
+        CheckConstraint("octet_length(document::text) <= 1048576", name="ck_page_revision_size"),
+    )

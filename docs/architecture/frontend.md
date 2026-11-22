@@ -151,6 +151,11 @@ offset selection; nonexistent local times are rejected. Editing preserves the or
 instant, including seconds, when its displayed local time is unchanged. These
 conversions use platform `Intl`; no timezone dependency was added.
 
+Current personal-workspace additions (2026-11-22) are documented in
+[workspace hardening](../development/workspace-hardening.md): retained page revisions,
+debounced autosave, Markdown preview/formatting and explicit floating AI page/selection context.
+These supersede older statements below that history/autosave remain absent.
+
 ## Design system and structure
 
 The A1 calendar/note symbol remains the product identity. `src/app/globals.css`
