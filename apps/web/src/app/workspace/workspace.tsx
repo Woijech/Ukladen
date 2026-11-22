@@ -11,6 +11,7 @@ import { CalendarSelection } from "./calendar-selection";
 import { CalendarMonth } from "./calendar-month";
 import { EventTimeStrip } from "./event-time-strip";
 import { EventDetail } from "./event-detail";
+import { hideOfficialEvent } from "./calendar-overrides";
 import { Navigation, NavIcon, SectionLink, primarySections, sections, type SectionKey } from "./navigation";
 import {
   RequestError,
@@ -1482,20 +1483,24 @@ function CalendarWorkspace({
   }
 
   async function removeEvent(event: CalendarEvent) {
-    if (event.source !== "personal" || deletingEvent) return;
+    if (deletingEvent) return;
     setDeletingEvent(true);
     setDeleteError("");
     try {
-      const token = await csrfToken();
-      await requestJson<void>(
-        `/api/v1/calendar/personal-events/${event.source_event_id}`,
-        { method: "DELETE", headers: { "X-CSRF-Token": token } },
-      );
+      if (event.source === "official") {
+        await hideOfficialEvent(event);
+      } else {
+        const token = await csrfToken();
+        await requestJson<void>(
+          `/api/v1/calendar/personal-events/${event.source_event_id}`,
+          { method: "DELETE", headers: { "X-CSRF-Token": token } },
+        );
+      }
       setShowEventForm(false);
       setEditingEvent(null);
       setPendingDelete(null);
       setDetailEvent(null);
-      setToast("Событие удалено");
+      setToast(event.source === "official" ? "Пара убрана из твоего календаря" : "Событие удалено");
       await queryClient.invalidateQueries({ queryKey: ["workspace-calendar"] });
       window.setTimeout(() => setToast(""), 2600);
     } catch (error) {
@@ -1555,7 +1560,6 @@ function CalendarWorkspace({
         if (calendarContextOpen) { event.preventDefault(); closeCalendarContext(); return; }
       }}
     >
-      <FloatingAssistant visible={section !== "ai"} onOpenPage={openPage} onOpenEvent={openLinkedEvent} />
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={navigate} onSearch={query => navigate("search", query)} />}
       <a className="skip-link" href="#workspace-content">Перейти к содержимому</a>
       <aside className="sidebar">
@@ -2054,6 +2058,7 @@ function CalendarWorkspace({
                 )
               }
               onMove={() => { setMoveTarget(allEvents.find(event => event.id === detailEvent.id) ?? detailEvent); setMoveDraft(null); setDetailEvent(null); requestAnimationFrame(() => calendarScroll.current?.focus()); }}
+              onRemove={() => { setDeleteError(""); setPendingDelete(allEvents.find(event => event.id === detailEvent.id) ?? detailEvent); }}
               onOpenPage={openPage}
               onOpenEvent={openLinkedEvent}
             />
@@ -2351,20 +2356,24 @@ function CalendarWorkspace({
         </Modal>
       )}
       {pendingDelete && (
-        <Modal title="Удалить событие" onClose={() => setPendingDelete(null)}>
-          <h2>Удалить личное событие?</h2>
+        <Modal title={pendingDelete.source === "official" ? "Убрать пару" : "Удалить событие"} onClose={() => { if (!deletingEvent) setPendingDelete(null); }}>
+          <h2>{pendingDelete.source === "official" ? "Убрать пару из моего календаря?" : "Удалить личное событие?"}</h2>
           {deleteError && (
             <p className="form-error" role="alert">
               {deleteError}
             </p>
           )}
-          <p>
+          {pendingDelete.source === "official" ? <p>
+            «{pendingDelete.title}» исчезнет из твоего календаря и не будет занимать время.
+            Это действие касается только этой пары. Расписание IIS и связанные заметки сохранятся.
+          </p> : <p>
             «{pendingDelete.title}» будет удалено вместе с его напоминаниями.
             Связанные страницы сохранятся.
-          </p>
+          </p>}
           <div className="modal-actions">
             <button
               className="secondary-button"
+              disabled={deletingEvent}
               onClick={() => setPendingDelete(null)}
             >
               Отмена
@@ -2374,7 +2383,7 @@ function CalendarWorkspace({
               disabled={deletingEvent}
               onClick={() => void removeEvent(pendingDelete)}
             >
-              Удалить событие
+              {deletingEvent ? "Сохраняем…" : pendingDelete.source === "official" ? "Убрать пару" : "Удалить событие"}
             </button>
           </div>
         </Modal>
@@ -2426,6 +2435,7 @@ function CalendarWorkspace({
           </div>
         </Modal>
       )}
+      <FloatingAssistant visible={section !== "ai"} onOpenPage={openPage} onOpenEvent={openLinkedEvent} />
     </main>
   );
 }

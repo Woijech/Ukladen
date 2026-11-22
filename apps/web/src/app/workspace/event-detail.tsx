@@ -11,6 +11,7 @@ export function EventDetail({
   onBack,
   onEdit,
   onMove,
+  onRemove,
   onOpenPage,
   onOpenEvent,
 }: {
@@ -19,6 +20,7 @@ export function EventDetail({
   onBack: () => void;
   onEdit: () => void;
   onMove: () => void;
+  onRemove: () => void;
   onOpenPage: (id: string) => void;
   onOpenEvent: (
     id: string,
@@ -53,6 +55,9 @@ export function EventDetail({
         {!official && (
           <button className="text-action" onClick={onMove}>Перенести событие</button>
         )}
+        <button className="text-action" onClick={onRemove}>
+          {official ? "Убрать из моего календаря" : "Удалить событие"}
+        </button>
       </header>
       <div className="event-detail-sheet">
         <span className="greeting">
@@ -135,8 +140,8 @@ export function EventDetail({
         )}
         {official && (
           <p className="muted">
-            Официальное событие IIS · только просмотр. Связанные заметки
-            принадлежат тебе и сохраняются отдельно.
+            Расписание IIS сохраняется отдельно. Можно убрать эту пару только из своего
+            календаря. Связанные заметки сохранятся.
           </p>
         )}
         <EventExtras

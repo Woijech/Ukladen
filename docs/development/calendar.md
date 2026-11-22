@@ -295,3 +295,18 @@ The 11 calendar tests also passed after final copy/screenshot adjustments. Light
 event screens were inspected at desktop/tablet/mobile widths. These mocked-HTTP tests
 are separate from the dated native backend checks above; no live deployment or provider
 request was performed.
+
+## Remove one IIS occurrence from the calendar UI (2026-11-22)
+
+The event inspector offers "Убрать из моего календаря" for official occurrences.
+After explicit confirmation the frontend uses the existing owner-scoped override PUT
+with `hidden=true` and `skipped=true`, removing the occurrence from normal display
+and occupied time without changing shared IIS facts or related notes. The action
+addresses one occurrence UUID, never an entire series.
+
+If an override already exists, the frontend reads the paginated owned overrides,
+checks the displayed version and preserves its title/description/location/time fields.
+A new override sends version zero and null inherited fields. Concurrent updates fail
+with the normal 409 response; the dialog stays open and no success is reported.
+Personal events continue to use their normal DELETE endpoint. General override
+editing and restoring historical overrides remain available through the existing API.

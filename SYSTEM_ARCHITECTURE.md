@@ -68,7 +68,9 @@ The frontend implements login/registration, browser email verification and passw
 recovery, optional academic-group selection, day/week personal-event CRUD, flat block
 pages, materials, explicit organization, database table/calendar views, full-text
 search, reminders/inbox, tasks with subtasks/trash and profile/avatar settings. Its shared light/dark shell
-preserves the existing API, session and calendar contracts. Official override editing,
+preserves the existing API, session and calendar contracts. Removing one IIS occurrence
+from the user's calendar uses a confirmed hidden/skipped personal override in the UI.
+General official override editing,
 saved event views and mixed date projection remain API-only. The AI-04
 chat/settings/usage UI is implemented locally; AI remains default-disabled and
 unactivated. See the [frontend guide](docs/architecture/frontend.md).

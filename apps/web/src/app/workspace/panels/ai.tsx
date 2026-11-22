@@ -6,7 +6,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -39,6 +38,7 @@ import {
 } from "./ai-api";
 import { AiDiagnostics, diagnosticCases } from "./ai-diagnostics";
 import { AiSettings } from "./ai-settings";
+import { AiMarkdown } from "./ai-markdown";
 import { SourcePicker, SourceViewer } from "./ai-sources";
 import { AiUsage, RunDetails } from "./ai-usage";
 import { ActionProposals } from "./ai-actions";
@@ -777,7 +777,7 @@ function Chat({
                   <button type="button" className="text-action ai-copy-message" aria-label={`Копировать ${message.role === "user" ? "сообщение" : "ответ"} ${message.sequence}`} onClick={() => void copyMessage(message)}>Копировать</button>
                 </div>
                 <div className="ai-message-text">
-                  <CitedText
+                  <AiMarkdown
                     text={message.content}
                     sources={message.sources}
                     onOpen={setSource}
@@ -812,7 +812,7 @@ function Chat({
             {draft.text && (
               <article className="ai-message from-ai">
                 <strong>Ukladen AI · ответ формируется</strong>
-                <div className="ai-message-text">{draft.text}</div>
+                <div className="ai-message-text"><AiMarkdown text={draft.text} /></div>
               </article>
             )}
             <ActionProposals chatId={id} runId={run?.id} running={!!running} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
@@ -959,31 +959,4 @@ function Chat({
       )}
     </section>
   );
-}
-
-function CitedText({
-  text,
-  sources,
-  onOpen,
-}: {
-  text: string;
-  sources: Source[];
-  onOpen: (source: Source) => void;
-}): ReactNode {
-  return text.split(/(\[source:[^\]\n]+\])/g).map((part, index) => {
-    const reference = part.startsWith("[source:")
-      ? sources.find((source) => source.id === part.slice(8, -1))
-      : undefined;
-    return reference ? (
-      <button
-        className="ai-inline-citation"
-        key={index}
-        onClick={() => onOpen(reference)}
-      >
-        {reference.title || "Источник"}
-      </button>
-    ) : (
-      <span key={index}>{part}</span>
-    );
-  });
 }

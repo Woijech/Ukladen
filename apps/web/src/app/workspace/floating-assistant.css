@@ -48,3 +48,4 @@
 .floating-ai-content .ai-welcome > p { margin-bottom: 16px; }
 .floating-ai-content .ai-suggestions button { flex-direction: row; align-items: center; gap: 12px; }
 .floating-ai-content .ai-suggestions strong { margin-bottom: 3px; }
+.floating-ai-trigger > img, .floating-ai-header > img { border-radius: 50%; object-fit: cover; }

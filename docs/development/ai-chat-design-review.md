@@ -200,3 +200,46 @@ Anti-slop delivery gate, scoped to this addition:
 
 The browser checks use synthetic content, not live model output. This change does
 not deploy the website or alter backend permissions, prompts or provider settings.
+
+## Markdown answers and assistant marks (2026-11-22)
+
+AI transcripts and streaming drafts now share a react-markdown/remark-gfm renderer:
+headings, emphasis, lists, block quotes, tables, inline code and fenced code blocks.
+Known `[source:id]` markers become source buttons through a text-node remark
+transform; code blocks and inline code retain the literal marker. Unknown references
+stay text. Raw HTML is escaped, executable URLs are rejected, external links use
+noopener/noreferrer, and Markdown images render their alt text without network loads.
+Tables and code blocks have bounded horizontal scrolling in the floating panel.
+
+The floating assistant's existing A1 avatar is clipped to a circle, including in its
+header. The navigation uses a compact AI wordmark with the existing accent tokens.
+The launcher is placed after workspace content in DOM order to preserve the skip
+link as the first keyboard stop.
+
+Synthetic browser checks verified rendered headings/emphasis/list/table/code,
+clickable known citations, literal citations inside code, and no script execution,
+unsafe anchor or remote image. Calendar removal checks verified cancel, stale-version
+conflict, preservation of existing local overrides and removal of only one occurrence.
+The new-version-zero override preserves null inherited fields. Existing official
+schedule rows are never deleted. UI checks do not spend provider quotas.
+
+Dependency audit: production findings were limited to the already locked Next.js
+package; no Markdown-package finding was reported. Framework updates are outside
+this change. This is not a clean audit of the entire dependency tree.
+
+Verification result: 64 AI/deep-link browser scenarios passed; the final calendar
+recheck passed all 17 scenarios after restoring skip-link order. Calendar domain,
+service and availability tests passed 47/47. Production build, lint and typecheck
+passed. The Markdown panel passed viewport bounds and rendered-text AA contrast at
+320/390/834/1440px in light and dark themes.
+
+Delivery gate for these changes:
+
+- Hard gate PASS: Markdown/XSS and occurrence-removal assertions ran in the browser;
+  eight theme/width states had no horizontal overflow or text contrast failures.
+- Purpose gate PASS: the AI lettermark identifies the existing assistant destination;
+  the circular crop reuses A1, and monospace is limited to code content.
+- Liveliness PASS: the established 1/1/1 design direction and theme accents remain;
+  semantic headings/lists/tables provide hierarchy inside answers.
+- Craftsmanship PASS: shared rendering covers full and floating chats; tested
+  confirmation, cancellation, version conflict and unchanged unrelated occurrences.
