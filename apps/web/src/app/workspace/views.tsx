@@ -5,6 +5,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { WorkspaceTransfer } from "./panels/workspace-transfer";
 import { csrfToken, requestJson, writeJson } from "@/shared/api";
 import { ActionFeedback, QueryState, useAction } from "@/shared/ui";
 import { ThemeOptions } from "@/shared/theme";
@@ -82,7 +83,7 @@ export function WorkspaceViews(props: ViewProps) {
   if (section === "organization")
     return <OrganizationPanel events={props.events} onOpenPage={onOpenPage} />;
   if (section === "settings")
-    return <SettingsPanel onChooseGroup={props.onChooseGroup} onDirtyChange={props.onDirtyChange} />;
+    return <SettingsPanel onChooseGroup={props.onChooseGroup} onDirtyChange={props.onDirtyChange} onBusyChange={props.onBusyChange} />;
   return (
     <HomePanel
       onNavigate={onNavigate}
@@ -200,7 +201,7 @@ type Profile = {
   avatar_url: string | null;
   updated_at: string;
 };
-function SettingsPanel({ onChooseGroup, onDirtyChange }: { onChooseGroup: () => void; onDirtyChange: (dirty: boolean) => void }) {
+function SettingsPanel({ onChooseGroup, onDirtyChange, onBusyChange }: { onChooseGroup: () => void; onDirtyChange: (dirty: boolean) => void; onBusyChange: (busy: boolean) => void }) {
   const profile = useQuery({
     queryKey: ["settings-profile"],
     queryFn: ({ signal }) =>
@@ -239,6 +240,7 @@ function SettingsPanel({ onChooseGroup, onDirtyChange }: { onChooseGroup: () => 
           Настроить группу
         </button>
       </section>
+      <WorkspaceTransfer onBusyChange={onBusyChange} />
       <section id="assistant-settings" className="panel setting-section">
         <div>
           <div className="help-heading"><h2>Помощник Ukladen</h2><HelpTooltip label="О настройках помощника">Модели, подключения и инструкции для чатов. Доступность моделей зависит от настройки сервера.</HelpTooltip></div>

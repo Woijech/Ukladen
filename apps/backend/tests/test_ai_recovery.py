@@ -325,7 +325,16 @@ def test_real_retry_ledger_and_exhaustion_do_not_fabricate_an_extra_attempt(
         AIMessage(content="Unused"),
     )
     calls = 0
-    with patch.object(FakeChatModel, "_generate", transient):
+    original_init = OfflineAgentRunner.__init__
+
+    def bounded(self, *args, **kwargs):
+        kwargs["model_limit"] = 4
+        original_init(self, *args, **kwargs)
+
+    with (
+        patch.object(FakeChatModel, "_generate", transient),
+        patch.object(OfflineAgentRunner, "__init__", bounded),
+    ):
         run = submit(ai_client, conversation, "Exhaust").json()
     assert run["status"] == "failed" and calls == len(run["attempts"]) == 4
     assert all(attempt["status"] != "started" for attempt in run["attempts"])
@@ -384,6 +393,8 @@ def test_owned_review_resume_keeps_durable_attempt_budget_in_new_runners(
         responses=(
             tool_message("fake_reviewed_double", call_id="one"),
             tool_message("fake_reviewed_double", call_id="two"),
+            tool_message("fake_reviewed_double", call_id="three"),
+            tool_message("fake_reviewed_double", call_id="four"),
             AIMessage(content="Must not bypass budget"),
         )
     )
@@ -399,7 +410,7 @@ def test_owned_review_resume_keeps_durable_attempt_budget_in_new_runners(
 
     with patch.object(FakeChatModel, "_generate", transient):
         review = None
-        for turn in range(3):
+        for turn in range(5):
             with checkpoint_connection(ai_database) as connection:
                 runner = owned_offline_runner(
                     connection,
@@ -417,7 +428,7 @@ def test_owned_review_resume_keeps_durable_attempt_budget_in_new_runners(
                     )
                 else:
                     result = runner.resume(conversation.id, review)
-                if turn < 2:
+                if turn < 4:
                     assert result.status == "interrupted" and result.review is not None
                     review = AgentReview(
                         interrupt_id=result.review.interrupt_id, decisions=("approve",)
@@ -427,16 +438,16 @@ def test_owned_review_resume_keeps_durable_attempt_budget_in_new_runners(
                     assert review is not None
                     with pytest.raises(InvalidAgentReview):
                         runner.resume(conversation.id, review)
-            if turn < 2:
+            if turn < 4:
                 with sessions.begin() as database:
                     repository = SqlAlchemyAiRepository(database)
                     paused = run.transition("interrupted", datetime.now(UTC))
                     repository.save_run(paused, "running")
                     run = paused.transition("running", datetime.now(UTC))
                     repository.save_run(run, "interrupted")
-    assert calls == 4
+    assert calls == 8
     with sessions() as database:
         repository = SqlAlchemyAiRepository(database)
-        assert len(repository.attempts(run.user_id, run.id)) == 4
+        assert len(repository.attempts(run.user_id, run.id)) == 8
         tools = repository.tool_executions(run.user_id, run.id)
-        assert len(tools) == 2 and all(tool.status == "succeeded" for tool in tools)
+        assert len(tools) == 4 and all(tool.status == "succeeded" for tool in tools)

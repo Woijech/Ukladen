@@ -435,15 +435,39 @@ def test_action_registration_respects_the_selected_model_tool_capability(
 
     def respond(request):
         outgoing.append(json.loads(request.content))
+        if tools_enabled and len(outgoing) == 1:
+            selection = {
+                "groups": ["documents", *(["actions"] if actions_enabled else [])],
+                "operations": ["page_create"] if actions_enabled else [],
+            }
+            return httpx.Response(
+                200,
+                json=completion(
+                    content="",
+                    reason="tool_calls",
+                    tool_calls=[
+                        {
+                            "id": "select-schemas",
+                            "type": "function",
+                            "function": {
+                                "name": "select_tools",
+                                "arguments": json.dumps(selection),
+                            },
+                        }
+                    ],
+                ),
+            )
         return httpx.Response(200, json=completion())
 
     with patch(
         "app.modules.ai.infrastructure.providers.openrouter_model",
         partial(openrouter_model, transport=httpx.MockTransport(respond)),
     ):
-        response = submit(configured_client, conversation, "Ordinary synthetic chat")
+        response = submit(configured_client, conversation, "Read my pages and create a new page")
     assert response.json()["status"] == "completed", response.text
-    assert len(outgoing) == 1
-    tools = {item["function"]["name"] for item in outgoing[0].get("tools", [])}
+    assert len(outgoing) == (2 if tools_enabled else 1)
+    initial = {item["function"]["name"] for item in outgoing[0].get("tools", [])}
+    assert initial == ({"select_tools"} if tools_enabled else set())
+    tools = {item["function"]["name"] for item in outgoing[-1].get("tools", [])}
     assert ("propose_actions" in tools) == (tools_enabled and actions_enabled)
     assert ("read_page" in tools) == tools_enabled

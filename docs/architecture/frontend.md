@@ -239,6 +239,8 @@ Lucide, Motion and rich-editor packages are not required by this implementation.
   previews/restores are implemented locally. Embeds are read-only, paginated and
   preserve normal navigation guards; revision previews show static references.
   The mobile page-library action shares the editor toolbar. Collaboration remains deferred.
+  Settings provide versioned page/database JSON export and a validated, explicitly
+  confirmed copy import; files and other account objects use full server backups.
 - Materials provide bookmarks, metadata, trash/restore, processing retry, downloads,
   retained quotas and the existing reservation/raw-upload contract. An interrupted
   upload rechecks metadata before retrying the same reservation. No remote fetching

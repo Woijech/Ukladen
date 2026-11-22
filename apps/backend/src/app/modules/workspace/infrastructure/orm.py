@@ -333,3 +333,22 @@ class DatabaseViewModel(Base):
         ),
         Index("ix_database_views_database", "database_id", "created_at", "id"),
     )
+
+
+class TransferReceiptModel(Base):
+    __tablename__ = "workspace_transfer_receipts"
+
+    user_id: Mapped[UUID] = mapped_column(primary_key=True)
+    digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    root_page_id: Mapped[UUID] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["root_page_id", "user_id"],
+            ["note_pages.id", "note_pages.user_id"],
+            ondelete="CASCADE",
+            name="fk_transfer_receipt_page_owner",
+        ),
+        CheckConstraint("digest ~ '^[a-f0-9]{64}$'", name="ck_transfer_receipt_digest"),
+    )

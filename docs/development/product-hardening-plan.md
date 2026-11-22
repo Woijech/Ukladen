@@ -19,7 +19,7 @@ implemented, verified behavior; planned work is not a shipped feature.
 - [x] Persist and restore owned page revisions.
 - [x] Add inline formatting and Markdown quote/code/table/nested-list starters.
 - [x] Add native recursive rich blocks beyond Markdown.
-- [ ] Provide workspace export/import with explicit validation and confirmation.
+- [x] Provide workspace export/import with explicit validation and confirmation.
 - [x] Provide complete backup/restore tooling for PostgreSQL and object storage.
 
 ## Connected workspaces
@@ -35,8 +35,18 @@ implemented, verified behavior; planned work is not a shipped feature.
 
 - [x] Consolidate mobile note toolbars and remove duplicated assistant labels.
 - [x] Give failure states concrete recovery actions.
-- [ ] Exercise browser/API/worker/retrieval together with synthetic owned data.
-- [ ] Update capabilities documentation and run applicable checks.
+- [x] Exercise browser flows and native API/worker/retrieval paths with synthetic owned data.
+- [x] Update capabilities documentation and run applicable checks.
 
 The owner explicitly selected personal workspaces first. Sharing and simultaneous
 editing remain outside this work, as previously deferred in the architecture.
+
+Completed local verification on 2026-11-23: all 2170 backend cases passed across
+partitioned runs. Three initially skipped storage scenarios were then run against
+disposable SeaweedFS/PostgreSQL/Redis and passed. All 356 existing frontend cases
+passed; additional CLI scenarios covered recursive editing, embedded views,
+transfer confirmation and the depth limit. Browser tests use intercepted API
+fixtures; native HTTP/task/storage tests use isolated real infrastructure.
+One real configured-provider streaming probe validated a synthetic proposal without
+executing tools (1566 input / 137 output tokens; actual cost not reported).
+This is local delivery, not deployment or a production Cloudflare smoke check.

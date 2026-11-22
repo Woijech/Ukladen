@@ -117,3 +117,28 @@ and 62 existing content browser tests passed. A separate CLI browser scenario
 verified nested autosave, collapse/reopen, owned table embedding and mobile library
 navigation at 390px without horizontal overflow. No running-stack migration,
 provider quota request or deployment was performed.
+
+## Final local verification — 2026-11-23
+
+The complete 2170-case backend collection passed across partitioned runs after
+repairing stale test assumptions about tool discovery/model budgets and ensuring
+a refused downgrade rolls back its outer transaction. Migration roundtrip and
+metadata comparisons include page revisions and import receipts. Three initially
+skipped cases were rerun successfully on disposable SeaweedFS/PostgreSQL/Redis:
+file upload/download, avatar replacement and S3 → Redis → registered material task
+→ owned search. The temporary resources contain only synthetic data.
+
+All 356 existing frontend tests passed. Separate CLI scenarios verified nested
+autosave/reopen, saved-view embedding, a single mobile library toolbar, JSON
+download/import confirmation and no child insertion beyond depth 8. Production
+build, frontend lint/typecheck, backend Ruff/Pyright and changed-document links
+passed. Existing LangChain/Python 3.14 compatibility/deprecation warnings remain.
+
+One live streaming probe through the configured OpenRouter adapter returned a
+valid `propose_actions` event batch: 1566 input tokens and 137 output tokens,
+configured output ceiling 4096. No tool was executed and no user data was changed.
+Actual monetary cost was not returned in the adapter metadata. This provider-only
+check does not substitute for deployment and a production Cloudflare smoke check.
+
+Portable [page/database transfer](workspace-transfer.md) complements the separate
+full [PostgreSQL/object-store backup](workspace-backups.md). Sharing remains deferred.

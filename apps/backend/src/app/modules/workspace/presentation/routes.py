@@ -43,6 +43,7 @@ from app.modules.workspace.presentation.schemas import (
     OrganizationPatch,
     OrganizationResponse,
 )
+from app.modules.workspace.presentation.transfer import router as transfer_router
 
 logger = logging.getLogger(__name__)
 router = APIRouter(
@@ -304,4 +305,5 @@ def install_workspace(application: FastAPI) -> None:
     application.include_router(database_content_router)
     application.include_router(database_page_router)
     application.include_router(database_view_router)
+    application.include_router(transfer_router)
     application.include_router(router)

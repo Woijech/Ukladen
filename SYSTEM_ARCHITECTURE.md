@@ -643,6 +643,10 @@ and [ADR 0006](docs/adr/0006-use-versioned-page-block-documents.md).
 The editor includes debounced autosave, retained revisions and read-only view embeds.
 See [ADR 0011](docs/adr/0011-add-nested-blocks-and-owned-view-embeds.md).
 Search indexes are derived and owned by search.
+Workspace application services compose notes and database services for bounded
+[portable page/database transfer](docs/development/workspace-transfer.md), with
+fresh typed references, atomic owner-confirmed copy and PostgreSQL retry receipts.
+Full PostgreSQL/object-storage backup remains the complete recovery mechanism.
 
 Page links are optional. Collections/property schemas/views belong to the
 workspace boundary, including implemented typed properties and table/calendar database

@@ -3,7 +3,7 @@
 Updated: 2026-11-23.
 Status: implemented: independent nested pages, versioned block documents
 and recoverable trash. The page tree and block editor UI are described in the
-[frontend guide](../architecture/frontend.md). Retained revisions and debounced autosave are implemented locally as of 2026-11-22; see [workspace hardening](workspace-hardening.md). Sharing, permanent deletion and portable workspace export remain unimplemented. Page-backed user databases reference these pages through
+[frontend guide](../architecture/frontend.md). Retained revisions and debounced autosave are implemented locally as of 2026-11-22; see [workspace hardening](workspace-hardening.md). Sharing and permanent deletion remain unimplemented. Portable [page/database transfer](workspace-transfer.md) is implemented locally. Page-backed user databases reference these pages through
 notes application services; see [database contracts](databases.md).
 
 ## Content and ownership
@@ -234,7 +234,7 @@ unresolved choices in [Q-06/Q-08](../product/open-questions.md).
 | Additional database list/board views | Implemented locally | Saved grouping over the same records; see database contracts |
 | Formulas and rollups | Implemented locally | Bounded arithmetic, one-way owned relations and numeric rollups; see ADR 0010 |
 | Templates | Absent; fits current architecture | Explicit copy semantics, fresh block IDs and template storage/API; no implicit academic grouping |
-| Import/export | Absent; fits current architecture | Explicit formats, compatibility/size rules and loss reporting; derived Markdown is not an export subsystem |
+| Import/export | Implemented locally for pages/databases | Versioned JSON, bounded validation, rolled-back preview, fresh references and retry-safe atomic copy; full recovery uses the separate server backup |
 | Comments | Requires a separate product decision | Personal annotation versus shared discussion, anchors, authorship and lifecycle |
 | Simultaneous editing and shared spaces | Requires a separate product/architecture decision | Owner-deferred; collaborator identity, synchronization, conflict protocol and ownership changes |
 | Sharing/permissions and publishing | Requires a separate product/architecture decision | Owner-deferred; audience, revocation, public data exposure and access enforcement; copied links stay private |

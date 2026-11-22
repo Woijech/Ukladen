@@ -41,7 +41,10 @@ def test_transient_retry_and_total_attempt_budget_include_retries() -> None:
     calls = 0
     with patch.object(FakeChatModel, "_generate", transient):
         limited = runner(
-            tool_message(call_id="one"), tool_message(call_id="two"), AIMessage(content="Unused")
+            tool_message(call_id="one"),
+            tool_message(call_id="two"),
+            AIMessage(content="Unused"),
+            model_limit=4,
         ).run(request())
     assert limited.status == "limited" and calls == 4
 

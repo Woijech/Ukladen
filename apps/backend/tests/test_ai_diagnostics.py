@@ -233,7 +233,9 @@ def test_diagnostic_migration_refuses_to_discard_retained_capture(ai_client, con
         BASE + "/conversations", headers=csrf_headers(ai_client), json={"title": "QA", "demo": True}
     ).json()
     run = submit(ai_client, chat).json()
-    with concurrent_engine.connect() as connection, connection.begin():
-        with pytest.raises(RuntimeError, match="Clear retained diagnostics"):
-            command.downgrade(migration_config(connection), "0040_ai_review_delivery")
+    with (
+        pytest.raises(RuntimeError, match="Clear retained diagnostics"),
+        concurrent_engine.begin() as connection,
+    ):
+        command.downgrade(migration_config(connection), "0040_ai_review_delivery")
     assert ai_client.get(BASE + f"/runs/{run['id']}").json()["trace"]["captured"]
