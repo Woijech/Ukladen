@@ -185,17 +185,19 @@ export function AiPanel({
   );
 }
 
-function ChatArea({
+export function ChatArea({
   onOpenPage, onOpenEvent,
   selected,
   onChoose,
   onDirtyChange,
+  composerId = "ai-message",
 }: {
   onOpenPage: (id: string) => void;
   onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
   selected: string | null;
   onChoose: (id: string | null) => void;
   onDirtyChange: (dirty: boolean) => void;
+  composerId?: string;
 }) {
   const [offset, setOffset] = useState(0);
   const [creating, setCreating] = useState(false);
@@ -287,7 +289,7 @@ function ChatArea({
           {historyOpen && <Modal title="История чатов" onClose={() => setHistoryOpen(false)}><div className="ai-history-sheet">{historyPanel}</div></Modal>}
           <aside className="ai-history" aria-label="История чатов">{!historyOpen && historyPanel}</aside>
           {selected ? (
-            <Chat key={selected} id={selected} initialPrompt={starter} onDirtyChange={onDirtyChange} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
+            <Chat key={selected} id={selected} initialPrompt={starter} composerId={composerId} onDirtyChange={onDirtyChange} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
           ) : (
             <div className="ai-welcome">
               <Image src={symbol} alt="" width={72} height={72} />
@@ -528,12 +530,14 @@ function Chat({
   id,
   initialPrompt,
   onDirtyChange,
+  composerId = "ai-message",
 }: {
   onOpenPage: (id: string) => void;
   onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
   id: string;
   initialPrompt: string;
   onDirtyChange: (dirty: boolean) => void;
+  composerId?: string;
 }) {
   const client = useQueryClient();
   const caseParams = useSearchParams();
@@ -757,7 +761,7 @@ function Chat({
                 <div className="ai-draft-suggestions">
                   {starterQuestions.map((question) => <button type="button" key={question.title} disabled={!!text.trim()} onClick={() => {
                     setText(question.description);
-                    document.getElementById("ai-message")?.focus();
+                    document.getElementById(composerId)?.focus();
                   }}><NavIcon path={question.icon} />{question.title}</button>)}
                 </div>
                 <small>Любые изменения в твоих данных требуют отдельного подтверждения.</small>
@@ -845,11 +849,11 @@ function Chat({
               void send();
             }}
           >
-            <label className="ai-composer-label" htmlFor="ai-message">
+            <label className="ai-composer-label" htmlFor={composerId}>
               Сообщение AI
             </label>
             <textarea
-              id="ai-message"
+              id={composerId}
               placeholder="Задай вопрос или опиши, с чем нужна помощь…"
               value={text}
               maxLength={16384}

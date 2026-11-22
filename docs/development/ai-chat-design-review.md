@@ -155,3 +155,48 @@ push or application migration occurred. Live backend/provider behavior, physical
 mobile keyboards, other browser engines and screen-reader operation were not
 tested. Backend checks were not rerun for this frontend-only refinement.
 Screenshots use synthetic fixture content and are not real user conversations.
+
+## Floating assistant (2026-11-22)
+
+A branded launcher in the workspace's bottom-right corner opens a non-modal assistant
+above the current section. The full AI section keeps its own layout. The floating
+surface lazy-loads the existing ChatArea and shares its conversation API, source
+picker, response options, streaming, run details and exact action confirmations.
+Opening the launcher does not create a conversation or dispatch a model request.
+Minimizing keeps the component mounted, preserving the draft and active request.
+Switching conversations protects a draft; page unload also warns about unsent text.
+The composer has a separate ID so a hidden floating chat cannot steal the full
+AI page's label or starter-topic focus.
+
+Design: ENERGY 1 / RHYTHM 1 / MOTION 1. The existing A1 avatar and theme tokens
+provide identity. A shadow marks only the launcher and floating surface as elevated;
+there is no new palette, illustration, animation or decorative background. Desktop
+width is bounded at 440px. On phones the surface expands above the navigation dock
+and replaces the launcher until minimized, leaving more room for the transcript.
+
+Verification for this change:
+
+- Production build, ESLint and TypeScript checks passed.
+- The existing AI and AI redesign browser suites passed: 51 tests using mock APIs.
+- CLI browser checks covered launcher, new conversation, history selection, sending,
+  draft persistence after minimize/reopen, and staying on the calendar URL.
+- Rendered text contrast and viewport bounds passed at 320/390/834/1440px in both
+  themes, measured after theme transitions settled. No horizontal page overflow.
+- Screenshots inspected at desktop and phone sizes. All new controls have native
+  buttons, accessible labels, visible focus, and 44px-or-larger targets. Nested
+  source/history dialogs retain the existing native dialog behavior.
+
+Anti-slop delivery gate, scoped to this addition:
+
+- Hard gate PASS: bounded layouts and AA contrast in eight viewport/theme states;
+  the existing chat supplies loading/error/empty states, verified by the reused
+  browser suites. No new claims, testimonials, links or fictional product data.
+- Purpose gate PASS: A1 is reused for brand identity; elevation separates the panel
+  from the calendar; tokens follow the selected theme. No gradient, glow or blur.
+- Liveliness PASS: declared 1/1/1 dials, branded launcher as the entry point and
+  a compact header/transcript/composer hierarchy with restrained existing accents.
+- Craftsmanship PASS: existing chat behavior is reused rather than duplicated;
+  creation, history, submission and minimize were exercised on the running build.
+
+The browser checks use synthetic content, not live model output. This change does
+not deploy the website or alter backend permissions, prompts or provider settings.

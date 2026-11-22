@@ -47,6 +47,7 @@ import { useSectionLocation } from "./use-section-location";
 import type { WorkspaceLocation } from "./workspace-location";
 import { CommandPalette } from "./command-palette";
 import { CalendarTaskSessions } from "./task-planning";
+import { FloatingAssistant } from "./floating-assistant";
 
 const WorkspaceViews = dynamic(
   () => import("./views").then((module) => module.WorkspaceViews),
@@ -1554,6 +1555,7 @@ function CalendarWorkspace({
         if (calendarContextOpen) { event.preventDefault(); closeCalendarContext(); return; }
       }}
     >
+      <FloatingAssistant visible={section !== "ai"} onOpenPage={openPage} onOpenEvent={openLinkedEvent} />
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={navigate} onSearch={query => navigate("search", query)} />}
       <a className="skip-link" href="#workspace-content">Перейти к содержимому</a>
       <aside className="sidebar">
