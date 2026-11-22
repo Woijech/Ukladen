@@ -56,6 +56,7 @@ class QuerySchema(BaseModel):
     columns: list[UUID] | None = Field(default=None, max_length=100)
     filters: list[FilterSchema] = Field(default_factory=list, max_length=20)
     sorts: list[SortSchema] = Field(default_factory=list, max_length=3)
+    group_by: UUID | None = None
 
 
 class ViewCreate(OrganizationCreate, SchemaVersionRequest):

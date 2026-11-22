@@ -177,6 +177,8 @@ class DatabasePropertyModel(Base):
     name: Mapped[str] = mapped_column(String(100))
     kind: Mapped[str] = mapped_column(String(16))
     options: Mapped[list[dict[str, str]]] = mapped_column(JSONB, server_default="[]")
+    relation_database_id: Mapped[UUID | None] = mapped_column()
+    calculation: Mapped[dict[str, str]] = mapped_column(JSONB, server_default="{}")
     position: Mapped[int] = mapped_column(Integer, server_default="0")
     version: Mapped[int] = mapped_column(Integer, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -198,8 +200,29 @@ class DatabasePropertyModel(Base):
             name="ck_database_properties_name",
         ),
         CheckConstraint(
-            "kind IN ('text', 'number', 'checkbox', 'select', 'multi_select', 'url', 'date')",
+            "kind IN ('text', 'number', 'checkbox', 'select', 'multi_select', 'url', 'date', "
+            "'relation', 'formula', 'rollup')",
             name="ck_database_properties_kind",
+        ),
+        ForeignKeyConstraint(
+            ["relation_database_id", "user_id"],
+            ["workspace_databases.id", "workspace_databases.user_id"],
+            name="fk_database_properties_relation_owner",
+        ),
+        CheckConstraint(
+            "(kind = 'relation') = (relation_database_id IS NOT NULL)",
+            name="ck_database_properties_relation",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(calculation) = 'object' AND octet_length(calculation::text) <= 16384 "
+            "AND (kind IN ('formula', 'rollup') OR calculation = '{}'::jsonb) "
+            "AND (kind <> 'formula' OR COALESCE("
+            "jsonb_typeof(calculation -> 'expression') = 'string' "
+            "AND char_length(btrim(calculation ->> 'expression')) BETWEEN 1 AND 2000, false)) "
+            "AND (kind <> 'rollup' OR COALESCE(calculation ->> 'operation' IN "
+            "('count', 'sum', 'average', 'min', 'max') "
+            "AND jsonb_typeof(calculation -> 'relation_property_id') = 'string', false))",
+            name="ck_database_properties_calculation",
         ),
         CheckConstraint(
             "version > 0 AND position BETWEEN 0 AND 100000",
@@ -294,7 +317,9 @@ class DatabaseViewModel(Base):
             name="fk_database_views_date_property",
         ),
         CheckConstraint(
-            "(layout = 'table' AND date_property_id IS NULL AND calendar_layout IS NULL) OR "
+            "(layout IN ('table', 'list', 'board') AND date_property_id IS NULL "
+            "AND calendar_layout IS NULL AND (layout <> 'board' OR "
+            "COALESCE(jsonb_typeof(query -> 'group_by') = 'string', false))) OR "
             "(layout = 'calendar' AND date_property_id IS NOT NULL AND "
             "calendar_layout IS NOT NULL AND calendar_layout IN ('day', 'week', 'month'))",
             name="ck_database_views_layout",

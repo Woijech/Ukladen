@@ -506,3 +506,120 @@ def test_record_size_unknown_fields_and_versions_are_rejected(calendar_client: T
         )
     assert calendar_client.get("/api/v1/notes/pages").json()["items"] == []
     assert calendar_client.get(path).json()["items"] == []
+
+
+def test_owned_relations_formulas_and_rollups_are_derived_without_source_writes(
+    calendar_client: TestClient,
+) -> None:
+    target = create_database(calendar_client, name="Sources")
+    amount = create_property(calendar_client, target, "number")
+    first = create_record(calendar_client, target, title="First source", values={amount["id"]: 10})
+    second = create_record(
+        calendar_client, target, title="Second source", values={amount["id"]: 20}
+    )
+    source = create_database(calendar_client, name="Summary")
+    number = create_property(calendar_client, source, "number")
+    relation = create_property(
+        calendar_client, source, "relation", relation_database_id=target["id"]
+    )
+    formula = create_property(
+        calendar_client,
+        source,
+        "formula",
+        calculation={"expression": f'prop("{number["id"]}") * 2'},
+    )
+    total = create_property(
+        calendar_client,
+        source,
+        "rollup",
+        calculation={
+            "relation_property_id": relation["id"],
+            "value_property_id": amount["id"],
+            "operation": "sum",
+        },
+    )
+    count = create_property(
+        calendar_client,
+        source,
+        "rollup",
+        calculation={"relation_property_id": relation["id"], "operation": "count"},
+    )
+    result = create_record(
+        calendar_client,
+        source,
+        values={number["id"]: 3, relation["id"]: [first["record"]["id"], second["record"]["id"]]},
+    )
+    values = result["record"]["values"]
+    assert (values[formula["id"]], values[total["id"]], values[count["id"]]) == (6, 30, 2)
+    assert result["related_titles"][first["record"]["id"]] == "First source"
+    path = record_path(source, result)
+    invalid = calendar_client.patch(
+        path,
+        headers=csrf_headers(calendar_client),
+        json={
+            "expected_version": 1,
+            "expected_schema_version": schema_version(calendar_client, source),
+            "values": {formula["id"]: 100},
+        },
+    )
+    assert invalid.status_code == 422
+    changed = calendar_client.patch(
+        record_path(target, first),
+        headers=csrf_headers(calendar_client),
+        json={
+            "expected_version": 1,
+            "expected_schema_version": schema_version(calendar_client, target),
+            "values": {amount["id"]: 50},
+        },
+    )
+    assert changed.status_code == 200
+    refreshed = calendar_client.get(path).json()
+    assert refreshed["record"]["version"] == 1 and refreshed["record"]["values"][total["id"]] == 70
+    assert (
+        calendar_client.post(
+            record_path(target, first) + "/trash",
+            headers=csrf_headers(calendar_client),
+            json={"expected_version": 2},
+        ).status_code
+        == 200
+    )
+    unavailable = calendar_client.get(path).json()
+    assert unavailable["record"]["values"][total["id"]] is None
+    assert unavailable["calculation_errors"][total["id"]] == "source_unavailable"
+    assert unavailable["record"]["values"][relation["id"]] == [
+        first["record"]["id"],
+        second["record"]["id"],
+    ]
+
+
+def test_relations_cannot_target_foreign_databases_or_records(
+    calendar_client: TestClient, concurrent_engine: Engine, password_hash: str
+) -> None:
+    foreign_database = create_database(calendar_client)
+    foreign_record = create_record(calendar_client, foreign_database)
+    seed_user(concurrent_engine, "other@example.com", password_hash)
+    browser_login(calendar_client, "other@example.com")
+    owned = create_database(calendar_client)
+    response = calendar_client.post(
+        f"{BASE}/{owned['id']}/properties",
+        headers=csrf_headers(calendar_client),
+        json={
+            "name": "Foreign",
+            "kind": "relation",
+            "relation_database_id": foreign_database["id"],
+            "expected_schema_version": 1,
+        },
+    )
+    assert response.status_code == 404
+    relation = create_property(calendar_client, owned, "relation", relation_database_id=owned["id"])
+    rejected = calendar_client.post(
+        f"{BASE}/{owned['id']}/records",
+        headers=csrf_headers(calendar_client),
+        json={
+            "title": "Must not be created",
+            "expected_schema_version": 2,
+            "values": {relation["id"]: [foreign_record["record"]["id"]]},
+        },
+    )
+    assert rejected.status_code == 404
+    assert calendar_client.get("/api/v1/notes/pages").json()["items"] == []

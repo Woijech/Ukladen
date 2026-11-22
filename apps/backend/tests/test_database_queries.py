@@ -70,3 +70,19 @@ def test_query_rules_use_active_typed_properties() -> None:
     ):
         with pytest.raises(InvalidWorkspaceInput):
             validate_query(invalid, [text, number, multi])
+
+
+def test_grouping_requires_an_active_visible_single_choice_property() -> None:
+    from dataclasses import replace
+
+    selected, checkbox, text = definition("select"), definition("checkbox"), definition()
+    for prop in (selected, checkbox):
+        parsed = validate_query({"group_by": str(prop.id)}, [prop])
+        assert parsed.group_by == prop.id and query_value(parsed)["group_by"] == str(prop.id)
+    for query, properties in (
+        ({"group_by": str(text.id)}, [text]),
+        ({"group_by": str(selected.id), "columns": []}, [selected]),
+        ({"group_by": str(selected.id)}, [replace(selected, trashed_at=datetime.now(UTC))]),
+    ):
+        with pytest.raises(InvalidWorkspaceInput):
+            validate_query(query, properties)

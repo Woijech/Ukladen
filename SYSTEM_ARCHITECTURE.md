@@ -39,7 +39,8 @@ User-controlled organization is the architecture contract:
 The full target includes blocks, user-defined databases/properties, saved views,
 tasks, reminders, materials, search/RAG and application-tool-based AI. The owner
 confirmed pages, blocks and user databases, with mandatory table/calendar views.
-Formulas and collaboration are deferred. Current IIS scope is schedule and related
+Personal relations, bounded formulas/rollups and list/board views are implemented locally under
+[ADR 0010](docs/adr/0010-extend-personal-database-views-and-calculations.md). Collaboration remains deferred. Current IIS scope is schedule and related
 public data; grades/private accounts remain future-only. Exact content/schema details
 and scoped AI permission rules are in the decision register. Private IIS work requires
 an explicit later phase and verified contracts; do not implement it in current slices.

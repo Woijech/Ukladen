@@ -45,10 +45,18 @@ class PropertyCreate(SchemaVersionRequest):
     name: str = Field(min_length=1, max_length=100, strict=True)
     kind: PropertyKind
     options: list[PropertyOptionSchema] = Field(default_factory=list, max_length=100)
+    relation_database_id: UUID | None = None
+    calculation: dict[str, str] = Field(default_factory=dict, max_length=3)
 
     @model_validator(mode="after")
     def validate_definition(self) -> Self:
-        property_spec(self.name, self.kind, [item.model_dump() for item in self.options])
+        property_spec(
+            self.name,
+            self.kind,
+            [item.model_dump() for item in self.options],
+            self.relation_database_id,
+            self.calculation,
+        )
         return self
 
 
@@ -61,13 +69,17 @@ class PropertyPatch(PropertyVersionRequest):
     kind: PropertyKind | None = None
     options: list[PropertyOptionSchema] | None = Field(default=None, max_length=100)
     position: int | None = Field(default=None, ge=0, le=100000, strict=True)
+    relation_database_id: UUID | None = None
+    calculation: dict[str, str] | None = Field(default=None, max_length=3)
 
     @model_validator(mode="after")
     def validate_changes(self) -> Self:
         changes = self.model_dump(
             exclude_unset=True, exclude={"expected_version", "expected_schema_version"}
         )
-        if not changes or any(value is None for value in changes.values()):
+        if not changes or any(
+            value is None for key, value in changes.items() if key != "relation_database_id"
+        ):
             raise InvalidWorkspaceInput()
         return self
 
@@ -79,6 +91,8 @@ class PropertyResponse(BaseModel):
     name: str
     kind: PropertyKind
     options: list[PropertyOptionSchema]
+    relation_database_id: UUID | None
+    calculation: dict[str, str]
     position: int
     version: int
     created_at: AwareDatetime
@@ -130,6 +144,9 @@ class RecordResultResponse(BaseModel):
     record: RecordResponse
     page: PageSummary
     schema_version: int
+    calculation_errors: dict[str, str] = Field(default_factory=dict)
+    related_titles: dict[str, str] = Field(default_factory=dict)
+    calculation_fingerprint: str | None = None
 
 
 class RecordListResponse(BaseModel):

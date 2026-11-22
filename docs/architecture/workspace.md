@@ -9,7 +9,8 @@ User databases, table/calendar views and mixed date projection are also implemen
 backend only; see [database contracts](../development/databases.md).
 Remaining capabilities are a target design under
 [ADR 0004](../adr/0004-keep-workspace-organization-optional.md), with current APIs documented separately. The owner confirmed pages/blocks/databases and mandatory table/calendar views,
-with personal ownership. Formulas and collaboration are deferred; remaining details
+with personal ownership. Personal relations, bounded formulas/rollups and list/board views were added locally under
+[ADR 0010](../adr/0010-extend-personal-database-views-and-calculations.md). Collaboration remains deferred; remaining details
 are recorded as open decisions.
 
 AI-10 adds local task dependencies, task/page relations, work sessions/preferences,
@@ -127,7 +128,7 @@ delegation on 2026-10-15; see Q-12. Databases, properties and records use
 recoverable trash, preserving page content and values; permanent purge is outside P-05.
 
 Table and calendar query contracts use the same records; other layouts remain
-optional. Formulas are explicitly deferred by the owner.
+optional. The earlier formula deferral is superseded for the bounded personal-workspace implementation in ADR 0010.
 
 Start with a bounded type set: text, number, checkbox, select/multi-select, URL and
 date/date-range. Relations require endpoint validation and may be a later property

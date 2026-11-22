@@ -1,9 +1,15 @@
+import hashlib
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from uuid import UUID, uuid4
 
 from app.modules.notes.domain.pages import PageMetadata
+from app.modules.workspace.application.database_calculations import (
+    record_calculations,
+    validate_calculation,
+    validate_relations,
+)
 from app.modules.workspace.application.database_content_ports import DatabaseContentRepository
 from app.modules.workspace.application.databases import DatabaseService
 from app.modules.workspace.domain.databases import DatabaseProperty, DatabaseRecord, UserDatabase
@@ -34,6 +40,9 @@ class RecordResult:
     record: DatabaseRecord
     page: PageMetadata
     schema_version: int
+    calculation_errors: dict[str, str] = field(default_factory=dict)
+    related_titles: dict[str, str] = field(default_factory=dict)
+    calculation_fingerprint: str | None = None
 
 
 class DatabaseContentService:
@@ -86,13 +95,16 @@ class DatabaseContentService:
         name: str,
         kind: str,
         options: object = (),
+        relation_database_id: UUID | None = None,
+        calculation: object = None,
     ) -> PropertyResult:
         database, definitions = self.schema(
             user_id, database_id, expected_schema_version=expected_schema_version, write=True
         )
         if len(definitions) >= 100:
             raise WorkspaceConflict()
-        spec = property_spec(name, kind, options)
+        spec = property_spec(name, kind, options, relation_database_id, calculation)
+        validate_calculation(user_id, spec, definitions, self.databases, self.repository)
         now = self.now()
         definition = DatabaseProperty(
             id=uuid4(),
@@ -101,6 +113,8 @@ class DatabaseContentService:
             name=spec.name,
             kind=spec.kind,
             options=spec.options,
+            relation_database_id=spec.relation_database_id,
+            calculation=spec.calculation,
             position=len(definitions),
             version=1,
             created_at=now,
@@ -123,13 +137,24 @@ class DatabaseContentService:
         )
         definition = self.definition(definitions, identifier, active=True)
         require_version(definition.version, expected_version)
-        if not changes or changes.keys() - {"name", "kind", "options", "position"}:
+        if not changes or changes.keys() - {
+            "name",
+            "kind",
+            "options",
+            "position",
+            "relation_database_id",
+            "calculation",
+        }:
             raise InvalidWorkspaceInput()
         options = changes.get(
             "options", [{"id": item.id, "name": item.name} for item in definition.options]
         )
         spec = property_spec(
-            changes.get("name", definition.name), changes.get("kind", definition.kind), options
+            changes.get("name", definition.name),
+            changes.get("kind", definition.kind),
+            options,
+            changes.get("relation_database_id", definition.relation_database_id),
+            changes.get("calculation", definition.calculation),
         )
         position = changes.get("position", definition.position)
         if type(position) is not int or not 0 <= position <= 100000:
@@ -139,15 +164,35 @@ class DatabaseContentService:
             name=spec.name,
             kind=spec.kind,
             options=spec.options,
+            relation_database_id=spec.relation_database_id,
+            calculation=spec.calculation,
             position=position,
             version=definition.version + 1,
             updated_at=self.now(),
+        )
+        validate_calculation(
+            user_id,
+            spec,
+            [updated if item.id == identifier else item for item in definitions],
+            self.databases,
+            self.repository,
         )
         conversions: list[tuple[UUID, int, PropertyValue]] = []
         for record_id, version, value in self.repository.property_values(
             user_id, database_id, identifier
         ):
             converted = convert_property_value(definition, updated, value)
+            if (
+                updated.kind == "relation"
+                and definition.relation_database_id != updated.relation_database_id
+            ):
+                validate_relations(
+                    user_id,
+                    [updated],
+                    {str(updated.id): converted},
+                    self.databases,
+                    self.repository,
+                )
             if converted != value:
                 conversions.append((record_id, version, converted))
         self.repository.convert_values(user_id, database_id, identifier, conversions, self.now())
@@ -221,13 +266,64 @@ class DatabaseContentService:
     def detail(
         self, database: UserDatabase, definitions: list[DatabaseProperty], record: DatabaseRecord
     ) -> RecordResult:
+        return self.details(database, definitions, [record])[0]
+
+    def details(
+        self,
+        database: UserDatabase,
+        definitions: list[DatabaseProperty],
+        records: list[DatabaseRecord],
+        pages: dict[UUID, PageMetadata] | None = None,
+    ) -> list[RecordResult]:
         active_ids = {str(item.id) for item in definitions if item.trashed_at is None}
-        visible = replace(
-            record, values={key: value for key, value in record.values.items() if key in active_ids}
+        pages = (
+            pages
+            if pages is not None
+            else self.notes.summaries(database.user_id, tuple(item.page_id for item in records))
         )
-        return RecordResult(
-            visible, self.notes.summary(record.user_id, record.page_id), database.schema_version
+        calculations = record_calculations(
+            database.user_id, definitions, records, self.databases, self.repository
         )
+        result = []
+        for record in records:
+            calculated = calculations[record.id]
+            fingerprint = (
+                hashlib.sha256(
+                    json.dumps(
+                        {
+                            "values": calculated.values,
+                            "errors": calculated.errors,
+                            "related_titles": calculated.related_titles,
+                        },
+                        sort_keys=True,
+                        ensure_ascii=False,
+                        allow_nan=False,
+                    ).encode()
+                ).hexdigest()
+                if any(
+                    item.kind in ("relation", "formula", "rollup") and item.trashed_at is None
+                    for item in definitions
+                )
+                else None
+            )
+            visible = replace(
+                record,
+                values={key: value for key, value in record.values.items() if key in active_ids}
+                | calculated.values,
+            )
+            if record.page_id not in pages:
+                raise WorkspaceNotFound()
+            result.append(
+                RecordResult(
+                    visible,
+                    pages[record.page_id],
+                    database.schema_version,
+                    calculated.errors,
+                    calculated.related_titles,
+                    fingerprint,
+                )
+            )
+        return result
 
     def get_record(self, user_id: UUID, database_id: UUID, record_id: UUID) -> RecordResult:
         database, definitions = self.schema(user_id, database_id)
@@ -243,10 +339,11 @@ class DatabaseContentService:
     ) -> list[RecordResult]:
         pagination(limit, offset)
         database, definitions = self.schema(user_id, database_id)
-        return [
-            self.detail(database, definitions, record)
-            for record in self.repository.list_records(user_id, database_id, trashed, limit, offset)
-        ]
+        return self.details(
+            database,
+            definitions,
+            self.repository.list_records(user_id, database_id, trashed, limit, offset),
+        )
 
     def create_record(
         self,
@@ -262,6 +359,7 @@ class DatabaseContentService:
             user_id, database_id, expected_schema_version=expected_schema_version, write=True
         )
         normalized = self.normalized_values(definitions, values)
+        validate_relations(user_id, definitions, normalized, self.databases, self.repository)
         if (page_id is None) == (title is None):
             raise InvalidWorkspaceInput()
         if self.repository.record_count(user_id, database_id) >= 10000:
@@ -285,7 +383,7 @@ class DatabaseContentService:
             updated_at=now,
         )
         self.repository.create_record(record)
-        return RecordResult(record, page, database.schema_version)
+        return self.details(database, definitions, [record], {page.id: page})[0]
 
     def update_record(
         self,
@@ -305,6 +403,8 @@ class DatabaseContentService:
         if not values:
             raise InvalidWorkspaceInput()
         normalized = self.normalized_values(definitions, values, record.values)
+        changed_relations = [item for item in definitions if str(item.id) in values]
+        validate_relations(user_id, changed_relations, normalized, self.databases, self.repository)
         updated = replace(
             record, values=normalized, version=record.version + 1, updated_at=self.now()
         )

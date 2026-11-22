@@ -58,6 +58,10 @@ class WorkspaceSourceService:
             database, definitions = self.views.content.schema(user_id, query.database_id)
             record = self.views.content.record(user_id, database.id, query.record_id, active=True)
             page = self.notes.summary(user_id, record.page_id, active=True)
+            resolved = self.views.content.details(database, definitions, [record], {page.id: page})[
+                0
+            ]
+            record = resolved.record
             definitions = [item for item in definitions if item.trashed_at is None]
             end = query.offset + query.limit
             return EvidenceResult(
@@ -67,7 +71,11 @@ class WorkspaceSourceService:
                         "properties": [
                             {
                                 "name": item.name,
-                                "value": str(record.values.get(str(item.id), ""))[:400],
+                                "value": (
+                                    f"Unavailable: {resolved.calculation_errors[str(item.id)]}"
+                                    if str(item.id) in resolved.calculation_errors
+                                    else str(record.values.get(str(item.id), ""))
+                                )[:400],
                             }
                             for item in definitions[query.offset : end]
                         ],
@@ -81,6 +89,7 @@ class WorkspaceSourceService:
                         title=page.title,
                         parent_id=str(database.id),
                         locator=f"schema:{database.schema_version}:page:{page.version}",
+                        fingerprint=resolved.calculation_fingerprint,
                     ),
                 ),
                 coverage="partial",
@@ -299,6 +308,7 @@ class WorkspaceSourceService:
                                 "title": item.page.title,
                                 "values": item.record.values,
                                 "page_version": item.page.version,
+                                "calculation_errors": item.calculation_errors,
                             }
                             for item in result.items
                         ],
@@ -312,6 +322,7 @@ class WorkspaceSourceService:
                         title=item.page.title,
                         parent_id=str(query.database_id),
                         locator=f"schema:{result.schema_version}:page:{item.page.version}",
+                        fingerprint=item.calculation_fingerprint,
                     )
                     for item in result.items
                 ),

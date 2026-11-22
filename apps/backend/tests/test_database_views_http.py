@@ -294,3 +294,35 @@ def test_table_bulk_page_metadata_uses_one_snapshot(
         assert response.status_code == 200, response.text
         assert response.json()["total"] == 1
     assert calendar_client.get(path).json()["total"] == 0
+
+
+def test_saved_list_and_board_views_keep_the_same_records(calendar_client: TestClient) -> None:
+    db = create_database(calendar_client)
+    prop = create_property(calendar_client, db, "checkbox")
+    first = create_record(calendar_client, db, values={prop["id"]: False})
+    second = create_record(calendar_client, db, values={prop["id"]: True})
+    for layout in ("list", "board"):
+        view = create_view(calendar_client, db, layout=layout, query={"group_by": prop["id"]})
+        path = view_path(db, view)
+        result = calendar_client.get(path + "/records").json()
+        assert ids(result) == [first["record"]["id"], second["record"]["id"]]
+        assert result["view"]["layout"] == layout
+        assert result["view"]["query"]["group_by"] == prop["id"]
+        assert result["items"][0]["record"]["values"][prop["id"]] is False
+        assert (
+            calendar_client.delete(
+                path + "?expected_version=1", headers=csrf_headers(calendar_client)
+            ).status_code
+            == 204
+        )
+        assert calendar_client.get(record_path(db, first)).status_code == 200
+    invalid = calendar_client.post(
+        f"{BASE}/{db['id']}/views",
+        headers=csrf_headers(calendar_client),
+        json={
+            "name": "Missing group",
+            "layout": "board",
+            "expected_schema_version": schema_version(calendar_client, db),
+        },
+    )
+    assert invalid.status_code == 422

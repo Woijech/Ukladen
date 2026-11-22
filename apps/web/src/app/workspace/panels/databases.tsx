@@ -15,6 +15,8 @@ import {
 import { dateKey, shiftDate, startOfWeek } from "../calendar-time";
 import { positionNoteMenu } from "./note-menu";
 import "./data-workspace.css";
+import { CalculationFields, RelationField, formulaExpression } from "./database-calculation-fields";
+import { DatabaseRecordCards, groupRecords } from "./database-record-cards";
 import type { PageSummary } from "./notes";
 import type { WorkspaceLocation } from "../workspace-location";
 import { isUnavailableObject, UnavailableObject } from "../unavailable-object";
@@ -35,12 +37,17 @@ type Kind =
   | "select"
   | "multi_select"
   | "url"
-  | "date";
-type Property = {
+  | "date"
+  | "relation"
+  | "formula"
+  | "rollup";
+export type Property = {
   id: string;
   name: string;
   kind: Kind;
   options: { id: string; name: string }[];
+  relation_database_id?: string | null;
+  calculation?: Record<string, string>;
   version: number;
   trashed_at: string | null;
 };
@@ -49,8 +56,8 @@ type DateValue = {
   start: string;
   end: string | null;
 };
-type Value = string | number | boolean | string[] | DateValue | null;
-type RecordItem = {
+export type Value = string | number | boolean | string[] | DateValue | null;
+export type RecordItem = {
   record: {
     id: string;
     version: number;
@@ -59,12 +66,15 @@ type RecordItem = {
   };
   page: PageSummary;
   schema_version: number;
+  calculation_errors?: Record<string, string>;
+  related_titles?: Record<string, string>;
 };
 type ViewQuery = {
   version: 1;
   columns: string[] | null;
   filters: { property_id: string; operator: string; value?: Value }[];
   sorts: { property_id: string; direction: "asc" | "desc" }[];
+  group_by?: string | null;
 };
 type View = {
   database_id: string;
@@ -72,7 +82,7 @@ type View = {
   calendar_layout?: "day" | "week" | "month" | null;
   id: string;
   name: string;
-  layout: "table" | "calendar";
+  layout: "table" | "calendar" | "list" | "board";
   date_property_id: string | null;
   version: number;
 };
@@ -90,6 +100,9 @@ type DateEntry = {
 };
 const kinds: { value: Kind; label: string }[] = [
   { value: "text", label: "Текст" },
+  { value: "relation", label: "Связь с записями" },
+  { value: "formula", label: "Формула" },
+  { value: "rollup", label: "Сводное значение" },
   { value: "number", label: "Число" },
   { value: "checkbox", label: "Чекбокс" },
   { value: "select", label: "Выбор" },
@@ -122,7 +135,14 @@ function displayValue(
   value: Value | undefined,
   property: Property,
   timeZone: string,
+  item?: RecordItem,
 ) {
+  const error = item?.calculation_errors?.[property.id];
+  if (error) {
+    const reason = ({ division_by_zero: "Деление на ноль", missing_numeric_input: "Не заполнено числовое поле", number_out_of_range: "Результат вне допустимого диапазона", source_unavailable: "Исходное поле или связанная запись недоступны", empty_relation: "Для этого расчёта нужны связанные записи", calculation_limit: "Слишком много связанных записей для одного чтения" } as Record<string, string>)[error] ?? "Не удалось вычислить значение";
+    return <span className="calculation-error">Не вычислено <HelpTooltip label={`Почему не вычислено: ${property.name}`}>{reason}</HelpTooltip></span>;
+  }
+  if (property.kind === "relation" && Array.isArray(value)) return value.map(id => item?.related_titles?.[id] ?? "Недоступная запись").join(", ") || "—";
   if (value === null || value === undefined) return "—";
   if (property.kind === "checkbox") return value ? "✓" : "○";
   if (Array.isArray(value))
@@ -459,7 +479,7 @@ function DatabaseDetail({
     queryKey: ["records", id, viewId, trashRecords, offset],
     queryFn: ({ signal }) =>
       requestJson<Table>(
-        selectedView?.layout === "table" && !trashRecords
+        selectedView && selectedView.layout !== "calendar" && !trashRecords
           ? `${base}/views/${viewId}/records?limit=50&offset=${offset}`
           : `${base}/records?trashed=${trashRecords}&limit=50&offset=${offset}`,
         { signal },
@@ -753,6 +773,11 @@ function DatabaseDetail({
                   error={records.error}
                   retry={() => void records.refetch()}
                 />
+                {!trashRecords && selectedView && ["list", "board"].includes(selectedView.layout) ? <>
+                  <p className="database-page-count muted">Показано {records.data?.items.length ?? 0} из {records.data?.total ?? 0}. Группы и счётчики относятся к этой странице.</p>
+                  <DatabaseRecordCards items={records.data?.items ?? []} properties={definitions} group={definitions.find(property => property.id === selectedView.query?.group_by)} board={selectedView.layout === "board"} locked={action.busy || !!editing} renderValue={(value, property, item) => displayValue(value, property, timeZone, item)} onOpenPage={onOpenPage} onEdit={item => void editRecord(item)} />
+                </> : groupRecords(records.data?.items ?? [], !trashRecords ? definitions.find(property => property.id === selectedView?.query?.group_by) : undefined).filter(group => group.items.length || !group.name).map(group => <div key={group.id}>
+                {group.name && <h3 className="database-group-heading">{group.name} <small>{group.items.length} на этой странице</small></h3>}
                 <div className="table-scroll">
                   <table className="records-table">
                     <thead>
@@ -767,7 +792,7 @@ function DatabaseDetail({
                       </tr>
                     </thead>
                     <tbody>
-                      {records.data?.items.map((item) => (
+                      {group.items.map((item) => (
                         <tr key={item.record.id}>
                           <td>
                             <button
@@ -784,9 +809,9 @@ function DatabaseDetail({
                             <td key={property.id}>
                               {editing?.record.id === item.record.id && cellId === property.id ? (
                                 <RecordEditor inline base={base} properties={[property]} schema={schema} record={editing} onClose={closeRecord} onSaved={refresh} onDirtyChange={onDirtyChange} onBusyChange={setEditorBusy} />
-                              ) : (
+                              ) : ["formula", "rollup"].includes(property.kind) ? <span className="record-computed" title="Вычисляемое поле">{displayValue(item.record.values[property.id], property, timeZone, item)}</span> : (
                                 <button type="button" className="record-cell" aria-label={`Изменить ${property.name}: ${item.page.title}`} disabled={!!item.record.trashed_at || action.busy || !!editing} onClick={() => editRecord(item, property.id)}>
-                                  {displayValue(item.record.values[property.id], property, timeZone)}
+                                  {displayValue(item.record.values[property.id], property, timeZone, item)}
                                 </button>
                               )}
                             </td>
@@ -795,7 +820,7 @@ function DatabaseDetail({
                             <details className="note-menu data-row-menu" onToggle={event => positionNoteMenu(event.currentTarget)} onKeyDown={event => { if (event.key === "Escape" && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); } }}>
                               <summary aria-label={`Действия записи ${item.page.title}`}>···</summary>
                               <div className="note-menu-items">
-                                {!item.record.trashed_at && <button disabled={action.busy || !!editing || !definitions.length} onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); editRecord(item); }}>Изменить</button>}
+                                {!item.record.trashed_at && <button disabled={action.busy || !!editing || !definitions.some(property => !["formula", "rollup"].includes(property.kind))} onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); editRecord(item); }}>Изменить</button>}
                                 <button disabled={action.busy || !!editing} onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); void recordLifecycle(item, item.record.trashed_at ? "restore" : "trash"); }}>{item.record.trashed_at ? "Восстановить" : "В корзину"}</button>
                               </div>
                             </details>
@@ -804,7 +829,7 @@ function DatabaseDetail({
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </div></div>)}
                 {records.data && !records.data.items.length && (
                   <EmptyState title="Пока ни одной записи">
                     <p>
@@ -880,6 +905,7 @@ function DatabaseDetail({
         <PropertyCreate
           base={base}
           schema={schema}
+          properties={properties.data?.items ?? []}
           onSaved={refresh}
           onClose={() => setDialog(null)}
           onBusyChange={setEditorBusy}
@@ -968,7 +994,7 @@ function RecordEditor({
   const action = useAction();
   useLayoutEffect(() => { onBusyChange(action.busy); return () => onBusyChange(false); }, [action.busy, onBusyChange]);
   const [expectedSchema] = useState(schema);
-  const [fields] = useState(properties);
+  const [fields] = useState(() => properties.filter(property => !["formula", "rollup"].includes(property.kind)));
   const [dirty, setDirty] = useState(false);
   const [closing, setClosing] = useState(false);
   function requestClose() {
@@ -1006,7 +1032,7 @@ function RecordEditor({
         const raw = String(data.get(property.id) ?? "");
         if (property.kind === "checkbox")
           values[property.id] = data.get(property.id) === "on";
-        else if (property.kind === "multi_select")
+        else if (property.kind === "multi_select" || property.kind === "relation")
           values[property.id] = data.getAll(property.id).map(String);
         else if (property.kind === "number") {
           const number = Number(raw);
@@ -1133,7 +1159,7 @@ function RecordEditor({
           return (
             <div className="record-field" key={property.id}>
               <label htmlFor={`field-${property.id}`}>{property.name}</label>
-              {property.kind === "checkbox" ? (
+              {property.kind === "relation" ? <RelationField property={property} value={Array.isArray(value) ? value : []} titles={record?.related_titles ?? {}} onTouched={() => { touched.current.add(property.id); setDirty(true); dirtyCallback.current(true); }} /> : property.kind === "checkbox" ? (
                 <input
                   autoFocus={inline}
                   id={`field-${property.id}`}
@@ -1207,7 +1233,7 @@ function RecordEditor({
           <button type="button" className="secondary-button" onClick={requestClose}>
             Отмена
           </button>
-          <button className="primary-button" disabled={action.busy}>
+          <button className="primary-button" disabled={action.busy || (!!record && !fields.length)}>
             {action.busy ? "Сохраняем…" : "Сохранить запись"}
           </button>
         </div>
@@ -1280,6 +1306,7 @@ function DateFields({
 
 function PropertyCreate({
   base,
+  properties = [],
   schema,
   onSaved,
   onClose,
@@ -1292,6 +1319,7 @@ function PropertyCreate({
   onSaved: () => Promise<void>;
   onClose: () => void;
   editing?: Property;
+  properties?: Property[];
 } & FormProtection) {
   const [kind, setKind] = useState<Kind>(editing?.kind ?? "text");
   const [options, setOptions] = useState(editing?.options ?? []);
@@ -1316,6 +1344,8 @@ function PropertyCreate({
                 options: ["select", "multi_select"].includes(kind)
                   ? options
                   : [],
+                ...(kind === "relation" ? { relation_database_id: data.get("relation_database_id") } : editing?.relation_database_id ? { relation_database_id: null } : {}),
+                ...(kind === "formula" ? { calculation: { expression: formulaExpression(String(data.get("formula_expression") ?? ""), properties, true) } } : kind === "rollup" ? { calculation: { relation_property_id: String(data.get("rollup_relation")), operation: String(data.get("rollup_operation")), ...(data.get("rollup_operation") !== "count" ? { value_property_id: String(data.get("rollup_value")) } : {}) } } : editing?.calculation && Object.keys(editing.calculation).length ? { calculation: {} } : {}),
                 expected_schema_version: schema,
                 ...(editing ? { expected_version: editing.version } : {}),
               },
@@ -1347,6 +1377,7 @@ function PropertyCreate({
             </option>
           ))}
         </select>
+        <CalculationFields key={kind} base={base} kind={kind} properties={properties} editing={editing?.kind === kind ? editing : undefined} />
         {["select", "multi_select"].includes(kind) && (
           <>
             <p className="field-label">Варианты выбора</p>
@@ -1429,6 +1460,7 @@ function ViewCreate({
   editing?: View;
 } & FormProtection) {
   const [layout, setLayout] = useState(editing?.layout ?? "table");
+  const [groupBy, setGroupBy] = useState(editing?.query?.group_by ?? "");
   const [automatic, setAutomatic] = useState(editing?.query?.columns == null);
   const [columns, setColumns] = useState(
     editing?.query?.columns ?? properties.map((property) => property.id),
@@ -1486,6 +1518,7 @@ function ViewCreate({
                 columns: automatic ? null : columns,
                 filters: normalized,
                 sorts,
+                ...(groupBy && layout !== "calendar" ? { group_by: groupBy } : {}),
               },
               ...(layout === "calendar"
                 ? {
@@ -1523,10 +1556,12 @@ function ViewCreate({
               value={layout}
               disabled={!!editing}
               onChange={(event) =>
-                setLayout(event.target.value as "table" | "calendar")
+                setLayout(event.target.value as View["layout"])
               }
             >
               <option value="table">Таблица</option>
+              <option value="list">Список</option>
+              <option value="board" disabled={!properties.some(item => ["select", "checkbox"].includes(item.kind))}>Доска</option>
               <option
                 value="calendar"
                 disabled={!properties.some((item) => item.kind === "date")}
@@ -1578,7 +1613,12 @@ function ViewCreate({
             </select>
           </>
         )}
-        <h3>Поля таблицы</h3>
+        {layout !== "calendar" && <><label htmlFor="view-group">Группировать по</label><select id="view-group" value={groupBy} required={layout === "board"} onChange={event => { const id = event.target.value; setGroupBy(id); if (id) setColumns(current => current.includes(id) ? current : [...current, id]); }}>
+          <option value="">Без группировки</option>
+          {groupBy && !properties.some(property => property.id === groupBy) && <option value={groupBy}>Недоступное поле</option>}
+          {properties.filter(property => ["select", "checkbox"].includes(property.kind)).map(property => <option key={property.id} value={property.id}>{property.name}</option>)}
+        </select><p className="muted">Группировка меняет отображение. Записи остаются в этой же базе.</p></>}
+        <h3>Отображаемые поля</h3>
         <label className="inline-check">
           <input
             type="checkbox"
@@ -1594,6 +1634,7 @@ function ViewCreate({
                 <input
                   type="checkbox"
                   checked={columns.includes(property.id)}
+                  disabled={groupBy === property.id}
                   onChange={(event) =>
                     setColumns((ids) =>
                       event.target.checked
@@ -1650,10 +1691,10 @@ function ViewCreate({
                 }
               >
                 <option value="">Выбрать поле…</option>
-                {!property && filter.property_id && (
+                {(!property || ["relation", "formula", "rollup"].includes(property.kind)) && filter.property_id && (
                   <option value={filter.property_id}>Недоступное поле</option>
                 )}
-                {properties.map((item) => (
+                {properties.filter(item => !["relation", "formula", "rollup"].includes(item.kind)).map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
                   </option>
@@ -1745,11 +1786,11 @@ function ViewCreate({
                 )
               }
             >
-              {!properties.some((item) => item.id === sort.property_id) && (
+              {!properties.some((item) => item.id === sort.property_id && !["multi_select", "relation", "formula", "rollup"].includes(item.kind)) && (
                 <option value={sort.property_id}>Недоступное поле</option>
               )}
               {properties
-                .filter((item) => item.kind !== "multi_select")
+                .filter((item) => !["multi_select", "relation", "formula", "rollup"].includes(item.kind))
                 .map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
@@ -2111,6 +2152,7 @@ function PropertyManager({
       {editing && query.data && (
         <PropertyCreate
           base={base}
+          properties={query.data?.items ?? []}
           schema={query.data.schema_version}
           editing={editing}
           onSaved={refresh}

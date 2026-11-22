@@ -310,3 +310,57 @@ errors retain values, and the full record form remains in the row menu. All seve
 field kinds use existing validation/controls. Date values and page ownership are
 unchanged; saved view query editing remains available. See the
 [stage-5 delivery](frontend-redesign-stage-5.md) for tests and remaining limits.
+
+## Personal views and calculations (2026-11-23)
+
+Implemented locally under [ADR 0010](../adr/0010-extend-personal-database-views-and-calculations.md).
+Migrations `0046_database_layouts` and `0047_database_calculations` preserve existing
+records. The older table/calendar-only scope above describes the initial increment.
+
+Saved `list` and `board` layouts reuse `/views/{id}/records`; `query.group_by` may
+reference an active, displayed select/checkbox property. Boards require grouping.
+Table grouping is also supported. Filters, sorting and pagination retain the existing
+semantics. Group counts in the UI describe the current 50-record page. Empty board
+groups are hidden by default and can be shown explicitly. Removing a view preserves
+all records/pages. Missing grouping properties require repair rather than silently
+showing an unfiltered view.
+
+New property kinds use the existing schema/version/CSRF boundaries:
+
+- `relation`: `relation_database_id` is an owned database; values are at most 100
+  unique record UUIDs. New links require active owned records and pages. The composite
+  target-database foreign key also enforces ownership. Targets are not copied or edited.
+- `formula`: `calculation={"expression":"prop(\"<numeric-property-uuid>\") * 2"}`.
+  The UI displays property names and serializes stable identities. Numeric literals,
+  parentheses, unary signs and +, -, *, /, % are supported. At most 2000 expression
+  characters, 64 AST nodes and depth 12; no eval, powers, attribute access or arbitrary
+  calls. Inputs must be ordinary numeric properties, so recursive calculations are
+  not supported.
+- `rollup`: `calculation` contains `relation_property_id`, `operation` and, except
+  for `count`, `value_property_id` from the target database. Operations are count,
+  sum, average, min and max; value inputs must be ordinary numeric properties.
+
+Computed properties are read-only and are derived during reads. Missing numeric
+inputs, unavailable targets, arithmetic limits and division by zero yield an explicit
+`calculation_errors` entry and a null result. Missing related facts are never silently
+excluded from an aggregate. Empty relations have count/sum zero; average/min/max
+require a value. Record responses also return owned `related_titles` for presentation.
+Calculation work is bounded to 2000 distinct target references across at most 20
+databases per read, using batched record/page reads. API filtering/sorting by relation
+or calculated properties is intentionally rejected; the editor excludes those choices.
+
+Derived results do not increment or rewrite the source record. AI record evidence
+therefore includes a calculation fingerprint independent of visible columns; approval
+revalidation detects changed derived facts even if the source record version did not
+change. Editing a formula definition still increments the database schema version.
+
+Downgrades refuse while new layouts/grouping or new property definitions remain,
+including trashed definitions. There is no automatic destructive conversion or purge.
+
+Verification for this increment: 125 native database/AI-source/action checks passed,
+including changed-rollup evidence rejection without a source record version bump.
+The existing content browser suite passed all 62 cases. CLI browser checks verified
+board grouping/mobile containment, named formula input,
+read-only results, mobile rollup configuration and a relation edit that sends no unrelated fields. Production
+build, ESLint/TypeScript, Ruff and Pyright passed. Production migration/deployment
+remains separate from these isolated checks.

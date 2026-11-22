@@ -23,7 +23,7 @@ export function SourceIndexStatus({ source, id }: { source: "page" | "material";
   });
   return <div className="source-index-status">
     <p className="muted" role="status">{query.data ? labels[query.data.status] ?? "Проверяем готовность поиска" : query.error ? "Статус поиска по смыслу недоступен" : "Проверяем готовность поиска…"}</p>
-    <details><summary>Как AI читает этот источник</summary><p>Сначала извлекается текст. Затем фрагменты индексируются для поиска по смыслу. При вопросе AI получает найденные фрагменты, а не весь документ. Для чтения целиком выбери источник и включи «Полный разбор» в чате.</p></details>
+    <details><summary>Как AI читает этот источник</summary><p>Сначала извлекается текст. Затем фрагменты индексируются для поиска по смыслу. При вопросе AI получает найденные фрагменты, а не весь документ. Для чтения целиком выбери источник и включи «Разобрать документы целиком» в чате.</p></details>
     {query.error && <button type="button" className="text-action" onClick={() => void query.refetch()}>Обновить статус поиска</button>}
     {query.data?.status === "failed" && <button type="button" className="text-action" disabled={action.busy} onClick={() => void action.run(async () => {
       await writeJson(`${aiBase}/sources/${source}/${id}/index/retry`, "POST");

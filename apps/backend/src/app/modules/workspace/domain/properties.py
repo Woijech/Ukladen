@@ -1,20 +1,43 @@
 import math
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Literal, cast
 from uuid import UUID
 
 from app.core.urls import http_url
+from app.modules.workspace.domain.formulas import formula_tree
 from app.modules.workspace.domain.organization import (
     InvalidWorkspaceInput,
     WorkspaceConflict,
     organization_values,
 )
 
-PropertyKind = Literal["text", "number", "checkbox", "select", "multi_select", "url", "date"]
-PROPERTY_KINDS = ("text", "number", "checkbox", "select", "multi_select", "url", "date")
+PropertyKind = Literal[
+    "text",
+    "number",
+    "checkbox",
+    "select",
+    "multi_select",
+    "url",
+    "date",
+    "relation",
+    "formula",
+    "rollup",
+]
+PROPERTY_KINDS = (
+    "text",
+    "number",
+    "checkbox",
+    "select",
+    "multi_select",
+    "url",
+    "date",
+    "relation",
+    "formula",
+    "rollup",
+)
 type PropertyValue = str | int | float | bool | None | list[str] | dict[str, str | None]
 
 
@@ -40,9 +63,17 @@ class PropertySpec:
     name: str
     kind: PropertyKind
     options: tuple[PropertyOption, ...] = ()
+    relation_database_id: UUID | None = None
+    calculation: dict[str, str] = field(default_factory=dict)
 
 
-def property_spec(name: object, kind: object, options: object = ()) -> PropertySpec:
+def property_spec(
+    name: object,
+    kind: object,
+    options: object = (),
+    relation_database_id: object = None,
+    calculation: object = None,
+) -> PropertySpec:
     name, _ = organization_values(name, None)
     if not isinstance(kind, str) or kind not in PROPERTY_KINDS:
         raise InvalidWorkspaceInput()
@@ -60,7 +91,36 @@ def property_spec(name: object, kind: object, options: object = ()) -> PropertyS
         {item.name.casefold() for item in result}
     ) != len(result):
         raise InvalidWorkspaceInput()
-    return PropertySpec(name, cast(PropertyKind, kind), tuple(result))
+    target = property_id(relation_database_id) if relation_database_id is not None else None
+    if (kind == "relation") != (target is not None):
+        raise InvalidWorkspaceInput()
+    settings = calculation if calculation is not None else {}
+    if not isinstance(settings, Mapping) or any(
+        not isinstance(key, str) or not isinstance(value, str) for key, value in settings.items()
+    ):
+        raise InvalidWorkspaceInput()
+    if kind == "formula":
+        if set(settings) != {"expression"}:
+            raise InvalidWorkspaceInput()
+        formula_tree(settings["expression"])
+    elif kind == "rollup":
+        if (
+            set(settings) - {"relation_property_id", "value_property_id", "operation"}
+            or not {"relation_property_id", "operation"} <= settings.keys()
+        ):
+            raise InvalidWorkspaceInput()
+        property_id(settings["relation_property_id"])
+        operation = settings["operation"]
+        if operation not in ("count", "sum", "average", "min", "max"):
+            raise InvalidWorkspaceInput()
+        if operation == "count":
+            if "value_property_id" in settings:
+                raise InvalidWorkspaceInput()
+        else:
+            property_id(settings.get("value_property_id"))
+    elif settings:
+        raise InvalidWorkspaceInput()
+    return PropertySpec(name, cast(PropertyKind, kind), tuple(result), target, dict(settings))
 
 
 def date_value(value: object) -> dict[str, str | None]:
@@ -113,6 +173,15 @@ def date_value(value: object) -> dict[str, str | None]:
 def property_value(spec: PropertySpec, value: object) -> PropertyValue:
     if value is None:
         return None
+    if spec.kind in ("formula", "rollup"):
+        raise InvalidWorkspaceInput("Calculated values are read-only.")
+    if spec.kind == "relation":
+        if not isinstance(value, (list, tuple)) or len(value) > 100:
+            raise InvalidWorkspaceInput()
+        identifiers = [str(property_id(item)) for item in value]
+        if len(set(identifiers)) != len(identifiers):
+            raise InvalidWorkspaceInput()
+        return identifiers
     if spec.kind == "text":
         if not isinstance(value, str) or len(value) > 10000 or "\x00" in value:
             raise InvalidWorkspaceInput()

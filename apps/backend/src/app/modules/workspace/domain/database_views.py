@@ -13,7 +13,7 @@ FilterOperator = Literal[
     "eq", "neq", "contains", "gt", "gte", "lt", "lte", "is_empty", "is_not_empty"
 ]
 FILTER_OPERATORS = ("eq", "neq", "contains", "gt", "gte", "lt", "lte", "is_empty", "is_not_empty")
-ViewLayout = Literal["table", "calendar"]
+ViewLayout = Literal["table", "calendar", "list", "board"]
 CalendarLayout = Literal["day", "week", "month"]
 
 
@@ -23,7 +23,11 @@ def validate_binding(
     calendar_layout: CalendarLayout | None,
     definitions: list[DatabaseProperty],
 ) -> None:
-    if layout == "table" and date_property_id is None and calendar_layout is None:
+    if (
+        layout in ("table", "list", "board")
+        and date_property_id is None
+        and calendar_layout is None
+    ):
         return
     if layout == "calendar" and calendar_layout in ("day", "week", "month"):
         if any(
@@ -53,10 +57,17 @@ class DatabaseQuery:
     filters: tuple[PropertyFilter, ...] = ()
     sorts: tuple[PropertySort, ...] = ()
     version: Literal[1] = 1
+    group_by: UUID | None = None
 
 
 def parse_query(value: object) -> DatabaseQuery:
-    if not isinstance(value, Mapping) or value.keys() - {"version", "columns", "filters", "sorts"}:
+    if not isinstance(value, Mapping) or value.keys() - {
+        "version",
+        "columns",
+        "filters",
+        "sorts",
+        "group_by",
+    }:
         raise InvalidWorkspaceInput()
     if type(value.get("version", 1)) is not int or value.get("version", 1) != 1:
         raise InvalidWorkspaceInput()
@@ -100,11 +111,13 @@ def parse_query(value: object) -> DatabaseQuery:
         sorts.append(PropertySort(property_id(item.get("property_id")), direction))
     if len({item.property_id for item in sorts}) != len(sorts):
         raise InvalidWorkspaceInput()
-    return DatabaseQuery(columns, tuple(filters), tuple(sorts))
+    group_by = property_id(value["group_by"]) if value.get("group_by") is not None else None
+    return DatabaseQuery(columns, tuple(filters), tuple(sorts), group_by=group_by)
 
 
 def query_value(query: DatabaseQuery) -> dict[str, object]:
     return {
+        **({"group_by": str(query.group_by)} if query.group_by else {}),
         "version": query.version,
         "columns": [str(item) for item in query.columns] if query.columns is not None else None,
         "filters": [
@@ -123,7 +136,21 @@ def validate_query(value: object, definitions: list[DatabaseProperty]) -> Databa
     active = {item.id: item for item in definitions if item.trashed_at is None}
     references = {*query.columns} if query.columns is not None else set()
     references.update(item.property_id for item in (*query.filters, *query.sorts))
+    if query.group_by is not None:
+        references.add(query.group_by)
     if references - active.keys():
+        raise InvalidWorkspaceInput()
+    if any(
+        active[item.property_id].kind in ("relation", "formula", "rollup")
+        for item in (*query.filters, *query.sorts)
+    ):
+        raise InvalidWorkspaceInput(
+            "Filtering calculated and relation properties is not supported."
+        )
+    if query.group_by is not None and (
+        active[query.group_by].kind not in ("select", "checkbox")
+        or (query.columns is not None and query.group_by not in query.columns)
+    ):
         raise InvalidWorkspaceInput()
     filters = []
     for item in query.filters:

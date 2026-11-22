@@ -18,6 +18,8 @@ Planned contracts do not override the current implemented API silently.
 
 ## Architecture and decisions
 
+- [Personal database views/calculations decision](adr/0010-extend-personal-database-views-and-calculations.md): relations, bounded arithmetic, rollups and saved list/board views.
+
 - [Workspace hardening](development/workspace-hardening.md): recoverable AI answers, autosave/history, explicit page context and safe point edits.
 - [Local workspace backups](development/workspace-backups.md): checksummed database/object snapshots and an isolated restore drill.
 

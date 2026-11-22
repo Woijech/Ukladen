@@ -18,7 +18,7 @@ from app.modules.workspace.infrastructure.orm import (
 
 
 def property_entity(row: DatabasePropertyModel) -> DatabaseProperty:
-    spec = property_spec(row.name, row.kind, row.options)
+    spec = property_spec(row.name, row.kind, row.options, row.relation_database_id, row.calculation)
     return DatabaseProperty(
         id=row.id,
         user_id=row.user_id,
@@ -26,6 +26,8 @@ def property_entity(row: DatabasePropertyModel) -> DatabaseProperty:
         name=spec.name,
         kind=spec.kind,
         options=spec.options,
+        relation_database_id=spec.relation_database_id,
+        calculation=spec.calculation,
         position=row.position,
         version=row.version,
         created_at=row.created_at,
@@ -156,6 +158,20 @@ class SqlAlchemyDatabaseContent:
             .execution_options(populate_existing=True)
         )
         return record_entity(row) if row else None
+
+    def related_records(
+        self, user_id: UUID, database_id: UUID, record_ids: tuple[UUID, ...]
+    ) -> list[DatabaseRecord]:
+        return [
+            record_entity(row)
+            for row in self.session.scalars(
+                select(DatabaseRecordModel).where(
+                    DatabaseRecordModel.user_id == user_id,
+                    DatabaseRecordModel.database_id == database_id,
+                    DatabaseRecordModel.id.in_(record_ids),
+                )
+            )
+        ]
 
     def list_records(
         self, user_id: UUID, database_id: UUID, trashed: bool, limit: int, offset: int

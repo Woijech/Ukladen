@@ -74,6 +74,8 @@ class DatabaseViewService:
         )
         name, color = organization_values(name, color)
         normalized = validate_query({} if query is None else query, definitions)
+        if layout == "board" and normalized.group_by is None:
+            raise InvalidWorkspaceInput("A board requires a select or checkbox grouping property.")
         if layout == "calendar" and calendar_layout is None:
             calendar_layout = "week"
         validate_binding(layout, date_property_id, calendar_layout, definitions)
@@ -121,6 +123,8 @@ class DatabaseViewService:
             changes.get("name", view.name), changes.get("color", view.color)
         )
         query = validate_query(changes.get("query", query_value(view.query)), definitions)
+        if view.layout == "board" and query.group_by is None:
+            raise InvalidWorkspaceInput("A board requires a grouping property.")
         updated = replace(
             view,
             name=name,
@@ -149,7 +153,7 @@ class DatabaseViewService:
         self, user_id: UUID, database_id: UUID, view_id: UUID, limit: int = 100, offset: int = 0
     ) -> TableResult:
         view = self.get(user_id, database_id, view_id)
-        if view.layout != "table":
+        if view.layout not in ("table", "list", "board"):
             raise WorkspaceConflict()
         try:
             result = self.query(user_id, database_id, query_value(view.query), limit, offset)
@@ -188,19 +192,33 @@ class DatabaseViewService:
                 user_id, database_id, tuple(item.id for item in batch)
             )
         }
-        items = [
-            RecordResult(
+        calculated = self.content.details(
+            database, definitions, [records[item.id] for item in batch], pages
+        )
+        items = []
+        for result in calculated:
+            values = {key: value for key, value in result.record.values.items() if key in keys}
+            related_ids: set[str] = set()
+            for definition in columns:
+                value = values.get(str(definition.id))
+                if definition.kind == "relation" and isinstance(value, list):
+                    related_ids.update(value)
+            items.append(
                 replace(
-                    records[item.id],
-                    values={
-                        key: value for key, value in records[item.id].values.items() if key in keys
+                    result,
+                    record=replace(result.record, values=values),
+                    calculation_errors={
+                        key: value
+                        for key, value in result.calculation_errors.items()
+                        if key in keys
                     },
-                ),
-                pages[item.page_id],
-                database.schema_version,
+                    related_titles={
+                        key: value
+                        for key, value in result.related_titles.items()
+                        if key in related_ids
+                    },
+                )
             )
-            for item in batch
-        ]
         return RecordQueryResult(
             columns, items, database.schema_version, len(selected), limit, offset
         )

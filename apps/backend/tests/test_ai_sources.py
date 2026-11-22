@@ -280,3 +280,65 @@ def test_record_extraction_revalidates_page_and_schema_even_when_record_version_
     assert current.version == reference.version and current.locator != reference.locator
     with pytest.raises(AiConflict), transactions(owner) as unit:
         unit.validate_sources((reference,))
+
+
+def test_rollup_evidence_revalidates_derived_values_without_a_record_version_change(
+    ai_database: Engine,
+):
+    from app.modules.ai.domain.state import AiConflict
+    from app.modules.ai.infrastructure.actions import SqlAlchemyActionTransactions
+
+    conversation, _ = seed(ai_database)
+    owner, reader = conversation.user_id, source_reader(ai_database)
+    with Session(ai_database) as session, session.begin():
+        services = reader.service(session)
+        content = services.views.content
+        target = services.views.databases.create(owner, "Linked facts")
+        amount = content.create_property(owner, target.id, 1, "Amount", "number")
+        linked = content.create_record(
+            owner, target.id, amount.schema_version, {str(amount.property.id): 5}, title="Source"
+        )
+        source = services.views.databases.create(owner, "Derived facts")
+        relation = content.create_property(
+            owner, source.id, 1, "Related", "relation", relation_database_id=target.id
+        )
+        total = content.create_property(
+            owner,
+            source.id,
+            relation.schema_version,
+            "Total",
+            "rollup",
+            calculation={
+                "relation_property_id": str(relation.property.id),
+                "value_property_id": str(amount.property.id),
+                "operation": "sum",
+            },
+        )
+        record = content.create_record(
+            owner,
+            source.id,
+            total.schema_version,
+            {str(relation.property.id): [str(linked.record.id)]},
+            title="Summary",
+        )
+    query = DatabaseReadQuery(database_id=source.id, columns=(total.property.id,))
+    reference = reader.read(owner, query).sources[0]
+    assert reference.fingerprint
+    transactions = SqlAlchemyActionTransactions(reader)
+    with transactions(owner) as unit:
+        unit.validate_sources((reference,))
+    with Session(ai_database) as session, session.begin():
+        content = reader.service(session).views.content
+        content.update_record(
+            owner,
+            target.id,
+            linked.record.id,
+            linked.record.version,
+            amount.schema_version,
+            {str(amount.property.id): 9},
+        )
+    refreshed = reader.read(owner, query).sources[0]
+    assert refreshed.version == reference.version == record.record.version
+    assert refreshed.fingerprint != reference.fingerprint
+    with pytest.raises(AiConflict), transactions(owner) as unit:
+        unit.validate_sources((reference,))

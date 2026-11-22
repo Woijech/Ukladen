@@ -24,8 +24,8 @@ implemented, verified behavior; planned work is not a shipped feature.
 
 ## Connected workspaces
 
-- [ ] Add database relations, rollups and bounded formulas.
-- [ ] Add grouping and additional database views.
+- [x] Add database relations, rollups and bounded formulas.
+- [x] Add grouping and additional database views.
 - [ ] Embed saved database views in pages.
 - [x] Give AI explicit context for the open page/event and selected text.
 - [x] Add safe point edits and saving AI output to a page.
