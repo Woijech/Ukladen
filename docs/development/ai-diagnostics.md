@@ -9,14 +9,25 @@ General foreground requests initially expose only `select_tools`. The model sele
 calendar, documents, databases, tasks, actions and/or web groups in one typed call;
 subsequent model calls receive only the selected, already registered tools plus the
 selector. Selection is additive within a turn and resets on the next user message.
-It does not change ownership, source scope, available provider capabilities or HITL.
+The actions group requires exact operation names; `propose_actions` exposes only
+those operation schemas, and execution retains full application validation and HITL.
+Single-operation batches avoid sending the full eight-operation union. Inlined
+schemas omit discriminator mappings that would reference removed definitions.
+Selection does not change ownership, source scope or available provider capabilities.
 Recognized standalone calendar questions retain their existing direct-read fast path.
 
 Discovery uses the normal four-model-call/eight-tool-call and 60-second run budgets.
 It adds a model step for general requests that need tools; no extra provider call is
 needed for ordinary answers that need no tools. Measure total per-run provider tokens
-and latency, not only the smaller schemas, when evaluating savings. The full action
-schema is still sent when the actions group is selected.
+and latency, not only the smaller schemas, when evaluating savings.
+
+A 2026-11-22 real-model synthetic comparison reproduced a spurious `event_update`
+with a zero UUID when the full action union was supplied despite a create request.
+The same model returned the correct event create with a create-only schema. The
+reported input counts were 26,573 versus 1,460 tokens for those two direct calls;
+these are observations, not a general quality or pricing guarantee. Missing calendar
+targets during proposal construction now return a clear no-change explanation
+instead of a generic failed run. No proposal is stored and no business write occurs.
 
 To build and start the complete configured home deployment, including Cloudflare,
 AI document processing and local embeddings, run from the repository root:
@@ -90,7 +101,8 @@ Each real-model message uses the selected application or personal credential and
 may incur costs. One message can make multiple bounded model calls. Diagnostics
 has no automatic live batch button. Normal limits, cancellation, permissions and
 exact action confirmation remain in force; the panel adds no spending cap.
-Coding agents still need the bounded approval in AGENTS.md for any live probe.
+Coding agents follow the standing task-related verification permission in AGENTS.md,
+keep each probe bounded and report actual usage; separate per-probe approval is not needed.
 
 Prepare recognizable synthetic content through ordinary UI:
 

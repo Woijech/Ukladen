@@ -3,7 +3,7 @@
 import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.modules.ai.application.source_queries import SourceScope
 
@@ -18,18 +18,38 @@ TOOL_GROUPS = {
 
 
 ToolGroup = Literal["calendar", "documents", "databases", "tasks", "actions", "web"]
+ActionOperation = Literal[
+    "page_create",
+    "page_update",
+    "event_create",
+    "event_update",
+    "reminder_create",
+    "task_create",
+    "task_update",
+    "task_plan_apply",
+]
 
 
 class ToolSelection(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     groups: list[ToolGroup] = Field(min_length=1, max_length=6)
+    operations: list[ActionOperation] = Field(default_factory=list, max_length=8)
+
+    @model_validator(mode="after")
+    def require_operations(self):
+        if "actions" in self.groups and not self.operations:
+            raise ValueError("Select the exact operations needed for the requested changes.")
+        return self
 
 
 SELECT_TOOLS_DESCRIPTION = """Load tool schemas needed for this request. Choose all relevant groups
 in one call: calendar (events/free time), documents (search/read pages and files),
 databases (tables/records), tasks (read tasks/preview plans), actions (propose changes
-for UI confirmation), web (public search). For writes also select groups needed to read
+for UI confirmation), web (public search). When selecting actions, specify operations:
+page_create/page_update, event_create/event_update, reminder_create,
+task_create/task_update, task_plan_apply. New events use event_create, not event_update.
+For writes also select groups needed to read
 targets/evidence; for task planning include calendar and tasks. Add groups later if needed.
 Only already registered tools can be loaded; this does not grant permissions."""
 

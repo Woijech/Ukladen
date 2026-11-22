@@ -473,3 +473,27 @@ def test_official_source_changes_block_confirmation_even_without_revision(
         current["version"] == reference.version and current["fingerprint"] != reference.fingerprint
     )
     assert count(concurrent_engine, PageModel) == 0
+
+
+def test_missing_event_in_generated_proposal_returns_explanation_without_writes(
+    ai_client: TestClient, concurrent_engine: Engine
+):
+    script(
+        ai_client,
+        [
+            {
+                "operation": "event_update",
+                "event_id": "00000000-0000-0000-0000-000000000000",
+                "expected_version": 1,
+                "changes": {"title": "x"},
+            }
+        ],
+    )
+    conversation = create(ai_client)
+    result = submit(ai_client, conversation)
+    assert result.status_code == 200 and result.json()["status"] == "completed"
+    messages = ai_client.get(f"{BASE}/conversations/{conversation['id']}/messages").json()["items"]
+    assert "событие не найдено" in messages[-1]["content"]
+    assert "Ничего не изменено" in messages[-1]["content"]
+    assert ai_client.get(f"{BASE}/conversations/{conversation['id']}/proposals").json() == []
+    assert count(concurrent_engine, PersonalCalendarEventModel) == 0

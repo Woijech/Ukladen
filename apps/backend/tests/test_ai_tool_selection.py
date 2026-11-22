@@ -259,7 +259,12 @@ def test_calendar_action_discovery_preserves_hitl_and_does_not_write():
             responses=(
                 AIMessage(
                     content="",
-                    tool_calls=[call("select_tools", {"groups": ["calendar", "actions"]})],
+                    tool_calls=[
+                        call(
+                            "select_tools",
+                            {"groups": ["calendar", "actions"], "operations": ["event_create"]},
+                        )
+                    ],
                 ),
                 AIMessage(
                     content="",
@@ -288,3 +293,19 @@ def test_calendar_action_discovery_preserves_hitl_and_does_not_write():
         "propose_actions",
     }
     reader.read.assert_not_called()
+
+
+def test_action_schema_exposes_only_selected_operations_without_dangling_references():
+    from app.modules.ai.infrastructure.action_tools import selected_action_schema
+
+    single = selected_action_schema({"event_create"})
+    items = single["function"]["parameters"]["properties"]["actions"]["items"]
+    assert items["properties"]["operation"]["const"] == "event_create"
+    assert "event_id" not in items["properties"]
+    assert "$ref" not in json.dumps(single) and "discriminator" not in json.dumps(single)
+    mixed = selected_action_schema({"event_create", "reminder_create"})
+    variants = mixed["function"]["parameters"]["properties"]["actions"]["items"]["oneOf"]
+    assert {item["properties"]["operation"]["const"] for item in variants} == {
+        "event_create",
+        "reminder_create",
+    }

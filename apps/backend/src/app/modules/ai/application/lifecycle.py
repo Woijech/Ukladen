@@ -41,6 +41,7 @@ from app.modules.ai.domain.state import (
     Run,
     ToolExecution,
 )
+from app.modules.calendar.domain.events import CalendarEventNotFound
 
 logger = logging.getLogger(__name__)
 
@@ -374,15 +375,26 @@ class AiService:
             with self.runners(run, journal) as runner:
                 result = runner.run(request)
             if result.status == "interrupted" and result.review and self.actions is not None:
-                self.actions.propose(run, result.review, result.sources)
-                result = AgentResult(
-                    status="completed",
-                    answer=(
-                        "Предложение готово. Проверь все изменения и нажми «Применить всё» "
-                        "или «Отклонить». До подтверждения данные не меняются."
-                    ),
-                    sources=result.sources,
-                )
+                try:
+                    self.actions.propose(run, result.review, result.sources)
+                except CalendarEventNotFound:
+                    result = AgentResult(
+                        status="completed",
+                        answer=(
+                            "Не удалось подготовить предложение: указанное событие не найдено. "
+                            "Ничего не изменено. Уточни событие или попроси создать новое."
+                        ),
+                        sources=result.sources,
+                    )
+                else:
+                    result = AgentResult(
+                        status="completed",
+                        answer=(
+                            "Предложение готово. Проверь все изменения и нажми «Применить всё» "
+                            "или «Отклонить». До подтверждения данные не меняются."
+                        ),
+                        sources=result.sources,
+                    )
         except Exception as error:
             log_failure(logger, "ai.execution_failed", error)
             result = AgentResult(status="failed")

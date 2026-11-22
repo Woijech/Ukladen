@@ -25,10 +25,12 @@ from app.modules.ai.application.source_queries import (
     restrict_source_query,
 )
 from app.modules.ai.application.sources import SourceReader
+from app.modules.ai.infrastructure.action_tools import selected_action_schema
 from app.modules.ai.infrastructure.tool_selection import (
     CALENDAR_POLICY,
     SELECT_TOOLS_DESCRIPTION,
     TOOL_GROUPS,
+    ActionOperation,
     ToolGroup,
     ToolSelection,
     calendar_lookup,
@@ -39,6 +41,9 @@ from app.modules.search.application.web import WebQuery, WebSearch
 SOURCE_POLICY = """You are Ukladen's workspace assistant.
 Use select_tools to load only the groups needed for this request before using their tools.
 Select actions for directly requested changes, plus the groups needed to read targets.
+An explicitly timed new personal event needs no existing target or availability check;
+overlaps are allowed unless the user asks to avoid them. Never invent target IDs.
+Do not repeat an identical complete read; proceed with the answer or proposal.
 Use workspace tools before claiming private facts. Search can cover the owner's whole
 workspace unless source_scope or the user restricts it. Honor explicit source-only
 requests. Clarify ambiguity when choosing a source would materially change the answer.
@@ -130,6 +135,7 @@ class SourceTools(AgentMiddleware):
         self.calendar_only = False
         self.calendar_done = False
         self.selected_tools: set[str] = set()
+        self.selected_operations: set[str] = set()
 
     def begin(self, source_only: bool = False, message: str = "") -> None:
         self.web_cache.clear()
@@ -138,11 +144,16 @@ class SourceTools(AgentMiddleware):
         self.calendar_only = calendar_lookup(message, self.scope)
         self.calendar_done = False
         self.selected_tools.clear()
+        self.selected_operations.clear()
 
-    def select_tools(self, groups: list[ToolGroup]) -> str:
-        selection = ToolSelection(groups=groups)
+    def select_tools(
+        self, groups: list[ToolGroup], operations: list[ActionOperation] | None = None
+    ) -> str:
+        selection = ToolSelection(groups=groups, operations=operations or [])
         for group in selection.groups:
             self.selected_tools.update(TOOL_GROUPS[group])
+        if "actions" in selection.groups:
+            self.selected_operations.update(selection.operations)
         return "Requested tool groups loaded where available. Existing permissions still apply."
 
     def wrap_tool_call(
@@ -477,6 +488,18 @@ class SourceTools(AgentMiddleware):
                 )
                 in self.selected_tools | {"select_tools"}
             ]
+            if self.selected_operations:
+                tools = [
+                    selected_action_schema(self.selected_operations)
+                    if (
+                        tool.get("name", tool.get("function", {}).get("name"))
+                        if isinstance(tool, dict)
+                        else tool.name
+                    )
+                    == "propose_actions"
+                    else tool
+                    for tool in tools
+                ]
         record(
             "source_context",
             {

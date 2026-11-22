@@ -1,4 +1,7 @@
+from typing import Any
+
 from langchain_core.tools import StructuredTool
+from langchain_core.utils.function_calling import convert_to_openai_tool
 
 from app.modules.ai.application.actions import ActionBatch
 
@@ -37,3 +40,18 @@ def action_tool() -> StructuredTool:
         description=ACTION_DESCRIPTION,
         args_schema=ActionBatch,
     )
+
+
+def selected_action_schema(operations: set[str]) -> dict[str, Any]:
+    """Limit the model-facing schema; execution still validates the full ActionBatch."""
+    schema = convert_to_openai_tool(action_tool())
+    items = schema["function"]["parameters"]["properties"]["actions"]["items"]
+    variants = [
+        item for item in items["oneOf"] if item["properties"]["operation"]["const"] in operations
+    ]
+    if not variants:
+        raise ValueError("Select at least one supported action operation.")
+    # Conversion inlines definitions; discriminator mappings would point to removed $defs.
+    items.clear()
+    items.update(variants[0] if len(variants) == 1 else {"oneOf": variants})
+    return schema
