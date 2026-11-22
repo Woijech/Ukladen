@@ -1,8 +1,37 @@
-"""Conservative fast path for standalone calendar lookups; other requests keep all tools."""
+"""Per-turn tool discovery and a fast path for standalone calendar lookups."""
 
 import re
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.ai.application.source_queries import SourceScope
+
+TOOL_GROUPS = {
+    "calendar": frozenset({"get_calendar_events", "get_calendar_availability"}),
+    "documents": frozenset({"search_workspace", "read_page", "read_material_excerpt"}),
+    "databases": frozenset({"list_databases", "read_database", "query_database"}),
+    "tasks": frozenset({"read_tasks", "preview_task_plan"}),
+    "actions": frozenset({"propose_actions"}),
+    "web": frozenset({"search_web"}),
+}
+
+
+ToolGroup = Literal["calendar", "documents", "databases", "tasks", "actions", "web"]
+
+
+class ToolSelection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    groups: list[ToolGroup] = Field(min_length=1, max_length=6)
+
+
+SELECT_TOOLS_DESCRIPTION = """Load tool schemas needed for this request. Choose all relevant groups
+in one call: calendar (events/free time), documents (search/read pages and files),
+databases (tables/records), tasks (read tasks/preview plans), actions (propose changes
+for UI confirmation), web (public search). For writes also select groups needed to read
+targets/evidence; for task planning include calendar and tasks. Add groups later if needed.
+Only already registered tools can be loaded; this does not grant permissions."""
 
 
 def calendar_lookup(message: str, scope: SourceScope | None) -> bool:

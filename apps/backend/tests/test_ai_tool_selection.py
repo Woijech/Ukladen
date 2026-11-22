@@ -199,3 +199,92 @@ def test_tool_policy_resets_on_next_turn_and_pagination_remains_possible():
         == "completed"
     )
     assert not sources.calendar_only and reader.read.called
+
+
+def test_document_discovery_loads_only_requested_schemas_and_resets_next_turn():
+    reader = Mock(spec=SourceReader)
+    reader.context.return_value = "Current profile date"
+    reader.read.return_value = EvidenceResult(status="not_found")
+    sources = SourceTools(reader, uuid4())
+    model = FakeChatModel(
+        responses=(
+            AIMessage(content="", tool_calls=[call("select_tools", {"groups": ["documents"]})]),
+            AIMessage(
+                content="",
+                tool_calls=[call("search_workspace", {"query": "normalization"}, "read")],
+            ),
+            AIMessage(content="No matching documents"),
+        )
+    )
+    runner = OfflineAgentRunner(
+        model, [*sources.build_tools(), action_tool()], InMemorySaver(), sources=sources
+    )
+    events = []
+    token = capture.set(lambda kind, data: events.append((kind, data)))
+    request = AgentInput(conversation_id=uuid4(), message="Find my database notes")
+    try:
+        assert runner.run(request).status == "completed"
+        requests = [data["value"] for kind, data in events if kind == "model_request"]
+        assert requests[0]["tools"] == ["select_tools"]
+        assert set(requests[1]["tools"]) == {
+            "select_tools",
+            "search_workspace",
+            "read_page",
+            "read_material_excerpt",
+        }
+        assert requests[2]["tools"] == requests[1]["tools"]
+        reader.read.assert_called()
+        events.clear()
+        model.responses = (AIMessage(content="Hello"),)
+        assert runner.run(request.model_copy(update={"message": "Hello"})).status == "completed"
+        requests = [data["value"] for kind, data in events if kind == "model_request"]
+        assert requests[0]["tools"] == ["select_tools"]
+    finally:
+        capture.reset(token)
+
+
+def test_calendar_action_discovery_preserves_hitl_and_does_not_write():
+    reader = Mock(spec=SourceReader)
+    reader.context.return_value = "Current profile date"
+    sources = SourceTools(reader, uuid4())
+    action = {
+        "operation": "event_create",
+        "title": "Study",
+        "starts_at": "2030-11-05T10:00:00+03:00",
+        "ends_at": "2030-11-05T11:00:00+03:00",
+        "blocks_time": True,
+    }
+    runner = OfflineAgentRunner(
+        FakeChatModel(
+            responses=(
+                AIMessage(
+                    content="",
+                    tool_calls=[call("select_tools", {"groups": ["calendar", "actions"]})],
+                ),
+                AIMessage(
+                    content="",
+                    tool_calls=[call("propose_actions", {"actions": [action]}, "proposal")],
+                ),
+            )
+        ),
+        [*sources.build_tools(), action_tool()],
+        InMemorySaver(),
+        sources=sources,
+        review_tools=frozenset({"propose_actions"}),
+    )
+    events = []
+    token = capture.set(lambda kind, data: events.append((kind, data)))
+    try:
+        result = runner.run(AgentInput(conversation_id=uuid4(), message="Create a study event"))
+    finally:
+        capture.reset(token)
+    assert result.status == "interrupted" and result.review is not None
+    assert result.review.actions[0].arguments == {"actions": [action]}
+    requests = [data["value"] for kind, data in events if kind == "model_request"]
+    assert set(requests[1]["tools"]) == {
+        "select_tools",
+        "get_calendar_events",
+        "get_calendar_availability",
+        "propose_actions",
+    }
+    reader.read.assert_not_called()

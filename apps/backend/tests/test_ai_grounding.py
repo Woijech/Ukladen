@@ -109,7 +109,7 @@ def test_scope_and_tool_schemas_cannot_be_broadened_by_model_arguments():
     reader.read.assert_called_once_with(owner, PageRead(page_id=allowed))
     reader.read.reset_mock()
     tools = {tool.name: tool for tool in sources.build_tools()}
-    assert set(tools) == set(READ_QUERIES)
+    assert set(tools) == set(READ_QUERIES) | {"select_tools"}
     result = tools["read_page"].invoke({"page_id": str(allowed)})
     assert "untrusted" in result
     assert not any("write" in name or "execute" in name for name in tools)

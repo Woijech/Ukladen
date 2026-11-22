@@ -3,6 +3,34 @@
 Status: implemented locally. Deployment and real-model acceptance are separate
 operations. This feature does not activate providers or authorize agent spending.
 
+## Tool discovery (2026-11-22)
+
+General foreground requests initially expose only `select_tools`. The model selects
+calendar, documents, databases, tasks, actions and/or web groups in one typed call;
+subsequent model calls receive only the selected, already registered tools plus the
+selector. Selection is additive within a turn and resets on the next user message.
+It does not change ownership, source scope, available provider capabilities or HITL.
+Recognized standalone calendar questions retain their existing direct-read fast path.
+
+Discovery uses the normal four-model-call/eight-tool-call and 60-second run budgets.
+It adds a model step for general requests that need tools; no extra provider call is
+needed for ordinary answers that need no tools. Measure total per-run provider tokens
+and latency, not only the smaller schemas, when evaluating savings. The full action
+schema is still sent when the actions group is selected.
+
+To build and start the complete configured home deployment, including Cloudflare,
+AI document processing and local embeddings, run from the repository root:
+
+```bash
+./infra/ai-home.sh up --detach --build --wait --wait-timeout 180
+```
+
+The wrapper uses `.env.home`, the home/AI/retrieval/runtime overlays and both optional
+worker profiles. This requires the configured Cloudflare tunnel, AI catalog/key files
+and local embedding model. It enables the configured background AI reviews; existing
+opted-in reviews can incur provider costs. Provider credentials and unfinished external
+integrations cannot be supplied or activated by the startup command alone.
+
 ## Access and installation
 
 The panel lives at /workspace/ai?tab=diagnostics, inside the existing AI screen.

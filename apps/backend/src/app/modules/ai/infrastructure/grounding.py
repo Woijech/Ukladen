@@ -25,11 +25,20 @@ from app.modules.ai.application.source_queries import (
     restrict_source_query,
 )
 from app.modules.ai.application.sources import SourceReader
-from app.modules.ai.infrastructure.tool_selection import CALENDAR_POLICY, calendar_lookup
+from app.modules.ai.infrastructure.tool_selection import (
+    CALENDAR_POLICY,
+    SELECT_TOOLS_DESCRIPTION,
+    TOOL_GROUPS,
+    ToolGroup,
+    ToolSelection,
+    calendar_lookup,
+)
 from app.modules.search.application.evidence import EvidenceResult, SourceReference
 from app.modules.search.application.web import WebQuery, WebSearch
 
 SOURCE_POLICY = """You are Ukladen's workspace assistant.
+Use select_tools to load only the groups needed for this request before using their tools.
+Select actions for directly requested changes, plus the groups needed to read targets.
 Use workspace tools before claiming private facts. Search can cover the owner's whole
 workspace unless source_scope or the user restricts it. Honor explicit source-only
 requests. Clarify ambiguity when choosing a source would materially change the answer.
@@ -120,6 +129,7 @@ class SourceTools(AgentMiddleware):
         self.source_only = False
         self.calendar_only = False
         self.calendar_done = False
+        self.selected_tools: set[str] = set()
 
     def begin(self, source_only: bool = False, message: str = "") -> None:
         self.web_cache.clear()
@@ -127,6 +137,13 @@ class SourceTools(AgentMiddleware):
         self.source_only = source_only
         self.calendar_only = calendar_lookup(message, self.scope)
         self.calendar_done = False
+        self.selected_tools.clear()
+
+    def select_tools(self, groups: list[ToolGroup]) -> str:
+        selection = ToolSelection(groups=groups)
+        for group in selection.groups:
+            self.selected_tools.update(TOOL_GROUPS[group])
+        return "Requested tool groups loaded where available. Existing permissions still apply."
 
     def wrap_tool_call(
         self,
@@ -276,6 +293,14 @@ class SourceTools(AgentMiddleware):
             )
             for name, schema in READ_QUERIES.items()
         ]
+        tools.append(
+            StructuredTool.from_function(
+                self.select_tools,
+                name="select_tools",
+                description=SELECT_TOOLS_DESCRIPTION,
+                args_schema=ToolSelection,
+            )
+        )
         if self.web is not None:
             tools.append(
                 StructuredTool.from_function(
@@ -440,6 +465,17 @@ class SourceTools(AgentMiddleware):
                 )
                 == "get_calendar_events"
                 and not self.calendar_done
+            ]
+        else:
+            tools = [
+                tool
+                for tool in tools
+                if (
+                    tool.get("name", tool.get("function", {}).get("name"))
+                    if isinstance(tool, dict)
+                    else tool.name
+                )
+                in self.selected_tools | {"select_tools"}
             ]
         record(
             "source_context",
