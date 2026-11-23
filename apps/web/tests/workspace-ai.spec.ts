@@ -52,8 +52,10 @@ async function mockAi(page: Page) {
       role: string;
       content: string;
       sources: (typeof reference)[];
+      created_at?: string;
     }[],
     run: null as null | Record<string, unknown>,
+    proposalRuns: {} as Record<string, Record<string, unknown>>,
     writes: [] as { path: string; body: Record<string, unknown> | null }[],
     preferences: { instructions: "Отвечай кратко", version: 1 },
     reviewSettings: { configuration: {
@@ -100,7 +102,11 @@ async function mockAi(page: Page) {
       if (method === "DELETE") { state.diagnosticTrace = { ...state.diagnosticTrace, captured: false, events: [], verdict: "unreviewed", note: "" }; return route.fulfill({ status: 204 }); }
       return route.fulfill({ json: { run: { ...state.run, conversation_id: chatId, created_at: "2026-10-16T12:00:00Z", finished_at: "2026-10-16T12:00:02Z" }, trace: state.diagnosticTrace } });
     }
-    if (path.endsWith("/proposals")) return route.fulfill({ json: state.proposals });
+    if (path.endsWith("/proposals")) {
+      const params = new URL(request.url()).searchParams;
+      const offset = Number(params.get("offset") ?? 0), limit = Number(params.get("limit") ?? 20);
+      return route.fulfill({ json: state.proposals.slice(offset, offset + limit) });
+    }
     if (path.endsWith("/decision")) {
       const proposal = state.proposals.find((item) => path.includes(item.id));
       if (!proposal) return route.fulfill({ status: 404, json: {} });
@@ -270,10 +276,17 @@ async function mockAi(page: Page) {
             : frame("run", run) + frame("done", {})),
       });
     }
-    if (path.endsWith("/messages"))
-      return route.fulfill({ json: { items: state.messages } });
+    if (path.endsWith("/messages")) {
+      const params = new URL(request.url()).searchParams;
+      const before = Number(params.get("before") ?? Infinity), limit = Number(params.get("limit") ?? 100);
+      return route.fulfill({ json: { items: state.messages.filter(item => item.sequence < before).slice(-limit) } });
+    }
     if (path === `/api/v1/ai/runs/${state.run?.id}` && method === "GET")
       return route.fulfill({ json: state.run });
+    if (method === "GET" && path.startsWith("/api/v1/ai/runs/")) {
+      const run = state.proposalRuns[path.split("/").at(-1)!];
+      return route.fulfill({ status: run ? 200 : 404, json: run ?? {} });
+    }
     if (path.endsWith("/cancel")) {
       state.run = { ...state.run, status: "cancelled" };
       return route.fulfill({ json: state.run });
@@ -770,9 +783,134 @@ function actionProposal(): Proposal {
   };
 }
 
+function proposalTurn(state: Awaited<ReturnType<typeof mockAi>>, proposal: Proposal, sequence = 1) {
+  const created_at = `2026-11-23T10:${String(sequence).padStart(2, "0")}:00.123456Z`;
+  const run = { id: proposal.run_id, conversation_id: chatId, created_at, status: "completed" };
+  state.proposalRuns[proposal.run_id] = run;
+  state.run = run;
+  state.messages.push(
+    { id: `request-${sequence}`, sequence, role: "user", content: "Создай консультацию", sources: [], created_at },
+    { id: `answer-${sequence}`, sequence: sequence + 1, role: "assistant", content: `Предложение ${sequence} готово`, sources: [], created_at: created_at.replace(":00.", ":05.") },
+  );
+}
+
+test("historical applied proposals stay with their originating answers after a schedule question", async ({ page }) => {
+  const state = await mockAi(page);
+  const created = { ...actionProposal(), status: "applied" as const, run_id: "create-run" };
+  const edited = { ...actionProposal(), id: "edit-proposal", status: "applied" as const, run_id: "edit-run" };
+  proposalTurn(state, created);
+  proposalTurn(state, edited, 3);
+  state.proposals = [edited, created];
+  state.messages.push(
+    { id: "friday-question", sequence: 5, role: "user", content: "какие пары в пятницу", sources: [], created_at: "2026-11-23T10:54:00.370831Z" },
+    { id: "friday-answer", sequence: 6, role: "assistant", content: "В пятницу три пары", sources: [], created_at: "2026-11-23T10:54:07.760725Z" },
+  );
+  state.run = { id: "friday-run", conversation_id: chatId, created_at: "2026-11-23T10:54:00.370831Z", status: "completed" };
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  for (const reload of [false, true]) {
+    if (reload) await page.reload();
+    await expect(page.locator('.ai-message').filter({ hasText: "Предложение 1 готово" }).getByText("Все изменения применены", { exact: true })).toBeVisible();
+    await expect(page.locator('.ai-message').filter({ hasText: "Предложение 3 готово" }).getByText("Все изменения применены", { exact: true })).toBeVisible();
+    await expect(page.getByText("В пятницу три пары", { exact: true })).toBeInViewport();
+    await expect(page.locator('.ai-message').filter({ hasText: "В пятницу три пары" }).getByRole("heading", { name: "Предложение изменений" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Проверь изменения на календаре" })).toHaveCount(0);
+    expect(state.proposalCommits).toBe(0);
+    expect(state.writes.filter(item => item.path.endsWith("/messages/stream") || item.path.endsWith("/decision"))).toHaveLength(0);
+  }
+  for (const [width, theme] of [[1440, "dark"], [390, "light"]] as const) {
+    await page.setViewportSize({ width, height: 900 });
+    const toggle = page.getByRole("button", { name: /Тема:/ }).first();
+    while (await page.locator("html").getAttribute("data-theme") !== theme) await toggle.click();
+    await page.getByText("В пятницу три пары", { exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: test.info().outputPath(`proposal-history-${width}-${theme}.png`), fullPage: true, animations: "disabled" });
+    await checkWorkspaceVisuals(page);
+  }
+});
+
+test("a previous pending proposal does not automatically interrupt a newer read-only answer", async ({ page }) => {
+  const state = await mockAi(page), proposal = actionProposal();
+  proposalTurn(state, proposal);
+  state.proposals = [proposal];
+  state.messages.push(
+    { id: "later-question", sequence: 3, role: "user", content: "какие пары в пятницу", sources: [], created_at: "2026-11-23T10:54:00Z" },
+    { id: "later-answer", sequence: 4, role: "assistant", content: "Расписание на пятницу", sources: [], created_at: "2026-11-23T10:54:05Z" },
+  );
+  state.run = { id: "read-run", conversation_id: chatId, created_at: "2026-11-23T10:54:00Z", status: "completed" };
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  const original = page.locator('.ai-message').filter({ hasText: "Предложение 1 готово" });
+  await expect(original.getByRole("button", { name: "Посмотреть на календаре" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Проверь изменения на календаре" })).toHaveCount(0);
+  await original.getByRole("button", { name: "Посмотреть на календаре" }).click();
+  await expect(page.getByRole("heading", { name: "Проверь изменения на календаре" })).toBeVisible();
+  expect(state.proposalCommits).toBe(0);
+});
+
+test("older proposal pages bind to original answers without limiting history to ten cards", async ({ page }) => {
+  const state = await mockAi(page);
+  const older = { ...actionProposal(), id: "older-proposal", run_id: "older-run", status: "applied" as const };
+  const newer = { ...actionProposal(), run_id: "newer-run", status: "applied" as const };
+  proposalTurn(state, older);
+  proposalTurn(state, newer, 3);
+  state.proposals = [...Array.from({ length: 10 }, (_, index) => ({ ...newer, id: `recent-${index}` })), older];
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  await expect(page.locator('.ai-action-card')).toHaveCount(10);
+  await page.getByRole("button", { name: "Более ранние предложения", exact: true }).click();
+  await expect(page.locator('.ai-message').filter({ hasText: "Предложение 1 готово" }).getByText("Все изменения применены", { exact: true })).toBeVisible();
+  await expect(page.locator('.ai-action-card')).toHaveCount(11);
+  await expect(page.getByRole("button", { name: "Более ранние предложения", exact: true })).toHaveCount(0);
+  expect(state.writes).toHaveLength(0);
+});
+
+test("a proposal waits in explicit history until its originating user message is loaded", async ({ page }) => {
+  const state = await mockAi(page), proposal = { ...actionProposal(), status: "applied" as const };
+  let releaseOlder!: () => void;
+  const olderReady = new Promise<void>(resolve => { releaseOlder = resolve; });
+  await page.route(`**/api/v1/ai/conversations/${chatId}/messages?**`, async route => {
+    if (new URL(route.request().url()).searchParams.has("before")) await olderReady;
+    await route.fallback();
+  });
+  proposalTurn(state, proposal);
+  state.proposals = [proposal];
+  for (let sequence = 3; sequence <= 51; sequence++) state.messages.push({
+    id: `later-${sequence}`, sequence, role: sequence % 2 ? "user" : "assistant", content: `Другое сообщение ${sequence}`,
+    sources: [], created_at: `2026-11-23T11:00:${String(sequence).padStart(2, "0")}Z`,
+  });
+  state.run = { id: "later-run", conversation_id: chatId, created_at: "2026-11-23T11:00:51Z", status: "completed" };
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  await expect(page.getByText("Предложения к другим сообщениям", { exact: true })).toBeVisible();
+  const original = page.locator('.ai-message').filter({ hasText: "Предложение 1 готово" });
+  await expect(original.locator('.ai-action-card')).toHaveCount(0);
+  await page.getByRole("button", { name: "Более ранние сообщения", exact: true }).click();
+  const reading = page.getByText("Другое сообщение 20", { exact: true });
+  await reading.scrollIntoViewIfNeeded();
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await expect(reading).toBeInViewport();
+  releaseOlder();
+  await expect(original.getByText("Все изменения применены", { exact: true })).toBeVisible();
+  await expect(page.getByText("Предложения к другим сообщениям", { exact: true })).toHaveCount(0);
+  await expect(reading).toBeInViewport();
+  expect(state.writes).toHaveLength(0);
+});
+
+test("failed proposal-run lookup never attaches a card to an unrelated answer and can retry", async ({ page }) => {
+  const state = await mockAi(page), proposal = { ...actionProposal(), status: "applied" as const };
+  proposalTurn(state, proposal);
+  delete state.proposalRuns[proposal.run_id];
+  state.proposals = [proposal];
+  state.run = { id: "later-run", status: "completed" };
+  await page.goto(`/workspace/ai?chat=${chatId}`);
+  await expect(page.getByText("Предложения к другим сообщениям", { exact: true })).toBeVisible();
+  await expect(page.locator('.ai-message .ai-action-card')).toHaveCount(0);
+  state.proposalRuns[proposal.run_id] = { id: proposal.run_id, conversation_id: chatId, created_at: state.messages[0].created_at };
+  await page.getByRole("button", { name: "Повторить", exact: true }).click();
+  await expect(page.locator('.ai-message').filter({ hasText: "Предложение 1 готово" }).getByText("Все изменения применены", { exact: true })).toBeVisible();
+  expect(state.writes).toHaveLength(0);
+});
+
 test("AI shows exact batch preview and applies only its confirmed digest", async ({ page }) => {
   const state = await mockAi(page);
   state.proposals = [actionProposal()];
+  proposalTurn(state, state.proposals[0]);
   await page.goto(`/workspace/ai?chat=${chatId}`);
   await expect(page.getByRole("heading", { name: "Проверь изменения на календаре" })).toBeVisible();
   await expect(page.locator('.calendar-ai-ghost[data-phase="after"]')).toHaveCount(2);
@@ -797,6 +935,7 @@ test("AI shows exact batch preview and applies only its confirmed digest", async
 test("AI proposals reject and expire without applying", async ({ page }) => {
   const state = await mockAi(page);
   state.proposals = [actionProposal()];
+  proposalTurn(state, state.proposals[0]);
   await page.goto(`/workspace/ai?chat=${chatId}`);
   await page.getByRole("button", { name: "Отклонить", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/workspace/ai\\?chat=${chatId}$`));
@@ -812,11 +951,13 @@ test("AI proposals reject and expire without applying", async ({ page }) => {
 
 test("a proposal appears when the same running submission completes", async ({ page }) => {
   const state = await mockAi(page);
+  const proposal = { ...actionProposal(), run_id: "delayed-proposal" };
+  proposalTurn(state, proposal);
   state.run = { id: "delayed-proposal", status: "running" };
   await page.goto(`/workspace/ai?chat=${chatId}`);
   await expect(page.getByRole("button", { name: "Остановить", exact: true })).toBeVisible();
-  state.proposals = [actionProposal()];
-  state.run = { ...state.run, status: "completed" };
+  state.proposals = [proposal];
+  state.run = { ...state.proposalRuns[proposal.run_id], status: "completed" };
   await expect(page.getByRole("button", { name: "Применить всё", exact: true })).toBeVisible();
   expect(state.proposalCommits).toBe(0);
 });
@@ -829,6 +970,7 @@ test("AI task proposals show provenance and estimates, and edits require a new p
   original.batch = { actions: [{ operation: "task_create", task: proposedTask, estimate_kind: "estimate", sources: [source], uncertainties: ["Deadline is unclear"] }] };
   original.effects = [{ operation: "task_create", target_id: null, before: null, after: { task: proposedTask, estimate_kind: "estimate", sources: [source], uncertainties: ["Deadline is unclear"], possible_duplicates: [{ id: "duplicate-task", title: "Read similar chapter", status: "todo" }] }, warnings: [] }];
   state.proposals = [original];
+  proposalTurn(state, original);
   await page.route("**/api/v1/ai/proposals/*/revise", async route => {
     const body = route.request().postDataJSON();
     expect(route.request().headers()["x-csrf-token"]).toBe("c".repeat(43));
@@ -863,6 +1005,7 @@ test("AI plan preview requires explicit partial acceptance and blocks unverified
   proposal.batch = { actions: [{ operation: "task_plan_apply", plan_id: "plan", digest: "b".repeat(64), accept_partial: true }] };
   proposal.effects = [{ operation: "task_plan_apply", target_id: "plan", before: null, warnings: [], after: { id: "plan", digest: "b".repeat(64), expires_at: "2030-01-01T12:00:00Z", timezone: "UTC", status: "pending", verified: true, sessions: [{ task_id: "task", starts_at: "2026-10-17T09:00:00Z", ends_at: "2026-10-17T09:45:00Z", retained_id: null }], task_titles: { task: "Read chapter" }, cancelled_sessions: [], unplaced: [{ task_id: "task", minutes: 45, reason: "not_placed_in_allowed_windows" }], warnings: [] } }];
   state.proposals = [proposal];
+  proposalTurn(state, proposal);
   await page.goto(`/workspace/ai?chat=${chatId}`);
   const apply = page.getByRole("button", { name: "Применить всё", exact: true });
   await expect(apply).toBeDisabled();

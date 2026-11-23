@@ -134,3 +134,59 @@ All 60 AI browser cases and 111 offline agent/tool/adapter/grounding tests passe
 frontend lint/typecheck/build, quiet Compose validation and whitespace checks passed.
 The collapsed dark layout was visually inspected. No backend code, API contracts,
 provider calls or running application containers changed in this follow-up.
+
+## Proposal-to-answer association — 2026-11-23
+
+Implemented on `frontend/ui`. Read-only inspection of the reported conversation
+confirmed that the schedule answer had no action proposal. The displayed applied
+cards belonged to earlier, explicitly requested event changes. The transcript had
+appended the conversation-wide proposal list after its newest answer; `runId` only
+partitioned the cache and did not filter or position those cards.
+
+The transcript now resolves each proposal's `run_id` through the existing owned
+run-read endpoint and places the card inside its originating assistant message.
+Admission currently stores the run and its user message with the same `created_at`;
+the client compares those server strings exactly, preserving microseconds, then
+selects the assistant reply before the next user turn. It does not match on prompt
+text, proposal creation time, the latest reply or nearest timestamps. Foreign,
+ambiguous, missing and failed mappings are never assigned to another answer.
+If that admission invariant changes, this binding must change with it.
+
+Proposal pages remain bounded to ten items, with explicit loading of earlier pages
+and one cached metadata read per distinct proposal run. When the originating user
+message is outside loaded history, the card remains accessible in a separately
+labelled, collapsed history section. Loading older messages restores its inline
+position. Failed run reads offer retry without invoking a model or resubmitting a
+message. The ordinary account-switch cache reset also clears these reads.
+
+Automatic calendar review additionally requires a pending proposal from the current
+run and a matched originating message. Older pending proposals remain available for
+manual review; applied cards no longer display a misleading confirmation deadline.
+Initial/new-run positioning waits for proposal association before scrolling to the
+latest answer. Prepending older messages or proposal pages does not trigger that
+automatic scroll; normal streaming still follows the newest message.
+Digest-bound decisions, revisions, partial-plan acknowledgement, source inspection,
+expiry and normal backend ownership/HITL rules are unchanged. No backend code,
+database schema, tool-routing policy or provider configuration changes are included.
+
+Final verification for this follow-up:
+
+- All **373 frontend tests passed** on the final production build, including five
+  new browser regressions and three binding checks. Coverage includes applied and
+  older pending proposals after a read-only turn, reload, manual calendar review,
+  proposal/message pagination, failed metadata reads/retry, microsecond precision,
+  foreign/ambiguous runs and failed turns. Latest-answer positioning and retained
+  reading position during asynchronous history loads are also asserted.
+- All **102 selected backend/AI tests passed** against separate disposable
+  PostgreSQL/Redis with synthetic models, covering native HTTP/actions/source reads,
+  agent execution, grounding and tool discovery. This is not a complete backend
+  rerun or a real-model quality evaluation.
+- Frontend lint/typecheck/build, backend Ruff/Pyright, quiet Compose validation and
+  whitespace checks passed. Final 1440px dark and 390px light history screenshots
+  were visually inspected. An early visual pass measured an unfinished theme
+  transition; the final test uses normal theme controls and completed rendering.
+- No provider call, secret inspection, application mutation, migration or running
+  application redeployment was performed. Disposable backend test containers and
+  their synthetic data were removed; the test browser was downloaded under `/tmp`.
+
+Historical counts above describe their original deliveries, not this follow-up.

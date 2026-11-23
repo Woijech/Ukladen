@@ -31,6 +31,7 @@ export type Conversation = {
 };
 export type Message = {
   id: string;
+  created_at: string;
   sequence: number;
   role: string;
   content: string;
@@ -38,6 +39,8 @@ export type Message = {
   incomplete?: boolean;
 };
 export type Run = {
+  conversation_id: string | null;
+  created_at: string;
   failure_reason?: string | null;
   connection_id?: string | null;
   estimated_cost: string | null;
