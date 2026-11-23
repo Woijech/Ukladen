@@ -308,3 +308,33 @@ checks, including those five regressions, using a separate local test server and
 synthetic API responses. Phone/desktop captures were visually inspected. No backend
 suite was rerun for this presentation-only change, and no real provider request
 was made. Running application containers were not rebuilt or restarted.
+
+## Page-qualified inline citations (2026-11-23)
+
+A read-only inspection of the owner's reported answer found 20 retained evidence
+references but only three source identities. The running frontend still used an
+image created before the summary-deduplication change. Separately, the model's
+`[source:id, page:N]` markers were not recognized by the original exact-ID renderer;
+the earlier summary change had not modified Markdown rendering.
+
+The renderer now accepts the existing `[source:id]` marker and page/slide-qualified
+forms. A qualified marker is linked only when the returned material evidence has
+the same ID and exact page/slide locator. Its button includes the page/slide label
+and opens that original reference's character offset. It does not invent locations
+or mistake database schema/page versions for PDF pages. Unknown/malformed markers
+and markers inside inline/fenced code remain literal. Retained evidence and saved
+message content are unchanged; summary deduplication still affects only the footer.
+
+Ten synthetic source regressions passed, including the reported comma/page syntax
+at 390/1440px, exact preview offsets, same-document summary deduplication, unsupported
+locations and literal code. A pre-existing test timing race was removed by waiting
+for the asynchronous preview request before asserting its payload. Local and Docker
+production builds, ESLint and TypeScript passed. No provider request was made.
+
+The final frontend suite passed all 383 checks; Compose configuration and
+`git diff --check` passed. Phone/desktop citation captures were visually inspected.
+Only the local `web` service was then recreated with the verified image using
+`up --no-deps`; its health check and direct `/health` request passed. Container IDs
+for the API, workers, Beat, database, Redis, storage and proxy remained unchanged.
+Existing answers need a browser refresh, not regeneration or a new model request.
+This local frontend refresh is not a backend deployment or real-model quality gate.

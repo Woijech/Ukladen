@@ -1,6 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Source } from "./ai-api";
+import { resolveSourceCitation } from "./ai-source-citations";
 import "./ai-markdown.css";
 
 type MarkdownNode = { type: string; value?: string; url?: string; children?: MarkdownNode[] };
@@ -12,11 +13,10 @@ function sourceLinks(sources: Source[]) {
       node.children = node.children.flatMap(child => {
         if (child.type !== "text") { visit(child); return [child]; }
         return (child.value ?? "").split(/(\[source:[^\]\n]+\])/g).filter(Boolean).map(value => {
-          const index = value.startsWith("[source:")
-            ? sources.findIndex(source => source.id === value.slice(8, -1)) : -1;
-          return index < 0 ? { type: "text", value } : {
-            type: "link", url: `#ukladen-source-${index}`,
-            children: [{ type: "text", value: sources[index].title || "Источник" }],
+          const citation = resolveSourceCitation(value, sources);
+          return !citation ? { type: "text", value } : {
+            type: "link", url: `#ukladen-source-${citation.index}`,
+            children: [{ type: "text", value: citation.label }],
           };
         });
       });

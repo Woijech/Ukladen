@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { uniqueAnswerSources, type Source } from "../src/app/workspace/panels/ai-api";
+import { resolveSourceCitation } from "../src/app/workspace/panels/ai-source-citations";
 import { mockWorkspace } from "./workspace-fixtures";
 
 const chatId = "11111111-2222-4333-8444-555555555555";
@@ -28,6 +29,26 @@ test("answer source summaries distinguish source types and parent scopes rather 
   const web = { ...reference, source: "web" as const, url: "https://example.org/encapsulation", retrieved_at: "2030-11-04T09:00:00Z" };
   expect(uniqueAnswerSources([reference, page, record, otherParent, web, { ...web }]))
     .toEqual([reference, page, record, otherParent, web]);
+});
+
+test("inline citations select the actual evidence page rather than the first document fragment", () => {
+  const first = { ...reference, locator: "page:4;chars:633:1041" };
+  const slide = { ...reference, locator: "slide:7;chars:2300:2400" };
+  const sources = [first, reference, slide];
+  expect(resolveSourceCitation(`[source:${materialId}]`, sources)).toEqual({ index: 0, label: reference.title });
+  expect(resolveSourceCitation(`[source:${materialId}, page:7]`, sources)).toEqual({ index: 1, label: `${reference.title} · стр. 7` });
+  expect(resolveSourceCitation(`[source: ${materialId} , page: 4 ]`, sources)).toEqual({ index: 0, label: `${reference.title} · стр. 4` });
+  expect(resolveSourceCitation(`[source:${materialId}, slide:7]`, sources)).toEqual({ index: 2, label: `${reference.title} · слайд 7` });
+});
+
+test("inline citations never invent missing pages or treat a database schema version as a PDF page", () => {
+  const database: Source = { ...reference, source: "database_record", locator: "schema:1:page:7", parent_id: otherId };
+  for (const marker of [
+    `[source:${otherId}, page:7]`, `[source:${materialId}, page:8]`,
+    `[source:${materialId}, page:0]`, `[source:${materialId}, page:-7]`,
+    `[source:${materialId}, page:7, extra:true]`, `[source:${materialId},\npage:7]`,
+  ]) expect(resolveSourceCitation(marker, [reference])).toBeNull();
+  expect(resolveSourceCitation(`[source:${materialId}, page:7]`, [database])).toBeNull();
 });
 
 async function mockAnswer(page: Page, sources: Source[], content: string) {
@@ -78,11 +99,11 @@ for (const width of [390, 1440]) {
 
     await summary.getByRole("button", { name: reference.title, exact: true }).click();
     await expect(page.getByRole("dialog")).toContainText("Страница PDF 7");
-    expect(writes.at(-1)?.body).toEqual({ material_id: materialId, offset: 200 });
+    await expect.poll(() => writes.at(-1)?.body).toEqual({ material_id: materialId, offset: 200 });
     await page.keyboard.press("Escape");
     await answer.locator(".ai-inline-citation").nth(1).click();
     await expect(page.getByRole("dialog")).toContainText("Текущий фрагмент");
-    expect(writes.at(-1)?.body).toEqual({ material_id: otherId, offset: 900 });
+    await expect.poll(() => writes.at(-1)?.body).toEqual({ material_id: otherId, offset: 900 });
     expect(writes).toHaveLength(2);
     await page.keyboard.press("Escape");
     await page.screenshot({ path: info.outputPath("unique-answer-sources.png"), fullPage: true, animations: "disabled" });
@@ -96,4 +117,46 @@ test("answer sources keep different documents with the same title", async ({ pag
   const second = { ...reference, id: otherId };
   await mockAnswer(page, [reference, { ...reference }, second, { ...second }], "Два разных документа.");
   await expect(page.locator(".ai-citations").getByRole("button", { name: reference.title, exact: true })).toHaveCount(2);
+});
+
+for (const width of [390, 1440]) {
+  test(`page-qualified citations render as buttons and open their original evidence ranges at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const pages = [
+      { page: 4, offset: 633, end: 1041 }, { page: 9, offset: 2305, end: 2423 },
+      { page: 7, offset: 1516, end: 1922 }, { page: 6, offset: 1172, end: 1515 },
+    ];
+    const sources: Source[] = [
+      ...pages.map(({ page, offset, end }) => ({ ...reference, locator: `page:${page};chars:${offset}:${end}` })),
+      { ...reference, id: otherId, title: "Другой документ" },
+      { ...reference, source: "page", id: chatId, title: "Заметка" },
+    ];
+    const writes = await mockAnswer(page, sources,
+      `Определение [source:${materialId}, page:7].\n\n- Система [source:${materialId}, page:4].\n- Пример [source:${materialId}, page:6].\n- Модель [source:${materialId}, page:9].`);
+    const answer = page.locator('[data-ai-message-id="answer"]');
+    const inline = answer.locator(".ai-inline-citation");
+    await expect(inline).toHaveText([7, 4, 6, 9].map(number => `${reference.title} · стр. ${number}`));
+    await expect(answer.locator(".ai-message-text")).not.toContainText("[source:");
+    await expect(answer.locator(".ai-citations").getByRole("button")).toHaveCount(3);
+    expect(writes).toEqual([]);
+    await page.screenshot({ path: info.outputPath("page-citations.png"), fullPage: true, animations: "disabled" });
+    for (const [index, number] of [7, 4, 6, 9].entries()) {
+      await inline.nth(index).click();
+      await expect(page.getByRole("dialog")).toContainText(`Страница PDF ${number}`);
+      await expect.poll(() => writes.at(-1)?.body).toEqual({ material_id: materialId, offset: pages.find(item => item.page === number)!.offset });
+      await page.keyboard.press("Escape");
+    }
+    expect(writes).toHaveLength(4);
+  });
+}
+
+test("unknown page citations and citations in code stay literal and cannot open a fabricated source", async ({ page }) => {
+  const unknown = `[source:${materialId}, page:500]`;
+  const known = `[source:${materialId}, page:7]`;
+  const writes = await mockAnswer(page, [reference], `${unknown}\n\n\`${known}\`\n\n\`\`\`text\n${known}\n\`\`\``);
+  const answer = page.locator('[data-ai-message-id="answer"]');
+  await expect(answer.locator(".ai-message-text")).toContainText(unknown);
+  await expect(answer.locator("code")).toHaveText([known, known]);
+  await expect(answer.locator(".ai-inline-citation")).toHaveCount(0);
+  expect(writes).toEqual([]);
 });
