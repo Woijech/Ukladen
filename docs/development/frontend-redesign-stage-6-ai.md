@@ -62,3 +62,75 @@ History drafts and clipboard notices are local to the mounted conversation. Exis
 memory-only dirty guards remain; no crash recovery or offline mode is claimed. Native
 clipboard availability can differ by browser. Hardware phone keyboards, screen readers,
 Safari/Firefox and real-provider compatibility have not been validated by this UI work.
+
+## Collapsible conversation history — 2026-11-23
+
+Implemented on `frontend-ui`. A desktop toolbar toggles the 224px conversation
+column with a 240ms grid transition. The hidden history is inert and removed from
+the accessibility tree; the active conversation remains mounted, preserving its
+draft, source scope and running request. The toolbar retains new-chat access when
+history is collapsed. Mobile and floating assistants keep the existing history
+dialog and focus-return behavior. Reduced-motion preferences disable the transition.
+The top-level tabs, theme tokens and API contracts are unchanged.
+
+Verification before the history commit: all 53 AI browser cases passed, including
+desktop collapse/draft preservation and mobile/reduced-motion behavior. All 77
+selected native AI HTTP/streaming/agent/tool-selection tests passed against a
+separate disposable PostgreSQL/Redis target. Frontend lint, typecheck and production
+build, backend Ruff/format/Pyright, Compose validation and whitespace checks passed.
+The first browser pass exposed duplicate visible new-chat actions; the final pass
+includes the corrected single-action behavior. Browser screenshots were inspected.
+Only synthetic providers were used; the running application was not redeployed.
+
+## Compact AI composer — 2026-11-23
+
+Implemented on `frontend-ui`. The composer uses one rounded input surface with a
+compact circular send/stop control and source/response controls below the textarea.
+The visible send label is replaced by an arrow; accessible names, disabled states
+and the explicit Ctrl/Cmd+Enter shortcut are retained. Plain Enter still inserts a
+newline and composition events cannot submit. The textarea grows with content in
+browsers supporting `field-sizing`, with bounded height and a resizable fallback.
+
+Response settings open from a labelled button in a viewport-bounded native popover.
+Escape returns focus to its trigger; outside clicks dismiss it. Both source-only
+and full-document settings, their help, running-request locks and full-document
+validation are retained. Active modes remain visible below the closed composer
+toolbar. The selected page/event context and source picker remain available in
+both the full and floating assistants. No endpoint, request payload, model choice,
+stream/recovery/cancellation behavior or action-confirmation contract was changed.
+
+Final verification before the composer commit:
+
+- All **363 frontend browser tests passed** on the final production build. The
+  focused 14-case AI layout suite also passed separately. Coverage includes
+  sending exact scoped payloads, CSRF, duplicate/recovery/cancel paths, full-source
+  validation/progress, confirmation digests, settings and account isolation.
+- New cases exercise keyboard/popover focus, active-mode persistence, IME safety,
+  icon-only sending, desktop history, narrow layouts and floating draft retention.
+  Floating Escape dismisses the popover before the assistant. Geometry assertions
+  prevent source/response controls overlapping or escaping the input surface.
+- All **206 selected backend/AI tests passed** against disposable PostgreSQL/Redis
+  with synthetic providers, covering native HTTP/SSE/actions, grounding, tool
+  discovery, mocked OpenRouter and deterministic evaluations. This is not a rerun
+  of the complete backend suite or a live-model quality evaluation.
+- Frontend lint/typecheck/build, backend Ruff/format/Pyright, quiet Compose
+  validation, 30 local documentation targets and whitespace checks passed.
+- Final light/dark desktop/mobile and floating screenshots were visually inspected.
+  Earlier browser passes exposed ambiguous new test locators and a narrow floating
+  control overlap; the final successful runs include their corrections.
+
+The existing lockfile was installed without dependency-version changes because the
+local modules were stale. No backend code, database schema, private configuration,
+real-provider usage or running application containers were changed. Disposable
+backend test containers and their synthetic data were removed after verification.
+
+### Centered composer follow-up — 2026-11-23
+
+The composer now preserves automatic horizontal margins, sharing the transcript's
+center line with history expanded or collapsed. Its previous zero-margin override
+caused a measurable left offset. Two regression cases reproduced the defect before
+the fix and verify 1440/1920px layouts in both themes without losing the draft.
+All 60 AI browser cases and 111 offline agent/tool/adapter/grounding tests passed;
+frontend lint/typecheck/build, quiet Compose validation and whitespace checks passed.
+The collapsed dark layout was visually inspected. No backend code, API contracts,
+provider calls or running application containers changed in this follow-up.

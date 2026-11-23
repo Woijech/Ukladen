@@ -214,6 +214,10 @@ detail surface while retaining the grid and restoring scroll/focus. The daily
 agenda, task projections and academic-source setup remain below the grid. Notes use an
 edge-to-edge document/index layout, tasks use a joined list/detail surface, and
 AI has a transcript/composer with collapsible history. Settings use separated rows.
+The 2026-11-23 [AI UI refinement](../development/frontend-redesign-stage-6-ai.md#compact-ai-composer--2026-11-23)
+adds animated desktop history collapse, a rounded composer, compact icon-only
+send/stop controls and a response-options popover below the input. AI payloads and
+confirmation semantics are unchanged.
 Keyboard focus is visible, a skip link reaches the working content, menus close
 with Escape and return focus, form labels are explicit and
 icon-only controls have accessible names. Native controls preserve platform input

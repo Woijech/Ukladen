@@ -446,13 +446,14 @@ test("answer options expose active modes and motion respects reduced motion", as
   await page.emulateMedia({ reducedMotion: "no-preference" });
   const state = await mockAi(page);
   await page.goto(`/workspace/ai?chat=${chatId}`);
-  const summary = page.locator(".ai-response-options > summary");
+  const summary = page.getByRole("button", { name: "Параметры ответа", exact: true });
   await expect(page.getByLabel("Только мои источники", { exact: true })).toBeHidden();
   await summary.focus();
   await page.keyboard.press("Enter");
   await page.getByLabel("Только мои источники", { exact: true }).check();
   await summary.click();
-  await expect(summary).toContainText("Только мои источники");
+  await expect(page.getByLabel("Активные параметры ответа")).toContainText("Только мои источники");
+  await expect(summary).toHaveAttribute("aria-expanded", "false");
   await summary.click();
   await expect(page.getByLabel("Только мои источники", { exact: true })).toBeChecked();
   await page.getByLabel("Сообщение AI").fill("Объясни заметку");
@@ -736,6 +737,11 @@ test("full-source processing requires sources, shows saved progress and cancels"
   expect(composer!.y + composer!.height).toBeLessThanOrEqual(layout!.y + layout!.height);
   const sent = state.writes.find(item => item.path.endsWith("/messages/stream"));
   expect(sent?.body?.full_sources).toBe(true);
+  await page.getByRole("button", { name: "Параметры ответа", exact: true }).click();
+  await expect(page.getByLabel("Только мои источники", { exact: true })).toBeDisabled();
+  await expect(page.getByLabel("Разобрать документы целиком", { exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /^Источники:/ })).toBeDisabled();
+  await page.keyboard.press("Escape");
   await page.reload();
   await expect(page.getByText("Читаю источники целиком · 25%", { exact: true })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath("full-source-progress.png"), fullPage: true });

@@ -52,7 +52,7 @@ export function FloatingAssistant({ visible, suspended = false, request, onOpenP
 
   return <div className="floating-ai" hidden={!visible || suspended}>
     {opened && <section id="floating-ai-panel" className="floating-ai-panel" role="dialog" aria-modal="false" aria-labelledby="floating-ai-title" hidden={!open} onKeyDown={event => {
-      if (event.key === "Escape" && !event.defaultPrevented && !document.querySelector("dialog[open]")) {
+      if (event.key === "Escape" && !event.defaultPrevented && !document.querySelector("dialog[open], [popover]:popover-open")) {
         event.stopPropagation();
         close();
       }
