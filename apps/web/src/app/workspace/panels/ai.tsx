@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useRef,
   useState,
 } from "react";
@@ -61,6 +62,7 @@ const chatIcons = {
   trash: "M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7",
   options: "M3 6h18M3 12h18M3 18h18M8 3v6m8 0v6m-7 0v6",
   calendar: "M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z",
+  sidebar: "M4 4h16v16H4ZM9 4v16m4-12 4 4-4 4",
 } as const;
 
 const starterQuestions = [
@@ -214,6 +216,8 @@ export function ChatArea({
   const [creating, setCreating] = useState(false);
   const [starter, setStarter] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyExpanded, setHistoryExpanded] = useState(true);
+  const historyId = useId();
   const [handled, setHandled] = useState<string | null>(null);
   if (request && handled !== request.id) {
     setHandled(request.id);
@@ -298,13 +302,24 @@ export function ChatArea({
         </p>
       )}
       {list.data && (
-        <div className="ai-layout panel">
+        <div className={`ai-layout panel${historyExpanded ? "" : " is-history-collapsed"}`}>
           <div className="ai-mobile-history-toolbar">
-            <button className="secondary-button" aria-haspopup="dialog" aria-expanded={historyOpen} onClick={() => setHistoryOpen(true)}>История чатов</button>
-            <button className="text-action" aria-label="Начать новый чат" onClick={() => { setStarter(""); setCreating(true); }}>+ Новый чат</button>
+            <button
+              type="button"
+              className="icon-button ai-history-toggle"
+              aria-label={historyExpanded ? "Свернуть список чатов" : "Развернуть список чатов"}
+              title={historyExpanded ? "Свернуть список чатов" : "Развернуть список чатов"}
+              aria-expanded={historyExpanded}
+              aria-controls={historyId}
+              onClick={() => setHistoryExpanded(value => !value)}
+            ><NavIcon path={chatIcons.sidebar} /></button>
+            <button className="secondary-button ai-mobile-history-button" aria-haspopup="dialog" aria-expanded={historyOpen} onClick={() => setHistoryOpen(true)}>История чатов</button>
+            <button className="text-action ai-toolbar-new-chat" aria-label="Начать новый чат" onClick={() => { setStarter(""); setCreating(true); }}>+ Новый чат</button>
           </div>
           {historyOpen && <Modal title="История чатов" onClose={() => setHistoryOpen(false)}><div className="ai-history-sheet">{historyPanel}</div></Modal>}
-          <aside className="ai-history" aria-label="История чатов">{!historyOpen && historyPanel}</aside>
+          <aside id={historyId} className="ai-history" aria-label="История чатов" aria-hidden={!historyExpanded || historyOpen} inert={!historyExpanded || historyOpen}>
+            <div className="ai-history-inner">{!historyOpen && historyPanel}</div>
+          </aside>
           {selected ? (
             <Chat key={selected} request={request} onRequestHandled={onRequestHandled} id={selected} initialPrompt={starter} composerId={composerId} calendarReviewEnabled={calendarReviewEnabled} onDirtyChange={onDirtyChange} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
           ) : (

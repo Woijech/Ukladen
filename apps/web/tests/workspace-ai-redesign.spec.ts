@@ -76,3 +76,40 @@ test("clipboard failure keeps the AI answer readable and offers manual copying",
   await expect(page.getByRole("log")).toContainText("Сохранённый ответ без генерации");
   expect(writes).toEqual([]);
 });
+
+test("desktop chat history collapses without remounting the conversation or submitting a draft", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const writes = await conversation(page);
+  const draft = page.getByLabel("Сообщение AI");
+  await draft.fill("Черновик без отправки");
+  const chat = page.getByRole("region", { name: "Переписка" });
+  const expandedWidth = (await chat.boundingBox())!.width;
+  const toggle = page.getByRole("button", { name: "Свернуть список чатов", exact: true });
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await toggle.click();
+  const expand = page.getByRole("button", { name: "Развернуть список чатов", exact: true });
+  await expect(expand).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("complementary", { name: "История чатов" })).toHaveCount(0);
+  await expect.poll(async () => (await chat.boundingBox())!.width).toBeGreaterThan(expandedWidth + 200);
+  await expect(draft).toHaveValue("Черновик без отправки");
+  await expect(page.getByRole("log")).toContainText("Сохранённый ответ без генерации");
+  await expand.focus();
+  await page.keyboard.press("Enter");
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("complementary", { name: "История чатов" })).toBeVisible();
+  await expect(draft).toHaveValue("Черновик без отправки");
+  expect(writes).toEqual([]);
+});
+
+test("history collapse respects reduced motion and does not hide mobile history", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await conversation(page);
+  await expect(page.locator(".ai-layout")).toHaveCSS("transition-duration", "0s");
+  await page.getByRole("button", { name: "Свернуть список чатов", exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "История чатов", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "История чатов", exact: true })).toContainText("План исследования");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "История чатов", exact: true })).toBeFocused();
+});

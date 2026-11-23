@@ -62,3 +62,22 @@ History drafts and clipboard notices are local to the mounted conversation. Exis
 memory-only dirty guards remain; no crash recovery or offline mode is claimed. Native
 clipboard availability can differ by browser. Hardware phone keyboards, screen readers,
 Safari/Firefox and real-provider compatibility have not been validated by this UI work.
+
+## Collapsible conversation history — 2026-11-23
+
+Implemented on `frontend-ui`. A desktop toolbar toggles the 224px conversation
+column with a 240ms grid transition. The hidden history is inert and removed from
+the accessibility tree; the active conversation remains mounted, preserving its
+draft, source scope and running request. The toolbar retains new-chat access when
+history is collapsed. Mobile and floating assistants keep the existing history
+dialog and focus-return behavior. Reduced-motion preferences disable the transition.
+The top-level tabs, theme tokens and API contracts are unchanged.
+
+Verification before the history commit: all 53 AI browser cases passed, including
+desktop collapse/draft preservation and mobile/reduced-motion behavior. All 77
+selected native AI HTTP/streaming/agent/tool-selection tests passed against a
+separate disposable PostgreSQL/Redis target. Frontend lint, typecheck and production
+build, backend Ruff/format/Pyright, Compose validation and whitespace checks passed.
+The first browser pass exposed duplicate visible new-chat actions; the final pass
+includes the corrected single-action behavior. Browser screenshots were inspected.
+Only synthetic providers were used; the running application was not redeployed.
