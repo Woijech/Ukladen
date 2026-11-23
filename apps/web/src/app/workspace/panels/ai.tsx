@@ -7,6 +7,7 @@ import {
   useEffect,
   useId,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -34,7 +35,6 @@ import {
   failureLabels,
   runLabels,
   streamMessage,
-  uniqueAnswerSources,
   type Connection,
   type Conversation,
   type Message,
@@ -46,6 +46,7 @@ import {
 import { AiDiagnostics, diagnosticCases } from "./ai-diagnostics";
 import { AiSettings } from "./ai-settings";
 import { AiMarkdown } from "./ai-markdown";
+import { citedAnswerSources } from "./ai-source-citations";
 import { SaveAnswer } from "./ai-save-answer";
 import { ResponseOptions } from "./ai-response-options";
 import { SourcePicker, SourceViewer } from "./ai-sources";
@@ -73,6 +74,19 @@ const starterQuestions = [
   { title: "Разобраться в теме", description: "Помоги разобраться в моих заметках", icon: chatIcons.sources },
   { title: "Следующий шаг", description: "С чего начать работу над задачей?", icon: chatIcons.chat },
 ];
+
+function AnswerSources({ message, onOpen }: { message: Message; onOpen: (source: Source) => void }) {
+  const sources = useMemo(() => citedAnswerSources(message.content, message.sources), [message.content, message.sources]);
+  if (!sources.length) return null;
+  return <div className="ai-citations" aria-label="Источники ответа">
+    <span className="ai-citations-label">Источники ответа</span>
+    {sources.map((item, index) => <button className="ai-source-chip"
+      key={`${item.source}:${item.id}:${index}`} onClick={() => onOpen(item)}>
+      <NavIcon path={chatIcons.sources} />
+      {item.source === "web" ? "Из интернета: " : ""}{item.title || "Открыть источник"}
+    </button>)}
+  </div>;
+}
 
 const toolLabels: Record<string, string> = {
   search_workspace: "Ищу в твоём пространстве",
@@ -865,21 +879,7 @@ function Chat({
                     onOpen={setSource}
                   />
                 </div>
-                {message.sources.length > 0 && (
-                  <div className="ai-citations" aria-label="Источники ответа">
-                    <span className="ai-citations-label">Источники ответа</span>
-                    {uniqueAnswerSources(message.sources).map((item, index) => (
-                      <button
-                        className="ai-source-chip"
-                        key={`${item.source}:${item.id}:${index}`}
-                        onClick={() => setSource(item)}
-                      >
-                        <NavIcon path={chatIcons.sources} />
-                        {item.source === "web" ? "Из интернета: " : ""}{item.title || "Открыть источник"}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <AnswerSources message={message} onOpen={setSource} />
                 {message.role === "assistant" && <SaveAnswer message={message} onOpenPage={onOpenPage} />}
                 {proposalHistory.byMessage.get(message.id)?.map(({ proposal, offset }) => (
                   <ActionProposals key={proposal.id} chatId={id} runId={run?.id} running={!!running}

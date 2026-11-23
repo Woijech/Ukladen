@@ -1,27 +1,12 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Source } from "./ai-api";
-import { resolveSourceCitation } from "./ai-source-citations";
+import { linkSourceCitations, type MarkdownNode } from "./ai-source-citations";
 import "./ai-markdown.css";
-
-type MarkdownNode = { type: string; value?: string; url?: string; children?: MarkdownNode[] };
 
 function sourceLinks(sources: Source[]) {
   return () => (tree: MarkdownNode) => {
-    function visit(node: MarkdownNode) {
-      if (!node.children || node.type === "link") return;
-      node.children = node.children.flatMap(child => {
-        if (child.type !== "text") { visit(child); return [child]; }
-        return (child.value ?? "").split(/(\[source:[^\]\n]+\])/g).filter(Boolean).map(value => {
-          const citation = resolveSourceCitation(value, sources);
-          return !citation ? { type: "text", value } : {
-            type: "link", url: `#ukladen-source-${citation.index}`,
-            children: [{ type: "text", value: citation.label }],
-          };
-        });
-      });
-    }
-    visit(tree);
+    linkSourceCitations(tree, sources);
   };
 }
 

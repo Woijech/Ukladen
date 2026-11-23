@@ -338,3 +338,50 @@ Only the local `web` service was then recreated with the verified image using
 for the API, workers, Beat, database, Redis, storage and proxy remained unchanged.
 Existing answers need a browser refresh, not regeneration or a new model request.
 This local frontend refresh is not a backend deployment or real-model quality gate.
+
+## Cited-only answer-source summaries (2026-11-23)
+
+The answer footer now lists only known citations present in that answer's rendered
+Markdown, rather than every reference retained in the conversation's evidence
+context. An answer without recognized citations has no source footer or label.
+Uncited retrieved documents are omitted even when they remain available to the model.
+The rule does not depend on a generated heading such as "General model knowledge".
+
+Inline rendering and footer extraction share one AST transformation and resolver.
+The footer deduplicates source identities in citation order and opens the original
+metadata for the first cited fragment/page, not an unrelated first search hit.
+Unknown IDs/pages and citations inside code, image/external-link labels or unused
+footnote definitions do not create footer entries. Citations in rendered footnotes
+remain supported. This confirms reference matching, not the factual faithfulness of
+the model's claims.
+
+The already-transitive `unified` and `remark-parse` packages are explicitly declared
+as direct dependencies to reuse the existing Markdown parser without a separate
+regex-only parser. Locked package versions and the resolved package set are unchanged.
+Source-free messages skip footer parsing, and parsed summaries are memoized per
+message content/evidence. Backend source collection, retained context, stored
+messages, action checks and provider configuration are unchanged.
+
+All 16 targeted synthetic source checks passed, including inherited evidence on a
+general-knowledge answer, mixed prose/citations, page offsets, reload, code and
+footnotes at the applicable 390/1440px viewports. Local build, ESLint, TypeScript
+and base Compose configuration validation passed. No real provider call was made.
+
+The first full frontend run recorded 388 passed and one failed cache-sensitive
+assertion: it demanded five HTTP reads even though the footer and inline citation
+can reuse the same page query. That test now checks the ordered unique requested
+offsets instead of requiring a redundant request. No runtime workaround was added.
+
+The final full frontend run passed all 389 checks. Lint, typecheck, local/Docker
+builds, both base and local-AI Compose configuration validation, and diff checks
+passed. Phone/desktop captures of uncited answers and cited-only footers were
+visually inspected. Only the local `web` container was recreated with `--no-deps`;
+the new image is healthy and its direct `/health` request passed. The other ten
+container IDs remained unchanged across that refresh. Old answers need only a
+browser refresh; no regeneration, backend migration or provider call is required.
+Backend tests were not rerun for this frontend-only change.
+
+Docker's clean `npm ci` also reported eight audit findings (seven moderate, one
+high) in the unchanged locked dependency set, including development dependencies.
+This is an installation warning, not a scoped production-security assessment;
+dependency remediation remains separate and no automatic audit fix was applied.

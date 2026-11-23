@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { uniqueAnswerSources, type Source } from "../src/app/workspace/panels/ai-api";
-import { resolveSourceCitation } from "../src/app/workspace/panels/ai-source-citations";
+import { citedAnswerSources, resolveSourceCitation } from "../src/app/workspace/panels/ai-source-citations";
 import { mockWorkspace } from "./workspace-fixtures";
 
 const chatId = "11111111-2222-4333-8444-555555555555";
@@ -51,6 +51,30 @@ test("inline citations never invent missing pages or treat a database schema ver
   expect(resolveSourceCitation(`[source:${materialId}, page:7]`, [database])).toBeNull();
 });
 
+test("answer summaries include only cited evidence in citation order and preserve the first cited page", () => {
+  const first = Object.freeze({ ...reference, locator: "page:4;chars:633:1041" });
+  const second = Object.freeze({ ...reference, id: otherId });
+  const sources = Object.freeze([first, Object.freeze(reference), second]);
+  const cited = citedAnswerSources(`Пример [source:${otherId}]. Определение [source:${materialId}, page:7]. Ещё [source:${materialId}, page:4].`, sources);
+  expect(cited).toEqual([second, reference]);
+  expect(cited[1]).toBe(reference);
+  expect(sources).toEqual([first, reference, second]);
+  expect(citedAnswerSources("Общие знания модели. Ответ без ссылок.", sources)).toEqual([]);
+});
+
+test("answer summaries ignore literal code, image labels, external link labels and unsupported markers", () => {
+  const marker = `[source:${materialId}]`;
+  const text = `\`${marker}\`\n\n\`\`\`text\n${marker}\n\`\`\`\n\n[${marker}](https://example.org)\n\n![${marker}](https://example.org/image.png)\n\n[source:${otherId}]\n\n[source:${materialId}, page:500]`;
+  expect(citedAnswerSources(text, [reference])).toEqual([]);
+});
+
+test("answer summaries follow rendered footnotes but ignore unused definitions and linked reference labels", () => {
+  const marker = `[source:${materialId}]`;
+  expect(citedAnswerSources(`Ответ.\n\n[^unused]: ${marker}`, [reference])).toEqual([]);
+  expect(citedAnswerSources(`Ответ[^used].\n\n[^used]: ${marker}`, [reference])).toEqual([reference]);
+  expect(citedAnswerSources(`[${marker}][manual]\n\n[manual]: https://example.org`, [reference])).toEqual([]);
+});
+
 async function mockAnswer(page: Page, sources: Source[], content: string) {
   await mockWorkspace(page);
   const writes: { path: string; body: Record<string, unknown> }[] = [];
@@ -78,7 +102,7 @@ async function mockAnswer(page: Page, sources: Source[], content: string) {
     throw new Error(`Unexpected read: ${path}`);
   });
   await page.goto(`/workspace/ai?chat=${chatId}`);
-  await expect(page.locator(".ai-citations")).toBeVisible();
+  await expect(page.locator('[data-ai-message-id="answer"]')).toBeVisible();
   return writes;
 }
 
@@ -115,7 +139,7 @@ for (const width of [390, 1440]) {
 
 test("answer sources keep different documents with the same title", async ({ page }) => {
   const second = { ...reference, id: otherId };
-  await mockAnswer(page, [reference, { ...reference }, second, { ...second }], "Два разных документа.");
+  await mockAnswer(page, [reference, { ...reference }, second, { ...second }], `Два разных документа: [source:${materialId}], [source:${otherId}].`);
   await expect(page.locator(".ai-citations").getByRole("button", { name: reference.title, exact: true })).toHaveCount(2);
 });
 
@@ -137,16 +161,22 @@ for (const width of [390, 1440]) {
     const inline = answer.locator(".ai-inline-citation");
     await expect(inline).toHaveText([7, 4, 6, 9].map(number => `${reference.title} · стр. ${number}`));
     await expect(answer.locator(".ai-message-text")).not.toContainText("[source:");
-    await expect(answer.locator(".ai-citations").getByRole("button")).toHaveCount(3);
+    const summary = answer.locator(".ai-citations");
+    await expect(summary.getByRole("button")).toHaveText([reference.title]);
     expect(writes).toEqual([]);
     await page.screenshot({ path: info.outputPath("page-citations.png"), fullPage: true, animations: "disabled" });
+    await summary.getByRole("button").click();
+    await expect(page.getByRole("dialog")).toContainText("Страница PDF 7");
+    await expect.poll(() => writes.at(-1)?.body).toEqual({ material_id: materialId, offset: 1516 });
+    await page.keyboard.press("Escape");
     for (const [index, number] of [7, 4, 6, 9].entries()) {
       await inline.nth(index).click();
       await expect(page.getByRole("dialog")).toContainText(`Страница PDF ${number}`);
       await expect.poll(() => writes.at(-1)?.body).toEqual({ material_id: materialId, offset: pages.find(item => item.page === number)!.offset });
       await page.keyboard.press("Escape");
     }
-    expect(writes).toHaveLength(4);
+    // The footer and first inline citation share a page; query caching may coalesce their reads.
+    expect([...new Set(writes.map(item => item.body.offset))]).toEqual([1516, 633, 1172, 2305]);
   });
 }
 
@@ -158,5 +188,29 @@ test("unknown page citations and citations in code stay literal and cannot open 
   await expect(answer.locator(".ai-message-text")).toContainText(unknown);
   await expect(answer.locator("code")).toHaveText([known, known]);
   await expect(answer.locator(".ai-inline-citation")).toHaveCount(0);
+  await expect(answer.locator(".ai-citations")).toHaveCount(0);
+  expect(writes).toEqual([]);
+});
+
+for (const width of [390, 1440]) {
+  test(`general-knowledge answers hide inherited source evidence without regeneration at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const sources = Array.from({ length: 8 }, (_, index) => ({ ...reference, locator: `page:${index + 1};chars:${index * 200}:${index * 200 + 200}` }));
+    const writes = await mockAnswer(page, sources, "**Общие знания модели**\n\nКаталония — регион Испании. В ответе нет ссылок на документы.");
+    await expect(page.getByRole("log")).toContainText("Каталония");
+    await expect(page.locator(".ai-citations")).toHaveCount(0);
+    await expect(page.getByText("Источники ответа", { exact: true })).toHaveCount(0);
+    await page.screenshot({ path: info.outputPath("no-uncited-sources.png"), fullPage: true, animations: "disabled" });
+    await page.reload();
+    await expect(page.getByRole("log")).toContainText("Каталония");
+    await expect(page.locator(".ai-citations")).toHaveCount(0);
+    expect(writes).toEqual([]);
+  });
+}
+
+test("mixed answers show only explicit citations rather than filtering by a prose heading", async ({ page }) => {
+  const second = { ...reference, id: otherId, title: "Не процитированный документ" };
+  const writes = await mockAnswer(page, [second, reference], `**Общие знания модели**\n\nОбъяснение.\n\n**Из твоих материалов**\n\nПример [source:${materialId}, page:7].`);
+  await expect(page.locator(".ai-citations").getByRole("button")).toHaveText([reference.title]);
   expect(writes).toEqual([]);
 });
