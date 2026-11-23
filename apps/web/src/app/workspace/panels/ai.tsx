@@ -45,6 +45,7 @@ import { AiDiagnostics, diagnosticCases } from "./ai-diagnostics";
 import { AiSettings } from "./ai-settings";
 import { AiMarkdown } from "./ai-markdown";
 import { SaveAnswer } from "./ai-save-answer";
+import { ResponseOptions } from "./ai-response-options";
 import { SourcePicker, SourceViewer } from "./ai-sources";
 import { AiUsage, RunDetails } from "./ai-usage";
 import { ActionProposals } from "./ai-actions";
@@ -60,7 +61,6 @@ const chatIcons = {
   send: "M12 19V5m-6 6 6-6 6 6",
   stop: "M6 6h12v12H6Z",
   trash: "M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7",
-  options: "M3 6h18M3 12h18M3 18h18M8 3v6m8 0v6m-7 0v6",
   calendar: "M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z",
   sidebar: "M4 4h16v16H4ZM9 4v16m4-12 4 4-4 4",
 } as const;
@@ -905,9 +905,10 @@ function Chat({
               void send();
             }}
           >
-            <label className="ai-composer-label" htmlFor={composerId}>
+            <label className="visually-hidden" htmlFor={composerId}>
               Сообщение AI
             </label>
+            <div className="ai-composer-surface">
             <textarea
               id={composerId}
               placeholder="Задай вопрос или опиши, с чем нужна помощь…"
@@ -921,55 +922,64 @@ function Chat({
                   void send();
                 }
               }}
-              rows={3}
+              rows={2}
             />
             <div className="ai-composer-toolbar">
-              {assistant.target && <button type="button" className="text-action ai-current-context" disabled={running || hasPending} onClick={() => {
+              <div className="ai-composer-tools">
+              {assistant.target && <button type="button" className="ai-composer-control ai-current-context" title={`Контекст: ${assistant.target.title}`} disabled={running || hasPending} onClick={() => {
                 const target = assistant.target!;
                 setScope({ ...emptyScope(), page_ids: target.kind === "page" ? [target.id] : [], calendar: target.kind === "event" });
                 if (target.kind === "event") setText(current => `${current}${current ? "\n\n" : ""}Контекст: событие «${target.title}», ID ${target.id}.`);
               }}>Контекст: {assistant.target.title}</button>}
               <button
-                className="secondary-button ai-source-button"
+                className="ai-composer-control ai-source-button"
                 type="button"
                 disabled={running || hasPending}
                 onClick={() => setPicking(true)}
               >
-                <NavIcon path={chatIcons.sources} />
+                <NavIcon path={chatIcons.add} />
                 {scope === null
                   ? "Источники: автоматически"
                    : !(scope.page_ids.length + scope.material_ids.length + scope.database_ids.length + scope.task_ids.length) && !scope.calendar
                     ? "Источники: без источников"
                     : `Источники: ${scope.page_ids.length + scope.material_ids.length + scope.database_ids.length + scope.task_ids.length}${scope.calendar ? " + календарь" : ""}`}
               </button>
+              <ResponseOptions
+                sourceOnly={sourceOnly}
+                fullSources={fullSources}
+                disabled={running || hasPending}
+                onSourceOnlyChange={setSourceOnly}
+                onFullSourcesChange={setFullSources}
+              />
+              </div>
               {running ? (
                 <button
                   type="button"
                   className="secondary-button ai-stop-button"
+                  aria-label="Остановить"
+                  title="Остановить ответ"
                   disabled={action.busy || !activeRun(run)}
                   onClick={() => void stop()}
                 >
-                  <NavIcon path={chatIcons.stop} />Остановить
+                  <NavIcon path={chatIcons.stop} />
                 </button>
               ) : (
                 <button
+                  type="submit"
                   className="primary-button ai-send-button"
+                  aria-label="Отправить"
+                  title="Отправить · Ctrl / ⌘ + Enter"
                   disabled={!text.trim() || hasPending}
                 >
-                  Отправить <NavIcon path={chatIcons.send} />
+                  <NavIcon path={chatIcons.send} />
                 </button>
               )}
             </div>
-            <details className="ai-response-options">
-              <summary><NavIcon path={chatIcons.options} /><span>Параметры ответа</span>
-                {(sourceOnly || fullSources) && <small>{[sourceOnly && "Только мои источники", fullSources && "Полный разбор"].filter(Boolean).join(" · ")}</small>}
-                <span className="ai-disclosure-chevron" aria-hidden="true">⌄</span>
-              </summary>
-              <div className="ai-composer-options">
-                <div className="ai-option-with-help"><label className="checkbox-label"><input type="checkbox" aria-label="Только мои источники" checked={sourceOnly} disabled={running || hasPending} onChange={(event) => setSourceOnly(event.target.checked)} /><span><strong>Только мои источники</strong></span></label><HelpTooltip label="О режиме только моих источников">Искать в твоём пространстве, без веб-поиска.</HelpTooltip></div>
-                <div className="ai-option-with-help"><label className="checkbox-label"><input type="checkbox" aria-label="Разобрать документы целиком" checked={fullSources} disabled={running || hasPending} onChange={(event) => setFullSources(event.target.checked)} /><span><strong>Разобрать документы целиком</strong></span></label><HelpTooltip label="О полном разборе документов">Для выбранных страниц и файлов. Сначала выбери их в источниках.</HelpTooltip></div>
-              </div>
-            </details>
+            </div>
+            {(sourceOnly || fullSources) && <p className="ai-active-options" aria-label="Активные параметры ответа">
+              {sourceOnly && <span>Только мои источники</span>}
+              {fullSources && <span>Полный разбор</span>}
+            </p>}
             {fullSources && <p className="ai-background-note muted">Обработка продолжится в фоне. Можно закрыть чат и вернуться к результату позже.</p>}
             <p className="ai-processing muted">
               <span>Запрос и выбранные фрагменты передаются модели. Проверяй важные ответы.</span>

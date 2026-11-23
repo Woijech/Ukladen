@@ -113,3 +113,98 @@ test("history collapse respects reduced motion and does not hide mobile history"
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: "История чатов", exact: true })).toBeFocused();
 });
+
+for (const width of [320, 390, 1440]) {
+  test(`compact composer retains options, keyboard focus and draft without submission at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const writes = await conversation(page);
+    const draft = page.getByLabel("Сообщение AI");
+    await draft.fill("Черновик с выбранными параметрами");
+    const send = page.getByRole("button", { name: "Отправить", exact: true });
+    await expect(send).toHaveText("");
+    const size = await send.boundingBox();
+    expect(size!.width).toBeLessThanOrEqual(44);
+    expect(size!.height).toBe(size!.width);
+    const options = page.getByRole("button", { name: "Параметры ответа", exact: true });
+    const panel = page.getByRole("region", { name: "Настройки ответа", exact: true });
+    await options.focus();
+    await page.keyboard.press("Enter");
+    await expect(options).toHaveAttribute("aria-expanded", "true");
+    await expect(panel).toBeVisible();
+    await page.getByLabel("Только мои источники", { exact: true }).check();
+    await page.getByLabel("Разобрать документы целиком", { exact: true }).check();
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+    await expect(options).toBeFocused();
+    await expect(options).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByLabel("Активные параметры ответа")).toContainText("Только мои источники");
+    await expect(page.getByLabel("Активные параметры ответа")).toContainText("Полный разбор");
+    await options.click();
+    await expect(page.getByLabel("Только мои источники", { exact: true })).toBeChecked();
+    await expect(page.getByLabel("Разобрать документы целиком", { exact: true })).toBeChecked();
+    for (const theme of ["light", "dark"]) {
+      const toggle = page.getByRole("button", { name: /Тема:/ }).first();
+      while (await page.locator("html").getAttribute("data-theme") !== theme) await toggle.click();
+      if (!await panel.isVisible()) await options.click();
+      await page.screenshot({ path: info.outputPath(`composer-options-${theme}.png`), fullPage: true, animations: "disabled" });
+      await checkWorkspaceVisuals(page);
+      const box = (await panel.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+    }
+    await page.getByRole("heading", { name: "План исследования", exact: true }).click();
+    await expect(panel).toBeHidden();
+    await expect(draft).toHaveValue("Черновик с выбранными параметрами");
+    await draft.dispatchEvent("keydown", { key: "Enter", ctrlKey: true, isComposing: true });
+    expect(writes).toEqual([]);
+  });
+}
+
+for (const width of [390, 1440]) {
+  test(`floating composer closes only its settings on Escape and retains the draft at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const writes = await conversation(page);
+    await page.goto("/workspace");
+    await page.getByRole("button", { name: "Открыть AI-помощника", exact: true }).click();
+    const assistant = page.getByRole("dialog", { name: "Помощник", exact: true });
+    await expect(assistant).toBeVisible();
+    await assistant.getByRole("button", { name: "История чатов", exact: true }).click();
+    await page.getByRole("dialog", { name: "История чатов", exact: true }).getByRole("button", { name: /^План исследования/ }).click();
+    const draft = assistant.getByLabel("Сообщение AI");
+    await draft.fill("Черновик в помощнике");
+    const options = assistant.getByRole("button", { name: "Параметры ответа", exact: true });
+    await options.click();
+    const panel = page.getByRole("region", { name: "Настройки ответа", exact: true });
+    await page.getByLabel("Только мои источники", { exact: true }).check();
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+    await expect(assistant).toBeVisible();
+    await expect(options).toBeFocused();
+    await options.click();
+    await assistant.getByRole("button", { name: "Отправить", exact: true }).focus();
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+    await expect(assistant).toBeVisible();
+    const surface = (await assistant.locator(".ai-composer-surface").boundingBox())!;
+    const controls = await Promise.all([
+      assistant.getByRole("button", { name: /^Источники:/ }).boundingBox(),
+      options.boundingBox(),
+      assistant.getByRole("button", { name: "Отправить", exact: true }).boundingBox(),
+    ]);
+    for (const box of controls) {
+      expect(box!.x).toBeGreaterThanOrEqual(surface.x);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(surface.x + surface.width);
+    }
+    const [sources, settings] = controls;
+    const overlapX = Math.min(sources!.x + sources!.width, settings!.x + settings!.width) - Math.max(sources!.x, settings!.x);
+    const overlapY = Math.min(sources!.y + sources!.height, settings!.y + settings!.height) - Math.max(sources!.y, settings!.y);
+    expect(overlapX > 1 && overlapY > 1, "Source and response controls must not overlap").toBe(false);
+    await page.screenshot({ path: info.outputPath("floating-composer.png"), fullPage: true });
+    await assistant.getByRole("button", { name: "Свернуть помощника", exact: true }).click();
+    await page.getByRole("button", { name: "Открыть AI-помощника", exact: true }).click();
+    await expect(draft).toHaveValue("Черновик в помощнике");
+    await options.click();
+    await expect(page.getByLabel("Только мои источники", { exact: true })).toBeChecked();
+    expect(writes).toEqual([]);
+  });
+}
