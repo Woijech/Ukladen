@@ -114,6 +114,32 @@ test("history collapse respects reduced motion and does not hide mobile history"
   await expect(page.getByRole("button", { name: "История чатов", exact: true })).toBeFocused();
 });
 
+for (const width of [1440, 1920]) {
+  test(`AI composer stays centered with expanded and collapsed history at ${width}px`, async ({ page }, info) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width, height: 1080 });
+    const writes = await conversation(page);
+    const draft = page.getByLabel("Сообщение AI");
+    await draft.fill("Черновик по центру");
+    for (const collapsed of [false, true]) {
+      if (collapsed) await page.getByRole("button", { name: "Свернуть список чатов", exact: true }).click();
+      for (const theme of ["light", "dark"]) {
+        const toggle = page.getByRole("button", { name: /Тема:/ }).first();
+        while (await page.locator("html").getAttribute("data-theme") !== theme) await toggle.click();
+        const chat = (await page.getByRole("region", { name: "Переписка" }).boundingBox())!;
+        const center = chat.x + chat.width / 2;
+        for (const selector of [".ai-composer", ".ai-composer-surface", ".ai-chat-heading", ".ai-messages"]) {
+          const box = (await page.locator(selector).boundingBox())!;
+          expect(Math.abs(box.x + box.width / 2 - center), `${selector} shares the conversation center`).toBeLessThan(1);
+        }
+        await expect(draft).toHaveValue("Черновик по центру");
+        await page.screenshot({ path: info.outputPath(`centered-${collapsed ? "collapsed" : "expanded"}-${theme}.png`), fullPage: true, animations: "disabled" });
+      }
+    }
+    expect(writes).toEqual([]);
+  });
+}
+
 for (const width of [320, 390, 1440]) {
   test(`compact composer retains options, keyboard focus and draft without submission at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 1000 });

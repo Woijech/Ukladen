@@ -123,3 +123,14 @@ The existing lockfile was installed without dependency-version changes because t
 local modules were stale. No backend code, database schema, private configuration,
 real-provider usage or running application containers were changed. Disposable
 backend test containers and their synthetic data were removed after verification.
+
+### Centered composer follow-up — 2026-11-23
+
+The composer now preserves automatic horizontal margins, sharing the transcript's
+center line with history expanded or collapsed. Its previous zero-margin override
+caused a measurable left offset. Two regression cases reproduced the defect before
+the fix and verify 1440/1920px layouts in both themes without losing the draft.
+All 60 AI browser cases and 111 offline agent/tool/adapter/grounding tests passed;
+frontend lint/typecheck/build, quiet Compose validation and whitespace checks passed.
+The collapsed dark layout was visually inspected. No backend code, API contracts,
+provider calls or running application containers changed in this follow-up.

@@ -20,7 +20,7 @@
 .ai-copy-message { opacity: 0; font-size: 12px; }
 .ai-message:hover .ai-copy-message, .ai-message:focus-within .ai-copy-message { opacity: 1; }
 .ai-copy-notice { margin: 0; padding: 8px 24px; font-size: 13px; }
-.ai-page .ai-composer { margin: 0; padding: 16px 24px; border: 0; border-radius: 0; box-shadow: none; background: var(--surface); }
+.ai-page .ai-composer { margin: 0 auto; padding: 16px 24px; border: 0; border-radius: 0; box-shadow: none; background: var(--surface); }
 .ai-composer-surface { padding: 12px 12px 10px; border: 1px solid var(--field-border); border-radius: 22px; background: var(--surface-alt); transition: border-color 160ms, box-shadow 160ms; }
 .ai-composer-surface:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .ai-page .ai-composer textarea { display: block; height: auto; min-height: 64px; max-height: 192px; padding: 4px 6px 10px; border-radius: 0; background: transparent; box-shadow: none; field-sizing: content; }
