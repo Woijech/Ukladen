@@ -286,3 +286,102 @@ review panel; the pending proposal remains available from its conversation.
 Final verification: production build, ESLint, TypeScript and `git diff --check`
 passed. All 81 AI, calendar and deep-link Chromium scenarios passed on the final
 build, in addition to the targeted browser CLI assertions above.
+
+## Unique answer-source summaries (2026-11-23)
+
+The chat's final "Answer sources" list now shows one button per source identity
+(`source`, `id`, `parent_id`), preserving first-occurrence order and the first
+reference's version/locator for inspection. Repeated retrieval chunks, character
+ranges and versions of the same source no longer duplicate its summary button.
+Different documents with identical titles and references in different source/parent
+scopes remain separate. Full and floating chats share this rendering.
+
+This is presentation-only deduplication: stored evidence, Markdown inline citations,
+save-answer payloads, retrieval, model prompts and backend contracts are unchanged.
+No CSS, dependency, private configuration or provider activation changed.
+
+Five synthetic regression checks passed, covering stable/non-mutating identity
+deduplication, same-title documents, unchanged inline references, original preview
+offsets/CSRF and reload at 390/1440px. Production build, ESLint, TypeScript and base
+Compose configuration validation passed. The full frontend suite passed all 378
+checks, including those five regressions, using a separate local test server and
+synthetic API responses. Phone/desktop captures were visually inspected. No backend
+suite was rerun for this presentation-only change, and no real provider request
+was made. Running application containers were not rebuilt or restarted.
+
+## Page-qualified inline citations (2026-11-23)
+
+A read-only inspection of the owner's reported answer found 20 retained evidence
+references but only three source identities. The running frontend still used an
+image created before the summary-deduplication change. Separately, the model's
+`[source:id, page:N]` markers were not recognized by the original exact-ID renderer;
+the earlier summary change had not modified Markdown rendering.
+
+The renderer now accepts the existing `[source:id]` marker and page/slide-qualified
+forms. A qualified marker is linked only when the returned material evidence has
+the same ID and exact page/slide locator. Its button includes the page/slide label
+and opens that original reference's character offset. It does not invent locations
+or mistake database schema/page versions for PDF pages. Unknown/malformed markers
+and markers inside inline/fenced code remain literal. Retained evidence and saved
+message content are unchanged; summary deduplication still affects only the footer.
+
+Ten synthetic source regressions passed, including the reported comma/page syntax
+at 390/1440px, exact preview offsets, same-document summary deduplication, unsupported
+locations and literal code. A pre-existing test timing race was removed by waiting
+for the asynchronous preview request before asserting its payload. Local and Docker
+production builds, ESLint and TypeScript passed. No provider request was made.
+
+The final frontend suite passed all 383 checks; Compose configuration and
+`git diff --check` passed. Phone/desktop citation captures were visually inspected.
+Only the local `web` service was then recreated with the verified image using
+`up --no-deps`; its health check and direct `/health` request passed. Container IDs
+for the API, workers, Beat, database, Redis, storage and proxy remained unchanged.
+Existing answers need a browser refresh, not regeneration or a new model request.
+This local frontend refresh is not a backend deployment or real-model quality gate.
+
+## Cited-only answer-source summaries (2026-11-23)
+
+The answer footer now lists only known citations present in that answer's rendered
+Markdown, rather than every reference retained in the conversation's evidence
+context. An answer without recognized citations has no source footer or label.
+Uncited retrieved documents are omitted even when they remain available to the model.
+The rule does not depend on a generated heading such as "General model knowledge".
+
+Inline rendering and footer extraction share one AST transformation and resolver.
+The footer deduplicates source identities in citation order and opens the original
+metadata for the first cited fragment/page, not an unrelated first search hit.
+Unknown IDs/pages and citations inside code, image/external-link labels or unused
+footnote definitions do not create footer entries. Citations in rendered footnotes
+remain supported. This confirms reference matching, not the factual faithfulness of
+the model's claims.
+
+The already-transitive `unified` and `remark-parse` packages are explicitly declared
+as direct dependencies to reuse the existing Markdown parser without a separate
+regex-only parser. Locked package versions and the resolved package set are unchanged.
+Source-free messages skip footer parsing, and parsed summaries are memoized per
+message content/evidence. Backend source collection, retained context, stored
+messages, action checks and provider configuration are unchanged.
+
+All 16 targeted synthetic source checks passed, including inherited evidence on a
+general-knowledge answer, mixed prose/citations, page offsets, reload, code and
+footnotes at the applicable 390/1440px viewports. Local build, ESLint, TypeScript
+and base Compose configuration validation passed. No real provider call was made.
+
+The first full frontend run recorded 388 passed and one failed cache-sensitive
+assertion: it demanded five HTTP reads even though the footer and inline citation
+can reuse the same page query. That test now checks the ordered unique requested
+offsets instead of requiring a redundant request. No runtime workaround was added.
+
+The final full frontend run passed all 389 checks. Lint, typecheck, local/Docker
+builds, both base and local-AI Compose configuration validation, and diff checks
+passed. Phone/desktop captures of uncited answers and cited-only footers were
+visually inspected. Only the local `web` container was recreated with `--no-deps`;
+the new image is healthy and its direct `/health` request passed. The other ten
+container IDs remained unchanged across that refresh. Old answers need only a
+browser refresh; no regeneration, backend migration or provider call is required.
+Backend tests were not rerun for this frontend-only change.
+
+Docker's clean `npm ci` also reported eight audit findings (seven moderate, one
+high) in the unchanged locked dependency set, including development dependencies.
+This is an installation warning, not a scoped production-security assessment;
+dependency remediation remains separate and no automatic audit fix was applied.
