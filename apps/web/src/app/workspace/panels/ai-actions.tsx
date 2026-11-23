@@ -98,11 +98,12 @@ function Preview({ values, timezone, operation }: { values: Values; timezone: st
   </div>;
 }
 
-export function ActionProposals({ chatId, runId, running, onOpenPage, onOpenEvent, calendarMode = false, autoReview = true, onlyProposalId, initialOffset = 0, onProposalChange, onDecision, onBusy }: {
+export function ActionProposals({ chatId, runId, running, onOpenPage, onOpenEvent, calendarMode = false, autoReview = true, onlyProposalId, initialOffset = 0, onProposalChange, onDecision, onBusy, items }: {
   chatId: string; runId?: string; running: boolean;
   calendarMode?: boolean; autoReview?: boolean; onlyProposalId?: string; initialOffset?: number;
   onProposalChange?: (proposal: Proposal) => void; onDecision?: (proposal: Proposal) => void;
   onBusy?: (busy: boolean) => void;
+  items?: Proposal[];
   onOpenPage: (id: string) => void; onOpenEvent: (id: string, startsAt: string, source: "personal" | "official") => Promise<void>;
 }) {
   const [offset, setOffset] = useState(initialOffset);
@@ -111,7 +112,7 @@ export function ActionProposals({ chatId, runId, running, onOpenPage, onOpenEven
   const [source, setSource] = useState<Source | null>(null);
   const [partialAccepted, setPartialAccepted] = useState<Record<string, boolean>>({});
   const query = useQuery({
-    queryKey: ["ai-proposals", chatId, runId, offset], staleTime: 0, enabled: !running,
+    queryKey: ["ai-proposals", chatId, runId, offset], staleTime: 0, enabled: !running && items === undefined,
     queryFn: async ({ signal }) => {
       try { return await requestJson<Proposal[]>(`${aiBase}/conversations/${chatId}/proposals?limit=10&offset=${offset}`, { signal }); }
       catch (error) { if (error instanceof RequestError && error.status === 503) return []; throw error; }
@@ -120,24 +121,25 @@ export function ActionProposals({ chatId, runId, running, onOpenPage, onOpenEven
   const client = useQueryClient();
   const action = useAction();
   useEffect(() => { onBusy?.(action.busy); return () => onBusy?.(false); }, [action.busy, onBusy]);
-  const proposals = onlyProposalId ? query.data?.filter(item => item.id === onlyProposalId) : query.data;
+  const available = items ?? query.data;
+  const proposals = onlyProposalId ? available?.filter(item => item.id === onlyProposalId) : available;
   useEffect(() => {
     const proposal = query.data?.find(item => item.id === onlyProposalId);
     if (proposal) onProposalChange?.(proposal);
   }, [query.data, onlyProposalId, onProposalChange]);
   useEffect(() => {
     if (calendarMode || !autoReview || running) return;
-    const proposal = query.data?.find(item => item.status === "pending" && calendarProposalItems(item).length);
+    const proposal = available?.find(item => item.run_id === runId && item.status === "pending" && calendarProposalItems(item).length);
     if (proposal) calendarReview?.open({ chatId, proposal, offset }, true);
-  }, [query.data, calendarMode, autoReview, running, calendarReview, chatId, offset]);
+  }, [available, runId, calendarMode, autoReview, running, calendarReview, chatId, offset]);
   useEffect(() => {
     const pending = proposals?.filter((item) => item.status === "pending");
     if (!pending?.length) return;
     const wait = Math.min(...pending.map((item) => Date.parse(item.expires_at))) - Date.now();
     if (wait <= 0) return;
-    const timer = window.setTimeout(() => { void query.refetch(); }, Math.min(wait + 100, 2147483647));
+    const timer = window.setTimeout(() => { void client.invalidateQueries({ queryKey: ["ai-proposals", chatId] }); }, Math.min(wait + 100, 2147483647));
     return () => window.clearTimeout(timer);
-  }, [proposals, query]);
+  }, [proposals, client, chatId]);
   async function decide(proposal: Proposal, decision: "approve" | "reject") {
     await action.run(async () => {
       let result: Proposal;
@@ -158,10 +160,10 @@ export function ActionProposals({ chatId, runId, running, onOpenPage, onOpenEven
   }
   return <section className="ai-proposals" aria-label="Предложения действий">
     <QueryState pending={false} error={query.error} retry={() => void query.refetch()} />
-    {proposals?.map((proposal) => <article className="ai-action-card" key={proposal.id}>
+    {proposals?.map((proposal) => <article className="ai-action-card" data-run-id={proposal.run_id} key={proposal.id}>
       <h3>Предложение изменений</h3>
       <p role="status">{statuses[proposal.status]}</p>
-      <p className="muted">Подтвердить до {timestamp(proposal.expires_at, proposal.timezone)}.</p>
+      {proposal.status === "pending" && <p className="muted">Подтвердить до {timestamp(proposal.expires_at, proposal.timezone)}.</p>}
       {proposal.effects.map((effect, index) => <section key={index} aria-label={`${index + 1}. ${operations[effect.operation]}`}>
         <h4>{index + 1}. {operations[effect.operation]}</h4>
         <div className="ai-action-comparison">
@@ -196,7 +198,7 @@ export function ActionProposals({ chatId, runId, running, onOpenPage, onOpenEven
         </button>;
       })}
     </article>)}
-    {!onlyProposalId && !!proposals?.length && <Pager offset={offset} count={proposals.length} size={10} onChange={setOffset} />}
+    {items === undefined && !onlyProposalId && !!proposals?.length && <Pager offset={offset} count={proposals.length} size={10} onChange={setOffset} />}
     {editing?.batch && <TaskProposalEditor proposal={{ ...editing, batch: editing.batch }} chatId={chatId} onClose={() => setEditing(null)} />}
     {source && <SourceViewer source={source} onClose={() => setSource(null)} />}
     <ActionFeedback {...action} />

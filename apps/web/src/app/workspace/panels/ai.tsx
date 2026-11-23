@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -49,6 +50,7 @@ import { ResponseOptions } from "./ai-response-options";
 import { SourcePicker, SourceViewer } from "./ai-sources";
 import { AiUsage, RunDetails } from "./ai-usage";
 import { ActionProposals } from "./ai-actions";
+import { useProposalHistory } from "./ai-proposal-history";
 import { NavIcon } from "../navigation";
 import { pushWorkspaceLocation } from "../use-section-location";
 import "./ai.css";
@@ -617,6 +619,9 @@ function Chat({
   } | null>(null);
   const action = useAction();
   const bottom = useRef<HTMLDivElement>(null);
+  const transcript = useRef<HTMLDivElement>(null);
+  const readingAnchor = useRef<{ id: string; top: number; latest: number | undefined } | null>(null);
+  const scrolledProposalRun = useRef<string | null>(null);
   const stateKey = ["ai-state", id];
   const state = useQuery({
     queryKey: stateKey,
@@ -655,6 +660,24 @@ function Chat({
       .reverse()
       .flatMap((page) => page.items) ?? [];
   const running = streaming || activeRun(run);
+  const proposalHistory = useProposalHistory(id, run?.id, !!running, messages);
+  const latestMessageSequence = messages.at(-1)?.sequence;
+  const proposalLayout = [...proposalHistory.byMessage].map(([id, entries]) => `${id}:${entries.map(entry => entry.proposal.id).join(",")}`).join(";");
+  const rememberTranscriptAnchor = useCallback(() => {
+    const container = transcript.current;
+    if (!container) return;
+    const top = container.getBoundingClientRect().top;
+    const visible = [...container.querySelectorAll<HTMLElement>("[data-ai-message-id]")].find(element => element.getBoundingClientRect().bottom > top);
+    readingAnchor.current = visible ? { id: visible.dataset.aiMessageId!, top: visible.getBoundingClientRect().top - top, latest: latestMessageSequence } : null;
+  }, [latestMessageSequence]);
+  useLayoutEffect(() => {
+    const container = transcript.current, anchor = readingAnchor.current;
+    if (container && anchor && anchor.latest === latestMessageSequence) {
+      const element = [...container.querySelectorAll<HTMLElement>("[data-ai-message-id]")].find(item => item.dataset.aiMessageId === anchor.id);
+      if (element) container.scrollTop += element.getBoundingClientRect().top - container.getBoundingClientRect().top - anchor.top;
+    }
+    rememberTranscriptAnchor();
+  }, [messages.length, proposalLayout, latestMessageSequence, rememberTranscriptAnchor]);
   useEffect(
     () => () => {
       controller.current?.abort();
@@ -667,7 +690,12 @@ function Chat({
   }, [text, onDirtyChange]);
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "nearest" });
-  }, [draft.text, messages.length]);
+  }, [draft.text, latestMessageSequence]);
+  useEffect(() => {
+    if (!run || !history.isSuccess || running || proposalHistory.resolving || scrolledProposalRun.current === run.id) return;
+    scrolledProposalRun.current = run.id;
+    bottom.current?.scrollIntoView({ block: "nearest" });
+  }, [run, history.isSuccess, running, proposalHistory.resolving]);
   useEffect(() => {
     if (run && !activeRun(run))
       void client.invalidateQueries({ queryKey: ["ai-messages", id] });
@@ -797,6 +825,8 @@ function Chat({
             </div>
           </header>
           <div
+            ref={transcript}
+            onScroll={rememberTranscriptAnchor}
             className="ai-messages"
             role="log"
             aria-label="Сообщения чата"
@@ -819,6 +849,7 @@ function Chat({
             {messages.map((message) => (
               <article
                 key={message.id}
+                data-ai-message-id={message.id}
                 className={`ai-message ${message.role === "user" ? "from-user" : "from-ai"}`}
               >
                 <div className="ai-message-heading">
@@ -849,6 +880,11 @@ function Chat({
                   </div>
                 )}
                 {message.role === "assistant" && <SaveAnswer message={message} onOpenPage={onOpenPage} />}
+                {proposalHistory.byMessage.get(message.id)?.map(({ proposal, offset }) => (
+                  <ActionProposals key={proposal.id} chatId={id} runId={run?.id} running={!!running}
+                    items={[proposal]} initialOffset={offset} autoReview={calendarReviewEnabled}
+                    onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
+                ))}
               </article>
             ))}
             {history.hasNextPage && (
@@ -866,7 +902,17 @@ function Chat({
                 <div className="ai-message-text"><AiMarkdown text={draft.text} /></div>
               </article>
             )}
-            <ActionProposals chatId={id} runId={run?.id} running={!!running} autoReview={calendarReviewEnabled} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />
+            <QueryState pending={false} error={proposalHistory.error} retry={proposalHistory.retry} />
+            {proposalHistory.unmatched.length > 0 && <details className="ai-proposal-history">
+              <summary>Предложения к другим сообщениям</summary>
+              <p className="muted">Исходные сообщения этих предложений пока не сопоставлены. Загрузи более ранние сообщения или повтори загрузку при ошибке.</p>
+              {proposalHistory.unmatched.map(({ proposal, offset }) => <ActionProposals key={proposal.id}
+                chatId={id} runId={run?.id} running={!!running} items={[proposal]} initialOffset={offset}
+                autoReview={false} onOpenPage={onOpenPage} onOpenEvent={onOpenEvent} />)}
+            </details>}
+            {proposalHistory.history.hasNextPage && <button type="button" className="secondary-button"
+              disabled={proposalHistory.history.isFetchingNextPage || !!running}
+              onClick={() => void proposalHistory.history.fetchNextPage()}>Более ранние предложения</button>}
             <div ref={bottom} />
           </div>
           {copyNotice && <p className="ai-copy-notice muted" role="status">{copyNotice}</p>}
