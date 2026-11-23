@@ -286,3 +286,25 @@ review panel; the pending proposal remains available from its conversation.
 Final verification: production build, ESLint, TypeScript and `git diff --check`
 passed. All 81 AI, calendar and deep-link Chromium scenarios passed on the final
 build, in addition to the targeted browser CLI assertions above.
+
+## Unique answer-source summaries (2026-11-23)
+
+The chat's final "Answer sources" list now shows one button per source identity
+(`source`, `id`, `parent_id`), preserving first-occurrence order and the first
+reference's version/locator for inspection. Repeated retrieval chunks, character
+ranges and versions of the same source no longer duplicate its summary button.
+Different documents with identical titles and references in different source/parent
+scopes remain separate. Full and floating chats share this rendering.
+
+This is presentation-only deduplication: stored evidence, Markdown inline citations,
+save-answer payloads, retrieval, model prompts and backend contracts are unchanged.
+No CSS, dependency, private configuration or provider activation changed.
+
+Five synthetic regression checks passed, covering stable/non-mutating identity
+deduplication, same-title documents, unchanged inline references, original preview
+offsets/CSRF and reload at 390/1440px. Production build, ESLint, TypeScript and base
+Compose configuration validation passed. The full frontend suite passed all 378
+checks, including those five regressions, using a separate local test server and
+synthetic API responses. Phone/desktop captures were visually inspected. No backend
+suite was rerun for this presentation-only change, and no real provider request
+was made. Running application containers were not rebuilt or restarted.

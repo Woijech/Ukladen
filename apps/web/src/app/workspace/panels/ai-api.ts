@@ -21,6 +21,17 @@ export type Source = {
   url?: string;
   retrieved_at?: string;
 };
+
+export function uniqueAnswerSources(sources: readonly Source[]): Source[] {
+  const seen = new Set<string>();
+  return sources.filter((source) => {
+    const key = JSON.stringify([source.source, source.id, source.parent_id]);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export type Conversation = {
   id: string;
   title: string;

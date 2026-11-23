@@ -34,6 +34,7 @@ import {
   failureLabels,
   runLabels,
   streamMessage,
+  uniqueAnswerSources,
   type Connection,
   type Conversation,
   type Message,
@@ -867,7 +868,7 @@ function Chat({
                 {message.sources.length > 0 && (
                   <div className="ai-citations" aria-label="Источники ответа">
                     <span className="ai-citations-label">Источники ответа</span>
-                    {message.sources.map((item, index) => (
+                    {uniqueAnswerSources(message.sources).map((item, index) => (
                       <button
                         className="ai-source-chip"
                         key={`${item.source}:${item.id}:${index}`}
