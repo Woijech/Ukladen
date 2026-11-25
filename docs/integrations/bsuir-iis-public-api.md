@@ -87,6 +87,27 @@ currently has no explicit byte/depth budget; establish bounds from verified publ
 payloads before introducing a potentially incompatible limit. No private-account
 contract or load/rate-limit probing is implied by these public observations.
 
+### Nullable lesson rooms (2026-11-25)
+
+Owner-provided diagnostics for `/schedule?studentGroup=421703` confirmed
+`auditories: null` on one Wednesday lesson. The adapter maps this explicit null to
+`rooms: []`, retaining the lesson without inventing a room. This normalization also
+applies to teacher schedules, examinations and next-period lessons. Existing empty
+and populated string lists are preserved. Missing room fields, other non-list
+values and non-string list members remain invalid; unrelated null fields retain
+their existing validation rules. Application DTOs and stored events keep their
+non-null room-list contracts. Regression cases use synthetic mutations of the
+sanitized fixtures, not a newly captured complete live response.
+
+Verification for this fix: 124 focused adapter/academic/schedule/expansion tests,
+one native PostgreSQL import regression and 88 offline AI evaluation tests passed.
+Ruff, formatting, Pyright and Compose configuration checks passed. The native
+regression verifies stable event IDs, an empty stored room list and preservation
+of the last valid snapshot after a later malformed room value. A full 2209-test
+backend run reached 97% without observed failures before interruption; its final
+result is unverified. These checks used disposable services and synthetic HTTP
+responses, with no real AI/IIS calls, application migrations or process restarts.
+
 ## Schedule expansion verification (2026-10-07)
 
 Read the rendered official API documentation and academic calendar again, and the

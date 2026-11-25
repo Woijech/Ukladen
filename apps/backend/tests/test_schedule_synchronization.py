@@ -1,19 +1,24 @@
 import importlib
+from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from types import ModuleType
 from unittest.mock import Mock, create_autospec
 
+import httpx
 import pytest
 from celery import Celery
-from sqlalchemy import Engine, event
+from sqlalchemy import Engine, event, select
+from sqlalchemy.orm import Session
 from test_auth_sessions import concurrent_engine as concurrent_engine
 from test_auth_sessions import settings as settings
 from test_bsuir_academics import group_fixture
+from test_bsuir_public_api import public_payload, response_for
 from test_schedule_expansion import schedule_fixture, split_schedule_fixture
 from test_schedule_storage import store as store
 
 from app.core import config
 from app.core.config import Settings
+from app.integrations.bsuir.public_api import IisPublicProvider
 from app.modules.academics.application.ports import (
     AcademicProviderUnavailable,
     SelectedGroupDirectory,
@@ -27,6 +32,7 @@ from app.modules.schedule.application.synchronization import (
     ScheduleSyncUnavailable,
 )
 from app.modules.schedule.infrastructure.jobs import CeleryScheduleJobs
+from app.modules.schedule.infrastructure.orm import ScheduleSourceModel
 from app.modules.schedule.infrastructure.storage import SqlAlchemyScheduleStore
 
 
@@ -81,6 +87,63 @@ def test_sync_network_runs_after_claim_commit_and_errors_keep_events(
     finally:
         event.remove(concurrent_engine, "begin", begin)
         event.remove(concurrent_engine, "commit", commit)
+
+
+def test_null_rooms_refresh_keeps_lessons_and_ids_but_invalid_rooms_keep_last_snapshot(
+    store: SqlAlchemyScheduleStore, concurrent_engine: Engine
+) -> None:
+    data = public_payload("group_schedule")
+    lesson = deepcopy(next(iter(data["schedules"].values()))[0])
+    lesson.update(
+        weekNumber=[1, 3],
+        startLessonDate="01.09.2026",
+        endLessonDate="30.09.2026",
+        startLessonTime="09:00",
+        endLessonTime="10:20",
+        dateLesson=None,
+        split=False,
+        announcement=False,
+    )
+    data.update(schedules={"Понедельник": [lesson]}, exams=[], nextSchedules=None)
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        return (
+            httpx.Response(200, json=data)
+            if request.url.path == "/api/v1/schedule"
+            else response_for(request)
+        )
+
+    now = datetime(2026, 9, 1, tzinfo=UTC)
+    start, end = now, datetime(2026, 10, 1, tzinfo=UTC)
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        service = ScheduleSyncService(IisPublicProvider(client), store, lambda: now)
+        assert service.sync(24066, "353501").status == "ready"
+        before = store.events(24066, start, end, None)
+        assert len(before) == 2 and all(item.rooms for item in before)
+
+        lesson["auditories"] = None
+        now += timedelta(hours=2)
+        state = service.sync(24066, "353501")
+        assert state.status == "ready" and state.error_code is None
+        assert state.last_success_at == now
+        saved = store.events(24066, start, end, None)
+        assert [item.id for item in saved] == [item.id for item in before]
+        assert all(item.rooms == () for item in saved)
+        with Session(concurrent_engine) as database:
+            source = database.scalar(select(ScheduleSourceModel))
+            assert source and source.snapshot
+            snapshot = source.snapshot
+            assert snapshot["schedules"]["Понедельник"][0]["rooms"] == []
+
+        lesson["auditories"] = "invalid room list"
+        now += timedelta(hours=2)
+        failed = service.sync(24066, "353501")
+        assert failed.status == "error" and failed.error_code == "source_unavailable"
+        assert failed.last_success_at == state.last_success_at
+        assert store.events(24066, start, end, None) == saved
+        with Session(concurrent_engine) as database:
+            source = database.scalar(select(ScheduleSourceModel))
+            assert source and source.snapshot == snapshot
 
 
 @pytest.mark.parametrize("failure", ["identity", "unsupported", "unpublished"])
