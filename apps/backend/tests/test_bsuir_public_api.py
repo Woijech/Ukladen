@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from datetime import date
 from pathlib import Path
 
@@ -190,6 +191,91 @@ def test_missing_schedule_is_distinct_from_unknown_group() -> None:
             provider.get_group_schedule("000000")
         assert provider.get_teacher_schedule_by_url_id("s-nesterenkov") is None
         assert provider.get_group_update_date(group_id=24066) is None
+
+
+@pytest.mark.parametrize("fixture", ["group_schedule", "employee_schedule"])
+@pytest.mark.parametrize("collection", ["schedules", "nextSchedules", "exams"])
+@pytest.mark.parametrize("rooms", [None, [], ["214-4 к.", "608-5 к."]])
+def test_schedule_room_lists_normalize_only_explicit_null(
+    fixture: str, collection: str, rooms: list[str] | None
+) -> None:
+    data = public_payload(fixture)
+    lesson = deepcopy(next(iter(data["schedules"].values()))[0])
+    lesson["auditories"] = rooms
+    data.update(schedules=None, nextSchedules=None, exams=None)
+    data[collection] = [lesson] if collection == "exams" else {"Среда": [lesson]}
+    original = deepcopy(data)
+    path = (
+        "/api/v1/schedule"
+        if fixture == "group_schedule"
+        else "/api/v1/employees/schedule/s-nesterenkov"
+    )
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=data) if request.url.path == path else response_for(request)
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        provider = IisPublicProvider(client)
+        schedule = (
+            provider.get_group_schedule("353501")
+            if fixture == "group_schedule"
+            else provider.get_teacher_schedule_by_url_id("s-nesterenkov")
+        )
+    assert schedule is not None
+    if collection == "exams":
+        assert schedule.exams is not None and len(schedule.exams) == 1
+        saved = schedule.exams[0]
+    else:
+        days = schedule.schedules if collection == "schedules" else schedule.next_schedules
+        assert days is not None and list(days) == ["Среда"] and len(days["Среда"]) == 1
+        saved = days["Среда"][0]
+    assert saved.rooms == ([] if rooms is None else rooms)
+    assert saved.subject == lesson["subject"]
+    assert saved.subgroup == lesson["numSubgroup"]
+    assert saved.starts_at.isoformat(timespec="minutes") == lesson["startLessonTime"]
+    assert saved.ends_at.isoformat(timespec="minutes") == lesson["endLessonTime"]
+    assert data == original
+
+
+@pytest.mark.parametrize("collection", ["schedules", "nextSchedules", "exams"])
+@pytest.mark.parametrize("rooms", ["214-4 к.", {}, 0, False, [None], [123]])
+def test_invalid_schedule_room_values_remain_unavailable(collection: str, rooms: object) -> None:
+    data = public_payload("group_schedule")
+    lesson = deepcopy(next(iter(data["schedules"].values()))[0])
+    lesson["auditories"] = rooms
+    data[collection] = [lesson] if collection == "exams" else {"Среда": [lesson]}
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        return (
+            httpx.Response(200, json=data)
+            if request.url.path == "/api/v1/schedule"
+            else response_for(request)
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        with pytest.raises(AcademicProviderUnavailable):
+            IisPublicProvider(client).get_group_schedule("353501")
+
+
+@pytest.mark.parametrize("field", ["auditories", "studentGroups"])
+def test_missing_rooms_and_null_unrelated_lists_remain_unavailable(field: str) -> None:
+    data = public_payload("group_schedule")
+    lesson = next(iter(data["schedules"].values()))[0]
+    if field == "auditories":
+        del lesson[field]
+    else:
+        lesson[field] = None
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        return (
+            httpx.Response(200, json=data)
+            if request.url.path == "/api/v1/schedule"
+            else response_for(request)
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        with pytest.raises(AcademicProviderUnavailable):
+            IisPublicProvider(client).get_group_schedule("353501")
 
 
 @pytest.mark.parametrize(

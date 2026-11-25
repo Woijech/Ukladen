@@ -57,6 +57,8 @@ TIME_KEYS = {"starts_at", "ends_at"}
 
 
 def normalize_payload(value: Any, key: str = "") -> Any:
+    if key == "rooms" and value is None:
+        return []
     if key in {"job_positions", "repeat_group"}:
         return value
     if isinstance(value, Mapping):
